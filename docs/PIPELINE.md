@@ -29,15 +29,20 @@ had to become safe first — it is now (`replaceAll` preserves unknown tables).
   connection leaves the record alone — production is still using it. Consequence
   today: **a preview offers "Local only"**, because no dev/stage catalog entry
   ships until that workspace's anon-reads-nothing posture is verified (STATUS.md
-  N25 slice 2, blocked on N26). Connect a dev workspace by access file or the
+  N25 slice 2, blocked on N29 — written here as N26 until the 2026-08-09
+  grooming pass resolved that duplicate ID). Connect a dev workspace by access file or the
   connect wizard in the meantime — those are refused only for production.
 - **The gates**:
   - *Dev gate* (`ci.yml`, on PRs into dev + pushes to dev): `tools/validate.mjs`
     (the Guard-main syntax sweep, extracted) + `tools/changelog-check.js` +
+    `tools/doc-truth.mjs` (published claims vs the sources they describe) +
     **`tools/dev-smoke.mjs`** — a fast boot smoke (marketing, app past the
     gate, docs; desktop + 390px; zero pageerrors). This is the "area test".
   - *Stage gate* (`promote-to-stage.yml`): the **FULL `tests/run.js` suite**
-    (~2,900 checks) on the stage tree, **then** the staged `/stage/` form is
+    (~3,200 checks) on the stage tree, then both database-posture checks
+    (`tests/rls.mjs` — the shipped SQL files, in throwaway schemas on the DEV
+    project; `tests/rls-verify.mjs` — the dev database read-only, as an
+    anonymous caller), **then** the staged `/stage/` form is
     assembled and boot-smoked (`SMOKE_PREFIX=/stage`), so staging bugs are
     caught too. Red → stage rolls back automatically + an issue is filed.
 - **No `/v/` archive**: prod promotion tags `release-vNNN` (from

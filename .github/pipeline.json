@@ -12,8 +12,8 @@
     "catchUpHours": 4
   },
   "gates": {
-    "devGate": "tools/validate.mjs + tools/changelog-check.js + tools/dev-smoke.mjs (ci.yml on PRs into dev and pushes to dev)",
-    "stageSuite": "the FULL tests/run.js suite on the stage tree, then dev-smoke against the STAGED /stage/ form (promote-to-stage.yml)",
+    "devGate": "tools/validate.mjs + tools/changelog-check.js + tools/doc-truth.mjs + tools/dev-smoke.mjs (ci.yml on PRs into dev and pushes to dev)",
+    "stageSuite": "the FULL tests/run.js suite on the stage tree, then tests/rls.mjs + tests/rls-verify.mjs, then dev-smoke against the STAGED /stage/ form (promote-to-stage.yml)",
     "stageSuiteTimeoutMinutes": 45
   },
   "requireGreenStageForProd": true

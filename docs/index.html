@@ -261,14 +261,25 @@
 <nav>
   <div class="nav-bar">
     <div class="nav-inner">
+      <!-- One link per top-level <h2> on the page, in the page's own order within each
+           group (doc-truth check 43 derives this list from the sections themselves —
+           a new section without a link here, or a link whose label says something its
+           heading doesn't, fails the gate). The Admin group trails the User one by
+           design even though #admin-docs sits mid-page. -->
       <span class="nav-group">User</span>
       <a href="#getting-started" class="active">Getting started</a>
+      <a href="#home">Home</a>
+      <a href="#quick-views">Quick Views</a>
+      <a href="#build">View Builder</a>
+      <a href="#sample-packs">Sample packs</a>
+      <a href="#jobs">Jobs</a>
       <a href="#builder">The builder</a>
       <a href="#ensembles">Ensembles &amp; honesty</a>
       <a href="#chart-types">Chart types</a>
       <a href="#data-sources">Data sources</a>
       <a href="#exporting">Exporting</a>
       <a href="#shortcuts">Shortcuts</a>
+      <a href="#glossary">Glossary</a>
       <a href="#simple-mode">Simple mode</a>
       <span class="nav-group">Admin</span>
       <a href="#admin-docs">Admin &amp; backend setup</a>
@@ -536,8 +547,8 @@
   </div>
 </section>
 
-<!-- ── The builder ────────────────────────────────────────────── -->
-<section id="builder">
+<!-- ── Home ───────────────────────────────────────────────────── -->
+<section id="home">
   <h2>Home — instant analytics</h2>
   <p><strong>Home</strong> greets you with your content, live:</p>
   <ul>
@@ -607,6 +618,10 @@
   so the download is complete on its own; a dashboard backed by a real data source keeps querying
   that source live, in the viewer and in the exported file alike.</p>
 
+</section>
+
+<!-- ── Quick Views ────────────────────────────────────────────── -->
+<section id="quick-views">
   <h2>Quick Views (Explore) — dataset-first Views</h2>
   <p><strong>Quick Views</strong> (left rail, Build group — the section previously named Explore)
   is the fastest path from data to chart, built for non-experts:</p>
@@ -649,13 +664,18 @@
     building a Job first. The rollup is saved onto the View, so it re-aggregates the same way
     on Home, in any dashboard, and in the exported HTML. (Geo and Ensemble charts carry their own
     aggregation, so the control is hidden for those.)</li>
-    <li>In <strong>Simple mode</strong>, Explore is the default section on first open.</li>
+    <li>In <strong>Simple mode</strong>, Quick Views is the default section on first open when
+    you have no featured content on Home; your own last-used section always wins.</li>
     <li><strong>New dataset without leaving Explore.</strong> The <strong>+ New</strong>
     button next to the dataset search opens the same dataset editor the Datasets section
     uses — save it and Explore selects it immediately, ready to chart.</li>
   </ul>
 
-  <h2 id="build">View Builder — pivot and crosstab, no code</h2>
+</section>
+
+<!-- ── View Builder ───────────────────────────────────────────── -->
+<section id="build">
+  <h2>View Builder — pivot and crosstab, no code</h2>
   <!-- IMAGE-SLOT: the View Builder with a dataset selected — folder tree on the left,
        a field pill on Columns and Rows, and a crosstab rendering in the middle. -->
   <figure class="fig-slot has-img"><img src="img/viewbuilder.png" alt="The View Builder: dataset outline on the left, fields on the Columns and Rows shelves, the live result in the middle" loading="lazy"/><figcaption>The View Builder</figcaption></figure>
@@ -702,7 +722,7 @@
   <p>The <strong>chart strip</strong> above the result switches how it draws: <strong>Table</strong>
   (the full pivot), <strong>Bars</strong>, <strong>Stacked bars</strong>, <strong>Line</strong>,
   <strong>Stacked area</strong>, <strong>Donut</strong>, <strong>Heatmap</strong>, <strong>Map</strong>,
-  <strong>Scatter</strong>, or <strong>KPI</strong>. Charts draw your <em>computed</em> numbers through
+  <strong>Scatter</strong>, <strong>Quadrant</strong>, or <strong>KPI</strong>. Charts draw your <em>computed</em> numbers through
   the real dashboard renderer — Bars and Donut chart the first dimension against the first measure
   (COUNT of rows when no measure is picked), and Heatmap lights up when you have a field on Rows plus a
   plain field on Columns, drawing exactly the crosstab as a color matrix. A chart that needs something
@@ -712,6 +732,14 @@
   shorter, or the bar on its right edge to make it narrower or wider. The size you set sticks
   across visits; <strong>double-click</strong> a bar to snap that direction back to automatic
   (fill to the bottom / full width). On a phone the canvas just fills the width — no drag bars.</p>
+  <p><strong>The chart fills the canvas.</strong> Drag the canvas taller and the chart is redrawn
+  at the new height rather than leaving an empty band underneath — it redraws when you let go of
+  the bar, not on every pixel of the drag. The canvas is a <em>preview viewport</em>, though, not
+  part of the View: it is one setting for this browser, shared by every View you open here, so
+  <strong>saving a View keeps that View's own height</strong> and never picks up the size you last
+  dragged. To change the height a View is stored and exported at, set it where every panel's
+  height lives — <strong>Height (px)</strong> in the dashboard builder's Inspector, or by dragging
+  the panel's bottom edge there.</p>
   <p>The <strong>Datasets panel</strong> resizes the same way: drag its right edge anywhere from
   200 to 480px when long dataset names get cut off — the width sticks across visits. The chevron
   in its header collapses the whole panel to a slim vertical strip (more room for the canvas);
@@ -737,7 +765,15 @@
   Columns plus two or more numeric measures on Columns, and it plots one point per dimension
   value — the first measure on the x-axis, the second on the y-axis. It's the same
   one-dimension basis Bars and Donut use, just widened to carry two measures instead of one, so
-  it's disabled until a second measure lands on the shelf.</p>
+  it's disabled until a second measure lands on the shelf. With Scatter picked, a
+  <strong>Trend line</strong> checkbox appears next to the chart types: it draws the
+  least-squares regression line through the points (the dashed line), and it saves with the View
+  like any other setting — a View authored with one opens here with the box already ticked.</p>
+  <p><strong>Quadrant</strong> takes the same two measures and splits the plot into four labelled
+  zones, colouring each point by the zone it lands in — the "where does this one sit?" read that a
+  plain scatter leaves to the eye. It splits at the midpoints here; the thresholds and the four
+  zone labels are edited on the dashboard panel (Inspector), and a View that already has its own
+  keeps them when you open and update it from the builder.</p>
   <p><strong>Map</strong> draws a US choropleth from your <em>geographic</em> field (region ids —
   FIPS county code, state FIPS or postal code, USDA district, watershed/HUC8, congressional
   district, or ZIP) against the first measure — the geo-looking field wins the map's id role from
@@ -772,13 +808,16 @@
   Dashboards builder's "Series palette" control uses — so a View can preview in a different color
   scheme without leaving Build.</p>
   <p><strong>Calculated columns</strong>: the <strong>＋ calc…</strong> chip at the end of the
-  selected dataset's column list opens an editor where you define new columns from formulas —
-  <code>=[revenue] / [acres]</code>, <code>=([a]+[b])*100</code>, or the running helpers
-  <code>=pctChange([sales])</code> and <code>=movingAvg([sales], 3)</code>. It's the same safe
-  formula language the Studio data-source editor uses. A calculated column appears in the outline
-  with an <code>=</code> marker and from there behaves like any other field — put it on a shelf
-  (numerics default to SUM), filter by it, chart it. A calculated column can't shadow a real
-  column's name, and deleting one cleanly removes it from any shelf or filter that used it.</p>
+  selected dataset's column list opens an editor with a fresh blank row ready, where you define new
+  columns from formulas — <code>=[revenue] / [acres]</code>, <code>=([a]+[b])*100</code>, or the
+  running helpers <code>=pctChange([sales])</code> and <code>=movingAvg([sales], 3)</code>. It's the
+  same safe formula language the Studio data-source editor uses. A calculated column appears in the
+  outline with an <code>=</code> marker and from there behaves like any other field — put it on a
+  shelf (numerics default to SUM), filter by it, chart it. <strong>To change one, click the
+  <code>✎</code> on the column itself</strong> — it opens the same editor with that formula
+  focused, and it stays available after the column is on a shelf. Renaming a column there keeps it
+  on the shelves and filters that use it. A calculated column can't shadow a real column's name, and
+  deleting one cleanly removes it from any shelf or filter that used it.</p>
   <p><strong>Save View</strong> (top right) saves the result as a View with whichever chart type is
   selected — filters and calculated columns included — and it appears in the <strong>Views</strong>
   section like any other. Opening it from there returns it to Build with its dataset, shelves,
@@ -791,6 +830,10 @@
   View's dataset, filters, and calculations and renders the actual numbers — not placeholder
   sample rows.</p>
 
+</section>
+
+<!-- ── Sample packs ───────────────────────────────────────────── -->
+<section id="sample-packs">
   <h2>Sample packs</h2>
   <p><strong>Sample packs</strong> (installed from Settings) are ready-made
   demo content you can install or remove. A pack can add dashboards, datasets, connections and jobs —
@@ -798,8 +841,10 @@
   back exactly what Install added. Everything a pack adds is <strong>filed in the pack's own
   folder</strong> (Conservation Insight, Data Management, Market Coverage) across every section, and its raw sample
   tables only appear in the dataset pickers while the pack is installed — an uninstalled pack leaves
-  no trace. Like the built-in catalog, sample packs live under the same <strong>Sample content</strong>
-  switch in Settings — turn that off and both disappear from the Data panel, with nothing deleted.</p>
+  no trace. <strong>The packs are the only sample-content switch there is</strong> — Settings used to
+  carry a separate "Sample content" mode toggle that hid everything at once, and it is gone: remove the
+  packs you don't want (or all of them, for a completely empty workspace) and their dashboards, datasets
+  and raw sample tables go with them. Nothing you made is touched.</p>
   <p><strong>Where a pack's data comes from is on its card.</strong> Every pack states its source in
   one line under its description. Conservation Insight and Data Management read <em>"Data: synthetic —
   generated in the app, not real observations"</em>, because that is exactly what they are. A pack built
@@ -854,6 +899,10 @@
     both for a pitch that wants to stay focused on Conservation Insight alone.</li>
   </ul>
 
+</section>
+
+<!-- ── Jobs ───────────────────────────────────────────────────── -->
+<section id="jobs">
   <h2>Jobs — prep &amp; rollup</h2>
   <p><strong>Jobs</strong> (left rail) prep one dataset before it's charted: rename or cast a
   column, derive a new one from arithmetic on two others, filter rows, roll everything up with a
@@ -945,18 +994,25 @@
     list tells you when it's time to click Run again.</li>
   </ul>
 
+</section>
+
+<!-- ── The builder ────────────────────────────────────────────── -->
+<section id="builder">
   <h2>The builder</h2>
   <p>The workspace is divided into three resizable panes. Each pane can be collapsed to a labeled rail by clicking the <code>‹</code> / <code>›</code> collapse button.</p>
 
-  <p><strong>Polecat apps switcher:</strong> the app bar (top of the screen, next to <strong>＋ New</strong>) carries a waffle
-  (3×3 grid) button that opens the Polecat suite switcher — one-click jumps to the other apps in the family
-  (Chat, JobTracker, AutoSelector, Relay, Games, Manager, and this one, highlighted as the current app). It's
-  the same switcher every polecat.live app carries, themed to whichever Studio look you're using.</p>
+  <p id="apps-switcher"><strong>Polecat apps switcher:</strong> the app bar (top of the screen, just left of
+  <strong>New ▾</strong>) carries a waffle (3×3 grid) button that opens the Polecat suite switcher — one-click
+  jumps to the other apps in the family (Chat, JobTracker, AutoSelector, Relay, Games, Manager, Model Server),
+  with this one highlighted as the app you're already in. It's the same switcher every polecat.live app carries,
+  themed to whichever Studio look you're using.</p>
 
-  <p><strong>What's new:</strong> the <strong>Changelog</strong> button in the footer opens the full release feed in a
-  right-hand panel — every version, newest first, with live search (matches highlighted) and Central-time stamps.
-  A small dot on the button means there are releases you haven't seen yet; opening the panel clears it. Close with
-  the ✕, Escape, or a click on the backdrop.</p>
+  <p id="whats-new"><strong>What's new:</strong> the <strong>What's new</strong> button in the top bar — present
+  on every section, not just in the builder — opens the full release feed in a right-hand panel: every version,
+  newest first, with live search (matches highlighted) and Central-time stamps. A small dot on the button means
+  there are releases you haven't seen yet; opening the panel clears it. Click the button again, the ✕, Escape, or
+  the backdrop to close it. On a phone the top bar gives that icon's room to the section name, so the route there
+  is <strong>⋯ More → What's new</strong> — see <a href="#phone-more">On a phone, the toolbar lives in ⋯ More</a>.</p>
 
   <h3>Three panes</h3>
   <ul>
@@ -1023,7 +1079,7 @@
       autosave — this is a real time-travel timeline.</li>
   </ul>
 
-  <h3>Dashboard theme</h3>
+  <h3 id="dash-theme">Dashboard theme</h3>
   <!-- IMAGE-SLOT (filled by tools/snap-docs.mjs): the Dashboard settings inspector
        with the Dashboard theme / Accent color / Series palette controls beside a
        real dashboard preview. -->
@@ -1044,6 +1100,9 @@
       feel.</li>
     <li><strong>Neon</strong> — synthwave: near-black Views with electric cyan/magenta accents; the
       header stays near-black in both modes for a consistent "neon on black" identity.</li>
+    <li><strong>Conservation</strong> — the CTIC olive/field-green + deep-pine look, on natural
+      paper-sage light surfaces and a deep forest-green dark mode; made for the Conservation
+      Insight sample pack and any conservation-agriculture dashboard.</li>
     <li><strong>Custom</strong> — author your own. Pick Background, View, Text, and Brand for light
       and dark (8 fields); everything else (borders, subtle fills, sidebar, grid lines) is derived
       automatically, with a live warning if a text/background pair falls below the 4.5:1 AA
@@ -1262,7 +1321,6 @@
 
   <h3>Maps</h3>
   <div class="chart-card" id="ct-choropleth"><div class="chart-group"></div><div class="chart-name">Map (US choropleth)</div><div class="chart-desc">US regions colored by a value — counties (FIPS), states, USDA crop-reporting districts, watersheds (HUC8, nationwide), congressional districts (119th Congress, nationwide), 5-digit ZIP codes (ZCTA, nationwide), or your own <b>custom regions</b> ("these counties = this territory" — the Inspector's Region scale &gt; Custom regions lets you <b>Import a CSV</b> of two columns, county FIPS and region name; no new geometry ships, the app merges the existing county shapes per region the same way it merges them into USDA districts, and your value data's region-id column should then use those same region names). Bind a <b>region id column</b> and a <b>value column</b>; when several rows land on one region they combine by the <b>median</b> by default (a single best common estimate). Optionally map a <b>provider/series column</b> and the map joins an <b>ensemble channel</b>: the provider toggles on an Ensemble chart sharing that channel re-color the map live, from the same median. Regions without data render as a hatched "No data" texture, a state-border overlay keeps orientation, and the map auto-zooms to the regions that carry data. Exported dashboards inline the geometry, so maps work offline and from a plain .html file. A <b>Renderer</b> option picks between the built-in renderer (light — the smallest export) and <b>Interactive GL</b> (smooth pan &amp; zoom at any polygon count, with zoom buttons, a pan nudge-pad (up/down/left/right), and hover highlight; adds ~1MB of MapLibre to that dashboard's export, and falls back to the built-in renderer wherever WebGL is unavailable). The View's on-canvas <b>Download data</b> button exports the region id/value pairs currently shown (post-aggregation, post-selection) instead of the raw bound query. An <b>ⓘ Sources</b> button opens a provenance popover showing what fraction of regions actually have data and, when a provider/series column is mapped, each provider's own region count (struck through when toggled off) — so the map's honesty story is always one click away.</div></div>
-  <div class="chart-card" id="ct-ensembleSeries"><div class="chart-group"></div><div class="chart-name">Ensemble (common estimate)</div><div class="chart-desc">One best estimate from many sources. Bind a <b>label column</b> (e.g. year), a <b>provider/series column</b>, and a <b>value column</b>: the chart draws each provider as a thin, muted line and the <b>median of the providers toggled on</b> as a bold consensus line — the product is the common estimate, not a vendor comparison. A translucent <b>agreement band</b> spans the providers' range (a tight band means high confidence); an optional <b>reference series</b> (e.g. AgCensus) draws as hollow squares for context and never joins the estimate. Click the provider chips under the chart to include/exclude sources — the median recomputes live, and any map on the same ensemble channel re-colors with it. The View's on-canvas <b>Download data</b> button exports exactly that selection — the providers left on plus the common estimate — as a file. An <b>ⓘ Sources</b> button opens a provenance popover: how many providers are selected, how many points have every one of them reporting, each provider's own point count (struck through when excluded), and the reference series' point count. Works identically in exports.</div></div>
   <p>54 chart types are available, grouped by purpose. Select the chart type in the View inspector after clicking a View on the canvas.</p>
   <p>Not sure where to start? Once a View has a query bound, a <strong>"Recommended for this data"</strong> strip appears above the full gallery with 1–3 suggested types (e.g. Line for a date column + a number, Donut for a low-cardinality category) — each button explains its "why" on hover and switches the chart type on click.</p>
   <p>Once you're in a chart type's own options (below the gallery), common toggles like <strong>Sort by value</strong>, <strong>Show legend</strong>, <strong>Smooth curve</strong>, <strong>Show data points</strong>, <strong>Show value/label</strong>, <strong>Show %</strong>, and <strong>Rotate labels</strong> carry a small glyph next to their label — hover it (or Tab to it) for a one-line explanation of what the toggle actually changes. <strong>Sort by value</strong>, <strong>Smooth curve</strong>, <strong>Show legend</strong>, <strong>Show data points</strong>, <strong>Show value/label</strong>, and <strong>Rotate labels</strong> go a step further with a genuine Off → On picture — two tiny side-by-side diagrams showing exactly what the toggle redraws, not just a sentence about it.</p>
@@ -1284,6 +1342,7 @@
     <div class="chart-card" id="ct-pyramidBar"><div class="chart-group"></div><div class="chart-name">Population pyramid</div><div class="chart-desc">Mirrored horizontal bars from a shared centre axis — compare two groups (e.g. Female / Male) across shared categories.</div></div>
     <div class="chart-card" id="ct-pareto"><div class="chart-group"></div><div class="chart-name">Pareto chart</div><div class="chart-desc">Descending bars + cumulative % line (80/20 rule) — instantly shows which vital few categories account for most of the total.</div></div>
     <div class="chart-card" id="ct-groupedBars"><div class="chart-group"></div><div class="chart-name">Grouped bars</div><div class="chart-desc">Multiple series side-by-side per category — ideal for Q1/Q2/Q3 by Region or Budget vs Actual vs Forecast by Department. Options: rotate labels and toggle per-bar value labels.</div></div>
+    <div class="chart-card" id="ct-quadrant"><div class="chart-group"></div><div class="chart-name">Quadrant chart</div><div class="chart-desc">2×2 matrix: position items on an x/y scatter plane divided into four labelled zones by configurable threshold lines. Perfect for BCG growth-share, effort/impact prioritisation, and risk/probability grids.</div></div>
   </div>
 
   <h3>Composition</h3>
@@ -1301,6 +1360,7 @@
   </div>
 
   <h3>Trend</h3>
+  <div class="chart-card" id="ct-ensembleSeries"><div class="chart-group"></div><div class="chart-name">Ensemble (common estimate)</div><div class="chart-desc">One best estimate from many sources. Bind a <b>label column</b> (e.g. year), a <b>provider/series column</b>, and a <b>value column</b>: the chart draws each provider as a thin, muted line and the <b>median of the providers toggled on</b> as a bold consensus line — the product is the common estimate, not a vendor comparison. A translucent <b>agreement band</b> spans the providers' range (a tight band means high confidence); an optional <b>reference series</b> (e.g. AgCensus) draws as hollow squares for context and never joins the estimate. Click the provider chips under the chart to include/exclude sources — the median recomputes live, and any map on the same ensemble channel re-colors with it. The View's on-canvas <b>Download data</b> button exports exactly that selection — the providers left on plus the common estimate — as a file. An <b>ⓘ Sources</b> button opens a provenance popover: how many providers are selected, how many points have every one of them reporting, each provider's own point count (struck through when excluded), and the reference series' point count. Works identically in exports.</div></div>
   <div class="chart-grid">
     <div class="chart-card" id="ct-line"><div class="chart-group"></div><div class="chart-name">Line / area</div><div class="chart-desc">Series over time or ordered categories; optional area fill, smooth (curved) lines, show/hide the per-point markers, an optional dashed moving-average trend overlay (configurable window), and a separate trend/forecast line — choose linear regression, Holt's exponential smoothing (tracks recent moves instead of just the overall slope), or seasonal Holt-Winters (adds a repeating seasonal pattern on top of the level/trend, e.g. a recurring quarterly spike — needs at least two full seasons of real data or it falls back to plain Holt) — that can extrapolate a configurable number of periods past the last data point.</div></div>
     <div class="chart-card" id="ct-areaStacked"><div class="chart-group"></div><div class="chart-name">Stacked area</div><div class="chart-desc">Cumulative bands stacked on one baseline; great for volume trends. Options: smooth curve, show legend.</div></div>
@@ -1341,14 +1401,13 @@
     <div class="chart-card" id="ct-ridgeline"><div class="chart-group"></div><div class="chart-name">Ridgeline / joy plot</div><div class="chart-desc">Horizontally stacked KDE density curves per category with configurable overlap — compare distribution shapes across many groups in a single compact view.</div></div>
   </div>
 
-  <h3>Comparison</h3>
-  <div class="chart-grid">
-    <div class="chart-card" id="ct-quadrant"><div class="chart-group"></div><div class="chart-name">Quadrant chart</div><div class="chart-desc">2×2 matrix: position items on an x/y scatter plane divided into four labelled zones by configurable threshold lines. Perfect for BCG growth-share, effort/impact prioritisation, and risk/probability grids.</div></div>
-  </div>
-
   <h3>Detail</h3>
   <div class="chart-grid">
     <div class="chart-card" id="ct-table"><div class="chart-group"></div><div class="chart-name">Table</div><div class="chart-desc">Sortable, filterable grid showing all columns from the bound data access. Options: row limit (cap rows shown), a grand-total row (sums numeric columns over the currently visible rows), paging (rows per page, with Prev/Next), a freeze-header scroll mode for tall tables, and a compact row-density setting.</div></div>
+  </div>
+
+  <h3>Content</h3>
+  <div class="chart-grid">
     <div class="chart-card" id="ct-richtext"><div class="chart-group"></div><div class="chart-name">Text / annotation</div><div class="chart-desc">Markdown View: headings, bold, italic, code, lists — no data binding needed.</div></div>
   </div>
 
@@ -1370,12 +1429,18 @@
   also carries its own small glyph next to its name (a cube for this dashboard's own datasets, a database for
   the shared workspace catalog, a trend line for saved Views, and a code
   bracket for your own authored queries), so the panel is scannable by "what kind of thing is this" at a glance.</p>
+  <p><strong>Select a View on the canvas and the Data panel shows you which dataset it reads from</strong> — that
+  dataset's card is ringed in the list, and the same happens when you select a KPI. If the card's group is
+  collapsed, or it's scrolled out of sight, the panel opens the group and brings the card into view; select a
+  View with no query bound to it (an annotation, say) and nothing is highlighted at all.</p>
 
   <h3>Using catalog queries</h3>
   <ul>
     <li>Drag any DA card onto the canvas to create a chart View pre-bound to that query.</li>
     <li>Or select an existing View and use the <strong>Query</strong> picker in the inspector to switch its DA.</li>
     <li>The <strong>Query preview</strong> section in the View inspector shows the SQL snippet, column headers, and 3 sample rows so you can verify the binding without leaving the builder. If that sample has any blank/missing values, a column that's the same value on every row, or duplicate rows, a small note appears right below the table calling it out — a quick data-quality check before you build a chart on top of it.</li>
+    <li>When that View reads a <strong>workspace dataset</strong>, the same section carries an <strong>Edit this query</strong> link. It opens the ordinary dataset editor on top of the dashboard — change the SQL, hit <strong>Preview</strong> to see the rows it returns now, and save. Your dashboard is still there behind it, with the same View selected, and the panel repaints against the query you just saved. A View that carries its own inline rows (a sample-pack View, or a dashboard-only query) has no dataset to open, so it shows no link. If the new query stops returning a column a shelf was using, saving says so by name rather than leaving you with an empty axis.</li>
+    <li>Because that editor is now one click from a canvas, it warns you before a save that could break something you can't see. If you change what a dataset <strong>runs</strong> — its query, the connection behind it, a parameter default, the file it reads — on a dataset that dashboards are bound to, and you haven't pressed <strong>Preview</strong> on what you're about to save, a note appears above the buttons: why it's unproven (never run here, or the last Preview failed and what it said) and what it would reach, counted and named — "3 panels in 2 dashboards read this dataset — …". The dashboard you have open counts too, even if you've never saved it. <strong>Preview, then save</strong> runs the query and, if rows come back, completes the save in the same tap; <strong>Save anyway</strong> goes ahead regardless (there are good reasons to save a query you can't run right now); <strong>Keep editing</strong> puts you back in the query box. Saves that can't break anything are never questioned — renaming, refiling, retagging or re-describing a dataset, a save you've already previewed, and any dataset no dashboard reads yet.</li>
     <li>For any chart bound to a single value column, an <strong>Insight</strong> section appears right below it with a short, plain-English narration of the View's own sample data — overall trend direction, the single biggest point-to-point move, any outlier more than 2 standard deviations from the mean, and (when the data supports it) a repeating pattern detected via autocorrelation on the trend-removed series, e.g. "It also shows a repeating pattern roughly every 4 points." A <strong>Scatter / bubble</strong> View gets a different read instead: the Pearson correlation between its bound X and Y columns (strength + direction, e.g. "a strong positive correlation"). It's computed entirely client-side (pure JS math, no API key, no network call) and updates automatically as you change the query or column mapping. When the narration flags an outlier or a biggest single move, an <strong>Add callout at "…"</strong> button appears below it — one click drops the View's Callout arrow overlay (see below) right on that point instead of eyeballing the x%/y% sliders yourself.</li>
   </ul>
 
@@ -1553,7 +1618,16 @@
   </ul>
   <p>The same panel is one click away while <strong>building a dataset</strong>, not just when editing the connection: the Dataset editor's "Browse schema" button (shown for the same set of connections, once one is picked) opens the identical table/column tree — but here every table and column is clickable. Picking a table fills the <strong>Table</strong> field on a PostgreSQL/PostgREST-shaped dataset; picking a table or column drops its name straight into the <strong>SQL</strong> query at the cursor for every other kind. No more copying names back and forth from a separate tab.</p>
   <p>Studio's own <strong>New data source</strong> builder (the query editor behind the Data panel's ＋ New ▾ → Dashboard-only query…) has the same button under its Query field for the credentialed kinds — Snowflake, Databricks, BigQuery, DuckDB (remote file) and SQLite (remote .sqlite). Fill in the credentials (or the file URL), click <strong>Browse schema</strong>, and click any table or column to insert its name into the SQL at the cursor. The built-in sample-engine SQL kind and the Generic SQL/HTTP kind have no catalog to introspect, so they don't show the button.</p>
-  <p>The same builder also runs a <strong>live sanity check</strong> over the SQL as you type: an unclosed string literal or quoted identifier, unbalanced parentheses, a statement that doesn't start with SELECT/WITH, or a declared column chip the query never mentions each surface a small warning under the query field (and clear the moment you fix them). It's a lightweight shape check across all the supported engines, not a full SQL parser — the <strong>Preview</strong> and <strong>Test connection</strong> buttons remain the way to prove a query actually runs.</p>
+  <p>The same builder also runs a <strong>live sanity check</strong> over the SQL as you type: an unclosed string literal or quoted identifier, unbalanced parentheses, a statement that doesn't start with SELECT/WITH, or a declared column chip the query never mentions each surface a small warning on the line under the query field (and clear the moment you fix them). It's a lightweight shape check across all the supported engines, not a full SQL parser — the <strong>Preview</strong> and <strong>Test connection</strong> buttons remain the way to prove a query actually runs.</p>
+
+  <h3>Writing SQL: highlighting, column help, and what actually gets checked</h3>
+  <p><strong>Every SQL box in the app</strong> is a real editor rather than a plain box — the Dataset editor's SQL field, all seven per-adapter query fields in the <strong>New data source</strong> builder (the built-in SQL engine, DuckDB, SQLite, Snowflake, Databricks, BigQuery and Generic SQL/HTTP), and the <strong>Jobs</strong> Custom-SQL step. Keywords, strings, numbers, comments and <code>{{parameter}}</code> placeholders are coloured as you type, in both themes and every palette.</p>
+  <ul>
+    <li><strong>Completion</strong> — type a couple of letters and a short list appears at the cursor: the columns your last <strong>Preview</strong> returned, the tables and columns <strong>Browse schema</strong> has loaded, this dataset's own declared parameters, then SQL keywords and the common functions. <kbd>↑</kbd>/<kbd>↓</kbd> to move, <kbd>Enter</kbd> or <kbd>Tab</kbd> to take one, <kbd>Esc</kbd> to dismiss, <kbd>Ctrl</kbd>+<kbd>Space</kbd> to summon it deliberately — or just tap an entry on a phone. It only offers what the app genuinely knows: with no Preview run and no schema browsed, you get keywords and functions and nothing invented.</li>
+    <li><strong>After a dot, it narrows to the table</strong> — type <code>orders.</code> and the list becomes <em>orders'</em> columns and nothing else: no keywords, no functions, no columns borrowed from another table. Aliases work too, because the editor reads your own query — write <code>FROM orders o</code> and <code>o.</code> offers the same list, which is what you want the moment a join is involved. Taking an entry replaces only the part after the dot, so the qualifier you typed stays as you wrote it. If the name in front of the dot isn't one the app can resolve — an alias for a subquery, a table nobody has browsed — the list simply doesn't open, rather than falling back to every column it has ever seen.</li>
+    <li><strong>Checking, and its limits</strong> — a line under the field names anything structurally wrong: an unterminated quote, an unclosed <code>/*</code> comment, a <code>(</code> that never closes or a <code>)</code> with nothing to close, a statement that doesn't start with SELECT or WITH. It is the same check the dashboard-only query builder has always shown, not a second opinion. It is <em>not</em> a SQL parser and never says a query is <em>valid</em> — the app talks to seven engines with seven dialects, so a tick that was sometimes wrong would be worse than no tick. It stays silent when it has nothing to say, and <strong>Preview</strong> remains the only proof a query runs.</li>
+  </ul>
+  <p>Each surface offers what it honestly knows, and no more. The <strong>New data source</strong> builder's boxes offer the column chips you've declared or detected, whatever <strong>Browse schema</strong> has loaded, and the query's own parameters — a brand-new source with nothing tested and nothing browsed gets keywords and functions and invents nothing, because those fields are filled in before a connection exists. The <strong>Jobs</strong> SQL step is the opposite case: it runs against the rows your pipeline has produced so far, loaded into a DuckDB table named <code>t</code>, so it offers exactly those incoming columns and that one table, and keeps up when you change a step above it — and because it knows that table's shape exactly, <code>t.</code> narrows to it. Qualified completion needs a table that can say what it holds, which in practice means one <strong>Browse schema</strong> has loaded, or the Jobs step's <code>t</code>.</p>
 
   <h3>Workspace connections: Google Sheets</h3>
   <p>The <strong>Google Sheets</strong> adapter charts a sheet shared as <em>"anyone with the link
@@ -1678,39 +1752,123 @@
   from then on. Dashboards used to be the one page that opened as tiles; all six now start the same
   way, and Home still greets you with dashboard thumbnails either way.</p>
   <p><strong>Sorting.</strong> Every catalog page — Dashboards, Views, Datasets, Connections, Jobs
-  and the Repository — has a sort control beside the layout toggle: Newest first (the default),
-  Oldest first, Name A–Z / Z–A, plus per-section extras (Dashboards by workbook or folder, Datasets
-  by adapter or connection, Views by chart type, Jobs by last run). Your choice sticks per section
-  on this device, and pinned items always stay at the top whatever the sort.</p>
+  and the Repository — has a sort control beside the layout toggle: Newest first (the default;
+  Dashboards labels that same option <strong>Last updated</strong>), Oldest first, Name A–Z / Z–A,
+  plus per-section extras (Dashboards by workbook or folder, Datasets by adapter or connection,
+  Connections by adapter, Views by chart type, Jobs by last run — the Repository has none). Your
+  choice sticks per section on this device. On Datasets, Connections and Views a pinned item stays
+  at the top whatever the sort; a dashboard's pin sends it to Home rather than to the top of this
+  list, and <a href="#catalog-rows">Jobs</a> and the Repository have no pin at all.</p>
   <p><strong>Searching.</strong> Every catalog page searches the same way. Type as many words as you
-  like: each one has to turn up <em>somewhere</em> on the item, in any order and across any field — so
-  <code>crops 2024</code> finds a dataset named "Cover crops" filed in the "2024" folder, even though
-  those two words never sit next to each other. Wrap words in <code>"double quotes"</code> when you do
-  mean the exact phrase. Case never matters. What counts as a field depends on the page — name, folder,
-  tags, description, owner, the query text and column names for Datasets; adapter and settings for
-  Connections (never a password or token); the source and output dataset for Jobs; and for Dashboards,
-  the title, description, folder and, as a fallback, the column names its charts are bound to (the
-  matching column is named right on the card). The <strong>Clear</strong> chip above the list means show
+  like: <em>every</em> one has to turn up somewhere on the item — all of them, not any of them — in any
+  order and across any field, so <code>crops 2024</code> finds a dataset named "Cover crops" filed in
+  the "2024" folder, even though those two words never sit next to each other. Wrap words in
+  <code>"double quotes"</code> when you do mean the exact phrase: they then have to sit together, though
+  "together" is measured across the whole item rather than within one field, so <code>"crops 2024"</code>
+  also matches where the name ends in "crops" and the folder beside it begins "2024". Case never matters.
+  An empty box matches everything, so emptying the search is how you get the whole list back. The
+  <strong>Clear</strong> chip above the list means show
   everything: it drops the facet pills <em>and</em> empties the search box, and it appears whenever
-  either one is narrowing the list. Every catalog page has one, Dashboards included.</p>
+  either one is narrowing the list. Five pages have a Clear chip — Dashboards, Views, Datasets,
+  Connections and Jobs; the <strong>Repository</strong> is the exception, and <em>Un-picking a
+  pill</em> below has the way back there.</p>
+  <p><strong>What counts as a word.</strong> Spaces are the only separator, and everything else you type
+  stays part of the word it is touching. That is what lets you search for a name that contains
+  punctuation — <code>q2.2024</code> finds "Revenue q2.2024" — but it also means a comma you added out of
+  habit goes looking for itself: <code>crops, 2024</code> hunts for the literal <code>crops,</code> and
+  comes back empty on the very dataset <code>crops 2024</code> finds. Quotes work the same way and only
+  in pairs, so a single unmatched <code>"</code> is just another character in the word beside it —
+  <code>cover "crops</code> searches for <code>cover</code> and for <code>"crops</code>, quote mark
+  included, and finds nothing. If a search you are sure about comes back empty, a stray comma or an
+  unclosed quote is the usual reason.</p>
+  <p><strong>What each page searches.</strong> Every page searches the item's name and its folder. On
+  top of that: <strong>Dashboards</strong> add the description and, as a fallback when nothing else
+  matches, the column names its charts are bound to (the matching column is named right on the card);
+  <strong>Views</strong> add the chart type; <strong>Datasets</strong> add the description, the owner,
+  its tags, its column names and the query text (or the table or collection it points at), plus the
+  name of the connection it reads; <strong>Connections</strong> add the adapter, its tags and the rest
+  of its settings — never a password or token; <strong>Jobs</strong> add the source dataset and the
+  output dataset; and the <strong>Repository</strong> adds the one-line summary each row shows under
+  its name.</p>
   <p><strong>…and every other search box too.</strong> The same rules run behind every search field in
-  the app, not just the catalog pages: the builder's Data panel (your datasets and your own queries), the
-  panel inspector's search, the chart-type gallery, the command palette (<kbd>⌘K</kbd>), the What's-new
-  feed, the folder picker, the Explore pane, the View Builder's datasets pane and its value filter, the
-  auto-build set list, the "add to dashboard" picker and a connection's schema browser. Words in any
-  order, quotes for an exact phrase, case-insensitive — wherever you type. The command palette layers
-  its own ranking on top (a command whose name <em>starts</em> with what you typed comes first), and the
-  What's-new feed highlights each word it matched. The one exception is this Help page's own search box,
-  which is part of the page you are reading rather than the app.</p>
-  <p><strong>Filtering with pills.</strong> Above each list sits a row of filter pills, each showing how many
-  items it covers. The <strong>Folders</strong> strip is single-select — <em>All folders</em>, one pill per
-  folder in use, and <em>Unfiled</em> for everything filed nowhere — and it only appears once something has
-  actually been filed. The other facets are multi-select and narrow within the folder: Datasets by adapter,
-  connection, type or tag; Connections by adapter or tag; Views by chart type; Dashboards by workbook.
-  Picking none of a facet's pills means all of them, so the pills only ever narrow — and pills are listed in
-  the order you read them, alphabetically by their label and numerically where numbers appear (so "Q2" comes
-  before "Q10"). A pill disappears as soon as its last item does, so a filter can never keep narrowing the
-  list from a chip you can no longer see.</p>
+  the app, not just the catalog pages: the builder's Data panel (all three of its groups —
+  <strong>Datasets</strong>, <strong>Views</strong> and <strong>My queries</strong>), the panel
+  inspector's search, the chart-type gallery, the command palette (<kbd>⌘K</kbd>), the What's-new
+  feed, the folder picker, the Quick Views pane, the View Builder's datasets pane and its value filter,
+  the auto-build set list, the <strong>Open a dashboard</strong> picker and the "add to dashboard"
+  picker that shares its list, and a connection's schema browser. Words in any order, quotes for an
+  exact phrase, case-insensitive — wherever you type. The command palette layers its own ranking on top
+  (a command whose name <em>starts</em> with what you typed comes first), and the What's-new feed
+  highlights each word it matched. Two boxes work differently, both deliberately: a table panel's own
+  <strong>Filter rows</strong> box matches one literal string across the row's cells — so
+  <code>crops 2024</code> finds a row only where those two words sit side by side — because that table
+  travels inside every exported dashboard and carries its own self-contained rules rather than the
+  app's; and this Help page's own search box is part of the page you are reading rather than the app.</p>
+  <p><strong>Filtering with pills.</strong> Above each list sits a row of filter pills, each carrying a
+  count beside its label. Picking none of a facet's pills means all of them, so the pills only ever narrow — and
+  pills are listed in the order you read them, alphabetically by their label and numerically where numbers
+  appear (so "Q2" comes before "Q10"). Two strips keep an order of their own instead:
+  <strong>Dashboards</strong>' workbook pills stay newest-first, and the <strong>Repository</strong>'s type
+  pills sit in the fixed order the app declares them in.</p>
+  <p><strong>What the number on a pill counts.</strong> Every pill has one, and it counts everything on the
+  page that the pill covers — not what you can currently see. The number is worked out before the search box
+  and before every other pill, its own strip included, so it never moves as you filter: narrow a list down to
+  two rows and a pill above them can still read 40. That is the useful number, because it tells you what
+  picking that pill would give you rather than what you already have. The counts also overlap wherever a
+  facet takes more than one value, so a strip's numbers can add up to more than the list itself — a dataset
+  tagged both <em>#finance</em> and <em>#eu</em> is counted under both tag pills. The pills that mean
+  everything — <em>All</em> on Dashboards' workbooks and on the Repository's types, <em>All folders</em> on a
+  Folders strip — carry the whole list's count, which is again what picking them gives you.</p>
+  <p><strong>When a pill goes away.</strong> On most strips a pill exists only while an item sits behind it —
+  the adapter, connection, tag, dataset-type, chart-type and folder pills are built from the items themselves,
+  so the last one to leave takes its pill with it, and a pill never reads zero. Three strips keep a pill you
+  can empty out, and each of them earns it: <em>Unfiled</em> stays at the end of a <strong>Folders</strong>
+  strip even when everything is filed; on <strong>Dashboards</strong>, a workbook you made keeps its pill
+  after the last dashboard leaves it — that pill is how you file one back in — and so does that strip's own
+  <em>Unfiled</em>; and the <strong>Repository</strong> always shows all five type pills, so an empty
+  workspace shows five zeros rather than an empty strip. Either way, a filter can never keep narrowing the list from something you can no longer
+  pick: when the last item behind a pill you had ticked goes away, the app drops that filter for you and puts
+  the list back.</p>
+  <p><strong>Which pills take more than one.</strong> Some facets are multi-select — tick two pills and the
+  list shows anything matching either: <strong>Datasets</strong> by adapter, connection, type or tag;
+  <strong>Connections</strong> by adapter or tag; <strong>Views</strong> by chart type. One pill at a time:
+  the <strong>Folders</strong> strip, on each page that has one; <strong>Dashboards</strong> by workbook,
+  the strip that also offers <em>Sample packs</em> and <em>Unfiled</em>; and the <strong>Repository</strong>
+  by type, one pill per kind of row it lists.</p>
+  <p><strong>How the strips combine.</strong> Within one strip the pills are alternatives: tick a second
+  pill on a multi-select strip and the list grows, because a row need only match one of them — and a row
+  carrying several values of that facet needs only one of its own values ticked, so a dataset tagged
+  <em>#finance</em> and <em>#eu</em> survives a pick of either tag. Between strips it is the other way
+  round: every strip you have picked from has to be satisfied at once, and the search box counts as one
+  more of them — adapter <em>Postgres</em>, tag <em>#eu</em> and the word <em>revenue</em> together show
+  only the rows that answer all three. A strip you have picked nothing in narrows nothing, which is what
+  keeps the pills a narrowing tool rather than a mode; it is also why a combination can legitimately come
+  back empty while every pill above it still carries its own full count.</p>
+  <p><strong>What a pill says.</strong> Each pill is labelled with the app's own name for the thing it
+  narrows to, so the strip reads the way the list under it does. <strong>Adapter</strong> pills (Datasets
+  and Connections) carry the adapter's name and its colour dot — the same names the
+  <a href="#connection-types">connection wizard</a> offers. <strong>Connection</strong> pills, on Datasets,
+  carry the connection's own name; on both of the Datasets strips, a dataset with no connection behind it
+  lands under <em>No connection</em>. <strong>Tag</strong> pills keep the hash you write a tag with, so
+  a tagged item filters under <em>#finance</em>. <strong>Datasets</strong> by type has one pill per kind
+  of dataset: <em>SQL query</em>, <em>Table</em>, <em>Collection</em>, <em>File</em> and <em>Sheet</em>.
+  <strong>Views</strong> by chart type prints the chart's own name from the
+  <a href="#chart-types">gallery</a> — <em>Bar chart</em>, <em>Line / area</em> — with one label the
+  gallery does not hold: a KPI tile's pill reads <em>KPI</em>. The <strong>Repository</strong>'s type
+  pills are the kinds of row it lists: <em>Dashboards</em>, <em>Datasets</em>, <em>Connections</em>,
+  <em>Views</em> and <em>Jobs</em>. <strong>Dashboards</strong> by workbook opens on <em>All</em>, then
+  <em>Sample packs</em> whenever an installed pack brought dashboards of its own, then one pill per
+  workbook you have made, and <em>Unfiled</em> for the rest.</p>
+  <p><strong>Un-picking a pill.</strong> The multi-select facets toggle — click a pill you have already
+  ticked and it un-ticks. The single-select strips do not: clicking the pill you are already on leaves
+  you on it, so each of those strips opens with a pill that means everything — <em>All</em> on
+  Dashboards' workbooks and on the Repository's types, <em>All folders</em> on a Folders strip. That
+  pill is the way back, and on the <strong>Repository</strong> it is the only one: it is the one catalog
+  page with no <strong>Clear</strong> chip, so empty its search box yourself.</p>
+  <p><strong>The Folders strip.</strong> Single-select — <em>All folders</em>, one pill per folder in use, and
+  <em>Unfiled</em> for everything filed nowhere — and it only appears once something has actually been filed.
+  Five pages have one: Dashboards, Views, Datasets, Connections and Jobs. The <strong>Repository</strong> is
+  the exception: it groups its rows into a nested folder tree instead, so there is no strip to pick from.</p>
   <p><strong>Changed your mind? Undo.</strong> Every Delete — bulk or a single row — shows its toast with an
   <strong>Undo</strong> button for a few seconds, and one click restores everything just removed, under the
   same ids, exactly as it was. That now covers every destructive button in the app, including three that
@@ -1788,6 +1946,14 @@
       filters, and calculated columns stay editable only in the View Builder), and a Quick View's
       settings are mapped onto the View Builder shelves as a starting point. The same pair of
       targets appears on Home's pinned-View cards and in Repository's quick-edit panel.</li>
+    <li><strong>Chart settings the View Builder can't edit are carried, not dropped.</strong> A
+      View may be authored with per-chart options the View Builder has no control for — a
+      a map's colour-class count, a table's page size, a quadrant's thresholds and zone labels
+      (the sample packs use several). They're applied to the preview, so what you see is what the View really is, and
+      they're written back unchanged when you update, so the builder never flattens a chart it's
+      only showing you a simplified edit of. A notice names the ones being carried. Changing the
+      chart type does drop them — a quadrant's thresholds mean nothing on a table — and the notice
+      says so.</li>
     <li><strong>Add to dashboard</strong> — the same picker the builders use.</li>
     <li><strong>Duplicate</strong> — clones chart, folder, and private setting; starts unpinned
       with a uniquified "(copy)" name.</li>
@@ -1845,7 +2011,7 @@
   <h2>Admin &amp; backend setup</h2>
   <p>These topics are for the person who <strong>administers</strong> a shared workspace — wiring up a real backend, provisioning teammates, and turning on database-enforced per-user security. Everyday building never needs any of it; a local workspace works with no setup at all.</p>
 
-  <h3>Choosing a workspace backend</h3>
+  <h3 id="backend-choose">Choosing a workspace backend</h3>
   <p>A <strong>workspace backend</strong> is where your whole workspace — dashboards, datasets, connections, jobs, saved Views and settings — lives, and whether it travels to other devices and teammates. All four options query the same way and carry the same objects; they differ in <strong>where the data lives</strong>, <strong>whether it syncs</strong>, and <strong>how strongly per-user privacy is enforced</strong>. Set or switch it under <strong>Settings → Workspace backend</strong>.</p>
   <div class="table-scroll">
   <table class="backend-table">
@@ -1882,6 +2048,21 @@
     </tbody>
   </table>
   </div>
+  <p id="backend-future">The picker shows three more cards, greyed out and badged
+  <span class="bt-tag">Future</span>: <strong>PostgreSQL</strong> — your own Postgres, exposed over
+  REST (PostgREST); <strong>Cloudflare D1</strong> — serverless SQLite at the edge, via a Worker API;
+  and <strong>MongoDB Atlas</strong> — hosted MongoDB through the Atlas Data API. Each one could host
+  the whole catalog over a REST surface, none has an adapter yet, and they are listed so you can see
+  where the roster is headed rather than wonder whether you missed a setting. They cannot be
+  selected.</p>
+  <p>The first of the three is worth a sentence, because the page can otherwise look like it
+  contradicts itself: <strong>PostgreSQL</strong> is greyed here while
+  <strong>PostgreSQL (PostgREST)</strong> sits in the connector list above as something you can use
+  today — and both are right. A PostgREST <em>connection</em> answers dataset queries. Hosting the
+  workspace itself — the app's own catalog, its schema migrations, the sync protocol — is a separate
+  capability, and only the backends in the table above have it. The same split explains the
+  <span class="bt-tag">workspace-capable</span> badge on three of the thirteen connectors.</p>
+
   <p>Short version: stay on <strong>Local</strong> for a private, single-device workspace; pick <strong>Turso</strong> for the simplest shared workspace across your own devices or a trusted team; pick <strong>Supabase</strong> when you need real accounts and database-enforced per-user privacy; pick <strong>Firebase</strong> if you already run Firestore and manage access through its security rules. The rest of this section covers the Supabase-specific admin flow in detail.</p>
 
   <h3 id="supabase-create-project">Standing up a Supabase project (the step before any SQL)</h3>
@@ -2314,27 +2495,40 @@
   <h3>Force the welcome tour at next sign-in</h3>
   <p>The same Add/Edit user form has a <strong>"Show the welcome tour at their next sign-in"</strong> checkbox. Normally the welcome tour appears only the very first time a <em>browser</em> visits the app — so if someone's device has already seen it (or you're re-testing an account), a fresh sign-in shows no tour at all. Check this box and the account's very next sign-in opens the welcome tour anyway, on any device. It's <strong>one-shot</strong>: the flag resets itself the moment the tour is shown, so later sign-ins go straight in as usual. Re-check it any time you want to force it again. (Anyone can also replay the tour themselves whenever they like from the Home page's "Take the tour" card.)</p>
 
-  <h3>Managing multiple backends (admin)</h3>
-  <p>The Admin page's <strong>Backends</strong> card pre-registers backends — Turso, Supabase, or
-  Firebase — under a name, with credentials, ahead of connecting to any of them. Registering is
-  just remembering for later: it does not sync, mirror, or connect anything by itself.</p>
+  <h3>Managing multiple workspaces (admin)</h3>
+  <p>The Admin page's <strong>Workspaces</strong> card saves the databases this app can work in —
+  Turso, Supabase, or Firebase — under a name, with credentials, ahead of connecting to any of them.
+  Saving one is just remembering it for later: it does not sync, mirror, or connect anything by
+  itself. (The card was called <em>Backends</em> until the two lists became one; "backend" now names
+  only the <em>state</em> — <em>Workspace backend — Local (this browser)</em> — never a row in this
+  list.)</p>
   <ul>
-    <li><strong>+ Add backend</strong> — pick the adapter and fill in the same fields the connect
-      wizard uses; <strong>Test</strong> checks credentials without connecting.</li>
-    <li>Each registered backend has <strong>Edit</strong>/<strong>Test</strong>/delete, plus a
+    <li><strong>+ Add workspace</strong> — pick the kind of database and fill in the same fields the
+      connect wizard uses; <strong>Test</strong> checks credentials without connecting.</li>
+    <li>Each saved workspace has <strong>Edit</strong>/<strong>Test</strong>/delete, plus a
       <strong>Connect</strong> button running the exact Settings → Workspace backend flow. Only
       the currently-connected one is active (an <strong>active</strong> badge shows which); a
-      backend with users assigned shows a count badge like "2 users".</li>
-    <li>Once one is registered, <strong>Switch backend</strong> in Settings offers this list first
+      workspace with users assigned shows a count badge like "2 users".</li>
+    <li>Once one is saved, <strong>Switch backend</strong> in Settings offers this list first
       — one-click connect, or "Enter connection details manually" for something new.</li>
   </ul>
-  <p>Once at least one backend is registered, the Add/Edit user form (same "Per-user provisioning defaults" area above) also gains an <strong>Assigned backend</strong> picker naming which registered backend that account belongs to — shown back on their row in the Users list too (<code>→ Backend name</code>).</p>
-  <p><strong>The assignment is real: it connects at sign-in.</strong> Assigning a backend stores its
+  <p><strong>It is one list.</strong> The workspaces saved here, the workspaces you save at the
+  sign-in screen, and the entries Settings → Workspace backend manages are all the same saved list —
+  so a workspace saved in Admin can be signed into from the <strong>Workspace</strong> picker, and a
+  workspace someone saved (or imported from an access file) at sign-in can be assigned to a user
+  here without re-typing its credentials. Removing an entry in either place removes it in both; the
+  database itself is never touched. A workspace you started but never finished configuring is kept
+  and still editable here — it carries a <strong>not configured</strong> badge and is simply not
+  offered at sign-in, since it cannot yet say where it points. The workspaces
+  <em>packaged with the app</em> are offered at sign-in as well, but are not managed on this card:
+  they ship with the build.</p>
+  <p>Once at least one workspace is saved, the Add/Edit user form (same "Per-user provisioning defaults" area above) also gains an <strong>Assigned workspace</strong> picker naming which saved workspace that account belongs to — shown back on their row in the Users list too (<code>→ Workspace name</code>).</p>
+  <p><strong>The assignment is real: it connects at sign-in.</strong> Assigning a workspace stores its
   connection details <em>with the account</em>, so they travel wherever the account signs in. On a
-  brand-new device (nothing user-made stored locally) the app connects to the assigned backend
+  brand-new device (nothing user-made stored locally) the app connects to the assigned workspace
   automatically — no setup, nothing to type. On a device that already carries local work, the app
   asks first, since switching adopts the workspace and replaces what's stored locally; declining is
-  remembered per backend, so sign-in never nags. And if the backend reads back <em>empty</em> — the
+  remembered per workspace, so sign-in never nags. And if it reads back <em>empty</em> — the
   signature of a locked-down (per-user security) database that needs its own sign-in — the app
   refuses to adopt it over your local data and points you at the sign-in screen's Workspace picker
   instead, which handles that case properly.</p>
@@ -2523,22 +2717,52 @@
 <!-- ── Simple mode ────────────────────────────────────────────── -->
 <section id="simple-mode">
   <h2>Simple mode vs Advanced mode</h2>
-  <p>Toggle <strong>Simple mode</strong> from the ⋯ More menu, or as a labelled switch on the <strong>Settings</strong> page (left rail) alongside Dark mode and Demo mode. The setting persists across sessions.</p>
+  <p>There are four ways in, and they are the same switch — flip it anywhere and every other
+  one follows. The <strong>⋯ More menu</strong>; the <strong>⌘K</strong> command palette
+  (type “simple”); the two <strong>quick switches</strong> at the foot of the left rail, where
+  Simple mode sits beside <strong>Dark mode</strong>; and the <strong>Settings</strong> page,
+  where it is one of the switches in the <strong>Mode</strong> group. The setting persists
+  across sessions, and while it is on the top bar carries a <strong>Simple mode</strong> badge,
+  so you always know which mode you are in.</p>
 
   <h3>Simple mode</h3>
+  <p>What it takes away:</p>
   <ul>
     <li>15 chart types shown in the gallery (the most universally understood).</li>
-    <li>Advanced inspector sections hidden (Drill-through, Cross-filter, Conditional formatting, Callout arrow, Color scale, Period highlight, Event markers, etc.).</li>
-    <li>The <strong>Data</strong> panel is read-only browse + drag — no data-source authoring controls.</li>
-    <li>Guided <strong>Getting started</strong> checklist and <strong>What's next?</strong> tips appear in the dashboard inspector to help newcomers.</li>
-    <li>KPI and View data sections show an <strong>Auto-pick</strong> button to assign columns automatically.</li>
+    <li id="adv-sections">Every advanced section of the panel inspector is hidden — all fifteen
+      advanced inspector sections, in the order the inspector builds them:
+      <strong>Drill-through</strong>, <strong>Detail drawer</strong>,
+      <strong>Cross-filter</strong>, <strong>Target line</strong>,
+      <strong>Reference band</strong>, <strong>Callout arrow</strong>,
+      <strong>Period highlight</strong>, <strong>Event markers</strong>,
+      <strong>Point annotations</strong>, <strong>Conditional formatting</strong>,
+      <strong>Color scale</strong>, <strong>Compare to</strong>,
+      <strong>Click-through</strong>, <strong>Calculated columns</strong> and
+      <strong>Output options</strong>. Nothing is lost — a dashboard that already uses one keeps
+      it, and switching back to Advanced mode shows the section again with its settings intact.</li>
+    <li>The <strong>Data</strong> panel is read-only browse + drag: its <strong>＋ New ▾</strong>
+      button, the add control on <strong>My queries</strong> and the per-query actions are all
+      hidden, as are the <strong>Edit data source</strong> jump link in a panel's Data section
+      and the per-dataset actions on the <strong>Repository</strong> page.</li>
+  </ul>
+  <p>And what it adds, all of it in the builder:</p>
+  <ul>
+    <li>A <strong>Simple mode is active</strong> note at the top of the dashboard inspector,
+      with a <strong>Switch to Advanced mode</strong> button — the one-click way back.</li>
+    <li>A guided <strong>Getting started</strong> checklist while the dashboard is still empty,
+      and a <strong>What's next?</strong> card once the first panel or KPI is on the canvas.</li>
+    <li>Guided column setup in a panel's <strong>Data</strong> section (every chart type except
+      Rich text): a nudge when no dataset is bound yet, a warning when the query has no columns,
+      and — when the slots are simply empty — an <strong>Auto-pick columns</strong> button that
+      assigns them by name.</li>
   </ul>
 
   <h3>Advanced mode (default)</h3>
   <ul>
     <li>All 54 chart types + specialist annotation and interaction tools.</li>
     <li>Full data-source authoring: author SQL (sample engine) and direct-connector data accesses; create compound joins and unions; manage workspace connections and datasets; configure output options.</li>
-    <li>Drill-through, Detail drawer, Cross-filter, Conditional formatting, Color scales, Target lines, Reference bands, and more.</li>
+    <li id="adv-mode-sections">All fifteen advanced inspector sections listed above are on the
+      panel inspector, none of them hidden.</li>
   </ul>
 
   <h3>Dashboard defaults</h3>
@@ -2593,7 +2817,7 @@
   admin-only to read, and an anonymous row can never claim a signed-in identity. Local
   development pages never send anything.</p>
 
-  <h3>Color theme</h3>
+  <h3 id="color-theme">Color theme</h3>
   <!-- IMAGE-SLOT: the Settings Appearance card with the seven Color-theme palette
        cards visible and one active (checkmark showing). -->
   <figure class="fig-slot has-img"><img src="img/colortheme.png" alt="The Settings Color theme picker — seven palette cards, each previewing its real colors" loading="lazy"/><figcaption>The Color theme picker</figcaption></figure>

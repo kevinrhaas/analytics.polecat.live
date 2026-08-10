@@ -397,6 +397,22 @@ html[data-app-theme='neon'] #mobileNavBtn{background:#000000;border-color:rgba(2
     transform:translateX(-100%);transition:transform .26s cubic-bezier(.25,.8,.25,1);
     z-index:45;box-shadow:var(--shadow-lg);padding-bottom:env(safe-area-inset-bottom)}
   #railNav.mobile-open{transform:translateX(0)}
+  /* N30 (Kevin live phone, 2026-08-08): the drawer COULD NOT SCROLL, so everything
+     below the fold — Settings, Help, and the Dark/Simple toggles — was unreachable.
+     Two causes, both here:
+       1. the base #railNav rule sets `overflow:hidden` (right for the 56px desktop
+          rail, which never overflows) and this block never overrode it, so the
+          drawer clipped its own overflow instead of scrolling it;
+       2. flex column children shrink by default, and `.rail-spacer{flex:1}` puts
+          Settings/Help/quick-toggles LAST — precisely the items that fall off a
+          short viewport once 13 rail items, 3 group headers and the brand are
+          stacked above them.
+     `overscroll-behavior:contain` stops a drawer scroll from chaining to the page
+     behind it (a real iOS annoyance: the sheet appears stuck while the page moves),
+     and `flex-shrink:0` on the children makes them scroll rather than compress. */
+  #railNav{overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;
+    -webkit-overflow-scrolling:touch}
+  #railNav>*{flex-shrink:0}
   /* always full-width labels in the drawer (override the collapsed icon-only clip) */
   #railNav .rail-lbl{position:static!important;width:auto!important;height:auto!important;clip:auto!important}
   /* KH-024 (Kevin live phone, 2026-08-07): the WORKSPACE/BUILD/MANAGE group headers
@@ -1536,6 +1552,15 @@ body.lib-dragging #preview{pointer-events:none}
 .bd-col.calc .bd-col-k{color:var(--accent);font-weight:900}
 .bd-col-calc{border-style:dashed;color:var(--muted)}
 .bd-col-calc:hover{color:var(--ink)}
+/* N35: a calc column and its ✎ read as one segmented pill. The ✎ is a sibling of
+   .bd-col, so `.used` dims the field without dimming the way back to its formula,
+   and it is visible at rest so it can be tapped at 390×780. */
+.bd-colwrap{display:inline-flex;align-items:stretch}
+.bd-colwrap>.bd-col{border-top-right-radius:0;border-bottom-right-radius:0;padding-right:7px}
+.bd-col-edit{display:inline-flex;align-items:center;justify-content:center;min-width:22px;
+  background:var(--field);border:1px solid var(--line);border-left:none;border-radius:0 999px 999px 0;
+  padding:3px 7px 3px 4px;font-size:var(--fs-11);line-height:1;color:var(--faint);cursor:pointer}
+.bd-col-edit:hover{color:var(--brand);border-color:var(--brand)}
 .bd-calc-hint{font-size:var(--fs-12);color:var(--muted);line-height:1.55;margin-bottom:10px}
 .bd-calc-list{display:flex;flex-direction:column;gap:8px;max-height:300px;overflow:auto}
 .bd-calc-row{display:flex;gap:8px;align-items:center}
@@ -1591,6 +1616,19 @@ body.lib-dragging #preview{pointer-events:none}
   font-size:var(--fs-12);font-weight:600;color:var(--ink);cursor:pointer}
 .bd-map-scale select:hover{border-color:var(--brand)}
 .bd-map-hint{color:var(--faint);font-style:italic;white-space:nowrap}
+/* N33b: the Scatter's Trend-line toggle sits in the same strip slot as the Region
+   scale, sized like the .bd-ct pills so the strip stays one row of controls. A real
+   checkbox with a label wrapper — the whole pill is the hit target, so it works with
+   a thumb at 390×780 as well as a pointer. */
+.bd-opt-tog{display:inline-flex;align-items:center;gap:7px;margin-left:6px;padding:5px 12px;
+  background:var(--pane);border:1px solid var(--line);border-radius:9px;
+  font-size:var(--fs-12);font-weight:600;color:var(--ink);cursor:pointer}
+.bd-opt-tog:hover{border-color:var(--brand)}
+.bd-opt-tog input{margin:0;cursor:pointer;accent-color:var(--brand)}
+.bd-opt-tog:has(input:checked){background:color-mix(in srgb,var(--brand) 12%,transparent);border-color:var(--brand)}
+/* the quadrant's "edited on the dashboard panel" note — wraps rather than
+   overflowing the strip on a phone (.bd-map-hint is nowrap for the map's short one) */
+.bd-ct-note{white-space:normal;align-self:center;margin-left:6px;max-width:min(100%,34ch)}
 /* DURABLE-1: persistent push-failure banner — local edits are NOT reaching the
    backend and are one stale pull away from being clobbered. Fixed to the bottom
    so it never fights the topbar; below modals (they use higher z). */
@@ -1663,12 +1701,9 @@ body.lib-dragging #preview{pointer-events:none}
   .bd-ifr{width:100%!important}
 }
 
-/* LF63 slice 3: the builder's live SQL sanity hints (Studio.sqlLint) */
-.dsb-lint{display:flex;flex-direction:column;gap:4px;margin:6px 0 2px}
-.dsb-lint-row{font-size:var(--fs-12);line-height:1.45;color:var(--ink);
-  padding:var(--sp-6) var(--sp-10);border-radius:8px;
-  background:color-mix(in srgb,var(--warn,#f5a623) 13%,transparent);
-  border:1px solid color-mix(in srgb,var(--warn,#f5a623) 32%,transparent)}
+/* LF63 slice 3's `.dsb-lint` strip is gone as of N44 slice 2: this builder's query
+   boxes are the shared SQL editor now, and it renders the same Studio.sqlLint
+   findings on its own `.sqe-status` line under the field. One place, not two. */
 .dsb-addcol{font-family:var(--mono)}
 .dsb-params{display:flex;flex-direction:column;gap:6px;margin-bottom:4px}
 .dsb-prow{display:flex;gap:6px;align-items:center}
@@ -2074,6 +2109,11 @@ body.lib-dragging #preview{pointer-events:none}
 .qpeek-tbl tr:last-child td{border-bottom:0}
 .qpeek-tbl tr:hover td{background:var(--line-2)}
 .qpeek-hint{font-size:var(--fs-11);color:var(--faint);margin-top:3px}
+/* N43 slice 1 — "Edit this query" reuses the H-track .edit-src-btn link (same glyph, same
+   colour, one link language in this inspector) and only adds a taller hit area: unlike the
+   Data section's link it sits between a code block and a table, so a phone tap at 390×780
+   must not need pixel accuracy. */
+.qpeek-edit{padding:6px 0}
 
 /* ---- N-AI: auto-insight narration ---- */
 .insight-box{display:flex;align-items:flex-start;gap:7px;font-size:var(--fs-12);line-height:1.55;color:var(--ink);
@@ -2612,6 +2652,19 @@ body.simple-mode .da-acts{display:none!important}
 .cx-when{color:var(--faint);font-size:var(--fs-12);flex:0 0 auto}
 .cx-actions{display:flex;gap:6px;flex:0 0 auto;opacity:0;transition:opacity .12s ease}
 .cx-row:hover .cx-actions,.cx-row:focus-within .cx-actions{opacity:1}
+/* N37 (Kevin live, 2026-08-09 — "so much white space for those buttons"): .cx-actions is
+   opacity-hidden, NOT display:none, so anything it wraps onto a second line reserves that
+   height in every row whether or not you can see it. The Views row carried six text buttons
+   and wrapped; the rows below it were just as tall, showing nothing. The fix is to make the
+   set fit on one line — Open plus a ⋯ menu — so keep it compact rather than re-growing it.
+   A row's menu must survive the pointer leaving the row. :focus-within above covers mouse and
+   keyboard (both focus the trigger), but a TAP does not reliably focus a button on iOS Safari —
+   and mobile is a release gate — so an open menu holds its row's actions visible on its own. */
+.cx-row:has(.menu.open) .cx-actions,.dsx-tile:has(.menu.open) .cx-actions{opacity:1}
+.cx-more{display:inline-flex;align-items:center;justify-content:center;width:32px;padding:0 !important;flex:0 0 auto}
+.cx-row-menu{min-width:200px}
+.menu button.menu-danger{color:var(--bad)}
+.menu button.menu-danger:hover{background:color-mix(in srgb, var(--bad) 12%, transparent);color:var(--bad)}
 /* Favorite/pin toggle (post-overhaul backlog item 7, "organization at scale") —
    same visual language as .recent-pin (star, --brand accent when on) but a
    normal flex-row member of .cx-row (a sibling of .cx-actions, not nested
@@ -2766,6 +2819,18 @@ body.simple-mode .da-acts{display:none!important}
 .dsx-preview th{text-align:left;color:var(--muted);font-weight:700;text-transform:uppercase;font-size:var(--fs-11);
   letter-spacing:.04em;padding:var(--sp-6) var(--sp-10);border-bottom:1px solid var(--line)}
 .dsx-preview td{padding:var(--sp-6) var(--sp-10);border-bottom:1px solid var(--line-2);color:var(--ink);font-family:var(--mono);font-size:var(--fs-12)}
+/* N43b — the save guard: a save that changed the query, on a dataset dashboards
+   are bound to, that was never proven to run. A warn strip above the footer, not
+   a modal over a modal (this editor already opens over a dashboard). The actions
+   wrap and stay full-width targets at 390×780 — a phone is a release gate. */
+.dsx-save-guard{margin-top:10px;scroll-margin-bottom:12px;outline:none;padding:var(--sp-10);border:1px solid var(--warn);border-radius:10px;
+  background:color-mix(in srgb,var(--warn) 10%,transparent);display:flex;flex-direction:column;gap:8px}
+.dsx-guard-head{display:flex;align-items:flex-start;gap:6px;color:var(--ink);font-weight:700;font-size:var(--fs-13)}
+.dsx-guard-head svg{flex:none;margin-top:2px;color:var(--warn)}
+.dsx-guard-who{color:var(--muted);font-size:var(--fs-12)}
+.dsx-guard-acts{display:flex;flex-wrap:wrap;gap:8px}
+.dsx-guard-acts .btn{min-height:38px}
+@media (max-width:520px){.dsx-guard-acts .btn{flex:1 1 100%}}
 
 /* ── Jobs section (jobs-*, Viridis V8) — a rename/cast/derive/filter/aggregate
    pipeline over one dataset; shares the cx-*/dsx-* list and wizard anatomy ── */
@@ -2801,6 +2866,11 @@ body.simple-mode .da-acts{display:none!important}
 .jobs-groupby{display:flex;flex-wrap:wrap;gap:6px;align-items:center;width:100%}
 .jobs-sql-box{width:100%;padding:var(--sp-8) var(--sp-10);font-size:var(--fs-13);font-family:var(--mono,monospace);
   border:1px solid var(--line);border-radius:8px;background:var(--surface,var(--field));color:var(--ink);resize:vertical}
+/* N44 slice 2: the step card's field row is a wrapping flex, and the SQL editor
+   wraps its textarea in a `.sqe` + drops a `.sqe-status` line after it — both are
+   full-width rows here, exactly as the bare textarea was. Host CSS owns the
+   layout; sqledit.js never restates it. */
+.jobs-step-fields>.sqe,.jobs-step-fields>.sqe-status{flex:1 1 100%}
 /* LF13(d) slice 1: the source field list — a read-only legend of the source
    dataset's columns above the step pipeline, so you can see what's available
    before building steps instead of discovering it one dropdown at a time. */
@@ -2895,8 +2965,8 @@ body.simple-mode .da-acts{display:none!important}
   color:var(--faint);border:1px dashed var(--line);border-radius:999px;padding:var(--sp-2) var(--sp-8);cursor:help}
 .lib-samples-box{display:none;padding-left:var(--sp-6);border-left:2px solid var(--line-2);margin-left:5px}
 .lib-samples.open .lib-samples-box{display:block}
-.lib-samples-off{font-size:var(--fs-12);color:var(--faint);padding:var(--sp-10) var(--sp-6);line-height:1.6}
-.lib-samples-show{background:none;border:none;color:var(--brand);cursor:pointer;font-size:var(--fs-12);font-weight:700;padding:0;text-decoration:underline}
+/* N32: .lib-samples-off / .lib-samples-show styled the "Sample content is hidden — show
+   samples" strip, which retired with the global Sample-content mask. */
 .pane-h .menu-wrap{position:relative;display:inline-flex}
 #menuNewData{left:0;right:auto;min-width:220px}
 .new-menu-filter{margin:4px 10px 6px;padding:var(--sp-6) var(--sp-10);font-size:var(--fs-12);border:1px solid var(--line);border-radius:7px;
@@ -3129,3 +3199,41 @@ body.simple-mode .da-acts{display:none!important}
 .home-ex-title{font-size:var(--fs-13);font-weight:700;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .home-ex-types{display:flex;gap:4px;flex-wrap:wrap}
 .home-ex-types .ex-chip{font-size:var(--fs-10);padding:var(--sp-2) var(--sp-6);border-radius:999px;background:var(--field);color:var(--muted);border:1px solid var(--line)}
+
+/* ── N44 slice 1: the shared SQL editor (app/sqledit.js) ─────────────────────
+   The component ENHANCES a host <textarea> in place, so nothing here restates
+   the host's font, padding or border — sqledit.js copies those from computed
+   style onto the overlay. These rules are only the parts a stylesheet must own:
+   the stacking, the token colours (semantic tokens only, so every palette and
+   both themes are covered), and the popup.
+   The text you see is the OVERLAY; the textarea underneath keeps its own
+   background, border, caret and selection and simply stops painting glyphs. */
+.sqe{position:relative;display:block}
+.sqe>.sqe-ta{display:block;width:100%;position:relative;z-index:1;
+  color:transparent;-webkit-text-fill-color:transparent;caret-color:var(--ink)}
+.sqe>.sqe-ta::placeholder{color:var(--faint);-webkit-text-fill-color:var(--faint);opacity:1}
+.sqe-hl{position:absolute;inset:0;z-index:2;pointer-events:none;overflow:hidden;margin:0;
+  background:transparent;color:var(--ink);overflow-wrap:break-word;word-break:break-word}
+.sqe-mirror{visibility:hidden;z-index:0}
+.sqe-k{color:var(--brand);font-weight:700}
+.sqe-s{color:var(--good)}
+.sqe-c{color:var(--faint);font-style:italic}
+.sqe-n{color:var(--dk)}
+.sqe-f{color:var(--dk)}
+.sqe-id{color:var(--dk)}
+.sqe-p{color:var(--warn);font-weight:700}
+.sqe-o{color:var(--muted)}
+/* The findings line. Silent unless something was actually found — this checks
+   structure (quotes, comments, parentheses, the opening keyword) and never
+   claims the query is valid, so it must never render an all-clear tick. */
+.sqe-status{margin-top:5px;font-size:var(--fs-12);color:var(--muted);line-height:1.45}
+.sqe-status.warn{color:var(--warn)}
+.sqe-ac{position:absolute;z-index:3;min-width:170px;max-width:100%;max-height:214px;overflow:auto;
+  background:var(--pane);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow-lg);
+  padding:var(--sp-4);display:flex;flex-direction:column;gap:1px}
+.sqe-ac-opt{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;
+  min-height:36px;text-align:left;background:none;border:0;border-radius:7px;cursor:pointer;
+  padding:var(--sp-6) var(--sp-10);color:var(--ink);font-size:var(--fs-13);font-family:var(--mono)}
+.sqe-ac-opt:hover,.sqe-ac-opt.on{background:var(--field);color:var(--brand)}
+.sqe-ac-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sqe-ac-kind{flex:0 0 auto;font-family:var(--font);font-size:var(--fs-11);color:var(--faint)}

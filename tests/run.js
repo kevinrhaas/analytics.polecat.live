@@ -4485,20 +4485,39 @@ function serve() {
     });
     ok("SAMPLES: picking the county cover-crop sample opens Explore as a CHOROPLETH rendering 3k+ counties — geo data leads with a map, not bars",
       smpGeoDefault.type === "choropleth" && smpGeoDefault.paths > 3000, JSON.stringify(smpGeoDefault));
-    // hide-samples now repaints Explore immediately (the reported gap)
-    const smpToggle = await page.evaluate(function () {
-      window.__studioShowSamples.set(false);
-      var withOff = [].filter.call(document.querySelectorAll(".xp-ds"), function (b) {
-        return b.getAttribute("data-xp-ds").indexOf("sample") === 0;
-      }).length;
-      window.__studioShowSamples.set(true);
-      var withOn = [].filter.call(document.querySelectorAll(".xp-ds"), function (b) {
-        return b.getAttribute("data-xp-ds").indexOf("sample") === 0;
-      }).length;
-      return { withOff: withOff, withOn: withOn };
+    // Sample visibility repaints Explore IMMEDIATELY — the originally reported gap. N32
+    // retired the global "hide sample content" mask that used to drive this, so the thing
+    // being flipped is now the pack that OWNS the demo-DB catalog tables (SP-0: asked for
+    // by registry flag, never by id) — the same repaint, from the one surface that remains.
+    const smpToggle = await page.evaluate(async function () {
+      var owner = Studio.demoPacksWith("catalogSamples")[0];
+      var confirmWas = window.confirm;
+      window.confirm = function () { return true; }; // the remove path asks
+      function sampleRows() {
+        return [].filter.call(document.querySelectorAll(".xp-ds"), function (b) {
+          return b.getAttribute("data-xp-ds").indexOf("sample") === 0;
+        }).length;
+      }
+      // N38: wait on the condition, never the clock — and the condition here is the
+      // install flag, which toggleDemoPack sets synchronously along with the repaint. The
+      // row counts are read straight after it, so "immediately" is still what is measured.
+      async function settle(want) {
+        var t0 = Date.now();
+        while (Studio.demoPackInstalled(owner) !== want && Date.now() - t0 < 8000) {
+          await new Promise(function (r) { setTimeout(r, 40); });
+        }
+      }
+      window.__studioToggleDemoPack(owner, Studio.DEMO_PACKS[owner]);
+      await settle(false);
+      var withOff = sampleRows();
+      window.__studioToggleDemoPack(owner, Studio.DEMO_PACKS[owner]);
+      await settle(true);
+      var withOn = sampleRows();
+      window.confirm = confirmWas;
+      return { owner: owner, withOff: withOff, withOn: withOn, installed: Studio.demoPackInstalled(owner) };
     });
-    ok("SAMPLES: 'Hide sample content' now empties Explore's sample list immediately (and restores on re-enable)",
-      smpToggle.withOff === 0 && smpToggle.withOn > 50, JSON.stringify(smpToggle));
+    ok("SAMPLES/N32: removing the pack that owns the demo-DB catalog tables empties Explore's sample list immediately (and reinstalling restores it)",
+      smpToggle.withOff === 0 && smpToggle.withOn > 50 && smpToggle.installed, JSON.stringify(smpToggle));
     // ---- color pickers show friendly labels — raw tokens (and the retired
     // "pentaho" name) never surface in the interface (Kevin, 2026-07-20) ----
     const tokLabels = await page.evaluate(function () {
@@ -6068,6 +6087,220 @@ function serve() {
       mcTour.visible && mcTour.label === "Market Coverage pack" && mcTour.steps === 6 &&
       mcTour.targets.length === 4 && mcTour.panelTargetsResolve, JSON.stringify(mcTour));
 
+    // ---- N33 slice 1 (Kevin, 2026-08-09): the View Builder round-trip is lossless ----
+    // "I think there is a trend line on the view but I can't see it turn it on/off in
+    // the View Builder yet". Measured on dev before the fix: the pack authors the
+    // income-vs-supply View with `trend: true` (the dashed OLS line, studio-charts.js
+    // `line.trend-line`), the builder's preview drew ZERO trend lines, and Update wrote
+    // `trend: false` straight over the pack's authored value. The builder mints its
+    // chart from Studio.newPanel DEFAULTS, so every authored opt it has no editor for
+    // was silently dropped on the way in AND on the way out.
+    // These checks are the ones that stop it coming back: the premise (the View really
+    // is authored non-default), the capture, the notice, the drawn line, and the
+    // byte-identical write-back.
+    console.log("\n• N33: authored chart options survive the View Builder round-trip");
+    const n33 = await page.evaluate(async function () {
+      var W = Studio.Workspace;
+      var rows = W.all("analyses").filter(function (a) { return a.demoPackId === "marketcoverage"; });
+      var byName = {}; rows.forEach(function (r) { byName[r.name] = r; });
+      var both = byName["Market Coverage — income versus restaurant supply"];
+      var supply = byName["Market Coverage — restaurants & bars per 10,000 residents"];
+      if (!both || !supply) return { err: "views missing" };
+      var out = { authoredTrend: both.chart.opts.trend, authoredHeight: supply.chart.opts.height };
+      window.__studioRenderBuild();
+      await new Promise(function (r) { setTimeout(r, 60); });
+      window.__studioBuild.load(both.id);
+      await new Promise(function (r) { setTimeout(r, 900); });
+      var B = window.__studioBuild.state;
+      out.carried = B.carried && { type: B.carried.type, keys: Object.keys(B.carried.opts).sort().join(",") };
+      out.notice = B.notice || "";
+      // N33b: the trend line is EDITED here now, not carried — so the state holds it
+      // and the strip shows a ticked checkbox for it.
+      out.trendState = B.trend;
+      var tog = document.querySelector("#bdCharts #bdTrend");
+      out.trendToggle = tog ? !!tog.checked : null;
+      // The line is DRAWN, not merely configured — poll the preview frame rather than
+      // sleeping a fixed amount (the srcdoc swap is async and debounced).
+      var ifr = document.querySelector("#secBuild iframe.bd-ifr"), doc = null;
+      for (var i = 0; i < 120; i++) {
+        try { doc = ifr && ifr.contentDocument; } catch (e) { doc = null; }
+        if (doc && doc.querySelector("line.trend-line")) break;
+        await new Promise(function (r) { setTimeout(r, 50); });
+      }
+      out.previewTrendLines = doc ? doc.querySelectorAll("line.trend-line").length : -1;
+      // ...and Update writes them back unchanged instead of flattening to the defaults.
+      var before = JSON.stringify(both.chart.opts);
+      window.__studioBuild.save();
+      await new Promise(function (r) { setTimeout(r, 250); });
+      var m = document.querySelector(".modal-ov .bd-save");
+      if (!m) return Object.assign(out, { err: "save modal missing" });
+      [].slice.call(m.querySelectorAll("button")).filter(function (b) { return /^(Save|Update)$/.test(b.textContent); })[0].click();
+      await new Promise(function (r) { setTimeout(r, 350); });
+      var after = W.get("analyses", both.id);
+      out.savedOptsUnchanged = !!after && JSON.stringify(after.chart.opts) === before;
+      out.savedType = after && after.chart.type;
+      // The choropleth's carried set proves the two exclusions: `scale` is a builder
+      // control (VB-10) so it is never carried, and `agg: "median"` equals the declared
+      // default so it is not reported as an authored setting — only the two that really
+      // differ are, plus the quiet authored height.
+      window.__studioBuild.load(supply.id);
+      await new Promise(function (r) { setTimeout(r, 900); });
+      var B2 = window.__studioBuild.state;
+      out.mapCarried = B2.carried && Object.keys(B2.carried.opts).sort().join(",");
+      out.mapNotice = B2.notice || "";
+      // Switching datasets drops the carried set — a draft must never inherit another
+      // View's settings.
+      await window.__studioBuild.selectDataset(B2.dsKind, B2.dsId);
+      out.carriedAfterSelect = window.__studioBuild.state.carried;
+      Studio.Build.newView(); // leave the builder clean for the later flow tests
+      return out;
+    });
+    // N33b changed this contract deliberately, and the check moved WITH it rather than
+    // being relaxed: the scatter's trend line is no longer something the builder carries
+    // blindly past itself — it is a control. So the authored `trend: true` must arrive as
+    // BUILDER STATE with the strip's checkbox ticked, and the carried set must be empty,
+    // because there is nothing left on this View the builder can't edit. (The map View
+    // below still exercises the carry-through itself, unchanged.)
+    ok("N33b: the pack scatter's authored trend line opens as a TICKED builder control, not an invisible carried opt — and nothing is left carried, so no notice cries wolf",
+      !n33.err && n33.authoredTrend === true && n33.trendState === true && n33.trendToggle === true &&
+      n33.carried === null && n33.notice === "",
+      JSON.stringify(n33));
+    ok("N33: the builder's preview DRAWS the authored dashed regression line (it drew none before — the round-trip dropped it silently)",
+      n33.previewTrendLines === 1, JSON.stringify(n33));
+    ok("N33: Update writes the authored options back byte-identically instead of flattening them to the type defaults (trend: true survived; it used to be overwritten with false)",
+      n33.savedOptsUnchanged === true && n33.savedType === "scatter", JSON.stringify(n33));
+    ok("N33: the carried set excludes what the builder itself owns (the map's Region `scale`) and what merely equals its declared default (`agg: median`), keeping the authored format, class count and height",
+      n33.mapCarried === "classes,fmt,height" && n33.authoredHeight === 300 &&
+      /the value format/.test(n33.mapNotice) && /the map classes/.test(n33.mapNotice) &&
+      !/height/.test(n33.mapNotice), JSON.stringify(n33));
+    ok("N33: switching datasets drops the carried set, so an unrelated draft can never inherit another View's chart options",
+      n33.carriedAfterSelect === null, JSON.stringify(n33));
+
+    // ---- N33b (the half N33 left open): the builder EDITS the trend line, and
+    // Quadrant is a type it can hold ----
+    // N33's carry-through stopped the round-trip losing things; it did not answer
+    // Kevin's actual ask ("I can't see it turn it on/off in the View Builder yet,
+    // maybe I should?") and it left one type genuinely lossy: a quadrant View was
+    // not in the chart strip, so it opened as a TABLE (no FOREIGN_TYPE_FALLBACK
+    // entry) and its thresholds — the four labelled zones that ARE the analysis —
+    // were deliberately withheld from that table rather than pasted onto it.
+    // These checks hold both halves: the toggle really writes, and a quadrant now
+    // survives the trip whole, thresholds and all.
+    console.log("\n• N33b: the trend toggle writes, and Quadrant round-trips instead of falling back to a table");
+    const n33b = await page.evaluate(async function () {
+      var W = Studio.Workspace, out = {};
+      function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+      // By NAME, not demoPackId: the N33 block above pressed Update on this View, and
+      // bdSave's row does not carry demoPackId forward — so the pack tag is already gone
+      // by the time this block runs.
+      var both = W.all("analyses").filter(function (a) {
+        return /^Market Coverage — income versus restaurant supply$/.test(a.name || "");
+      })[0];
+      if (!both || !both.builder) return { err: "scatter view missing" };
+      window.__studioRenderBuild();
+      await sleep(60);
+      window.__studioBuild.load(both.id);
+      await sleep(900);
+      var B = window.__studioBuild.state;
+
+      // (a) Quadrant is in the strip, and it is ENABLED on exactly the shelves a
+      // scatter needs — it shares scatter's [dim, m1, m2] basis, so anything that
+      // can draw one can draw the other.
+      var qBtn = document.querySelector('#bdCharts [data-bd-ct="quadrant"]');
+      out.strip = [].slice.call(document.querySelectorAll("#bdCharts .bd-ct"))
+        .map(function (b) { return b.getAttribute("data-bd-ct") + (b.disabled ? ":off" : ""); }).join(",");
+      out.quadrantEnabled = !!qBtn && !qBtn.disabled;
+
+      // (b) the toggle WRITES: untick it, save as a new View, and the stored chart
+      // carries trend:false — the control, not newPanel's default, decided that.
+      var tog = document.querySelector("#bdCharts #bdTrend");
+      out.toggleFoundOn = tog ? !!tog.checked : null;
+      tog.checked = false; tog.dispatchEvent(new Event("change"));
+      await sleep(150);
+      out.stateAfterUntick = B.trend;
+      var offName = "N33b probe — trend off";
+      B.analysisId = null; B.name = offName;
+      window.__studioBuild.save();
+      await sleep(250);
+      var m = document.querySelector(".modal-ov .bd-save");
+      if (!m) return Object.assign(out, { err: "save modal missing (trend)" });
+      m.querySelector("input").value = offName;
+      [].slice.call(m.querySelectorAll("button")).filter(function (b) { return /^(Save|Update)$/.test(b.textContent); })[0].click();
+      await sleep(350);
+      var offRow = W.all("analyses").filter(function (a) { return a.name === offName; })[0];
+      out.savedTrendOff = offRow && offRow.chart && offRow.chart.opts.trend;
+      // ...and re-opening it shows the box unticked and draws no line. Poll for the
+      // scatter's own dots first, so "no trend line" means "painted, without one"
+      // rather than "hasn't painted yet".
+      window.__studioBuild.load(offRow.id);
+      await sleep(900);
+      out.reopenedTrendState = B.trend;
+      var tog2 = document.querySelector("#bdCharts #bdTrend");
+      out.reopenedToggle = tog2 ? !!tog2.checked : null;
+      var ifr = document.querySelector("#secBuild iframe.bd-ifr"), doc = null;
+      for (var i = 0; i < 120; i++) {
+        try { doc = ifr && ifr.contentDocument; } catch (e) { doc = null; }
+        if (doc && doc.querySelector("svg circle")) break;
+        await sleep(50);
+      }
+      out.offPreviewDots = doc ? doc.querySelectorAll("svg circle").length : -1;
+      out.offPreviewTrendLines = doc ? doc.querySelectorAll("line.trend-line").length : -1;
+      W.remove("analyses", offRow.id, { silent: true });
+
+      // (c) a quadrant View — the shape a pack or Quick Views authors: no builder
+      // blob, real dataset column names in the map, thresholds and zone labels in
+      // opts. Before this slice loadForeign found no "quadrant" in CHART_TYPES and
+      // dropped it to a table.
+      var qOpts = { xThreshold: 70, yThreshold: 40, q1: "Whitespace", q2: "Explore",
+        q3: "Low Priority", q4: "Quick Wins", xLabel: "", yLabel: "", height: 300 };
+      var qRow = W.put("analyses", {
+        name: "N33b probe — quadrant", folder: "", panelTitle: "", chartType: "quadrant",
+        datasetId: both.builder.dsId,
+        da: { id: "n33b_quad", name: "N33b probe — quadrant", kind: "sql", sql: "", query: "",
+          columns: ["county", "median_income", "restaurants_per_10k"], params: [], authored: true },
+        chart: { type: "quadrant", da: "n33b_quad",
+          map: { labelCol: "county", xCol: "median_income", yCol: "restaurants_per_10k" },
+          opts: Studio.clone(qOpts) }
+      });
+      var before = JSON.stringify(qRow.chart.opts);
+      Studio.Build.loadForeign(qRow.id);
+      await sleep(1100);
+      out.qType = B.chartType;
+      out.qNotice = B.notice || "";
+      out.qCarried = B.carried && Object.keys(B.carried.opts).sort().join(",");
+      window.__studioBuild.save();
+      await sleep(250);
+      var m2 = document.querySelector(".modal-ov .bd-save");
+      if (!m2) return Object.assign(out, { err: "save modal missing (quadrant)" });
+      [].slice.call(m2.querySelectorAll("button")).filter(function (b) { return /^(Save|Update)$/.test(b.textContent); })[0].click();
+      await sleep(400);
+      var qAfter = W.get("analyses", qRow.id);
+      out.qSavedType = qAfter && qAfter.chart && qAfter.chart.type;
+      out.qSavedOptsUnchanged = !!qAfter && JSON.stringify(qAfter.chart.opts) === before;
+      out.qSavedMap = qAfter && qAfter.chart && [qAfter.chart.map.labelCol, qAfter.chart.map.xCol, qAfter.chart.map.yCol].join("|");
+      W.remove("analyses", qAfter.id, { silent: true });
+      Studio.Build.newView(); // leave the builder clean for the later flow tests
+      return out;
+    });
+    ok("N33b: Quadrant is in the View Builder's chart strip, next to Scatter, and enabled on the same shelves (it shares scatter's [dimension, measure, measure] basis)",
+      !n33b.err && n33b.quadrantEnabled === true &&
+      /scatter(:off)?,quadrant/.test(n33b.strip), JSON.stringify(n33b));
+    ok("N33b: the Trend line checkbox is the scatter's own `trend` opt — unticking it and saving stores trend:false, and re-opening shows it unticked with no regression line drawn",
+      n33b.toggleFoundOn === true && n33b.stateAfterUntick === false && n33b.savedTrendOff === false &&
+      n33b.reopenedTrendState === false && n33b.reopenedToggle === false &&
+      n33b.offPreviewDots > 0 && n33b.offPreviewTrendLines === 0, JSON.stringify(n33b));
+    ok("N33b: a quadrant View opens AS a quadrant instead of degrading to a table, and its thresholds and zone labels are carried and written back byte-identically",
+      n33b.qType === "quadrant" && !/isn’t in the View Builder yet/.test(n33b.qNotice) &&
+      /the quadrant thresholds/.test(n33b.qNotice) && /the quadrant labels/.test(n33b.qNotice) &&
+      // q2..q4 were left at the type's declared defaults on purpose: the carried set
+      // is "what the author actually changed", not "every key present".
+      n33b.qCarried === "q1,xThreshold,yThreshold" &&
+      n33b.qSavedType === "quadrant" && n33b.qSavedOptsUnchanged === true &&
+      // the saved chart binds to the BASIS columns the builder computed (the shelves'
+      // rolled-up names), positionally label/x/y — not to the raw dataset columns the
+      // foreign View arrived with
+      n33b.qSavedMap === "county|SUM median_income|SUM restaurants_per_10k", JSON.stringify(n33b));
+
     // hand the workspace back exactly as the SP-1(b) checks found it
     if (!mcDash.wasInstalled) await page.evaluate(function () { Studio.removeDemoPack("marketcoverage"); });
 
@@ -7039,7 +7272,10 @@ function serve() {
         themeSmall: themeSmall,
         intro: intro,
         consBlurb: (packs.conservation || {}).blurb || "",
-        dmBlurb: (packs.datamanagement || {}).blurb || ""
+        dmBlurb: (packs.datamanagement || {}).blurb || "",
+        // N40: every registered pack, not the two named above — a new pack gets the
+        // sentence budget by construction rather than by someone remembering to add it.
+        allBlurbs: Object.keys(packs).map(function (k) { return { id: k, blurb: packs[k].blurb || "" }; })
       };
     });
     ok("#112: the Color-theme description is a short one-liner (drops the verbose per-theme walkthrough)",
@@ -7052,28 +7288,45 @@ function serve() {
       /^\d/.test(copyTweaks.consBlurb) && /embedded/i.test(copyTweaks.consBlurb) &&
       /^\d/.test(copyTweaks.dmBlurb) && /embedded/i.test(copyTweaks.dmBlurb) && !/turn it off/i.test(copyTweaks.dmBlurb),
       JSON.stringify(copyTweaks));
+    // N40 (Kevin, 2026-08-09): "those descriptions should be 2-3 sentences at most." #116
+    // above reads the blurb's SHAPE (count-led, honest about embedded data) and nothing read
+    // its LENGTH, so both workspace packs had drifted back into paragraphs — Market Coverage's
+    // was a single 100-word sentence. The budget is stated as sentences because that is what
+    // Kevin asked for, and a sentence cap is what stops the "one more clause" drift a character
+    // cap invites. Terminators are counted as [.!?] followed by whitespace or end-of-string, so
+    // "1,813" and "per-10,000-residents" are not miscounted; no blurb uses a period inside an
+    // abbreviation, and one that wanted to would be worth re-reading anyway.
+    const blurbSentences = copyTweaks.allBlurbs.map(function (p) {
+      return { id: p.id, n: (p.blurb.match(/[.!?](\s|$)/g) || []).length, len: p.blurb.length };
+    });
+    ok(`N40: every sample-pack blurb is at most 3 sentences (${blurbSentences.map((b) => `${b.id} ${b.n}s/${b.len}ch`).join(" · ")})`,
+      blurbSentences.length >= 3 && blurbSentences.every((b) => b.n >= 1 && b.n <= 3),
+      JSON.stringify(blurbSentences) +
+      " — the card is a decision surface, not the inventory; the full contents of a pack belong in " +
+      "Help's Sample packs section, and its counts belong in the tagline");
     const dpLibGone = await page.evaluate(function () { return !document.querySelector(".lib-demopacks"); });
     ok("DECLUTTER-1: the Sample-packs group no longer renders in the builder's Data panel — Settings' pack cards are the one install/remove surface",
       dpLibGone, String(dpLibGone));
-    await page.evaluate(function () { window.__studioShowSamples.set(false); });
-    await page.waitForTimeout(150);
-    const dpHidden = await page.evaluate(function () {
-      return {
+    // KEVIN-LIVE (2026-07-30) made the packs card unconditional — hiding it with the
+    // sample content was the "i cant see the sample packs" report — and N32 finished the
+    // job by retiring the mask itself. So there is no hidden state left to test: the card
+    // is always here, its explanatory note is gone with the mode it explained, and the
+    // retired pref cannot bring either back.
+    const dpNoMask = await page.evaluate(function () {
+      localStorage.setItem("studio-show-samples", "0"); // the value that used to hide it all
+      window.__studioRenderSettings();
+      var out = {
         settingsCard: !!document.querySelector('[data-demopack="conservation"]'),
         settingsNote: !!document.querySelector("#secSettings .set-packs-hidden-note"),
         libGroup: !!document.querySelector(".lib-demopacks")
       };
+      localStorage.removeItem("studio-show-samples");
+      window.__studioRenderSettings();
+      return out;
     });
-    await page.evaluate(function () { window.__studioShowSamples.set(true); });
-    await page.waitForTimeout(150);
-    // KEVIN-LIVE (2026-07-30) changed the Settings half of this contract: the
-    // packs card STAYS visible with samples off (it's the packs' only install/
-    // remove surface — hiding it was the "i cant see the sample packs" report),
-    // showing an explanatory note instead. The Library group still hides with
-    // the rest of the sample content.
-    ok("DP: with samples hidden the Settings packs card STAYS (with a hidden-content note) while the Library group hides with the sample content",
-      dpSettingsOn.hasCard && dpHidden.settingsCard && dpHidden.settingsNote && !dpHidden.libGroup,
-      JSON.stringify({ on: dpSettingsOn, off: dpHidden }));
+    ok("DP/N32: the Settings packs card is unconditional and the retired sample-content pref changes nothing (no hidden-state note, no Library group)",
+      dpSettingsOn.hasCard && dpNoMask.settingsCard && !dpNoMask.settingsNote && !dpNoMask.libGroup,
+      JSON.stringify({ on: dpSettingsOn, off: dpNoMask }));
     // remove cleans up every tagged row + the install flag
     const dpRemove = await page.evaluate(function () {
       window.__studioDemoPacks.remove("conservation");
@@ -7126,6 +7379,13 @@ function serve() {
 
     await page.evaluate(function () { window.__studioShellSetSection("settings"); });
     await page.waitForTimeout(150);
+    // N39: datamanagement is default-installed and is now materialized AT BOOT, so its
+    // dashboards legitimately exist before this install. Snapshot the count first — the
+    // regression guard below asserts installing conservation leaves it UNCHANGED, which is
+    // the property that always mattered and is strictly stronger than the old "=== 0".
+    const lf43DmBefore = await page.evaluate(function () {
+      return Studio.Workspace.all("dashboards").filter(function (r) { return r.demoPackId === "datamanagement"; }).length;
+    });
     await page.click('[data-demopack="conservation"]');
     await page.waitForFunction(function () {
       return Studio.Workspace.all("dashboards").filter(function (r) { return r.demoPackId === "conservation" && r.sourceFile; }).length >= 8;
@@ -7154,7 +7414,7 @@ function serve() {
       return Studio.Workspace.all("dashboards").filter(function (r) { return r.demoPackId === "datamanagement"; }).length;
     });
     ok("LF43: installing one pack does NOT incidentally materialize a different, merely-default-installed pack's dashboards",
-      lf43NoSideEffect === 0, String(lf43NoSideEffect));
+      lf43NoSideEffect === lf43DmBefore, "after=" + lf43NoSideEffect + " before=" + lf43DmBefore);
     await page.evaluate(function () { window.__studioShellSetSection("dashboards"); });
     await page.waitForTimeout(200);
     const lf43InDashboards = await page.evaluate(function () {
@@ -7169,6 +7429,49 @@ function serve() {
     });
     ok("LF43: re-running materialization while already installed is idempotent (no duplicate rows)",
       lf43ReInstallNoDupe === 8, String(lf43ReInstallNoDupe));
+
+    /* N39 (Kevin live, 2026-08-09, fresh incognito): "i dont see all those dashboards or
+       datasets or views or connections, they are missing". `datamanagement` is in
+       DEFAULT_INSTALLED, so a brand-new workspace has it installed WITHOUT an install click —
+       and the only callers of ensurePackExamplesMaterialized were that click and the
+       provisioning path. Measured before the fix, on a fresh profile: 0 of 12 materialized on
+       first boot and still 0 after a reload, so the Settings card promised "12 showcase
+       dashboards" over a Dashboards list holding one self-registered boot spec.
+       Two properties, and the second is why this is seeded once rather than every boot. */
+    const n39 = await page.evaluate(async function () {
+      var W = Studio.Workspace;
+      // simulate a brand-new workspace for this pack: drop its rows AND its seed stamp
+      W.all("dashboards").filter(function (r) { return r.demoPackId === "datamanagement"; })
+        .forEach(function (r) { W.remove("dashboards", r.id, { silent: true }); });
+      W.setMeta("packExamplesSeeded_datamanagement", "");
+      W.notify("dashboards");
+      var before = W.all("dashboards").filter(function (r) { return r.demoPackId === "datamanagement"; }).length;
+      await window.__studioSeedDefaultPackExamples();
+      var after = W.all("dashboards").filter(function (r) { return r.demoPackId === "datamanagement"; }).length;
+      var stamped = !!W.meta().packExamplesSeeded_datamanagement;
+      // now delete one and re-run the seeder: the stamp must stop it coming back
+      var victim = W.all("dashboards").filter(function (r) { return r.demoPackId === "datamanagement"; })[0];
+      var victimFile = victim.sourceFile;
+      W.remove("dashboards", victim.id);
+      await window.__studioSeedDefaultPackExamples();
+      var afterDelete = W.all("dashboards").filter(function (r) { return r.demoPackId === "datamanagement"; }).length;
+      var resurrected = W.all("dashboards").some(function (r) { return r.sourceFile === victimFile; });
+      // Put the workspace back the way this check found it: the deletion above is the
+      // POINT of the second assertion, but leaving it behind would hand every later check a
+      // pack that is quietly one dashboard short — which is exactly what LF16's own count
+      // reads a few hundred checks downstream.
+      W.setMeta("packExamplesSeeded_datamanagement", "");
+      await window.__studioSeedDefaultPackExamples();
+      var restored = W.all("dashboards").filter(function (r) { return r.demoPackId === "datamanagement"; }).length;
+      return { before: before, after: after, stamped: stamped, afterDelete: afterDelete,
+               resurrected: resurrected, restored: restored };
+    });
+    ok("N39: a default-installed examples pack materializes its dashboards with no install click — the case a fresh workspace is always in",
+      n39.before === 0 && n39.after === 12 && n39.stamped, JSON.stringify(n39));
+    ok("N39: seeded ONCE — a showcase dashboard you delete stays deleted instead of returning on the next boot",
+      n39.afterDelete === 11 && !n39.resurrected, JSON.stringify(n39));
+    ok("N39: and this check leaves the pack whole again, so nothing downstream inherits its deletion",
+      n39.restored === 12, JSON.stringify(n39));
 
     // Kevin (2026-07-30): pack dashboards lead with their OWN name and install into
     // a pack folder — a grid of "Conservation Insight — …" cards read as identical rows.
@@ -7287,20 +7590,32 @@ function serve() {
     ok("LF16: all 12 Data Management examples are visible in the gallery while the pack is installed (default)",
       dmGalleryOn.every(Boolean), JSON.stringify(dmGalleryOn));
 
+    /* N39 re-measure: this check used to assert datamanagement owned NO workspace rows at
+       all, before OR after removal — which was only ever true because a default-installed
+       pack never materialized its dashboards (the bug N39 fixes). What LF16 actually cares
+       about is that this is an EXAMPLES-kind pack: it owns dashboards and nothing else, no
+       connections/datasets/Views/jobs like a workspace-kind pack, and removing it takes its
+       dashboards and its flag with it. Asserted per-table now, which is stricter than the
+       old single total. */
     const dmRemove = await page.evaluate(function () {
-      function tagged(id) {
-        return ["connections", "datasets", "analyses", "dashboards", "jobs"].reduce(function (n, t) {
+      function tagged(id, tables) {
+        return tables.reduce(function (n, t) {
           return n + Studio.Workspace.all(t).filter(function (r) { return r.demoPackId === id; }).length;
         }, 0);
       }
-      var before = tagged("datamanagement");
+      var NON_DASH = ["connections", "datasets", "analyses", "jobs"];
+      var beforeDash = tagged("datamanagement", ["dashboards"]);
+      var beforeOther = tagged("datamanagement", NON_DASH);
       window.__studioDemoPacks.remove("datamanagement");
-      var after = tagged("datamanagement");
+      var afterDash = tagged("datamanagement", ["dashboards"]);
+      var afterOther = tagged("datamanagement", NON_DASH);
       window.__studioRenderHome();
-      return { before: before, after: after, installed: Studio.demoPackInstalled("datamanagement") };
+      return { beforeDash: beforeDash, beforeOther: beforeOther, afterDash: afterDash,
+               afterOther: afterOther, installed: Studio.demoPackInstalled("datamanagement") };
     });
-    ok("LF16: removing the datamanagement pack writes/deletes NO workspace rows (a pure gallery-visibility toggle) and clears the installed flag",
-      dmRemove.before === 0 && dmRemove.after === 0 && !dmRemove.installed, JSON.stringify(dmRemove));
+    ok("LF16: the datamanagement pack owns dashboards and nothing else — no connections/datasets/Views/jobs — and removing it takes all of them plus the installed flag",
+      dmRemove.beforeDash === 12 && dmRemove.beforeOther === 0 &&
+      dmRemove.afterDash === 0 && dmRemove.afterOther === 0 && !dmRemove.installed, JSON.stringify(dmRemove));
 
     const dmGalleryOff = await page.evaluate(function (files) {
       var have = window.__studioVisibleExampleFiles();
@@ -11498,6 +11813,86 @@ function serve() {
       lf57Basic.toggleExists && lf57Basic.toggleLabel === "Tile view" && lf57Basic.tilesAfterClick &&
       lf57Basic.tilePersisted === "tiles" && lf57Basic.backToList, JSON.stringify(lf57Basic));
 
+    /* N37 (Kevin live, 2026-08-09 — "so much white space for those buttons"): the row's six
+       text buttons wrapped onto a second line, and .cx-actions is opacity-hidden rather than
+       display:none, so EVERY row reserved that line's height whether or not it showed it.
+       Measured before the fix on this exact shape (a long name + a folder badge + a date):
+       108px at 1440/1280/1150/1024/900px wide. The row now ends with Open + a ⋯ menu.
+       Assert the outcome, not the styling: two visible controls, one line, and every action
+       the old row had still present and still reachable — a compression that quietly dropped
+       Export or Delete would pass a height check and fail the user. */
+    const n37Row = await page.evaluate(async function () {
+      window.__studioShellSetSection("views");
+      // A saved View always carries a `chart` blob — Export builds its spec from it
+      // (analysisSpec → a.chart.type), so a fixture without one throws inside the app and
+      // the session-wide pageerror check catches it. Shaped like LF57's export fixture.
+      var a = Studio.Workspace.put("analyses", {
+        name: "N37 — a realistically long saved View name", chartType: "bars",
+        chart: { type: "bars", map: {}, opts: {} },
+        folder: "Market Coverage", da: { id: "daN37", columns: [] } });
+      window.__studioRenderViews();
+      await new Promise(function (r) { setTimeout(r, 120); });
+      var results = document.getElementById("viewsResults");
+      var row = results.querySelector('.cx-row[data-vw-id="' + a.id + '"]');
+      var acts = row && row.querySelector(".cx-actions");
+      var rowBox = row.getBoundingClientRect(), actBox = acts.getBoundingClientRect();
+      var out = {
+        visibleControls: acts.children.length,
+        // the actions sit on the row's own line, not wrapped under it
+        onOneLine: actBox.top < rowBox.top + rowBox.height / 2 && actBox.bottom > rowBox.top + rowBox.height / 2,
+        height: Math.round(rowBox.height),
+        // nothing was dropped in the compression
+        keptOpen: !!row.querySelector('[data-vw-open="' + a.id + '"]'),
+        keptAlt: !!row.querySelector("[data-vw-open-in]"),
+        keptDash: !!row.querySelector('[data-vw-dash="' + a.id + '"]'),
+        keptDup: !!row.querySelector('[data-vw-dup="' + a.id + '"]'),
+        keptExport: !!row.querySelector('[data-vw-export="' + a.id + '"]'),
+        keptDel: !!row.querySelector('[data-vw-del="' + a.id + '"]'),
+        // and the tail lives in the menu, not loose in the row
+        tailInMenu: !!row.querySelector('.cx-row-menu [data-vw-export="' + a.id + '"]')
+      };
+      var more = row.querySelector("[data-vw-more]");
+      out.hasMore = !!more;
+      out.ariaBefore = more.getAttribute("aria-expanded");
+      more.click();
+      await new Promise(function (r) { setTimeout(r, 260); });
+      var menu = row.querySelector(".cx-row-menu");
+      out.opens = menu.classList.contains("open");
+      out.ariaAfter = more.getAttribute("aria-expanded");
+      // an open menu keeps its row's actions visible even with the pointer elsewhere
+      out.actionsHeldVisible = getComputedStyle(acts).opacity === "1";
+      // And choosing an item closes it again (item handlers stopPropagation, so the
+      // document-level outside-click closer never sees the click — a capture-phase
+      // listener does the closing). Export is the item that re-renders nothing, which is
+      // what makes the close observable — but it is NOT side-effect free: it stamps
+      // studio-first-export-done and increments studio-export-count, which is exactly the
+      // state N-FUN's "a second export does NOT repeat the celebration" check reads. So
+      // snapshot both and put them back, and leave this test with no footprint.
+      var celebKeys = ["studio-first-export-done", "studio-export-count"];
+      var celebBefore = celebKeys.map(function (k) { return localStorage.getItem(k); });
+      menu.querySelector("[data-vw-export]").click();
+      await new Promise(function (r) { setTimeout(r, 200); });
+      out.closesOnChoice = !document.querySelector(".cx-row-menu.open");
+      celebKeys.forEach(function (k, i) {
+        if (celebBefore[i] === null) localStorage.removeItem(k);
+        else localStorage.setItem(k, celebBefore[i]);
+      });
+      // Export opens the bundle modal — close it so it can't overlay a later test
+      var ov = document.querySelector(".modal-ov"); if (ov) ov.remove();
+      Studio.Workspace.remove("analyses", a.id, { silent: true });
+      Studio.Workspace.notify("*");
+      window.__studioShellSetSection("studio");
+      return out;
+    });
+    ok("N37: a Views row shows two controls on one line, not six wrapped onto a second",
+      n37Row.visibleControls === 2 && n37Row.onOneLine && n37Row.height < 90, JSON.stringify(n37Row));
+    ok("N37: every action the row used to show is still there, with the tail inside the ⋯ menu",
+      n37Row.keptOpen && n37Row.keptAlt && n37Row.keptDash && n37Row.keptDup &&
+      n37Row.keptExport && n37Row.keptDel && n37Row.tailInMenu, JSON.stringify(n37Row));
+    ok("N37: the ⋯ menu opens, reports aria-expanded, holds the row visible, and closes on a choice",
+      n37Row.hasMore && n37Row.ariaBefore === "false" && n37Row.opens && n37Row.ariaAfter === "true" &&
+      n37Row.actionsHeldVisible && n37Row.closesOnChoice, JSON.stringify(n37Row));
+
     const lf57Facets = await page.evaluate(function () {
       window.__studioShellSetSection("views");
       var a1 = Studio.Workspace.put("analyses", { name: "lf57f-bars", chartType: "bars", folder: "Finance", da: { id: "da1", columns: [] } });
@@ -13986,46 +14381,102 @@ function serve() {
     ok("SB-PULL-GUARD: once the backend accepts writes again, the retry pushes the guarded edit up and the mirror goes green",
       sbPullGuard.healed === "connected" && sbPullGuard.remoteGotIt, JSON.stringify(sbPullGuard));
 
-    // ---- PACKS-VIS (Kevin live, 2026-07-30: "i cant see the sample packs"):
-    // the Settings Sample-packs card was gated on showSamples(), so hiding
-    // sample content removed the packs' only install/remove surface with it.
-    // The card now always shows; hidden mode gets a note, and Install turns
-    // sample content back on.
-    const packsVis = await page.evaluate(async () => {
+    // ---- N32 (Kevin, 2026-08-09: "I don't think this mode should be here any more…
+    // that should all be fully handled by the sample packs"): the global "Sample content"
+    // mask is retired. PACKS-VIS's original subject — the Settings Sample-packs card
+    // disappearing when the mask was off ("i cant see the sample packs") — cannot recur
+    // because there is no mask; what these checks hold is the replacement contract:
+    // the packs card is the ONE install/remove surface, and every surface the mask used
+    // to gate now follows real pack state instead. The retired pref is inert: writing
+    // "0" to studio-show-samples must change nothing.
+    console.log("\n• N32: sample content follows the packs — the global mask is retired");
+    const n32 = await page.evaluate(async () => {
       const out = {};
-      const prev = localStorage.getItem("studio-show-samples");
-      localStorage.setItem("studio-show-samples", "0");
       window.__studioShellSetSection("settings");
       window.__studioRenderSettings();
       await new Promise((r) => setTimeout(r, 100));
-      const btns = [].slice.call(document.querySelectorAll("#secSettings [data-demopack]"));
-      out.cardShownWhileHidden = btns.length >= 2;
-      out.hiddenNote = !!document.querySelector("#secSettings .set-packs-hidden-note");
-      // make datamanagement uninstalled first (it's installed by default), then
-      // Install it while sample content is hidden — the toggle must flip back on
-      const dm = document.querySelector('#secSettings [data-demopack="datamanagement"]');
-      if (dm && dm.textContent === "Remove") {
-        dm.click();
-        await new Promise((r) => setTimeout(r, 600));
-        window.__studioRenderSettings();
-        await new Promise((r) => setTimeout(r, 100));
-      }
+      out.switchIds = [].slice.call(document.querySelectorAll("#secSettings input[data-set]"))
+        .map((cb) => cb.getAttribute("data-set")).join(",");
+      out.noSamplesSwitch = !document.querySelector('#secSettings input[data-set="samples"]');
+      out.noHiddenNote = !document.querySelector("#secSettings .set-packs-hidden-note");
+      out.packsCard = [].slice.call(document.querySelectorAll("#secSettings [data-demopack]")).length >= 2;
+      // the retired pref is inert — set it to the value that used to hide everything
       localStorage.setItem("studio-show-samples", "0");
-      const dm2 = document.querySelector('#secSettings [data-demopack="datamanagement"]');
-      out.installOffered = dm2 && dm2.textContent === "Install";
-      if (dm2) dm2.click();
-      await new Promise((r) => setTimeout(r, 800));
-      out.samplesBackOn = localStorage.getItem("studio-show-samples") !== "0";
-      out.installed = Studio.demoPackInstalled("datamanagement");
-      // restore: samples visible is the suite's default state; the pack ends installed (its default)
-      if (prev === null) localStorage.removeItem("studio-show-samples"); else localStorage.setItem("studio-show-samples", prev === "0" ? "1" : prev);
+      window.__studioRenderSettings();
+      window.__studioRenderHome();
+      await new Promise((r) => setTimeout(r, 100));
+      out.maskInertPacksCard = [].slice.call(document.querySelectorAll("#secSettings [data-demopack]")).length >= 2;
+      out.maskInertHomeCard = !!document.querySelector('.home-card[data-home="examples"]');
+      out.maskInertGallery = !!document.querySelector(".home-ex-card");
+      localStorage.removeItem("studio-show-samples");
+      // SP-0: never name a pack — ask the registry which one owns the catalog tables.
+      const owner = Studio.demoPacksWith("catalogSamples")[0];
+      out.owner = owner;
+      // The New ▾ list caps at 10 shown entries, so read the TOTAL it reports (the filter
+      // placeholder / "+N more" tail) rather than counting buttons; the rendered stem count
+      // is still meaningful when it must be zero.
+      function autoBuild() {
+        window.__studioBuildNewMenu();
+        const nm = document.getElementById("menuNew");
+        const shown = nm.querySelectorAll("[data-set-kind]").length;
+        const stems = nm.querySelectorAll('[data-set-kind="stem"]').length;
+        const ph = (nm.querySelector("#newMenuFilter") || {}).placeholder || "";
+        const more = (nm.querySelector(".new-menu-more") || {}).textContent || "";
+        const m = /Filter (\d+) sets/.exec(ph) || /\+ (\d+) more/.exec(more);
+        return { total: m ? (/Filter/.test(m[0]) ? +m[1] : shown + +m[1]) : shown, stems: stems };
+      }
+      function home() {
+        window.__studioRenderHome();
+        return {
+          card: !!document.querySelector('.home-card[data-home="examples"]'),
+          gallery: document.querySelectorAll(".home-ex-card").length
+        };
+      }
+      const confirmWas = window.confirm;
+      window.confirm = function () { return true; }; // the remove path asks
+      // N38: wait on the install flag, not a sleep — toggleDemoPack sets it (and repaints)
+      // synchronously, so the surfaces are read immediately after it settles.
+      const settle = async (want) => {
+        const t0 = Date.now();
+        while (Studio.demoPackInstalled(owner) !== want && Date.now() - t0 < 8000) {
+          await new Promise((r) => setTimeout(r, 40));
+        }
+      };
+      out.installedFirst = Studio.demoPackInstalled(owner);
+      out.onSets = autoBuild();
+      out.onHome = home();
+      // remove it: the raw demo-DB catalog tables and its gallery cards go with it
+      window.__studioToggleDemoPack(owner, Studio.DEMO_PACKS[owner]);
+      await settle(false);
+      out.offSets = autoBuild();
+      out.offHome = home();
+      out.catalogHelperOff = window.__studioCatalogSamplesInstalled();
+      // put it back (installed is its default) — the starter sets come back with it
+      window.__studioToggleDemoPack(owner, Studio.DEMO_PACKS[owner]);
+      await settle(true);
+      out.backSets = autoBuild();
+      out.catalogHelperOn = window.__studioCatalogSamplesInstalled();
+      out.installedAtEnd = Studio.demoPackInstalled(owner);
+      out.prefNeverWritten = localStorage.getItem("studio-show-samples") === null;
+      window.confirm = confirmWas;
       window.__studioShellSetSection("studio");
       return out;
     });
-    ok("PACKS-VIS: the Sample-packs card shows even with sample content hidden — with a note explaining the hidden state",
-      packsVis.cardShownWhileHidden && packsVis.hiddenNote, JSON.stringify(packsVis));
-    ok("PACKS-VIS: installing a pack while sample content is hidden turns sample content back on and installs the pack",
-      packsVis.installOffered && packsVis.samplesBackOn && packsVis.installed, JSON.stringify(packsVis));
+    ok("N32: Settings has no 'Sample content' mode switch, and the Sample-packs card stands alone as the install/remove surface",
+      n32.noSamplesSwitch && n32.noHiddenNote && n32.packsCard
+        && n32.switchIds === "dark,simple,restore,panels,demo", JSON.stringify(n32));
+    ok("N32: the retired studio-show-samples pref is inert — setting it to '0' hides nothing",
+      n32.maskInertPacksCard && n32.maskInertHomeCard && n32.maskInertGallery, JSON.stringify(n32));
+    ok("N32: the New ▾ auto-build starter sets follow the pack that owns the demo-DB catalog tables (catalogSamples), not a global toggle",
+      n32.installedFirst && n32.onSets.total > n32.offSets.total && n32.offSets.stems === 0
+        && n32.backSets.total === n32.onSets.total, JSON.stringify(n32));
+    ok("N32: Home's 'Sample dashboards' quick action is offered exactly when installed packs actually contribute gallery cards",
+      n32.onHome.card === (n32.onHome.gallery > 0) && n32.offHome.card === (n32.offHome.gallery > 0)
+        && n32.offHome.gallery < n32.onHome.gallery, JSON.stringify(n32));
+    ok("N32: the catalog-samples gate reads the registry flag, not a pack id — off with the pack removed, on with it installed",
+      !n32.catalogHelperOff && n32.catalogHelperOn && n32.installedAtEnd, JSON.stringify(n32));
+    ok("N32: nothing writes the retired pref back — a full install/remove cycle leaves studio-show-samples unset",
+      n32.prefNeverWritten, JSON.stringify(n32));
 
     // ---- Rail IA (Kevin 2026-07): Workspace = catalogs, Build = builders, Manage = ops ----
     console.log("\n• Rail IA: Workspace/Build/Manage grouping + builder labels + Views New menu");
@@ -14531,14 +14982,17 @@ function serve() {
       await new Promise((r) => setTimeout(r, 80));
       const m = document.querySelector(".modal .dsb"); if (!m) return { err: "modal missing" };
       const setVal = (elm, v) => { elm.value = v; elm.dispatchEvent(new Event("input", { bubbles: true })); };
-      const lint = m.querySelector(".dsb-lint");
-      const out = { emptyHidden: lint.hidden };
-      // typing a broken query surfaces the strip live
+      // N44 slice 2 — these findings now live on the shared editor's own status line
+      // under the field; the separate `.dsb-lint` strip is gone rather than doubled.
+      // The BEHAVIOUR under test is unchanged, only the element that carries it.
+      const lint = m.querySelector(".sqe-status");
+      const out = { emptyHidden: lint.hidden, oldStripGone: !m.querySelector(".dsb-lint") };
+      // typing a broken query surfaces the finding live
       setVal(m.querySelector(".dsb-query"), "SELECT a FROM (t");
       await new Promise((r) => setTimeout(r, 20));
       out.brokenShown = !lint.hidden;
       out.brokenMsg = lint.textContent;
-      // fixing it hides the strip again
+      // fixing it hides it again
       setVal(m.querySelector(".dsb-query"), "SELECT a AS a FROM t");
       await new Promise((r) => setTimeout(r, 20));
       out.fixedHidden = lint.hidden;
@@ -14551,10 +15005,12 @@ function serve() {
       m.closest(".modal-ov").remove();
       return out;
     });
-    ok("LF63 (3): the builder's lint strip stays hidden when clean, surfaces live on a broken query, and clears when fixed",
+    ok("LF63 (3): the builder's SQL findings stay hidden when clean, surface live on a broken query, and clear when fixed",
       lintLive.emptyHidden && lintLive.brokenShown && /parenthes/i.test(lintLive.brokenMsg) && lintLive.fixedHidden, JSON.stringify(lintLive));
-    ok("LF63 (3): adding a column chip the query never mentions re-surfaces the strip (used-columns validation)",
+    ok("LF63 (3): adding a column chip the query never mentions re-surfaces the finding (used-columns validation)",
       lintLive.driftShown, JSON.stringify(lintLive));
+    ok("N44 (2): those findings are reported ONCE — the old .dsb-lint strip is gone, not stacked under the editor's status line",
+      lintLive.oldStripGone, JSON.stringify(lintLive));
 
     // ---- #117 slice 1: the View Builder (Build section) ----
     console.log("\n• #117 slice 1: View Builder");
@@ -14730,8 +15186,11 @@ function serve() {
         savedLabelCol: row && row.chart && row.chart.map && row.chart.map.labelCol,
       });
     });
-    ok("#117 (2): the chart strip offers Table/Bars/Stacked bars/Line/Stacked area/Donut/Heatmap/Map/Scatter/KPI, heatmap enabled with a Rows dim + a Columns dim, scatter disabled (only one measure on the shelf), KPI enabled (needs no dimension, just the one measure already there)",
-      bdChart.strip.join(",") === "table,bars,stacked,line,areaStacked,donut,heatmap,choropleth,scatter:off,kpi", JSON.stringify(bdChart));
+    // N33b added Quadrant to the roster — and it is disabled here for exactly the same
+    // reason Scatter is (one measure on the shelf, both need two), which is the point of
+    // making them share a basis rather than growing a parallel one.
+    ok("#117 (2): the chart strip offers Table/Bars/Stacked bars/Line/Stacked area/Donut/Heatmap/Map/Scatter/Quadrant/KPI, heatmap enabled with a Rows dim + a Columns dim, scatter AND quadrant disabled (only one measure on the shelf), KPI enabled (needs no dimension, just the one measure already there)",
+      bdChart.strip.join(",") === "table,bars,stacked,line,areaStacked,donut,heatmap,choropleth,scatter:off,quadrant:off,kpi", JSON.stringify(bdChart));
     ok("#117 (2): picking Bars renders the COMPUTED basis through the real dashboard renderer (buildHtml + DASHKIT_MOCK iframe)",
       bdChart.barsIframe && bdChart.mock && bdChart.basisDA && bdChart.basisMeasure, JSON.stringify(bdChart));
     ok("#117 (2): Heatmap renders too, and saving with a chart selected stamps the type on the View + builder blob",
@@ -14876,6 +15335,69 @@ function serve() {
     ok("#117 (4): calcs persist on the builder blob and reopen still-applied",
       bdCalcSave.savedCalcs === "amount_x2" && bdCalcSave.restoredCalcs === "amount_x2" && bdCalcSave.effHasCalc,
       JSON.stringify(bdCalcSave));
+    // N35: the calc editor was never the problem — the way IN was. A calc column now
+    // carries its own ✎ (surviving `.used`), and ＋ means "new", not "last one again".
+    const bdCalcEdit = await page.evaluate(async () => {
+      const B = window.__studioBuild;
+      const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+      const out = {};
+      // the calc you most want to edit is the one already on a shelf — that is the
+      // pill that dims to opacity:.45, so test the edit path in exactly that state
+      B.addField("amount_x2", "cols");
+      await sleep(80);
+      const pill = document.querySelector('.bd-col.calc[data-bd-col="amount_x2"]');
+      const edit = document.querySelector('[data-bd-calc-edit="amount_x2"]');
+      out.pillUsed = !!(pill && pill.classList.contains("used"));
+      out.editPresent = !!edit;
+      out.editIsSibling = !!(edit && pill && edit.parentElement === pill.parentElement &&
+        pill.parentElement.classList.contains("bd-colwrap"));
+      out.editLabelled = !!(edit && /amount_x2/.test(edit.getAttribute("aria-label") || ""));
+      // ✎ opens the shared editor focused on THAT row's formula
+      edit.click();
+      await sleep(220);
+      let mod = document.querySelector(".modal-ov .bd-calc");
+      out.opened = !!mod;
+      const rows = mod ? [].slice.call(mod.querySelectorAll(".bd-calc-row")) : [];
+      out.rowCount = rows.length;
+      const af = document.activeElement;
+      out.focusedFormula = !!(af && af.classList.contains("bd-calc-formula") && af.value === "=[amount] * 2");
+      // renaming from here carries the shelf chip instead of dropping the field
+      const nm = rows[0].querySelector(".bd-calc-name");
+      nm.value = "amount_x2b";
+      nm.dispatchEvent(new Event("input", { bubbles: true }));
+      [].slice.call(mod.querySelectorAll("button")).filter((b) => b.textContent === "Apply")[0].click();
+      await sleep(150);
+      out.renamed = B.state.calcs.map((c) => c.name).join(",");
+      out.shelfCarried = B.state.shelfCols.some((f) => f.col === "amount_x2b");
+      out.noMarkerLeak = B.state.calcs.every((c) => !("_orig" in c));
+      // ＋ calc… opens a blank row, appended and focused, with the existing calcs still listed
+      document.getElementById("bdCalcBtn").click();
+      await sleep(220);
+      mod = document.querySelector(".modal-ov .bd-calc");
+      const rows2 = mod ? [].slice.call(mod.querySelectorAll(".bd-calc-row")) : [];
+      out.addRows = rows2.length;
+      const last = rows2[rows2.length - 1];
+      out.blankLast = !!(last && last.querySelector(".bd-calc-name").value === "" &&
+        last.querySelector(".bd-calc-formula").value === "");
+      out.focusedBlank = !!(last && document.activeElement === last.querySelector(".bd-calc-name"));
+      // closing without Apply must not turn the blank row into a calc
+      mod.closest(".modal-ov").querySelector(".modal-h .x").click();
+      await sleep(80);
+      out.afterCancel = B.state.calcs.map((c) => c.name).join(",");
+      B.setCalcs([{ name: "amount_x2", formula: "=[amount] * 2" }]); // restore for later checks
+      await sleep(80);
+      return out;
+    });
+    ok("N35: a calc column carries its own ✎ back to its formula, and it survives the .used dimming",
+      bdCalcEdit.pillUsed && bdCalcEdit.editPresent && bdCalcEdit.editIsSibling && bdCalcEdit.editLabelled &&
+      bdCalcEdit.opened && bdCalcEdit.rowCount === 1 && bdCalcEdit.focusedFormula,
+      JSON.stringify(bdCalcEdit));
+    ok("N35: renaming a calc from its own editor carries the shelf chip across (no silent drop)",
+      bdCalcEdit.renamed === "amount_x2b" && bdCalcEdit.shelfCarried && bdCalcEdit.noMarkerLeak,
+      JSON.stringify(bdCalcEdit));
+    ok("N35: ＋ calc… means NEW — a blank row appended and focused, existing calcs still listed, cancel keeps it out",
+      bdCalcEdit.addRows === 2 && bdCalcEdit.blankLast && bdCalcEdit.focusedBlank && bdCalcEdit.afterCancel === "amount_x2b",
+      JSON.stringify(bdCalcEdit));
     // 9. VB-1 (Kevin overnight queue): outline navigator parity — search, folder
     // tree, stacked readable labels + icons, and manage ops right on the pane
     const vb1 = await page.evaluate(async () => {
@@ -15523,6 +16045,82 @@ function serve() {
       vb12.dragApplied, JSON.stringify(vb12));
     ok("VB-12: an explicit persisted {w,h} applies to the canvas, the width handle rides the live right edge, and double-clicking a handle resets ONLY that axis back to auto",
       vb12.explicit && vb12.wBarTracks && vb12.hResetKeepsW && vb12.autoAfterReset && vb12.wReset, JSON.stringify(vb12));
+
+    // ---- N34 (Kevin, 2026-08-09): "when I drag the canvas open the view would
+    // resize? like the chart object is the same." VB-12's handles resized the IFRAME
+    // and nothing else, so the chart kept its authored pixel height inside a doubled
+    // box and left a dead band underneath. The chart now draws to the canvas height
+    // (the same chart.opts.height knob PANEL-H writes), repainted on RELEASE. The
+    // canvas stays a VIEWPORT: a saved View keeps its own authored height. ----
+    console.log("\n• N34: the chart fills the canvas it was dragged to");
+    const n34 = await page.evaluate(async () => {
+      const out = {};
+      const result = document.getElementById("buildResult");
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      const frame = () => result.querySelector("iframe.bd-ifr");
+      function metrics() {
+        const ifr = frame();
+        const doc = ifr && ifr.contentDocument;
+        const body = doc && doc.querySelector(".card .body");
+        return {
+          canvas: ifr ? Math.round(ifr.getBoundingClientRect().height) : 0,
+          content: doc ? doc.documentElement.scrollHeight : 0,
+          body: body ? Math.round(body.getBoundingClientRect().height) : 0,
+        };
+      }
+      // a real pointer drag on the bottom bar, exactly as VB-12 drives it
+      async function dragH(dy) {
+        const hBar = result.querySelector(".bd-rs-h");
+        hBar.dispatchEvent(new PointerEvent("pointerdown", { clientX: 200, clientY: 400, bubbles: true }));
+        if (dy) document.dispatchEvent(new PointerEvent("pointermove", { clientX: 200, clientY: 400 + dy }));
+        document.dispatchEvent(new PointerEvent("pointerup", {}));
+        // The repaint is deliberately debounced (120ms) and lands through
+        // renderChartPreview's own 150ms timer, then a full srcdoc swap. The budget
+        // covers TWO of those: a renderer that draws taller than the height it was
+        // handed (the map overshoots by a constant ~54px) gets one corrective pass.
+        await wait(1700);
+      }
+      // 1. settle at a SHORT canvas (well clear of the 160px chart floor, so this
+      //    measures the tracking and not the clamp)
+      localStorage.setItem("studio-bd-preview-size", JSON.stringify({ h: 420 }));
+      window.__bdSyncPreviewSize(result, frame());
+      await dragH(0); // release with no movement → repaint at the current height
+      out.short = metrics();
+      out.shortReq = window.__bdLastChartH();
+      // 2. drag it 300px taller
+      await dragH(300);
+      out.tall = metrics();
+      out.tallReq = window.__bdLastChartH();
+      out.canvasGrew = out.tall.canvas - out.short.canvas;
+      out.chartGrew = out.tall.body - out.short.body;
+      out.tracks = Math.abs(out.chartGrew - out.canvasGrew) <= 24;
+      // the dead band is gone: what got painted fills the canvas it was given
+      out.fillsShort = Math.abs(out.short.content - out.short.canvas) <= 24;
+      out.fillsTall = Math.abs(out.tall.content - out.tall.canvas) <= 24;
+      // The DECISION, asserted: the canvas is a viewport, not part of the View. A
+      // panel minted fresh for the same chart type still carries its AUTHORED height
+      // after all that dragging — and that constructor (bdPanelFor → Studio.newPanel)
+      // is exactly what bdSave stores, so no drag can rewrite a saved View.
+      const BD = window.__studioBuild.state;
+      const da = { id: "n34_probe", name: "probe", kind: "sql", sql: "", query: "", columns: ["region", "amount"], params: [], authored: true };
+      try {
+        const fresh = window.Studio.newPanel(BD.chartType, da);
+        out.authoredH = fresh.chart.opts.height;
+      } catch (e) { out.authoredH = "threw: " + e.message; }
+      // The preview really did draw to a canvas-derived height, AND the constructor
+      // bdSave stores from still hands back the authored one — both halves matter.
+      out.savedKeepsAuthored = typeof out.authoredH === "number" && out.authoredH > 0 &&
+        out.tallReq > 400 && out.tallReq !== out.authoredH;
+      localStorage.removeItem("studio-bd-preview-size");
+      window.__bdSyncPreviewSize(result, frame());
+      return out;
+    });
+    ok("N34: dragging the canvas taller makes the CHART taller by the same amount — it is no longer a fixed-height object floating in a growing box",
+      n34.canvasGrew >= 300 && n34.chartGrew >= 300 && n34.tracks, JSON.stringify(n34));
+    ok("N34: the painted panel fills the canvas at both sizes — the empty band under the chart is gone",
+      n34.fillsShort && n34.fillsTall, JSON.stringify(n34));
+    ok("N34: the canvas stays a VIEWPORT — a panel minted for the same chart type still carries its authored height, so a drag never rewrites the saved View",
+      n34.savedKeepsAuthored, JSON.stringify(n34));
 
     // ---- VB-13 (Kevin): the datasets pane itself is drag-resizable (200–480px,
     // persisted) and collapses to a vertical rail strip — dataset names were
@@ -16255,8 +16853,14 @@ function serve() {
       out.noticeGone = document.getElementById("buildNotice").hidden;
       return out;
     });
-    ok("VB-5: a Views-catalog row offers BOTH editors — owner Open plus an explicit other-editor button (a Quick View's is 'View Builder')",
-      !vb5a.err && vb5a.hasOwnerOpen && vb5a.altTarget === "build" && vb5a.altLabel === "View Builder", JSON.stringify(vb5a));
+    // N37 moved the catalog row's tail actions into a ⋯ menu, where a bare "View Builder"
+    // would read as a noun among verbs ("Add to dashboard", "Duplicate"), so the item now
+    // says "Open in View Builder". Still asserted EXACTLY, and still asserting the same
+    // thing VB-5 cares about: the row names the OTHER editor explicitly rather than
+    // leaving you to guess which one Open goes to. The Home card below is a different
+    // surface (data-home-analysis-alt) that N37 did not touch — its label is unchanged.
+    ok("VB-5: a Views-catalog row offers BOTH editors — owner Open plus an explicit other-editor item (a Quick View's is 'Open in View Builder')",
+      !vb5a.err && vb5a.hasOwnerOpen && vb5a.altTarget === "build" && vb5a.altLabel === "Open in View Builder", JSON.stringify(vb5a));
     ok("VB-5: opening a Quick-Views-made View in the View Builder reconstructs its mapping onto the shelves best-effort (label → dimension, value → measure with the saved rollup's fn, mean → AVG) and keeps its chart type",
       vb5a.section === "build" && vb5a.analysisId === vb5a.qvId && vb5a.chartType === "bars" &&
       vb5a.dims === "region" && vb5a.measures === "amount:avg", JSON.stringify(vb5a));
@@ -18029,7 +18633,15 @@ function serve() {
       ifr.remove();
       return result;
     });
-    ok("Z13 showcase: both dashboard filters render as selects (Data Source / Run Status)", showcase.filterSelects === 2, JSON.stringify(showcase));
+    /* N39: this dashboard shipped TWO filters and now ships one. "Run Status" was answered by
+       nothing — its options DA was used by no panel, and no panel-used DA declared a `status`
+       param — so moving it changed nothing on screen. FILTERS-1's sweep caught it the moment
+       N39 made these dashboards real. The count is updated because the CONTENT deliberately
+       changed, not to make a check pass: "Data Source" is genuinely wired to two panel DAs, so
+       the showcase still demonstrates filtering. If the second filter should come back, it needs
+       WIRING (a panel DA that declares `status` over data that has one) — restoring the JSON
+       alone would just re-add a dead control and re-break the sweep. */
+    ok("Z13 showcase: the dashboard's one wired filter (Data Source) renders as a select", showcase.filterSelects === 1, JSON.stringify(showcase));
     ok("Z13 showcase: target line overlay renders on the Revenue Trend panel", showcase.targetLine >= 1, JSON.stringify(showcase));
     ok("Z13 showcase: reference band overlay renders on the Quarterly Budget panel", showcase.refBand >= 1, JSON.stringify(showcase));
     ok("Z13 showcase: period highlight overlay renders on the Revenue Trend panel", showcase.periodHighlight >= 1, JSON.stringify(showcase));
@@ -19222,7 +19834,16 @@ function serve() {
       k.sparkCol = window.__STUDIO_STATE.spec.cda.dataAccesses.find((d) => d.id === k.da).columns[0];
       window.__studioLoad(window.__STUDIO_STATE.spec);
     });
-    await page.waitForTimeout(350);
+    // N38: wait for the REPAINT, not for the clock. A fixed 350ms sleep here failed on
+    // 2026-08-09 while the third assertion in this same block passed — i.e. the iframe had
+    // KPIs from the FIRST load, and the second (which adds deltaText/sparkCol) had not
+    // landed yet. Polling the condition keeps the assertion exactly as strict: the timeout
+    // still expires and the check still fails if the delta/spark never render.
+    await page.waitForFunction(() => {
+      const d = document.querySelector("#preview") && document.querySelector("#preview").contentDocument;
+      const t = d && d.querySelector("#kpis .kpi");
+      return !!(t && t.querySelector(".d") && t.querySelector(".spark"));
+    }, { timeout: 8000 }).catch(() => {});
     const kx = await page.evaluate(() => {
       const d = document.querySelector("#preview").contentDocument;
       var t = d.querySelector("#kpis .kpi");
@@ -19351,6 +19972,698 @@ function serve() {
     });
     ok("N-DATA: the Query preview section's data-quality notes exactly match Studio.dataQualityIssues() for that DA's own sample",
       dqWiring.warnCount === dqWiring.expected, JSON.stringify(dqWiring));
+
+    // ---- N43 slice 1: edit a panel's SQL from the Query preview, without leaving the dashboard ----
+    console.log("\n• N43: edit this query (Query preview → shared dataset editor)");
+    // (a) an AUTHORED data access (this example's DAs carry their rows inline, no datasetId)
+    //     must NOT offer the link — there is no dataset to open.
+    const n43Authored = await page.evaluate(() => ({
+      btn: !!document.querySelector("#inspBody [data-qpeek-edit]"),
+      linked: !!(window.__STUDIO_STATE.spec.cda.dataAccesses[0] || {}).datasetId
+    }));
+    ok("N43: an authored data access (rows inline, no workspace dataset) offers no edit link",
+      n43Authored.btn === false && n43Authored.linked === false, JSON.stringify(n43Authored));
+
+    // (b) the pure re-sync: identity survives, the query is adopted, dropped columns are reported.
+    const n43Sync = await page.evaluate(() => {
+      var da = { id: "keep_me", name: "Authored label", kind: "sql", sql: "select a,b,c from t",
+        query: "select a,b,c from t", columns: ["a", "b", "c"], params: [], datasetId: "d1", connectionId: "c0" };
+      var r = Studio.syncDAFromDataset(da, { id: "d1", name: "renamed in the catalog", kind: "sql",
+        sql: "select a, b from t", columns: ["a", "b"], connectionId: "c1", params: [{ key: "p", value: "1" }] });
+      // a dataset whose columns are unknown (never previewed, and no SQL to detect them from)
+      // must not wipe the shelves the DA already has
+      var da2 = { id: "y", name: "Y", kind: "sql", sql: "", query: "", columns: ["a", "b"], params: [] };
+      var r2 = Studio.syncDAFromDataset(da2, { id: "d2", name: "n", kind: "table", table: "orders", columns: [], connectionId: "c1" });
+      // idempotence: sync a DA to a dataset, then sync it again to the SAME dataset — the
+      // second pass must report nothing, or every reopen of the inspector would look like an edit
+      var da3 = { id: "z", name: "Z", kind: "sql", sql: "", query: "", columns: [], params: [] };
+      var ds3 = { id: "d3", name: "n", kind: "sql", sql: "select a from t", columns: ["a"], connectionId: "c1", params: [] };
+      Studio.syncDAFromDataset(da3, ds3);
+      var r3 = Studio.syncDAFromDataset(da3, ds3);
+      return {
+        changed: r.changed, removed: r.removedColumns.join(","),
+        sql: da.sql, query: da.query, cols: da.columns.join(","), conn: da.connectionId,
+        embedded: da.dataset && da.dataset.sql, param: (da.params[0] || {}).name,
+        idKept: da.id === "keep_me", nameKept: da.name === "Authored label",
+        colsKept: da2.columns.join(","), noRemovedWhenUnknown: r2.removedColumns.length === 0,
+        noopChanged: r3.changed, noopRemoved: r3.removedColumns.length
+      };
+    });
+    ok("N43: re-syncing a data access from its dataset adopts the new query, columns, params and connection",
+      n43Sync.changed && n43Sync.sql === "select a, b from t" && n43Sync.query === "select a, b from t" &&
+      n43Sync.cols === "a,b" && n43Sync.conn === "c1" && n43Sync.embedded === "select a, b from t" &&
+      n43Sync.param === "p", JSON.stringify(n43Sync));
+    ok("N43: the re-sync never rewrites identity — the DA keeps its id (every panel references it) and its authored name",
+      n43Sync.idKept && n43Sync.nameKept, JSON.stringify(n43Sync));
+    ok("N43: a column the edited query no longer returns is reported by name",
+      n43Sync.removed === "c", JSON.stringify(n43Sync));
+    ok("N43: a dataset with no known columns leaves the DA's columns alone rather than emptying the shelves",
+      n43Sync.colsKept === "a,b" && n43Sync.noRemovedWhenUnknown, JSON.stringify(n43Sync));
+    ok("N43: re-syncing the same dataset a second time is a no-op — no change reported, no columns dropped",
+      n43Sync.noopChanged === false && n43Sync.noopRemoved === 0, JSON.stringify(n43Sync));
+
+    // (c) the wiring, end to end: a LINKED panel shows the link, it opens the shared dataset
+    //     editor, and saving an edited query flows back into the dashboard still open behind it.
+    const n43Setup = await page.evaluate(() => {
+      var conn = Studio.Workspace.put("connections", { name: "n43-conn", adapter: "turso", cfg: {} });
+      var ds = Studio.Workspace.put("datasets", { name: "n43-ds", connectionId: conn.id, kind: "sql",
+        sql: "select region, total from sales", columns: ["region", "total"] });
+      window.__studioLoad({ title: "N43 test", panels: [], kpis: [] });
+      window.__studioAddFromWorkspaceDataset(ds.id, "bars");
+      var da = window.__STUDIO_STATE.spec.cda.dataAccesses[0];
+      var btn = document.querySelector("#inspBody [data-qpeek-edit]");
+      return {
+        connId: conn.id, dsId: ds.id, daId: da.id, daName: da.name,
+        hasBtn: !!btn, forThisDa: !!btn && btn.getAttribute("data-qpeek-edit") === da.id,
+        label: btn ? btn.textContent.trim() : "", titled: btn ? /n43-ds/.test(btn.title || "") : false
+      };
+    });
+    ok("N43: a panel whose data access is linked to a workspace dataset offers 'Edit this query' in Query preview",
+      n43Setup.hasBtn && n43Setup.forThisDa && n43Setup.label === "Edit this query", JSON.stringify(n43Setup));
+    ok("N43: the link names the dataset it will open", n43Setup.titled, JSON.stringify(n43Setup));
+    await page.evaluate(() => document.querySelector("#inspBody [data-qpeek-edit]").click());
+    await page.waitForTimeout(250);
+    const n43Modal = await page.evaluate(() => {
+      var ov = document.querySelector(".modal-ov");
+      return {
+        open: !!ov,
+        title: ov && ov.querySelector(".modal-h") ? ov.querySelector(".modal-h").textContent.trim() : "",
+        sql: ov && ov.querySelector(".dsx-sql") ? ov.querySelector(".dsx-sql").value : "",
+        hasPreview: !!(ov && [].slice.call(ov.querySelectorAll(".cx-wiz-foot .btn")).filter(function (b) { return b.textContent === "Preview"; })[0])
+      };
+    });
+    ok("N43: the link opens THE shared dataset editor on that dataset, with its SQL and its Preview button",
+      n43Modal.open && /Edit dataset/.test(n43Modal.title || "") &&
+      n43Modal.sql === "select region, total from sales" && n43Modal.hasPreview, JSON.stringify(n43Modal));
+    // N43b: this same save — a CHANGED query on a dataset a live panel is bound to,
+    // never previewed — is now the exact case the save guard is for. It must warn
+    // BEFORE it lands (and this dashboard was never saved to the workspace, so the
+    // guard only sees it through the open-spec binding).
+    const n43bGuard = await page.evaluate(() => {
+      var ov = document.querySelector(".modal-ov");
+      var ta = ov.querySelector(".dsx-sql");
+      ta.value = "select region, total, margin from sales";
+      ta.dispatchEvent(new Event("input", { bubbles: true }));
+      [].slice.call(ov.querySelectorAll(".cx-wiz-foot .btn")).filter(function (b) { return /^Save changes$/.test(b.textContent); })[0].click();
+      var g = ov.querySelector(".dsx-save-guard");
+      var da = window.__STUDIO_STATE.spec.cda.dataAccesses[0];
+      var ws = Studio.Workspace.get("datasets", da.datasetId);
+      return {
+        shown: !!g && !g.hidden,
+        why: g ? (g.querySelector(".dsx-guard-head") || {}).textContent || "" : "",
+        who: g ? (g.querySelector(".dsx-guard-who") || {}).textContent || "" : "",
+        acts: g ? [].slice.call(g.querySelectorAll("[data-dsx-guard]")).map(function (b) { return b.getAttribute("data-dsx-guard"); }).join(",") : "",
+        stillOpen: !!ov.parentNode,
+        notSavedYet: ws && ws.sql === "select region, total from sales",
+        daUntouched: da.sql === "select region, total from sales"
+      };
+    });
+    ok("N43b: saving a CHANGED query that was never run, on a dataset a panel is bound to, warns instead of landing",
+      n43bGuard.shown && n43bGuard.stillOpen && n43bGuard.notSavedYet && n43bGuard.daUntouched, JSON.stringify(n43bGuard));
+    ok("N43b: the warning says WHY (this query has not been run) and WHAT it would reach, by name",
+      /has not been run/.test(n43bGuard.why) && /panel/.test(n43bGuard.who) && /N43 test/.test(n43bGuard.who),
+      JSON.stringify(n43bGuard));
+    ok("N43b: it offers all three ways out — prove it, override it, or go back to the query",
+      n43bGuard.acts === "preview,anyway,edit", JSON.stringify(n43bGuard));
+    // The editor is a tall scrolling form and the guard sits at its foot: measured at
+    // 390×780 it first rendered entirely below the fold, so pressing Save looked like
+    // pressing nothing. A warning you cannot see is the same as no warning.
+    const n43bReach = await page.evaluate(() => {
+      var g = document.querySelector(".dsx-save-guard");
+      var gr = g.getBoundingClientRect();
+      return {
+        inView: gr.top >= 0 && gr.bottom <= window.innerHeight + 1,
+        focused: document.activeElement === g,
+        alert: g.getAttribute("role") === "alert",
+        btns: [].slice.call(g.querySelectorAll("[data-dsx-guard]")).map(function (b) {
+          var r = b.getBoundingClientRect();
+          var hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+          return { h: Math.round(r.height), hit: !!(hit && (hit === b || b.contains(hit))) };
+        })
+      };
+    });
+    ok("N43b: the warning scrolls itself into view, takes focus and announces as an alert — a warning below the fold is no warning at all",
+      n43bReach.inView && n43bReach.focused && n43bReach.alert, JSON.stringify(n43bReach));
+    ok("N43b: all three actions are real tap targets where they render (≥38px tall, nothing painted over them)",
+      n43bReach.btns.length === 3 && n43bReach.btns.every(function (b) { return b.hit && b.h >= 38; }),
+      JSON.stringify(n43bReach));
+    // "Keep editing" is a real dismissal: the guard goes, and nothing is saved.
+    const n43bKeep = await page.evaluate(() => {
+      var ov = document.querySelector(".modal-ov");
+      ov.querySelector('[data-dsx-guard="edit"]').click();
+      var g = ov.querySelector(".dsx-save-guard");
+      var ws = Studio.Workspace.get("datasets", window.__STUDIO_STATE.spec.cda.dataAccesses[0].datasetId);
+      return { hidden: !!g && g.hidden, stillOpen: !!ov.parentNode, wsSql: ws && ws.sql };
+    });
+    ok("N43b: “Keep editing” dismisses the warning without saving and leaves the editor open",
+      n43bKeep.hidden && n43bKeep.stillOpen && n43bKeep.wsSql === "select region, total from sales", JSON.stringify(n43bKeep));
+    // A metadata-only save cannot break a panel, so it must never be questioned.
+    const n43bMeta = await page.evaluate(() => {
+      var ov = document.querySelector(".modal-ov");
+      var ta = ov.querySelector(".dsx-sql");
+      ta.value = "select region, total from sales"; // back to what it opened with
+      ta.dispatchEvent(new Event("input", { bubbles: true }));
+      var name = ov.querySelector("input");
+      name.value = "n43-ds renamed";
+      name.dispatchEvent(new Event("input", { bubbles: true }));
+      [].slice.call(ov.querySelectorAll(".cx-wiz-foot .btn")).filter(function (b) { return /^Save changes$/.test(b.textContent); })[0].click();
+      return { closed: !document.querySelector(".modal-ov") };
+    });
+    ok("N43b: renaming a bound dataset without touching what it RUNS saves straight through — no warning",
+      n43bMeta.closed, JSON.stringify(n43bMeta));
+    // …then reopen and make the real edit, overriding the warning this time.
+    await page.evaluate(() => document.querySelector("#inspBody [data-qpeek-edit]").click());
+    await page.waitForTimeout(250);
+    const n43Saved = await page.evaluate(() => {
+      var ov = document.querySelector(".modal-ov");
+      var ta = ov.querySelector(".dsx-sql");
+      ta.value = "select region, total, margin from sales";
+      ta.dispatchEvent(new Event("input", { bubbles: true }));
+      [].slice.call(ov.querySelectorAll(".cx-wiz-foot .btn")).filter(function (b) { return /^Save changes$/.test(b.textContent); })[0].click();
+      var anyway = ov.querySelector('[data-dsx-guard="anyway"]');
+      if (!anyway) return false;
+      anyway.click();
+      return true;
+    });
+    await page.waitForTimeout(300);
+    ok("N43b: “Save anyway” is a real override — the user stays the authority over their own workspace",
+      n43Saved === true, String(n43Saved));
+    const n43After = await page.evaluate(() => {
+      var da = window.__STUDIO_STATE.spec.cda.dataAccesses[0];
+      var ws = Studio.Workspace.get("datasets", da.datasetId);
+      var peekSql = document.querySelector("#inspBody .qpeek-sql");
+      return {
+        modalClosed: !document.querySelector(".modal-ov"),
+        daSql: da.sql, daQuery: da.query, embedded: da.dataset && da.dataset.sql,
+        wsSql: ws && ws.sql, id: da.id, name: da.name,
+        peek: peekSql ? peekSql.textContent : "",
+        stillSelected: window.__STUDIO_STATE.selection && window.__STUDIO_STATE.selection.kind === "panel",
+        panels: window.__STUDIO_STATE.spec.panels.length
+      };
+    });
+    ok("N43: saving the edited query closes the editor and leaves the dashboard exactly where it was",
+      n43Saved && n43After.modalClosed && n43After.stillSelected && n43After.panels === 1, JSON.stringify(n43After));
+    ok("N43: the edit reaches the dashboard's own copy of the query — the spec DA and its embedded dataset both carry the new SQL",
+      n43After.daSql === "select region, total, margin from sales" &&
+      n43After.daQuery === "select region, total, margin from sales" &&
+      n43After.embedded === "select region, total, margin from sales" &&
+      n43After.wsSql === "select region, total, margin from sales", JSON.stringify(n43After));
+    ok("N43: the Query preview repaints with the query just saved, and the DA keeps its id and name",
+      /margin/.test(n43After.peek) && n43After.id === n43Setup.daId && n43After.name === n43Setup.daName,
+      JSON.stringify(n43After));
+
+    // ---- N43b: the pieces the guard decides on, and the loop it closes ----
+    // (i) the fingerprint — what a save changes about what RUNS, and nothing else.
+    const n43bFp = await page.evaluate(() => {
+      var F = Studio.Datasets.defFingerprint;
+      var base = { connectionId: "c1", kind: "sql", sql: "select a from t", params: [{ key: "p", value: "1" }] };
+      return {
+        cosmetic: F(base) === F(Object.assign({}, base, { name: "new name", desc: "why", tags: ["x"], folder: "Finance", owner: "kevin", private: true })),
+        sql: F(base) !== F(Object.assign({}, base, { sql: "select a, b from t" })),
+        conn: F(base) !== F(Object.assign({}, base, { connectionId: "c2" })),
+        param: F(base) !== F(Object.assign({}, base, { params: [{ key: "p", value: "2" }] })),
+        table: F({ kind: "table", table: "orders" }) !== F({ kind: "table", table: "refunds" })
+      };
+    });
+    ok("N43b: renaming, refiling, retagging or re-describing a dataset does not change what it RUNS — those saves are never questioned",
+      n43bFp.cosmetic, JSON.stringify(n43bFp));
+    ok("N43b: the query, the connection it runs against, a parameter default and a PostgREST table all DO",
+      n43bFp.sql && n43bFp.conn && n43bFp.param && n43bFp.table, JSON.stringify(n43bFp));
+    // (ii) the blast radius — panels and KPIs, across saved dashboards AND the open one,
+    //      counted once when they are the same dashboard.
+    //      The "N43 test" dashboard is still open, with exactly one panel on this dataset.
+    const n43bBind = await page.evaluate((dsId) => {
+      var S = window.__STUDIO_STATE;
+      var openOnly = Studio.Datasets.bindings(dsId);        // open but never saved
+      // save the OPEN dashboard under its own id: the same dashboard, not a second one
+      Studio.Workspace.put("dashboards", { id: S.spec.id, title: S.spec.title, spec: Studio.clone(S.spec) }, { silent: true });
+      var deduped = Studio.Datasets.bindings(dsId);
+      Studio.Workspace.remove("dashboards", S.spec.id, { silent: true });
+      // a DIFFERENT saved dashboard, never opened, with two panels and a KPI on it
+      Studio.Workspace.put("dashboards", { id: "n43b-other", title: "Someone else's dashboard", spec: {
+        cda: { dataAccesses: [{ id: "x", datasetId: dsId }] },
+        panels: [{ chart: { da: "x" } }, { chart: { da: "x" } }, { chart: { da: "unrelated" } }], kpis: [{ da: "x" }]
+      } }, { silent: true });
+      Studio.Workspace.put("dashboards", { id: "n43b-none", title: "Unrelated", spec: {
+        cda: { dataAccesses: [] }, panels: [], kpis: []
+      } }, { silent: true });
+      var both = Studio.Datasets.bindings(dsId);
+      var unbound = Studio.Datasets.bindings("no-such-dataset");
+      Studio.Workspace.remove("dashboards", "n43b-other", { silent: true });
+      Studio.Workspace.remove("dashboards", "n43b-none", { silent: true });
+      Studio.Workspace.notify("*");
+      return { openOnly: openOnly, deduped: deduped, both: both, unbound: unbound };
+    }, n43Setup.dsId);
+    ok("N43b: a dashboard that only exists in the builder still counts — an unsaved canvas is exactly the one you are editing from",
+      n43bBind.openOnly.dashboards === 1 && n43bBind.openOnly.panels === 1, JSON.stringify(n43bBind.openOnly));
+    ok("N43b: a dashboard open in the builder AND saved in the workspace is counted once, not twice",
+      n43bBind.deduped.dashboards === 1 && n43bBind.deduped.panels === 1, JSON.stringify(n43bBind.deduped));
+    ok("N43b: the radius counts panels AND KPIs across every bound dashboard, and ignores the unbound ones",
+      n43bBind.both.dashboards === 2 && n43bBind.both.panels === 4 &&
+      n43bBind.both.names.indexOf("Someone else's dashboard") >= 0 && n43bBind.both.names.indexOf("Unrelated") < 0,
+      JSON.stringify(n43bBind.both));
+    ok("N43b: a dataset nothing reads has an empty blast radius — that save is never questioned",
+      n43bBind.unbound.dashboards === 0 && n43bBind.unbound.panels === 0, JSON.stringify(n43bBind.unbound));
+
+    // (iii) the loop, end to end: change what runs, get warned, PROVE it in one tap, and land.
+    //      A file dataset is the one connector that runs entirely in the browser, so the
+    //      Preview genuinely succeeds here rather than being simulated.
+    const n43bFixA = path.join(__dirname, "fixture-n43b-a.csv");
+    const n43bFixB = path.join(__dirname, "fixture-n43b-b.csv");
+    fs.writeFileSync(n43bFixA, "region,total\nEMEA,120\nAMER,200\n");
+    fs.writeFileSync(n43bFixB, "region,total,margin\nEMEA,120,11\nAMER,200,19\n");
+    const n43bProvenSetup = await page.evaluate(() => {
+      var conn = Studio.Workspace.put("connections", { name: "n43b-files", adapter: "file", cfg: {} });
+      var ds = Studio.Workspace.put("datasets", { name: "n43b-file-ds", connectionId: conn.id, kind: "file",
+        fileName: "a.csv", format: "csv", content: "region,total\nEMEA,120\nAMER,200\n", columns: ["region", "total"] });
+      window.__studioLoad({ title: "N43b proven", panels: [], kpis: [] });
+      window.__studioAddFromWorkspaceDataset(ds.id, "bars");
+      return { connId: conn.id, dsId: ds.id, hasBtn: !!document.querySelector("#inspBody [data-qpeek-edit]") };
+    });
+    ok("N43b: a file-backed View offers the same edit link (it has a real workspace dataset behind it)",
+      n43bProvenSetup.hasBtn, JSON.stringify(n43bProvenSetup));
+    await page.evaluate(() => document.querySelector("#inspBody [data-qpeek-edit]").click());
+    await page.waitForTimeout(250);
+    await page.setInputFiles(".modal .dsx-drop-input", n43bFixB);
+    await page.waitForTimeout(300);
+    const n43bProvenGuard = await page.evaluate(() => {
+      var ov = document.querySelector(".modal-ov");
+      [].slice.call(ov.querySelectorAll(".cx-wiz-foot .btn")).filter(function (b) { return /^Save changes$/.test(b.textContent); })[0].click();
+      var g = ov.querySelector(".dsx-save-guard");
+      return { shown: !!g && !g.hidden, hasPreviewAct: !!ov.querySelector('[data-dsx-guard="preview"]') };
+    });
+    ok("N43b: replacing a file dataset's data is a change to what it RUNS, so it warns too",
+      n43bProvenGuard.shown && n43bProvenGuard.hasPreviewAct, JSON.stringify(n43bProvenGuard));
+    await page.evaluate(() => document.querySelector('[data-dsx-guard="preview"]').click());
+    await page.waitForTimeout(500);
+    const n43bProven = await page.evaluate((ids) => {
+      var ws = Studio.Workspace.get("datasets", ids.dsId);
+      var da = window.__STUDIO_STATE.spec.cda.dataAccesses[0];
+      return {
+        closed: !document.querySelector(".modal-ov"),
+        wsContent: (ws && ws.content) || "",
+        wsCols: ((ws && ws.columns) || []).join(","),
+        lastRunOk: !!(ws && ws.lastRun && ws.lastRun.ok),
+        daContent: (da.dataset && da.dataset.content) || "",
+        daCols: (da.columns || []).join(",")
+      };
+    }, { dsId: n43bProvenSetup.dsId });
+    ok("N43b: “Preview, then save” proves the query and lands the save in one tap — the editor closes, having actually run it",
+      n43bProven.closed && n43bProven.lastRunOk && /margin/.test(n43bProven.wsContent), JSON.stringify(n43bProven));
+    ok("N43b: what the Preview learned reaches the dashboard — the run's columns, and the dashboard's own copy of the data",
+      n43bProven.wsCols === "region,total,margin" && n43bProven.daCols === "region,total,margin" &&
+      /margin/.test(n43bProven.daContent), JSON.stringify(n43bProven));
+    await page.evaluate((ids) => {
+      Studio.Workspace.remove("datasets", ids.dsId, { silent: true });
+      Studio.Workspace.remove("connections", ids.connId, { silent: true });
+      Studio.Workspace.notify("*");
+    }, { dsId: n43bProvenSetup.dsId, connId: n43bProvenSetup.connId });
+    try { fs.unlinkSync(n43bFixA); fs.unlinkSync(n43bFixB); } catch (e) { /* best effort */ }
+
+    // restore: drop the scratch rows and put the example spec + selection back for what follows
+    await page.evaluate(async (ids) => {
+      Studio.Workspace.remove("datasets", ids.dsId, { silent: true });
+      Studio.Workspace.remove("connections", ids.connId, { silent: true });
+      Studio.Workspace.notify("*");
+      const spec = await fetch("data/examples/studio-cost.studio.json").then((r) => r.json());
+      window.__studioLoad(spec);
+    }, { dsId: n43Setup.dsId, connId: n43Setup.connId });
+    await page.waitForTimeout(350);
+    await page.evaluate(() => {
+      var rows = [].slice.call(document.querySelectorAll("#inspBody .row-item"));
+      var pr = rows.filter(function (r) { var ic = r.querySelector(".ri-icon"); return ic && ic.textContent !== "◧" && ic.textContent !== "⛃"; });
+      if (pr[0]) pr[0].click();
+    });
+    await page.waitForTimeout(150);
+
+    // ---- N44 slice 1: the shared SQL editor (app/sqledit.js) ----
+    // Two halves, deliberately: the pure functions (what it highlights, what it
+    // is willing to CLAIM about a query) and the adoption at the dataset editor
+    // (that it enhances the host field in place without disturbing the value the
+    // save loop reads). The honesty rule is under test too — a well-formed query
+    // must produce NO all-clear, because this checks structure, not dialect.
+    console.log("\n• N44 slice 1: the shared SQL editor — highlighting, completion, honest checks");
+    const n44Pure = await page.evaluate(() => {
+      const S = window.Studio.SQLEdit;
+      const msgs = (s, o) => S.lint(s, o).map((m) => m.msg).join(" | ");
+      return {
+        present: !!S,
+        // the editor's checking IS Studio.sqlLint — one checker, two surfaces
+        sameChecker: JSON.stringify(S.lint("SELECT a) FROM t")) === JSON.stringify(window.Studio.sqlLint("SELECT a) FROM t", [], {})),
+        clean: S.lint("SELECT a FROM t WHERE b = 'x' -- note\n").length,
+        openParen: msgs("SELECT count( FROM t"),
+        extraClose: msgs("SELECT a) FROM t"),
+        openStr: msgs("SELECT 'abc FROM t"),
+        escapedStr: S.lint("SELECT 'it''s fine' FROM t").length,
+        openComment: msgs("SELECT a FROM t /* hm"),
+        quoteInBlockComment: S.lint("SELECT a FROM t /* don't count this */").length,
+        backtick: msgs("SELECT `a FROM t"),
+        notSelect: msgs("UPDATE t SET a = 1"),
+        notSelectOff: S.lint("UPDATE t SET a = 1", { expectSelect: false }).length,
+        kwInString: S.highlight("SELECT 'from me'"),
+        kwPlain: S.highlight("SELECT a FROM t"),
+        paramTok: S.highlight("WHERE d > {{since}}"),
+        commentTok: S.highlight("-- SELECT hidden")
+      };
+    });
+    ok("N44: Studio.SQLEdit exists and a well-formed query reports NOTHING (no false all-clear, no false alarm)",
+      n44Pure.present && n44Pure.clean === 0, JSON.stringify(n44Pure.clean));
+    ok("N44: the editor did not grow a rival checker — it returns Studio.sqlLint's own findings",
+      n44Pure.sameChecker, JSON.stringify(n44Pure.extraClose));
+    ok("N44: the strengthened scan tells an unclosed ( from a stray ), and reads /* */ and backticks",
+      /1 “\(” never closed/.test(n44Pure.openParen) && /1 “\)” with no/.test(n44Pure.extraClose) &&
+      /Unclosed \/\*/.test(n44Pure.openComment) && n44Pure.quoteInBlockComment === 0 &&
+      /double quote|quoted identifier/.test(n44Pure.backtick),
+      JSON.stringify([n44Pure.openParen, n44Pure.extraClose, n44Pure.openComment, n44Pure.quoteInBlockComment, n44Pure.backtick]));
+    ok("N44: an unterminated string quote is named, and an escaped '' one is not mistaken for it",
+      /single quote/.test(n44Pure.openStr) && n44Pure.escapedStr === 0, n44Pure.openStr);
+    ok("N44: a statement that is not SELECT/WITH is still flagged, and expectSelect:false drops it",
+      /SELECT or WITH/.test(n44Pure.notSelect) && n44Pure.notSelectOff === 0, n44Pure.notSelect);
+    ok("N44: keywords, params and comments highlight — and a keyword inside a string or after -- does not",
+      (n44Pure.kwPlain.match(/sqe-k/g) || []).length === 2 && /sqe-p/.test(n44Pure.paramTok) &&
+      (n44Pure.kwInString.match(/sqe-k/g) || []).length === 1 && /sqe-s">'from me'/.test(n44Pure.kwInString) &&
+      /sqe-c/.test(n44Pure.commentTok) && !/sqe-k/.test(n44Pure.commentTok),
+      JSON.stringify([n44Pure.kwPlain, n44Pure.kwInString, n44Pure.commentTok]));
+
+    await page.evaluate(() => { Studio.Datasets.openEditor(); });
+    await page.waitForTimeout(250);
+    const n44Wired = await page.evaluate(() => {
+      const ta = document.querySelector(".modal-ov .dsx-sql");
+      if (!ta) return { found: false };
+      const wrap = ta.closest(".sqe"), hl = wrap && wrap.querySelector(".sqe-hl");
+      const cs = getComputedStyle(ta), hs = hl && getComputedStyle(hl);
+      return {
+        found: true, wrapped: !!wrap, hasOverlay: !!hl, enhanced: !!ta.sqEdit,
+        fontMatch: !!hs && hs.fontFamily === cs.fontFamily && hs.fontSize === cs.fontSize &&
+          hs.lineHeight === cs.lineHeight && hs.paddingLeft === cs.paddingLeft && hs.paddingTop === cs.paddingTop,
+        glyphsHidden: cs.webkitTextFillColor === "rgba(0, 0, 0, 0)" || cs.color === "rgba(0, 0, 0, 0)",
+        caretVisible: cs.caretColor !== "rgba(0, 0, 0, 0)"
+      };
+    });
+    ok("N44: the dataset editor's SQL field IS the shared editor, enhanced in place",
+      n44Wired.found && n44Wired.wrapped && n44Wired.hasOverlay && n44Wired.enhanced, JSON.stringify(n44Wired));
+    ok("N44: the overlay inherits the host field's font and padding, so the painted text sits exactly on the caret",
+      n44Wired.fontMatch && n44Wired.glyphsHidden && n44Wired.caretVisible, JSON.stringify(n44Wired));
+
+    const n44Ta = page.locator(".modal-ov .dsx-sql");
+    await n44Ta.click();
+    await n44Ta.pressSequentially("SELECT count( FROM orders");
+    await page.waitForTimeout(150);
+    const n44Typed = await page.evaluate(() => {
+      const t = document.querySelector(".modal-ov .dsx-sql");
+      const hl = t.closest(".sqe").querySelector(".sqe-hl");
+      const st = t.closest(".sqe").parentNode.querySelector(".sqe-status");
+      return { value: t.value, kw: hl.querySelectorAll(".sqe-k").length, fn: hl.querySelectorAll(".sqe-f").length,
+        shown: !!st && !st.hidden, text: st ? st.textContent : "", cls: st ? st.className : "" };
+    });
+    ok("N44: typing paints tokens over the field and leaves the field's own value byte-for-byte what was typed",
+      n44Typed.kw >= 2 && n44Typed.fn >= 1 && n44Typed.value === "SELECT count( FROM orders", JSON.stringify(n44Typed));
+    ok("N44: the unclosed ( reaches the reader as a warning on the status line",
+      n44Typed.shown && /never closed/.test(n44Typed.text) && /warn/.test(n44Typed.cls), JSON.stringify(n44Typed));
+
+    await page.evaluate(() => {
+      const t = document.querySelector(".modal-ov .dsx-sql");
+      t.value = ""; t.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await n44Ta.click();
+    await n44Ta.pressSequentially("SEL");
+    await page.waitForTimeout(150);
+    const n44Ac = await page.evaluate(() => {
+      const ac = document.querySelector(".modal-ov .sqe-ac");
+      const t = document.querySelector(".modal-ov .dsx-sql");
+      const r = ac && !ac.hidden ? ac.getBoundingClientRect() : null;
+      const opts = ac ? [].slice.call(ac.querySelectorAll(".sqe-ac-opt")) : [];
+      return { open: !!ac && !ac.hidden, count: opts.length,
+        first: opts[0] ? opts[0].querySelector(".sqe-ac-name").textContent : "",
+        minTap: opts.length ? Math.min.apply(null, opts.map((o) => o.getBoundingClientRect().height)) : 0,
+        onScreen: r ? r.left >= 0 && r.right <= window.innerWidth : false,
+        expanded: t.getAttribute("aria-expanded"), active: !!t.getAttribute("aria-activedescendant") };
+    });
+    ok("N44: typing a prefix opens the completion popup with SELECT first, announced to a screen reader",
+      n44Ac.open && n44Ac.count > 0 && n44Ac.first === "SELECT" && n44Ac.expanded === "true" && n44Ac.active,
+      JSON.stringify(n44Ac));
+    ok("N44: every option is a ≥36px tap target and the popup is clamped on screen (mobile is a gate)",
+      n44Ac.minTap >= 36 && n44Ac.onScreen, JSON.stringify(n44Ac));
+
+    await page.keyboard.press("Enter");
+    await page.waitForTimeout(120);
+    const n44Accept = await page.evaluate(() => {
+      const t = document.querySelector(".modal-ov .dsx-sql");
+      const ac = document.querySelector(".modal-ov .sqe-ac");
+      window.Studio.insertAtCursor(t, "orders");
+      const ac2 = document.querySelector(".modal-ov .sqe-ac");
+      const hl = t.closest(".sqe").querySelector(".sqe-hl");
+      return { accepted: t.value.indexOf("SELECT") === 0, closed: !ac || ac.hidden,
+        afterInsert: t.value, painted: hl.textContent.indexOf("orders") >= 0,
+        popupAfterInsert: !!ac2 && !ac2.hidden };
+    });
+    ok("N44: Enter accepts the highlighted option and closes the popup",
+      n44Accept.accepted && n44Accept.closed, JSON.stringify(n44Accept));
+    ok("N44: the schema browser's click-to-insert still writes and repaints, and does NOT pop a menu nobody asked for",
+      /orders/.test(n44Accept.afterInsert) && n44Accept.painted && !n44Accept.popupAfterInsert, JSON.stringify(n44Accept));
+    await page.evaluate(() => { const x = document.querySelector(".modal-ov .x"); if (x) x.click(); });
+    await page.waitForTimeout(200);
+
+    // ---- N44 slice 2: the same editor on the remaining eight surfaces ----
+    // Slice 1 shipped the component and adopted it at the dataset editor. The item's
+    // acceptance list is the other eight: the seven per-adapter query boxes in the
+    // data-source builder and the Jobs SQL step. What is worth asserting is exactly
+    // the thing "one component adopted everywhere" claims — that every adapter
+    // branch gets it without any branch knowing about it, that each surface offers
+    // the schema IT can honestly offer, and that the builder now reports a finding
+    // once rather than twice.
+    console.log("\n• N44 slice 2: the shared SQL editor on the builder's seven boxes + the Jobs step");
+    const n44Kinds = await page.evaluate(async () => {
+      document.getElementById("ndDashQuery").click();
+      await new Promise((r) => setTimeout(r, 120));
+      const m = document.querySelector(".modal .dsb");
+      if (!m) return { err: "modal missing" };
+      const cards = [].slice.call(m.querySelectorAll(".dsb-type"));
+      const out = [];
+      for (let i = 0; i < cards.length; i++) {
+        cards[i].click();
+        await new Promise((r) => setTimeout(r, 60));
+        const ta = m.querySelector(".dsb-query");
+        const name = cards[i].querySelector(".tx b").textContent.trim();
+        out.push({
+          name,
+          box: !!ta,
+          enhanced: !!(ta && ta.sqEdit),
+          overlay: !!(ta && ta.closest(".sqe") && ta.closest(".sqe").querySelector(".sqe-hl")),
+          status: !!(ta && ta.closest(".sqe").parentNode.querySelector(".sqe-status")),
+          // the branch's own placeholder and oninput survive being enhanced in place
+          placeholder: !!(ta && ta.placeholder),
+          oneStatus: m.querySelectorAll(".sqe-status").length
+        });
+      }
+      return { cards: cards.length, out };
+    });
+    ok("N44 (2): all seven per-adapter query boxes in the data-source builder are the shared editor, enhanced in place",
+      !n44Kinds.err && n44Kinds.cards === 7 && n44Kinds.out.length === 7 &&
+      n44Kinds.out.every((k) => k.box && k.enhanced && k.overlay && k.status && k.placeholder),
+      JSON.stringify(n44Kinds));
+    ok("N44 (2): switching source type rebuilds the box and leaves exactly ONE findings line behind, not one per kind visited",
+      !n44Kinds.err && n44Kinds.out.every((k) => k.oneStatus === 1), JSON.stringify(n44Kinds.out.map((k) => k.oneStatus)));
+
+    const n44Complete = await page.evaluate(async () => {
+      const m = document.querySelector(".modal .dsb");
+      if (!m) return { err: "modal missing" };
+      m.querySelectorAll(".dsb-type")[0].click();        // back to the built-in SQL kind
+      await new Promise((r) => setTimeout(r, 60));
+      // a declared column chip is something the builder genuinely knows
+      const addCol = m.querySelector(".dsb-addcol");
+      addCol.value = "region";
+      addCol.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+      await new Promise((r) => setTimeout(r, 40));
+      const ta = m.querySelector(".dsb-query");
+      ta.value = "SELECT reg";
+      ta.selectionStart = ta.selectionEnd = ta.value.length;
+      ta.sqEdit.complete();
+      await new Promise((r) => setTimeout(r, 40));
+      const ac = m.querySelector(".sqe-ac");
+      const opts = ac && !ac.hidden ? [].slice.call(ac.querySelectorAll(".sqe-ac-opt")) : [];
+      const res = {
+        open: !!ac && !ac.hidden,
+        names: opts.map((o) => o.querySelector(".sqe-ac-name").textContent),
+        kinds: opts.map((o) => o.querySelector(".sqe-ac-kind").textContent),
+        minTap: opts.length ? Math.min.apply(null, opts.map((o) => o.getBoundingClientRect().height)) : 0
+      };
+      ta.sqEdit.close();
+      m.closest(".modal-ov").remove();
+      return res;
+    });
+    ok("N44 (2): the builder's completer offers the declared column chips — the schema this surface actually has",
+      !n44Complete.err && n44Complete.open && n44Complete.names.indexOf("region") === 0 &&
+      n44Complete.kinds[0] === "column" && n44Complete.minTap >= 36, JSON.stringify(n44Complete));
+
+    await page.evaluate(function () {
+      window.__studioShellSetSection("jobs");
+      var conn = Studio.Workspace.put("connections", { name: "n44-jobs-sql-conn", adapter: "file", cfg: {} });
+      var ds = Studio.Workspace.put("datasets", { name: "n44-jobs-sql-ds", connectionId: conn.id, kind: "file",
+        format: "csv", content: "region,amount\nIA,2\n", columns: ["region", "amount"] });
+      var job = Studio.Workspace.put("jobs", { name: "n44-jobs-sql-job", sourceDatasetId: ds.id,
+        steps: [{ op: "sql", query: "SELECT * FROM t" }] });
+      window.__studioOpenJobEditor(job);
+    });
+    await page.waitForTimeout(250);
+    const n44Jobs = await page.evaluate(async () => {
+      const box = document.querySelector(".jobs-step-fields .jobs-sql-box");
+      if (!box) return { err: "sql step box missing" };
+      const wrap = box.closest(".sqe");
+      const status = wrap && wrap.parentNode.querySelector(".sqe-status");
+      const before = box.value;
+      box.value = "SELECT reg";
+      box.selectionStart = box.selectionEnd = box.value.length;
+      box.sqEdit.complete();
+      await new Promise((r) => setTimeout(r, 40));
+      const ac = document.querySelector(".jobs-step-fields .sqe-ac");
+      const opts = ac && !ac.hidden ? [].slice.call(ac.querySelectorAll(".sqe-ac-opt")) : [];
+      const colNames = opts.map((o) => o.querySelector(".sqe-ac-name").textContent);
+      box.sqEdit.close();
+      // and the one table the step really does run against
+      box.value = "SELECT * FROM ";
+      box.selectionStart = box.selectionEnd = box.value.length;
+      box.sqEdit.complete();
+      await new Promise((r) => setTimeout(r, 40));
+      const ac2 = document.querySelector(".jobs-step-fields .sqe-ac");
+      const tbl = ac2 && !ac2.hidden
+        ? [].slice.call(ac2.querySelectorAll(".sqe-ac-opt"))
+          .filter((o) => o.querySelector(".sqe-ac-kind").textContent === "table")
+          .map((o) => o.querySelector(".sqe-ac-name").textContent)
+        : [];
+      box.sqEdit.close();
+      // the step's own oninput is what saves — enhancing must not have replaced it
+      box.value = "SELECT amount FROM t";
+      box.dispatchEvent(new Event("input", { bubbles: true }));
+      const wide = wrap ? Math.round(wrap.getBoundingClientRect().width) : 0;
+      const rowWide = wrap ? Math.round(wrap.parentNode.getBoundingClientRect().width) : 0;
+      return {
+        savedBefore: before, enhanced: !!box.sqEdit, wrapped: !!wrap, hasStatus: !!status,
+        colNames, tbl, fullWidth: wide > 0 && rowWide - wide < 4,
+        stepQuery: (Studio.Workspace.all("jobs").filter((j) => j.name === "n44-jobs-sql-job")[0] || {}).steps
+      };
+    });
+    ok("N44 (2): the Jobs SQL step is the shared editor too, wrapped in place with its saved query intact",
+      !n44Jobs.err && n44Jobs.enhanced && n44Jobs.wrapped && n44Jobs.hasStatus &&
+      n44Jobs.savedBefore === "SELECT * FROM t", JSON.stringify(n44Jobs));
+    ok("N44 (2): the Jobs completer knows what that step can see — the pipeline's incoming columns and the DuckDB table “t”",
+      !n44Jobs.err && n44Jobs.colNames.indexOf("region") >= 0 && n44Jobs.tbl.indexOf("t") >= 0,
+      JSON.stringify([n44Jobs.colNames, n44Jobs.tbl]));
+    ok("N44 (2): enhancing the step's box did not steal its layout row or its oninput (the flex card still gives it full width)",
+      !n44Jobs.err && n44Jobs.fullWidth, JSON.stringify(n44Jobs.fullWidth));
+
+    // ---- N44 slice 3: qualified completion ----
+    // Slices 1 and 2 made completion prefix-only and FLAT: every column the surface
+    // knows, from every table, in one list. Slice 3 is the item's part (b) — after a
+    // dot, narrow to the table. Two halves are worth asserting separately: the alias
+    // reader (a pure function, so it can be checked without a popup) and the popup
+    // itself. The honesty rule is under test here too: an unresolvable qualifier must
+    // show NOTHING rather than fall back to the flat list, which would silently
+    // answer a different question than the one the dot asked.
+    console.log("\n• N44 slice 3: table-qualified completion — “t.” and the query's own FROM alias");
+    const n44Alias = await page.evaluate(() => {
+      const A = window.Studio.SQLEdit.aliases;
+      return {
+        basic: A("SELECT * FROM orders o JOIN items i ON 1=1"),
+        as: A("select * from public.orders as ord"),
+        keywordNext: A("SELECT * FROM orders WHERE a=1"),
+        inString: A("SELECT x, ' from fake f ' FROM orders o"),
+        inComment: A("-- from fake f\nSELECT * FROM orders o"),
+        subquery: A("SELECT * FROM (SELECT 1) x")
+      };
+    });
+    ok("N44 (3): the editor reads the query's own FROM/JOIN aliases, so “o.” knows what o is",
+      n44Alias.basic.o === "orders" && n44Alias.basic.i === "items" && n44Alias.as.ord === "public.orders",
+      JSON.stringify(n44Alias));
+    ok("N44 (3): a keyword after the table is not an alias, a “from” inside a string or a comment invents no table, and a subquery stays unknown",
+      !Object.keys(n44Alias.keywordNext).length && n44Alias.inString.o === "orders" &&
+      n44Alias.inComment.o === "orders" && !Object.keys(n44Alias.subquery).length, JSON.stringify(n44Alias));
+
+    const n44QualTa = page.locator(".jobs-step-fields .jobs-sql-box");
+    await page.evaluate(() => {
+      const b = document.querySelector(".jobs-step-fields .jobs-sql-box");
+      b.value = ""; b.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await n44QualTa.click();
+    await n44QualTa.pressSequentially("SELECT t.");
+    await page.waitForTimeout(150);
+    const n44Dot = await page.evaluate(() => {
+      const ac = document.querySelector(".jobs-step-fields .sqe-ac");
+      const opts = ac && !ac.hidden ? [].slice.call(ac.querySelectorAll(".sqe-ac-opt")) : [];
+      const r = ac && !ac.hidden ? ac.getBoundingClientRect() : null;
+      return { open: !!ac && !ac.hidden,
+        names: opts.map((o) => o.querySelector(".sqe-ac-name").textContent),
+        kinds: opts.map((o) => o.querySelector(".sqe-ac-kind").textContent),
+        minTap: opts.length ? Math.min.apply(null, opts.map((o) => o.getBoundingClientRect().height)) : 0,
+        onScreen: r ? r.left >= 0 && r.right <= window.innerWidth : false };
+    });
+    ok("N44 (3): typing the dot alone opens the popup on that table's columns — no prefix, no Ctrl-Space",
+      n44Dot.open && n44Dot.names.indexOf("region") >= 0 && n44Dot.names.indexOf("amount") >= 0,
+      JSON.stringify(n44Dot));
+    ok("N44 (3): after a dot ONLY columns are offered — no keywords, no functions, no other tables",
+      n44Dot.kinds.length > 0 && n44Dot.names.length === n44Dot.kinds.length &&
+      n44Dot.names.every((n) => n === "region" || n === "amount"), JSON.stringify(n44Dot));
+    ok("N44 (3): the qualified popup is a ≥36px tap target and stays on screen (mobile is still the gate)",
+      n44Dot.minTap >= 36 && n44Dot.onScreen, JSON.stringify(n44Dot));
+
+    const n44QualRest = await page.evaluate(async () => {
+      const box = document.querySelector(".jobs-step-fields .jobs-sql-box");
+      const read = () => {
+        const ac = document.querySelector(".jobs-step-fields .sqe-ac");
+        const opts = ac && !ac.hidden ? [].slice.call(ac.querySelectorAll(".sqe-ac-opt")) : [];
+        return { open: !!ac && !ac.hidden, names: opts.map((o) => o.querySelector(".sqe-ac-name").textContent) };
+      };
+      const at = async (v) => {
+        box.value = v; box.selectionStart = box.selectionEnd = v.length;
+        box.sqEdit.complete();
+        await new Promise((r) => setTimeout(r, 40));
+        const r = read(); box.sqEdit.close(); return r;
+      };
+      const aliased = await at("SELECT * FROM t x WHERE x.");
+      const unknown = await at("SELECT whatever.");
+      const number = await at("SELECT 1.");
+      const filtered = await at("SELECT t.am");
+      // accepting writes ONLY the column — the qualifier the user typed stays put
+      box.value = "SELECT t.am"; box.selectionStart = box.selectionEnd = box.value.length;
+      box.sqEdit.complete();
+      await new Promise((r) => setTimeout(r, 40));
+      box.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+      const accepted = box.value;
+      box.sqEdit.close();
+      box.value = "SELECT * FROM t"; box.dispatchEvent(new Event("input", { bubbles: true }));
+      return { aliased, unknown, number, filtered, accepted };
+    });
+    ok("N44 (3): an alias resolves — “x.” after “FROM t x” offers t's columns, which is how a join is actually written",
+      n44QualRest.aliased.open && n44QualRest.aliased.names.indexOf("region") >= 0, JSON.stringify(n44QualRest.aliased));
+    ok("N44 (3): an unresolvable qualifier shows nothing rather than falling back to the flat list",
+      !n44QualRest.unknown.open, JSON.stringify(n44QualRest.unknown));
+    // "1." is a NUMBER, so there is no qualifier there at all — which means the
+    // caret is in ordinary territory and Ctrl-Space still summons the ordinary
+    // flat list. The bug this pins is the opposite one: reading "1" as a table
+    // name and narrowing (or shutting) on it.
+    ok("N44 (3): “1.” is a number, not a qualifier — summoning there gives the ordinary flat list, not a narrowed one",
+      n44QualRest.number.open && n44QualRest.number.names.indexOf("t") >= 0 &&
+      n44QualRest.number.names.indexOf("count") >= 0, JSON.stringify(n44QualRest.number));
+    ok("N44 (3): the prefix after the dot still filters, and accepting replaces only it — the qualifier survives",
+      n44QualRest.filtered.names.join() === "amount" && n44QualRest.accepted === "SELECT t.amount",
+      JSON.stringify([n44QualRest.filtered, n44QualRest.accepted]));
+
+    await page.evaluate(function () {
+      var x = document.querySelector(".modal-ov .x"); if (x) x.click();
+      Studio.Workspace.all("jobs").filter(function (j) { return j.name === "n44-jobs-sql-job"; }).forEach(function (j) { Studio.Workspace.remove("jobs", j.id, { silent: true }); });
+      Studio.Workspace.all("datasets").filter(function (d) { return d.name === "n44-jobs-sql-ds"; }).forEach(function (d) { Studio.Workspace.remove("datasets", d.id, { silent: true }); });
+      Studio.Workspace.all("connections").filter(function (c) { return c.name === "n44-jobs-sql-conn"; }).forEach(function (c) { Studio.Workspace.remove("connections", c.id, { silent: true }); });
+      Studio.Workspace.notify("*");
+      window.__studioShellSetSection("studio");
+    });
+    await page.waitForTimeout(250);
+    // put the panel selection back for whatever runs next (same restore the N43b block uses)
+    await page.evaluate(() => {
+      var rows = [].slice.call(document.querySelectorAll("#inspBody .row-item"));
+      var pr = rows.filter(function (r) { var ic = r.querySelector(".ri-icon"); return ic && ic.textContent !== "◧" && ic.textContent !== "⛃"; });
+      if (pr[0]) pr[0].click();
+    });
+    await page.waitForTimeout(150);
 
     // ---- N-DATA: "Auto-arrange" — one-click panel reflow (pure function + UI wiring) ----
     console.log("\n• N-DATA: Auto-arrange panel layout");
@@ -22420,16 +23733,32 @@ function serve() {
     await gp42.waitForFunction(() => window.__STUDIO_STATE && window.__STUDIO_STATE.assets.js.length > 0, { timeout: 10000 });
     await gp42.waitForTimeout(300);
 
+    // N36 slice 1: Admin's list IS the saved-workspace store now, so a test that
+    // wants "these backends are registered" seeds it through the same door the
+    // card uses. (Seeding the retired `studio-admin-backends` key still works —
+    // that is the migration, and it has its own block below — but only ONCE per
+    // browser, so a mid-run reseed has to speak the current store.)
+    await gp42.evaluate(function () {
+      window.__seedBackends = function (rows) {
+        localStorage.setItem("studio-workspaces-custom", "[]");
+        localStorage.removeItem("studio-admin-backend-tests");
+        localStorage.setItem("studio-admin-backends-merged", JSON.stringify("v1"));
+        rows.forEach(function (r) { window.__studioAdminBackends.save(r); });
+      };
+    });
+
     // empty by default
     const lf42Empty = await gp42.evaluate(function () {
       window.__studioShellSetSection("admin"); window.__studioRenderAdmin();
-      var card = [].slice.call(document.querySelectorAll(".settings-card")).filter(function (c) { return /^Backends$/.test((c.querySelector("h2") || {}).textContent || ""); })[0];
-      return { found: !!card, empty: card && /No backends registered/.test(card.textContent) };
+      // N36 slice 2: the card is "Workspaces" now (it was "Backends" through
+      // LF42 and N36 slice 1) — same card, same actions, renamed noun.
+      var card = [].slice.call(document.querySelectorAll(".settings-card")).filter(function (c) { return /^Workspaces$/.test((c.querySelector("h2") || {}).textContent || ""); })[0];
+      return { found: !!card, empty: card && /No workspaces saved in this browser yet/.test(card.textContent) };
     });
-    ok("LF42: Admin gains a Backends card, empty by default", lf42Empty.found && lf42Empty.empty, JSON.stringify(lf42Empty));
+    ok("LF42: Admin gains a Workspaces card, empty by default", lf42Empty.found && lf42Empty.empty, JSON.stringify(lf42Empty));
 
-    // + Add backend: pick Turso, name it, fill creds, inline Test, Save — stored
-    // as a named row in the local backend list (not yet connected).
+    // + Add workspace: pick Turso, name it, fill creds, inline Test, Save —
+    // stored as a named row in the one saved-workspace list (not yet connected).
     const lf42Added = await gp42.evaluate(async function (port) {
       window.__studioOpenBackendConfigWizard();
       await new Promise(function (r) { setTimeout(r, 80); });
@@ -22449,12 +23778,12 @@ function serve() {
         if (result && result.textContent) break;
       }
       var testOk = result && /Connection works/.test(result.textContent);
-      var saveBtn = [].slice.call(document.querySelectorAll(".cx-wiz-foot .btn")).filter(function (b) { return /Add backend/.test(b.textContent); })[0];
+      var saveBtn = [].slice.call(document.querySelectorAll(".cx-wiz-foot .btn")).filter(function (b) { return /Add workspace/.test(b.textContent); })[0];
       saveBtn.click();
       await new Promise(function (r) { setTimeout(r, 80); });
-      return { testOk: testOk, stored: JSON.parse(localStorage.getItem("studio-admin-backends") || "[]"), modalGone: !document.querySelector(".modal-ov") };
+      return { testOk: testOk, stored: window.__studioAdminBackends.list(), modalGone: !document.querySelector(".modal-ov") };
     }, PORT);
-    ok("LF42: Add-backend wizard tests the connection inline and saves a named row to the local backend list",
+    ok("LF42: Add-workspace wizard tests the connection inline and saves a named row to the one saved-workspace list",
       lf42Added.testOk && lf42Added.modalGone && lf42Added.stored.length === 1 &&
       lf42Added.stored[0].name === "Test Turso" && lf42Added.stored[0].adapter === "turso" && lf42Added.stored[0].cfg.url.indexOf("/__turso") >= 0,
       JSON.stringify(lf42Added));
@@ -22470,7 +23799,7 @@ function serve() {
         hasActiveBadge: !!row.querySelector(".cx-badge.admin")
       };
     });
-    ok("LF42: the Backends list shows the new row with its adapter label and a Connect action (not active yet)",
+    ok("LF42: the Workspaces list shows the new row with its adapter label and a Connect action (not active yet)",
       lf42Listed && lf42Listed.name === "Test Turso" && lf42Listed.adapterLbl === "Turso" && lf42Listed.hasConnect && !lf42Listed.hasActiveBadge,
       JSON.stringify(lf42Listed));
 
@@ -22483,7 +23812,7 @@ function serve() {
       var saveBtn = [].slice.call(document.querySelectorAll(".cx-wiz-foot .btn")).filter(function (b) { return /Save changes/.test(b.textContent); })[0];
       saveBtn.click();
       await new Promise(function (r) { setTimeout(r, 80); });
-      return JSON.parse(localStorage.getItem("studio-admin-backends") || "[]");
+      return window.__studioAdminBackends.list();
     });
     ok("LF42: Edit opens the same row preset and Save changes renames it in place (still one row)",
       lf42Edited.length === 1 && lf42Edited[0].name === "Renamed Turso", JSON.stringify(lf42Edited));
@@ -22497,11 +23826,21 @@ function serve() {
         dot = document.querySelector("[data-bk-id] .cx-dot");
         if (dot && dot.className.indexOf("cx-dot ") === 0 && dot.className !== "cx-dot") break;
       }
-      return { cls: dot && dot.className, stored: JSON.parse(localStorage.getItem("studio-admin-backends") || "[]") };
+      return { cls: dot && dot.className, stored: window.__studioAdminBackends.list(),
+        // N36 slice 1: lastTest is this card's scratch metadata and must NOT be
+        // written onto the converged workspace entry — an entry carrying it
+        // would, on a packaged workspace, mint a local override that shadows the
+        // shipped one.
+        wsEntry: JSON.parse(localStorage.getItem("studio-workspaces-custom") || "[]")[0],
+        tests: JSON.parse(localStorage.getItem("studio-admin-backend-tests") || "{}") };
     });
     ok("LF42: the row's Test button runs the adapter check and persists lastTest (status dot turns ok)",
       /\bok\b/.test(lf42RowTest.cls || "") && lf42RowTest.stored[0].lastTest && lf42RowTest.stored[0].lastTest.ok === true,
       JSON.stringify(lf42RowTest));
+    ok("N36: lastTest is kept in the card's own map, never written onto the shared workspace entry",
+      !!lf42RowTest.wsEntry && !("lastTest" in lf42RowTest.wsEntry) &&
+      lf42RowTest.tests[lf42RowTest.wsEntry.id] && lf42RowTest.tests[lf42RowTest.wsEntry.id].ok === true,
+      JSON.stringify({ wsEntry: lf42RowTest.wsEntry, tests: lf42RowTest.tests }));
 
     // Connect opens the SAME connect wizard as Settings → Workspace backend, preset with this row's adapter+creds
     const lf42ConnectOpens = await gp42.evaluate(async function () {
@@ -22543,14 +23882,117 @@ function serve() {
     const lf42Deleted = await gp42.evaluate(function () {
       window.confirm = function () { return true; };
       document.querySelector("[data-bk-del]").click();
-      return JSON.parse(localStorage.getItem("studio-admin-backends") || "[]");
+      return window.__studioAdminBackends.list();
     });
     ok("LF42: deleting a registered backend (after confirm) removes it from the list", lf42Deleted.length === 0, JSON.stringify(lf42Deleted));
 
+    /* ---- N36 slice 1: Admin's Backends list and the sign-in screen's Workspace
+       picker are ONE store (Kevin, 2026-08-09: "converge on the workspace store")
+       ----------------------------------------------------------------------
+       Its own page, because the whole point is what a browser that has never run
+       this build does on FIRST read: the migration is one-shot, so it cannot be
+       observed on a page that has already taken it. */
+    console.log("\n• N36 slice 1: one converged store for Admin backends + sign-in workspaces");
+    const gpN36 = await browser.newPage({ viewport: { width: 1200, height: 900 } });
+    gpN36.on("pageerror", (e) => errors.push("N36 page: " + e.message));
+    await gpN36.addInitScript((port) => {
+      try {
+        // TOP FRAME ONLY: init scripts run in every same-origin frame and the app
+        // boots offscreen preview iframes, so an unguarded seed re-plants the
+        // pre-migration state AFTER the migration ran and reads as "it didn't".
+        if (window.top !== window) return;
+        sessionStorage.setItem("studio-gate-ok", "1"); localStorage.setItem("studio-welcome-seen", "1");
+        // A browser as it stands the moment before this build lands: four rows in
+        // the retired Admin store, and one workspace already saved at the gate.
+        localStorage.setItem("studio-admin-backends", JSON.stringify([
+          { id: "n36-sb", name: "Legacy Supabase", adapter: "supabase", cfg: { url: "https://n36.example.co", key: "pub-n36" }, lastTest: { ok: true, error: "", at: 1 } },
+          // No cfg.url AT ALL — Firebase is addressed by projectId, and reading
+          // only cfg.url would have dropped this row on the floor.
+          { id: "n36-fb", name: "Legacy Firebase", adapter: "firebase", cfg: { projectId: "n36-proj", apiKey: "AIza-n36" } },
+          // Registered but never configured: the Add-backend wizard asks only for
+          // a name, so this is a shape a real browser can hold. Kept, not offered.
+          { id: "n36-bare", name: "Half-registered", adapter: "turso", cfg: {} },
+          // Same id as a workspace the gate already saved — the workspace entry
+          // is the one being signed into, so it must NOT be overwritten.
+          { id: "n36-clash", name: "Admin's name for it", adapter: "turso", cfg: { url: "http://localhost:" + port + "/__stale" } }
+        ]));
+        localStorage.setItem("studio-workspaces-custom", JSON.stringify([
+          { id: "n36-clash", label: "Saved at the gate", sourceId: "turso", cfg: { url: "http://localhost:" + port + "/__turso", token: "tok-n36" } }
+        ]));
+      } catch (e) {}
+    }, PORT);
+    await gpN36.goto(`http://localhost:${PORT}/app/`, { waitUntil: "networkidle" });
+    await gpN36.waitForFunction(() => window.__STUDIO_STATE && window.__STUDIO_STATE.assets.js.length > 0, { timeout: 10000 });
+    await gpN36.waitForTimeout(300);
+
+    const n36Migrated = await gpN36.evaluate(function () {
+      window.__studioShellSetSection("admin"); window.__studioRenderAdmin();
+      var rows = window.__studioAdminBackends.list();
+      return {
+        names: rows.map(function (r) { return r.name; }).sort(),
+        ids: rows.map(function (r) { return r.id; }).sort(),
+        fb: rows.filter(function (r) { return r.id === "n36-fb"; })[0],
+        bare: rows.filter(function (r) { return r.id === "n36-bare"; })[0],
+        clash: rows.filter(function (r) { return r.id === "n36-clash"; })[0],
+        lastTest: (rows.filter(function (r) { return r.id === "n36-sb"; })[0] || {}).lastTest,
+        // the retired key is left exactly as it was — nothing is wiped
+        legacyStillThere: JSON.parse(localStorage.getItem("studio-admin-backends") || "[]").length,
+        marker: JSON.parse(localStorage.getItem("studio-admin-backends-merged") || "null"),  // lsSet JSON-encodes
+        cardRows: document.querySelectorAll("[data-bk-id]").length
+      };
+    });
+    ok("N36: the retired Admin backend list migrates into the workspace store — every row, including a Firebase entry with no cfg.url and a name-only row the wizard allows",
+      n36Migrated.ids.join() === "n36-bare,n36-clash,n36-fb,n36-sb" && n36Migrated.cardRows === 4 &&
+      n36Migrated.fb.cfg.projectId === "n36-proj" && n36Migrated.bare.adapter === "turso" &&
+      n36Migrated.lastTest && n36Migrated.lastTest.ok === true,
+      JSON.stringify(n36Migrated));
+    ok("N36: the migration is additive — an id the workspace store already holds keeps ITS entry, and the retired key is left on disk untouched",
+      n36Migrated.clash && n36Migrated.clash.name === "Saved at the gate" &&
+      /__turso/.test(n36Migrated.clash.cfg.url || "") &&
+      n36Migrated.legacyStillThere === 4 && n36Migrated.marker === "v1",
+      JSON.stringify({ clash: n36Migrated.clash, legacy: n36Migrated.legacyStillThere, marker: n36Migrated.marker }));
+
+    // The convergence itself, in both directions.
+    const n36OneList = await gpN36.evaluate(function () {
+      var offered = window.STUDIO_WS_STORE.list().map(function (w) { return w.id; });
+      // saved at the gate AFTER the migration: Admin sees it with no further ceremony
+      window.STUDIO_WS_STORE.save({ id: "n36-late", label: "Imported access file", sourceId: "supabase", cfg: { url: "https://late.example.co", key: "pub-late" } });
+      window.__studioRenderAdmin();
+      return {
+        offered: offered,
+        adminSeesLate: window.__studioAdminBackends.list().filter(function (r) { return r.id === "n36-late"; })[0],
+        lateOnCard: !!document.querySelector('[data-bk-id="n36-late"]')
+      };
+    });
+    ok("N36: a backend registered in Admin is now offered by the sign-in picker — and a half-configured row still is not, because it cannot say where it points",
+      n36OneList.offered.indexOf("n36-sb") >= 0 && n36OneList.offered.indexOf("n36-fb") >= 0 &&
+      n36OneList.offered.indexOf("n36-clash") >= 0 && n36OneList.offered.indexOf("n36-bare") < 0,
+      JSON.stringify(n36OneList.offered));
+    ok("N36: and the other direction — a workspace saved at the gate appears in Admin, where it can be assigned to a user",
+      !!n36OneList.adminSeesLate && n36OneList.adminSeesLate.name === "Imported access file" && n36OneList.lateOnCard,
+      JSON.stringify(n36OneList.adminSeesLate));
+
+    // Removal has to STICK: the migration marker is the difference between
+    // "removed" and "back on the next read".
+    const n36Removed = await gpN36.evaluate(function () {
+      window.__studioAdminBackends.remove("n36-sb");
+      window.__studioAdminBackends.migrate();          // the one-shot must be a no-op now
+      window.__studioRenderAdmin();
+      return {
+        ids: window.__studioAdminBackends.list().map(function (r) { return r.id; }).sort(),
+        offered: window.STUDIO_WS_STORE.list().map(function (w) { return w.id; }),
+        onCard: !!document.querySelector('[data-bk-id="n36-sb"]')
+      };
+    });
+    ok("N36: removing a migrated backend sticks — the one-shot migration never resurrects it from the retired key",
+      n36Removed.ids.indexOf("n36-sb") < 0 && n36Removed.offered.indexOf("n36-sb") < 0 && !n36Removed.onCard,
+      JSON.stringify(n36Removed));
+    await gpN36.close();
+
     // ---- LF42 slice 2: per-user backend assignment ----
-    // No backends registered right now (the block above just deleted its one row)
-    // — Add user must NOT show "Assigned backend" (no empty facet, same
-    // convention as the folder/tag chip filters elsewhere).
+    // Nothing saved right now (the block above just deleted its one row) — Add
+    // user must NOT show "Assigned workspace" (no empty facet, same convention
+    // as the folder/tag chip filters elsewhere).
     const lf42s2NoBackends = await gp42.evaluate(function () {
       window.__studioOpenUserEditor();
       var has = !!document.getElementById("usrEditBackend");
@@ -22563,10 +24005,10 @@ function serve() {
     // Register two backends directly (the wizard path is already covered above)
     // so the picker has real options.
     await gp42.evaluate(function () {
-      localStorage.setItem("studio-admin-backends", JSON.stringify([
+      window.__seedBackends([
         { id: "bk1", name: "Prod Supabase", adapter: "supabase", cfg: {} },
         { id: "bk2", name: "Dev Turso", adapter: "turso", cfg: {} },
-      ]));
+      ]);
     });
     const lf42s2Fields = await gp42.evaluate(function () {
       window.__studioRenderAdmin();
@@ -22608,7 +24050,7 @@ function serve() {
       var usrBadges = usrRow ? [].slice.call(usrRow.querySelectorAll(".cx-badge")).map(function (b) { return b.textContent; }) : [];
       return { bkBadge: bkRow && bkRow.textContent, usrBadges: usrBadges };
     });
-    ok("LF42 slice 2: the Backends card shows a '1 user' count badge, and the assigned account shows '→ Prod Supabase' on the Users list",
+    ok("LF42 slice 2: the Workspaces card shows a '1 user' count badge, and the assigned account shows '→ Prod Supabase' on the Users list",
       lf42s2Badges.bkBadge === "1 user" && lf42s2Badges.usrBadges.indexOf("→ Prod Supabase") >= 0,
       JSON.stringify(lf42s2Badges));
 
@@ -22633,7 +24075,7 @@ function serve() {
     await gp42.evaluate(function () {
       return window.PolecatAuth.upsert("lf42user", { provisioning: { theme: "", pack: "", backendId: "bk2" } });
     });
-    await gp42.evaluate(function () { localStorage.setItem("studio-admin-backends", "[]"); });
+    await gp42.evaluate(function () { window.__seedBackends([]); });
     const lf42s2Preserved = await gp42.evaluate(function () {
       window.__studioRenderAdmin();
       window.__studioOpenUserEditor(window.PolecatAuth.find("lf42user"));
@@ -22664,10 +24106,10 @@ function serve() {
 
     // Register two backends — Switch backend should now offer them first.
     await gp42.evaluate(function (port) {
-      localStorage.setItem("studio-admin-backends", JSON.stringify([
+      window.__seedBackends([
         { id: "bk3", name: "Prod Turso", adapter: "turso", cfg: { url: "http://localhost:" + port + "/__turso", token: "tok-lf42s3" } },
         { id: "bk4", name: "Dev Supabase", adapter: "supabase", cfg: {} },
-      ]));
+      ]);
     }, PORT);
     const lf42s3Picker = await gp42.evaluate(function () {
       window.__studioRenderWorkspaceBackendCard();
@@ -22725,9 +24167,9 @@ function serve() {
     // provisioning.backend — the admin backends list is device-local, so a bare
     // backendId could never resolve on a fresh device.
     await gp42.evaluate(function () {
-      localStorage.setItem("studio-admin-backends", JSON.stringify([
+      window.__seedBackends([
         { id: "bk5", name: "CTIC Supabase", adapter: "supabase", cfg: { url: "https://bk5.example.co", key: "pub-k5" } }
-      ]));
+      ]);
       window.__studioRenderAdmin();
       window.__studioOpenUserEditor(window.PolecatAuth.find("lf42user"));
       document.getElementById("usrEditBackend").value = "bk5";
@@ -22841,6 +24283,121 @@ function serve() {
     ok("#103: connectAdopt's skipIfEmpty guard refuses to adopt an empty remote read over local data — no wipe, no error state",
       a103Guard.rejected && a103Guard.emptyFlag && a103Guard.sentinelSurvived && a103Guard.statusNotError,
       JSON.stringify(a103Guard));
+
+    /* ---- N36 slice 2: THE RENAME — "Backends" is "Workspaces" everywhere the
+       noun means a saved, credentialed destination, and "backend" survives only
+       where it names the STATE (Settings' "Workspace backend — Local (this
+       browser)"). These checks hold BOTH ends: the new noun is on screen, and
+       the state phrase was not collateral damage. ------------------------- */
+    console.log("\n• N36 slice 2: Admin's Backends card is Workspaces");
+    await gp42.evaluate(function () {
+      window.__seedBackends([
+        { id: "n36r-ok", name: "Acme (production)", adapter: "turso", cfg: { url: "https://acme.example.co", token: "t" } },
+        { id: "n36r-half", name: "Half-typed", adapter: "supabase", cfg: {} },
+      ]);
+      window.__studioShellSetSection("admin"); window.__studioRenderAdmin();
+    });
+    const n36Card = await gp42.evaluate(function () {
+      var card = [].slice.call(document.querySelectorAll(".settings-card")).filter(function (c) { return /^Workspaces$/.test((c.querySelector("h2") || {}).textContent || ""); })[0];
+      if (!card) return { found: false };
+      var txt = card.textContent || "";
+      // Every remaining "backend" on this card must be the STATE phrase
+      // "Workspace backend" (the Settings card it points at). A bare one is a
+      // row-noun the rename missed.
+      var strays = (txt.replace(/Workspace backend/g, "").match(/backends?/gi) || []);
+      return {
+        found: true,
+        addBtn: (document.getElementById("bkNewBtn") || {}).textContent,
+        strays: strays,
+        namesPackaged: /packaged with this app/.test(txt),
+        rows: document.querySelectorAll("[data-bk-id]").length
+      };
+    });
+    ok("N36 slice 2: the Admin card is titled Workspaces, its button says + Add workspace, and no stray 'backend' names a row on it",
+      n36Card.found && n36Card.addBtn === "+ Add workspace" && n36Card.strays.length === 0 &&
+      n36Card.namesPackaged && n36Card.rows === 2, JSON.stringify(n36Card));
+
+    // Decision (2), made honest on the card: an entry with no address is KEPT
+    // and editable here (slice 1's storable-vs-valid split) but the sign-in
+    // picker cannot offer it — so the row says so rather than going quietly
+    // missing over there.
+    const n36Unconfigured = await gp42.evaluate(function () {
+      return {
+        badgeOnHalf: !!document.querySelector('[data-bk-unconfigured="n36r-half"]'),
+        badgeText: (document.querySelector('[data-bk-unconfigured="n36r-half"]') || {}).textContent,
+        badgeOnOk: !!document.querySelector('[data-bk-unconfigured="n36r-ok"]'),
+        offered: window.STUDIO_WS_STORE.list().map(function (w) { return w.id; }),
+        kept: window.__studioAdminBackends.list().map(function (r) { return r.id; }).sort()
+      };
+    });
+    ok("N36 slice 2: a workspace with no address carries a 'not configured' badge — kept and editable here, never offered at sign-in",
+      n36Unconfigured.badgeOnHalf && n36Unconfigured.badgeText === "not configured" && !n36Unconfigured.badgeOnOk &&
+      n36Unconfigured.offered.indexOf("n36r-half") < 0 && n36Unconfigured.offered.indexOf("n36r-ok") >= 0 &&
+      JSON.stringify(n36Unconfigured.kept) === JSON.stringify(["n36r-half", "n36r-ok"]),
+      JSON.stringify(n36Unconfigured));
+
+    const n36Wizard = await gp42.evaluate(async function () {
+      window.__studioOpenBackendConfigWizard();
+      await new Promise(function (r) { setTimeout(r, 80); });
+      var addTitle = (document.querySelector(".modal-h") || {}).textContent;
+      var srcCard = [].slice.call(document.querySelectorAll(".cx-src-card")).filter(function (c) { return c.querySelector("b").textContent === "Turso"; })[0];
+      srcCard.click();
+      await new Promise(function (r) { setTimeout(r, 80); });
+      var out = {
+        addTitle: addTitle,
+        nameLabel: (document.querySelector(".cx-wiz-form .cx-field span") || {}).textContent,
+        saveBtn: (document.querySelector(".cx-wiz-foot .btn.primary") || {}).textContent
+      };
+      document.querySelector(".modal-ov .x").click();
+      await new Promise(function (r) { setTimeout(r, 60); });
+      window.__studioOpenBackendConfigWizard(window.__studioAdminBackends.list().filter(function (r) { return r.id === "n36r-ok"; })[0]);
+      await new Promise(function (r) { setTimeout(r, 80); });
+      out.editTitle = (document.querySelector(".modal-h") || {}).textContent;
+      document.querySelector(".modal-ov .x").click();
+      return out;
+    });
+    ok("N36 slice 2: the add/edit wizard says workspace too — 'Add workspace' / 'Edit workspace', and the name field is 'Workspace name'",
+      n36Wizard.addTitle === "Add workspace" && n36Wizard.editTitle === "Edit workspace" &&
+      n36Wizard.nameLabel === "Workspace name" && n36Wizard.saveBtn === "Add workspace",
+      JSON.stringify(n36Wizard));
+
+    const n36UserField = await gp42.evaluate(function () {
+      window.__studioOpenUserEditor();
+      var sel = document.getElementById("usrEditBackend");
+      var lbl = sel && sel.closest(".cx-field") && sel.closest(".cx-field").querySelector("span");
+      var hint = sel && sel.closest(".cx-field") && sel.closest(".cx-field").querySelector(".cx-hint");
+      var out = { label: lbl && lbl.textContent, hint: hint && hint.textContent };
+      document.querySelector(".modal-ov .x").click();
+      return out;
+    });
+    ok("N36 slice 2: the user editor's picker is 'Assigned workspace', and its hint no longer claims the assignment is manual (#103 made it real)",
+      n36UserField.label === "Assigned workspace" && /Admin → Workspaces/.test(n36UserField.hint || "") &&
+      !/still a manual step/.test(n36UserField.hint || "") && /connected at sign-in/.test(n36UserField.hint || ""),
+      JSON.stringify(n36UserField));
+
+    // The STATE keeps its word. Settings' card is still "Workspace backend" —
+    // renaming it would have made the rail read "workspace workspace".
+    const n36State = await gp42.evaluate(function () {
+      window.__studioShellSetSection("settings"); window.__studioRenderWorkspaceBackendCard();
+      var card = [].slice.call(document.querySelectorAll(".settings-card")).filter(function (c) { return /^Workspace backend$/.test((c.querySelector("h2") || {}).textContent || ""); })[0];
+      return { found: !!card, switchBtn: (document.getElementById("wsSwitchBtn") || {}).textContent };
+    });
+    ok("N36 slice 2: Settings' card is still 'Workspace backend' — the rename took the row noun, not the state",
+      n36State.found && /backend/i.test(n36State.switchBtn || ""), JSON.stringify(n36State));
+
+    const n36Switch = await gp42.evaluate(async function () {
+      document.getElementById("wsSwitchBtn").click();
+      await new Promise(function (r) { setTimeout(r, 150); });
+      var out = { title: (document.querySelector(".modal-h") || {}).textContent,
+        intro: (document.querySelector(".modal-ov .cx-wiz-intro") || {}).textContent };
+      document.querySelector(".modal-ov .x").click();
+      return out;
+    });
+    ok("N36 slice 2: the Switch-backend picker keeps the state word in its title and calls its rows workspaces",
+      n36Switch.title === "Switch workspace backend" && /already saved on this device/.test(n36Switch.intro || ""),
+      JSON.stringify(n36Switch));
+
+    await gp42.evaluate(function () { window.__seedBackends([]); });
 
     await gp42.close();
 
@@ -24212,6 +25769,90 @@ function serve() {
     ok("deleting from My Data Sources removes the DA", delDAClicked && daAfterDel === daAfterDup - 1, daAfterDup + "→" + daAfterDel);
 
 
+    // ---- N42: selecting a View rings ITS dataset in the Data pane ----
+    console.log("\n• N42: the Data pane follows the canvas selection");
+
+    // Driven the way a user drives it: the dashboard inspector lists every View and every
+    // KPI, and clicking a row runs the same select() the canvas and the preview iframe call.
+    const n42Load = async () => {
+      await page.evaluate(async () => {
+        const spec = await fetch("data/examples/studio-cost.studio.json").then((r) => r.json());
+        window.__studioLoad(spec);
+      });
+      await page.waitForTimeout(250);
+    };
+    const n42ClickRow = (secRe, idx) => page.evaluate((a) => {
+      var h = [].slice.call(document.querySelectorAll("#inspBody .insp-sec h4"))
+        .filter(function (x) { return new RegExp(a.secRe, "i").test(x.textContent); })[0];
+      if (!h) return false;
+      var rows = [].slice.call(h.closest(".insp-sec").querySelectorAll(".row-item"));
+      if (!rows[a.idx]) return false;
+      rows[a.idx].click();
+      return true;
+    }, { secRe: secRe, idx: idx });
+    const n42Lit = () => page.evaluate(() => [].slice.call(document.querySelectorAll("#libList .da-mine-sel"))
+      .map(function (c) { return c.getAttribute("data-da-id"); }));
+
+    await n42Load();
+    const n42Want1 = await page.evaluate(() => window.__STUDIO_STATE.spec.panels[1].chart.da);
+    const n42Clicked1 = await n42ClickRow("Panels", 1);
+    const n42Lit1 = await n42Lit();
+    ok("N42: clicking a View rings ITS dataset card in the Data pane",
+      n42Clicked1 && n42Lit1.length === 1 && n42Lit1[0] === n42Want1,
+      "want " + n42Want1 + ", lit " + JSON.stringify(n42Lit1));
+
+    // The ring must MOVE with the selection, not accumulate one card per click.
+    await n42Load();
+    const n42Want2 = await page.evaluate(() => window.__STUDIO_STATE.spec.panels[4].chart.da);
+    await n42ClickRow("Panels", 4);
+    const n42Lit2 = await n42Lit();
+    ok("N42: the ring moves with the selection instead of accumulating",
+      n42Lit2.length === 1 && n42Lit2[0] === n42Want2 && n42Want2 !== n42Want1,
+      "want " + n42Want2 + ", lit " + JSON.stringify(n42Lit2));
+
+    // A KPI carries the same binding on k.da, so it answers the same question.
+    await n42Load();
+    const n42WantK = await page.evaluate(() => window.__STUDIO_STATE.spec.kpis[0].da);
+    const n42ClickedK = await n42ClickRow("KPI tiles", 0);
+    const n42LitK = await n42Lit();
+    ok("N42: selecting a KPI rings the dataset it reads from",
+      n42ClickedK && n42LitK.length === 1 && n42LitK[0] === n42WantK,
+      "want " + n42WantK + ", lit " + JSON.stringify(n42LitK));
+
+    // The item's first detail: a View with NO bound dataset rings nothing at all, rather
+    // than falling back to the first card in the list.
+    await n42Load();
+    await page.evaluate(() => { window.__STUDIO_STATE.spec.panels[0].chart.da = ""; });
+    await n42ClickRow("Panels", 0);
+    const n42LitNone = await n42Lit();
+    ok("N42: a View with no bound dataset highlights nothing (not the first card)",
+      n42LitNone.length === 0, JSON.stringify(n42LitNone));
+
+    // The item's second detail: a highlight you cannot see is half an answer, so a collapsed
+    // group is opened far enough for the card to have a box on screen.
+    await n42Load();
+    const n42Revealed = await page.evaluate(() => {
+      var grp = document.querySelector("#libList .lib-mine:not(.lib-wsds):not(.lib-analyses):not(.lib-demopacks)");
+      if (grp) grp.classList.remove("open");
+      return !!grp;
+    });
+    await n42ClickRow("Panels", 2);
+    const n42Reveal = await page.evaluate(() => {
+      var da = window.__STUDIO_STATE.spec.panels[2].chart.da;
+      var card = document.querySelector('#libList [data-da-id="' + da + '"]');
+      var grp = document.querySelector("#libList .lib-mine:not(.lib-wsds):not(.lib-analyses):not(.lib-demopacks)");
+      return { open: !!grp && grp.classList.contains("open"), lit: !!card && card.classList.contains("da-mine-sel"),
+               visible: !!card && card.getBoundingClientRect().height > 0 };
+    });
+    ok("N42: a collapsed Data-pane group opens so the highlighted card is actually visible",
+      n42Revealed && n42Reveal.open && n42Reveal.lit && n42Reveal.visible, JSON.stringify(n42Reveal));
+
+    // Escape deselects (studio.js's own shortcut) — and the ring goes with the selection.
+    await page.keyboard.press("Escape");
+    await page.waitForTimeout(120);
+    const n42LitCleared = await n42Lit();
+    ok("N42: deselecting clears the Data-pane ring", n42LitCleared.length === 0, JSON.stringify(n42LitCleared));
+
 
     // ---- assisted column + parameter tooling (slice 4) ----
     console.log("\n• assisted column + parameter tooling");
@@ -25443,7 +27084,8 @@ function serve() {
       const fakeSpec = { name: "opt-in-test", title: "Opt-in Test", panels: [{ id: "p1" }], kpis: [], filters: [] };
       try { localStorage.setItem("studio-autosave", JSON.stringify(fakeSpec)); localStorage.removeItem("studio-restore-unsaved"); } catch (e) {}
     });
-    await page.reload({ waitUntil: "networkidle" });
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await page.waitForFunction(() => window.__STUDIO_STATE && window.__STUDIO_STATE.assets.js.length > 0, { timeout: 15000 });
     await page.waitForTimeout(1200);
     const r114Off = await page.evaluate(() => ({ banner: !!document.querySelector(".restore-banner"), autosaveKept: !!localStorage.getItem("studio-autosave") }));
     ok("#114: with the toggle off, no restore banner appears on reload — and the autosave is left intact for when it's turned on",
@@ -25475,7 +27117,8 @@ function serve() {
     ok("E1: restore banner data has correct panel count", e1bannerResult.panels === 2, JSON.stringify(e1bannerResult));
     ok("E1: restore banner data has correct KPI count", e1bannerResult.kpis === 1, JSON.stringify(e1bannerResult));
     // Reload so the banner renders from the injected autosave
-    await page.reload({ waitUntil: "networkidle" });
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await page.waitForFunction(() => window.__STUDIO_STATE && window.__STUDIO_STATE.assets.js.length > 0, { timeout: 15000 });
     await page.waitForTimeout(1200); // debounce + banner timeout
     const e1banner = await page.evaluate(() => {
       const b = document.querySelector(".restore-banner");
@@ -25526,7 +27169,8 @@ function serve() {
     console.log("\n• Export history (E2 / v49)");
     // Clear history BEFORE reload so boot doesn't load stale items into memory
     await page.evaluate(() => { try { localStorage.removeItem("studio-export-history"); } catch(e) {} });
-    await page.reload({ waitUntil: "networkidle" });
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await page.waitForFunction(() => window.__STUDIO_STATE && window.__STUDIO_STATE.assets.js.length > 0, { timeout: 15000 });
     await page.waitForTimeout(600);
     // Trigger a CDF export to record it
     await page.evaluate(() => {
@@ -31305,6 +32949,117 @@ function serve() {
     ok("J-docs: a query with no matches shows an empty state and no stale hit rows",
       jSearchEmpty.visible && jSearchEmpty.hasEmptyState && jSearchEmpty.hitCount === 0,
       JSON.stringify(jSearchEmpty));
+
+    // ── N7-NAV (2026-08-09): Help's own navigation vs the page it navigates ──────────
+    // Before this slice the page had 15 <h2> topics inside 10 sections and 9 nav links:
+    // Quick Views, View Builder, Sample packs, Jobs and THE BUILDER ITSELF were buried in
+    // one <section id="builder"> that opened on Home, so "#builder" landed ~400 lines above
+    // the builder, the LF60 search indexed those six topics as one entry titled "Home —
+    // instant analytics", and the scroll-spy lit one link for all of them. doc-truth check
+    // 43 holds the STRUCTURE; these hold the three behaviours that structure feeds.
+    const jNavPage = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+    await jNavPage.goto(`http://localhost:${PORT}/docs/index.html`, { waitUntil: "load" });
+
+    const jNavWiring = await jNavPage.evaluate(function () {
+      var secs = Array.from(document.querySelectorAll("main > section[id]"));
+      var links = Array.from(document.querySelectorAll("nav .nav-inner a[href^='#']"));
+      var IGNORE = ["the", "a", "an", "and", "&", "of", "in", "vs"];
+      var words = function (s) {
+        return s.toLowerCase().replace(/[^a-z0-9\s]/g, " ").split(/\s+/)
+          .filter(function (w) { return w && IGNORE.indexOf(w) < 0; });
+      };
+      var broken = [];
+      links.forEach(function (a) {
+        var id = a.getAttribute("href").slice(1);
+        var sec = document.getElementById(id);
+        var h2 = sec && sec.querySelector("h2");
+        if (!sec || secs.indexOf(sec) < 0 || !h2) { broken.push(id + ": no section"); return; }
+        var heading = words(h2.textContent);
+        var stray = words(a.textContent).filter(function (w) { return heading.indexOf(w) < 0; });
+        if (stray.length) broken.push(id + ': "' + a.textContent.trim() + '" vs "' + h2.textContent.trim() + '"');
+      });
+      // Every topic is its own section, so no section hides a second <h2>.
+      var multi = secs.filter(function (s) { return s.querySelectorAll("h2").length !== 1; })
+        .map(function (s) { return s.id; });
+      return { sections: secs.length, links: links.length, broken: broken, multi: multi };
+    });
+    ok("N7-NAV: every docs nav link resolves to its own top-level section whose heading says what the label says",
+      jNavWiring.sections === jNavWiring.links && jNavWiring.links >= 15 &&
+        !jNavWiring.broken.length && !jNavWiring.multi.length,
+      JSON.stringify(jNavWiring));
+
+    // The specific regression: #builder — where the app's own contextual `?` sends people
+    // (app/index.html #inspHelpLink, studio.js _hlAnchors fallback) — must open ON the builder.
+    const jNavBuilder = await jNavPage.evaluate(function () {
+      var pick = function (id) {
+        var s = document.getElementById(id), h = s && s.querySelector("h2");
+        return h ? h.textContent.trim() : null;
+      };
+      return {
+        builder: pick("builder"), home: pick("home"), jobs: pick("jobs"),
+        packs: pick("sample-packs"), quick: pick("quick-views"), build: pick("build"),
+        glossary: pick("glossary")
+      };
+    });
+    ok("N7-NAV: #builder opens on the builder (not on Home), and each split-out topic owns its own anchor",
+      /^The builder$/.test(jNavBuilder.builder || "") && /^Home/.test(jNavBuilder.home || "") &&
+        /^Jobs/.test(jNavBuilder.jobs || "") && /^Sample packs$/.test(jNavBuilder.packs || "") &&
+        /^Quick Views/.test(jNavBuilder.quick || "") && /^View Builder/.test(jNavBuilder.build || "") &&
+        /^Glossary/.test(jNavBuilder.glossary || ""),
+      JSON.stringify(jNavBuilder));
+
+    // The search index follows the sections, so a formerly-buried topic is findable by its
+    // own name and jumps to its own anchor (it used to answer "Home — instant analytics").
+    await jNavPage.fill("#docSearch", "sample packs");
+    await jNavPage.waitForTimeout(80);
+    const jNavSearchTitle = await jNavPage.evaluate(function () {
+      var hit = document.querySelector(".doc-search-hit .dsh-title");
+      return hit ? hit.textContent.trim() : "";
+    });
+    await jNavPage.click(".doc-search-hit");
+    await jNavPage.waitForTimeout(80);
+    const jNavSearchJump = await jNavPage.evaluate(function () { return location.hash; });
+    ok("N7-NAV: the docs search finds a formerly-buried topic under its own heading and jumps to its own anchor",
+      jNavSearchTitle === "Sample packs" && jNavSearchJump === "#sample-packs",
+      JSON.stringify({ title: jNavSearchTitle, hash: jNavSearchJump }));
+
+    // The scroll-spy follows too: reading Jobs lights the Jobs link, not one six topics away.
+    await jNavPage.evaluate(function () {
+      // Null-safe on purpose (AUD-10): if #jobs ever stops existing this reports as a failed
+      // check rather than throwing and aborting the whole section.
+      var jobs = document.getElementById("jobs");
+      if (jobs) jobs.scrollIntoView();
+      window.dispatchEvent(new Event("scroll"));
+    });
+    await jNavPage.waitForTimeout(120);
+    const jNavActive = await jNavPage.evaluate(function () {
+      return Array.from(document.querySelectorAll("nav a.active"))
+        .map(function (a) { return a.getAttribute("href"); });
+    });
+    ok("N7-NAV: the scroll-spy marks the topic actually on screen",
+      jNavActive.length === 1 && jNavActive[0] === "#jobs", JSON.stringify(jNavActive));
+    await jNavPage.close();
+
+    // Mobile is a release gate: 15 links live in a horizontally scrolling bar, so the bar
+    // may overflow ITSELF but the page must not, and the last link must stay reachable.
+    const jNavPhone = await browser.newPage({ viewport: { width: 390, height: 780 } });
+    await jNavPhone.goto(`http://localhost:${PORT}/docs/index.html`, { waitUntil: "load" });
+    const jNavPhoneFit = await jNavPhone.evaluate(function () {
+      var bar = document.querySelector(".nav-inner");
+      var last = bar.querySelector("a:last-of-type");
+      bar.scrollLeft = bar.scrollWidth;
+      return {
+        noPageHScroll: document.documentElement.scrollWidth <= window.innerWidth + 1,
+        scrollable: getComputedStyle(bar).overflowX === "auto",
+        lastVisible: last.getBoundingClientRect().right <= bar.getBoundingClientRect().right + 1,
+        lastHref: last.getAttribute("href")
+      };
+    });
+    await jNavPhone.close();
+    ok("N7-NAV: at 390x780 the docs nav scrolls to its last link without overflowing the page",
+      jNavPhoneFit.noPageHScroll && jNavPhoneFit.scrollable && jNavPhoneFit.lastVisible &&
+        jNavPhoneFit.lastHref === "#admin-docs",
+      JSON.stringify(jNavPhoneFit));
 
     // ── J2: Contextual help links ─────────────────────────────────────────
     // Inspector-level help link (#inspHelpLink) + section-level .sec-help badges.
@@ -38069,7 +39824,7 @@ function serve() {
     // Z1-5: active section persists across reloads
     await page.click('#railNav .rail-item[data-sec="dashboards"]');
     await page.waitForTimeout(80);
-    await page.reload({ waitUntil: "networkidle" });
+    await page.reload({ waitUntil: "domcontentloaded" });
     await page.waitForFunction(() => window.__STUDIO_STATE && window.__STUDIO_STATE.assets.js.length > 0, { timeout: 10000 });
     await page.waitForTimeout(300);
     const z1Persisted = await page.evaluate(function () {
@@ -40334,8 +42089,7 @@ function serve() {
         darkChecked: sec.querySelector('input[data-set="dark"]').checked,
         simpleChecked: sec.querySelector('input[data-set="simple"]').checked,
         restoreChecked: sec.querySelector('input[data-set="restore"]').checked,
-        demoChecked: sec.querySelector('input[data-set="demo"]').checked,
-        samplesChecked: sec.querySelector('input[data-set="samples"]').checked
+        demoChecked: sec.querySelector('input[data-set="demo"]').checked
       };
     });
     // LF48: Focus mode's own Settings toggle is retired (it moved to being the ⋯ More →
@@ -40343,9 +42097,11 @@ function serve() {
     // with side panels" switch (its checked state reflects the per-device preference —
     // this suite seeds "open", and the STUDIO-PANELS block covers both states — so only
     // its presence is asserted here).
-    ok("Z5: Settings section renders 7 cards with 6 mode switches — modes (incl. #114 Restore unsaved work) off by default, Sample content ON by default",
-      z5Boot.visible && z5Boot.hasCards && z5Boot.switchIds === "dark,samples,simple,restore,panels,demo"
-        && !z5Boot.darkChecked && !z5Boot.simpleChecked && !z5Boot.restoreChecked && !z5Boot.demoChecked && z5Boot.samplesChecked,
+    // N32 retired the "Sample content" switch — the Sample packs card governs sample
+    // content now — so the Mode group is one switch shorter; the card count is unchanged.
+    ok("Z5: Settings section renders 8 cards with 5 mode switches — modes (incl. #114 Restore unsaved work) off by default",
+      z5Boot.visible && z5Boot.hasCards && z5Boot.switchIds === "dark,simple,restore,panels,demo"
+        && !z5Boot.darkChecked && !z5Boot.simpleChecked && !z5Boot.restoreChecked && !z5Boot.demoChecked,
       JSON.stringify(z5Boot));
 
     // Z5-2: Dark mode switch drives the same S.theme + data-theme as the topbar toggle
@@ -43468,6 +45224,31 @@ function serve() {
       return { open: nav.classList.contains("mobile-open"), scrim: document.getElementById("mobile-scrim").classList.contains("active"), onScreen: r.left >= -2 && r.width > 100 };
     });
     ok("m-a: hamburger opens the drawer + scrim (rail slides on-screen)", mOpen.open && mOpen.scrim && mOpen.onScreen, JSON.stringify(mOpen));
+    // N30 (Kevin live phone, 2026-08-08): the drawer could not be scrolled, so
+    // Settings/Help/the quick toggles — which .rail-spacer{flex:1} deliberately puts
+    // LAST — were unreachable on a phone. Measure the two things that were wrong:
+    // the drawer must be a scroll container (computed overflow-y, not just a class),
+    // and the LAST rail item must actually be reachable by scrolling to it.
+    const mScroll = await mp.evaluate(async () => {
+      var nav = document.getElementById("railNav");
+      var cs = getComputedStyle(nav);
+      var settings = document.querySelector('#railNav .rail-item[data-sec="settings"]');
+      var navR = nav.getBoundingClientRect();
+      // Reachable = after scrolling the drawer to its end, Settings sits inside the
+      // drawer's own box. With overflow:hidden it can never get there.
+      nav.scrollTop = nav.scrollHeight;
+      await new Promise(function (r) { requestAnimationFrame(function () { r(); }); });
+      var sR = settings ? settings.getBoundingClientRect() : null;
+      return {
+        overflowY: cs.overflowY,
+        overflows: nav.scrollHeight > nav.clientHeight + 1,
+        scrolled: nav.scrollTop > 0,
+        settingsReachable: !!sR && sR.top >= navR.top - 1 && sR.bottom <= navR.bottom + 1
+      };
+    });
+    ok("m-a: N30 — the mobile drawer scrolls, so Settings below the fold is reachable",
+      (mScroll.overflowY === "auto" || mScroll.overflowY === "scroll") && mScroll.settingsReachable,
+      JSON.stringify(mScroll));
     await mp.click('#railNav .rail-item[data-sec="dashboards"]');
     await mp.waitForTimeout(350);
     const mPick = await mp.evaluate(() => ({
@@ -45084,7 +46865,7 @@ function serve() {
     // (b) the migration is ONE-TIME: emptying the catalog and rebooting must NOT
     // resurrect the legacy backup (the meta stamp guards it).
     await wsDashPage.evaluate(function () { window.__studioSeedDashboards([]); });
-    await wsDashPage.reload({ waitUntil: "networkidle" });
+    await wsDashPage.reload({ waitUntil: "domcontentloaded" });
     await wsDashPage.waitForFunction(() => window.Studio && Studio.Workspace, { timeout: 10000 });
     const wsDashNoResurrect = await wsDashPage.evaluate(function () {
       // filter to the seeded legacy ids — the boot spec may legitimately self-register
@@ -45387,7 +47168,6 @@ function serve() {
       ["explore", "connection", "dataset"].every(function (a) { return homeCardsAsViewer.indexOf(a) >= 0; }),
       JSON.stringify(homeCardsAsViewer));
     const homeCardsAsDeveloper = await page.evaluate(function () {
-      localStorage.setItem("studio-show-samples", "1"); // isolate from any prior sample-toggle test
       window.PolecatAuth.login("lf23s2dev"); // seeded developer account
       window.__studioShellApplyRoleGating();
       window.__studioRenderHome();
@@ -45559,7 +47339,8 @@ function serve() {
     await lf23s2DevPage.addInitScript(() => { try { sessionStorage.setItem("studio-gate-ok", "1"); } catch (e) {} });
     await lf23s2DevPage.goto(`http://localhost:${PORT}/app/viewer.html?dash=lf23s2-dash`, { waitUntil: "networkidle" });
     await lf23s2DevPage.evaluate(function () { window.PolecatAuth.login("lf23s2dev"); });
-    await lf23s2DevPage.reload({ waitUntil: "networkidle" });
+    await lf23s2DevPage.reload({ waitUntil: "domcontentloaded" });
+    await lf23s2DevPage.waitForFunction(function () { return !!window.__viewerBuildHtml; }, { timeout: 10000 });
     await lf23s2DevPage.waitForTimeout(300);
     const editLinkAsDev = await lf23s2DevPage.evaluate(function () {
       var editEl = document.getElementById("viewerEditLink");
@@ -45667,7 +47448,7 @@ function serve() {
     // buttons stay tappable. Sign in as admin first so the extra "Edit in Dashboard Builder" button is present
     // too (the busiest possible bar).
     await vxPage.evaluate(function () { window.PolecatAuth.login("admin"); });
-    await vxPage.reload({ waitUntil: "networkidle" });
+    await vxPage.reload({ waitUntil: "domcontentloaded" });
     await vxPage.waitForFunction(function () { return !!window.__viewerBuildHtml; }, { timeout: 8000 }).catch(function () {});
     await vxPage.setViewportSize({ width: 390, height: 780 });
     await vxPage.waitForTimeout(150);

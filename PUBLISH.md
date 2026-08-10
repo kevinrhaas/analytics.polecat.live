@@ -1,12 +1,32 @@
-# Publishing DashKit Dashboard Studio → analytics.polecat.live
+# Publishing Analytics Dashboard Studio → analytics.polecat.live
 
-The Studio is a static site, so it hosts on GitHub Pages with no build step. **This repository *is*
-the published site** — GitHub Pages serves the repo root directly, so there's no mirror/publish step:
-push to the deploy branch and the live site updates.
+The Studio is a static site with no build step, and **this repository *is* the published site** —
+but it is no longer served straight off a branch. `.github/workflows/deploy.yml` assembles the
+Pages artifact and publishes it, so there is still no mirror/publish step: **merging to `main`
+is what ships.**
 
 ## 1. Enable GitHub Pages on this repo
 
-**Settings → Pages → Build and deployment → Deploy from a branch → `main` / `/ (root)`.**
+**Settings → Pages → Build and deployment → Source → `GitHub Actions`.**
+
+Not the branch-serving option GitHub offers by default — switching back to it would take this
+repo's deploy workflow out of the path and, with it, the two preview stages below. `deploy.yml`
+replaced the branch pipeline for two reasons its own header states: the branch pipeline has no
+concurrency control (a newer push cancels an in-flight deploy instead of queueing behind it),
+and the artifact it publishes now carries three trees rather than one:
+
+| Path | Tree | What it is |
+|---|---|---|
+| `/` | the `main` branch | **production** — the real `sw.js`, indexed |
+| `/stage/` | the `stage` branch | the release candidate — re-based paths, a self-unregistering SW stub, `noindex`, a stage banner |
+| `/dev/` | the `dev` branch | integration, assembled the same way |
+
+`tools/stage-preview.mjs` assembles the previews at deploy time from whichever of those refs
+exist, so the artifact root is always production and the previews are always a rebuild rather
+than a commit. **Only `main` deploys** — the `github-pages` environment refuses any other ref —
+so a push to `dev` or `stage` re-dispatches this same workflow on `main`, which rebuilds the
+whole artifact and refreshes both previews. **[docs/PIPELINE.md](docs/PIPELINE.md)** is how a
+change travels dev → stage → main, and which gate has to be green at each hop.
 
 The committed `CNAME` sets the custom domain to `analytics.polecat.live`.
 
@@ -33,8 +53,8 @@ HTTPS"). Allow a few minutes to an hour for the certificate.
 screen first, authenticating against the user store in `app/auth.js` — the local demo accounts
 (`admin`/`admin`, `demo`/`demo`) out of the box, or the `users` table of whatever workspace backend
 you connect the app to (Settings → Workspace, or "Connect to your workspace" right on the sign-in
-screen). Manage accounts in-app under **Admin → Users**; passwords are stored as salted PBKDF2
-digests, never plaintext.
+screen). Manage accounts in-app under **Admin**, the admin-only rail section, which opens on the
+user list; passwords are stored as salted PBKDF2 digests, never plaintext.
 
 > The single site-wide **passcode** this section used to describe was retired when the sign-in
 > screen landed. Its config file (`app/gate-config.js`, `window.STUDIO_GATE_SHA256`) had no readers
@@ -54,9 +74,14 @@ the app (per-user rights, saved layouts), so it is not redundant with the perime
 
 ## Notes
 
-- **Live Pentaho features** (doQuery preview, import, push) need a server reachable from the browser —
-  a public-cloud Studio can't reach a `localhost` Pentaho. Use it standalone (sample data + export),
-  point connections at a reachable/CORS-enabled Pentaho, or run `tools/push.js` from a networked host.
-- **First-run welcome tour** explains the demo; reopen any time via **ⓘ Tour**. Reset with
+- **Connections are made from the visitor's browser, not from a server.** Whatever a connection
+  points at therefore has to be reachable from that browser and send CORS headers for this origin:
+  a public-cloud Studio cannot reach a `localhost` database, Snowflake and Databricks need this
+  origin allow-listed on the account, and the file-over-HTTP source types need CORS plus Range
+  requests. With nothing reachable to point at, the app still works standalone — install a sample
+  pack and export.
+- **First-run welcome tour** explains the demo; reopen it any time from **⌘K → Take the tour**
+  (**⌘K → Interactive tutorial** opens the longer in-app walkthrough instead). Reset it with
   `localStorage.removeItem('studio-welcome-seen')`.
-- Re-deploy after any change by pushing to the Pages branch.
+- **Re-deploying is merging.** `deploy.yml` runs on the push, so a merge to `main` republishes the
+  site and a merge to `dev` refreshes `/dev/` — nothing is published by hand.

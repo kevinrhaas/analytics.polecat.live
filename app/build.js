@@ -100,9 +100,13 @@
     paletteKey: "",           // VB-3: Studio.PALETTE_PRESETS key ("" = default) for the live preview
     chartType: "table",      // slice 2: table | bars | line | donut | heatmap
     mapScale: "",            // VB-10: the Map's Region scale — "" = auto (inferred from the geo field)
+    trend: false,            // N33b: the Scatter's regression line — a builder control now, not
+                             // an opt the builder could only carry blindly past itself
     analysisId: null, name: "", folder: "",
     panelTitle: "",          // VB-7: the panel header's own title — "" tracks the View name
     notice: "",              // VB-5: dismissible cross-editor banner text ("" = hidden)
+    carried: null,           // N33: { type, opts } — authored chart opts this builder can't
+                             // edit, captured on load and re-applied on preview + save
     outlineOpen: {}          // which outline datasets are expanded
   };
   function bdReset() {
@@ -111,10 +115,11 @@
     BD.shelfColor = []; BD.paletteKey = "";
     BD._eff = null;
     BD.chartType = "table";
-    BD.mapScale = "";
+    BD.mapScale = ""; BD.trend = false;
     BD.analysisId = null; BD.name = ""; BD.folder = "";
     BD.panelTitle = "";
     BD.notice = "";
+    BD.carried = null;
   }
 
   // ---------- VB-14: per-dataset drafts ----------
@@ -128,7 +133,7 @@
   // the chart strip) resets ONLY the current dataset's draft.
   var BD_DRAFT_KEY = "studio-bd-drafts", BD_DRAFT_MAX = 20;
   var BD_DRAFT_FIELDS = ["shelfCols", "shelfRows", "filters", "calcs", "shelfColor",
-    "paletteKey", "chartType", "mapScale", "analysisId", "name", "folder", "panelTitle"];
+    "paletteKey", "chartType", "mapScale", "trend", "analysisId", "name", "folder", "panelTitle"];
   var _drafts = null, _draftTimer = null;
   function bdDrafts() {
     if (_drafts) return _drafts;
@@ -164,8 +169,9 @@
   function bdClearCanvas() {
     if (!BD.dsId) return;
     BD.shelfCols = []; BD.shelfRows = []; BD.filters = []; BD.calcs = []; BD.shelfColor = [];
-    BD.paletteKey = ""; BD.chartType = "table"; BD.mapScale = ""; BD._eff = null;
+    BD.paletteKey = ""; BD.chartType = "table"; BD.mapScale = ""; BD.trend = false; BD._eff = null;
     BD.analysisId = null; BD.name = ""; BD.folder = ""; BD.panelTitle = "";
+    BD.carried = null; BD.notice = ""; // N33: a cleared canvas carries nothing
     delete bdDrafts()[BD.dsKind + BD_SEP + BD.dsId];
     bdPersistDrafts();
     D.toast("Canvas cleared — clean slate for this dataset");
@@ -269,28 +275,55 @@
   function bdIsCalc(col) { return BD.calcs.some(function (c) { return c.name === col; }); }
   // Replace the calc list wholesale (the editor modal's Save + the test hook):
   // sanitizes names, drops incomplete rows, refuses collisions with real columns,
-  // and prunes any shelf/filter chip whose calc column just went away or renamed.
+  // and prunes any shelf/filter chip whose calc column just went away.
+  // N35: a row that arrives carrying `_orig` (the editor stamps it with the name the
+  // row had when the modal opened) is a RENAME, not a delete-plus-add — its shelf,
+  // filter and color chips follow the new name instead of being pruned. Editing the
+  // calc you already put on a shelf is the whole point of the ✎ affordance, so losing
+  // the chip on rename would undo the fix. Callers without `_orig` (the test hook,
+  // any programmatic setter) keep the original prune-only behaviour.
   function bdSetCalcs(list) {
     var baseCols = BD.run ? BD.run.cols : [];
-    var seen = {};
+    var seen = {}, renames = {};
     BD.calcs = (list || []).map(function (c) {
-      return { name: String(c.name || "").trim().replace(/[^A-Za-z0-9_]+/g, "_").replace(/^_+|_+$/g, ""), formula: String(c.formula || "").trim() };
+      return {
+        name: String(c.name || "").trim().replace(/[^A-Za-z0-9_]+/g, "_").replace(/^_+|_+$/g, ""),
+        formula: String(c.formula || "").trim(),
+        _orig: c._orig,
+      };
     }).filter(function (c) {
       if (!c.name || !c.formula) return false;
       if (baseCols.indexOf(c.name) >= 0) return false; // never shadow a real column
       if (seen[c.name]) return false;
       seen[c.name] = true;
       return true;
+    }).map(function (c) {
+      // record the rename only for rows that SURVIVED, and strip the marker so it
+      // never reaches BD.calcs (which is serialized into the saved View's builder blob)
+      if (c._orig && c._orig !== c.name) renames[c._orig] = c.name;
+      return { name: c.name, formula: c.formula };
     });
     BD._eff = null;
     var known = bdEff() ? bdEff().cols : [];
-    BD.shelfCols = BD.shelfCols.filter(function (f) { return known.indexOf(f.col) >= 0; });
-    BD.shelfRows = BD.shelfRows.filter(function (f) { return known.indexOf(f.col) >= 0; });
-    BD.filters = BD.filters.filter(function (f) { return known.indexOf(f.col) >= 0; });
-    BD.shelfColor = BD.shelfColor.filter(function (f) { return known.indexOf(f.col) >= 0; });
+    function keep(list) {
+      return list.map(function (f) {
+        if (renames[f.col] && known.indexOf(renames[f.col]) >= 0) f.col = renames[f.col];
+        return f;
+      }).filter(function (f) { return known.indexOf(f.col) >= 0; });
+    }
+    BD.shelfCols = keep(BD.shelfCols);
+    BD.shelfRows = keep(BD.shelfRows);
+    BD.filters = keep(BD.filters);
+    BD.shelfColor = keep(BD.shelfColor);
     render();
   }
-  function openCalcEditor() {
+  // N35: the editor was always fine — the way IN was the defect. It now opens on a
+  // specific row: `opts.focus` is a calc name (the field list's ✎ — edit the thing you
+  // made, the pattern filter chips already use), `opts.addBlank` is the "＋ calc…" path,
+  // which appends a genuinely blank row and focuses it. A ＋ that hands back last time's
+  // formula is exactly what Kevin hit.
+  function openCalcEditor(opts) {
+    opts = opts || {};
     D.modal("Calculated columns", function (b) {
       var wrap = D.el("div", "bd-calc");
       var hint = D.el("div", "bd-calc-hint");
@@ -298,7 +331,11 @@
       wrap.appendChild(hint);
       var listBox = D.el("div", "bd-calc-list");
       wrap.appendChild(listBox);
-      var draft = Studio.clone(BD.calcs);
+      // `_orig` rides along so Apply can tell a rename from a delete-plus-add
+      var draft = Studio.clone(BD.calcs).map(function (c) { c._orig = c.name; return c; });
+      var focusIdx = -1, focusSel = ".bd-calc-formula";
+      if (opts.focus) draft.forEach(function (c, i) { if (c.name === opts.focus) focusIdx = i; });
+      if (opts.addBlank) { draft.push({ name: "", formula: "" }); focusIdx = draft.length - 1; focusSel = ".bd-calc-name"; }
       function paint() {
         listBox.innerHTML = "";
         if (!draft.length) {
@@ -307,7 +344,7 @@
         }
         draft.forEach(function (c, i) {
           var row = D.el("div", "bd-calc-row");
-          var nm = D.el("input"); nm.type = "text"; nm.value = c.name; nm.placeholder = "col_name"; nm.setAttribute("aria-label", "Column name");
+          var nm = D.el("input", "bd-calc-name"); nm.type = "text"; nm.value = c.name; nm.placeholder = "col_name"; nm.setAttribute("aria-label", "Column name");
           nm.oninput = function () { c.name = nm.value; };
           var fm = D.el("input"); fm.type = "text"; fm.value = c.formula; fm.placeholder = "=[colA] / [colB]"; fm.setAttribute("aria-label", "Formula");
           fm.className = "bd-calc-formula"; fm.oninput = function () { c.formula = fm.value; };
@@ -318,9 +355,20 @@
         });
       }
       paint();
+      // the modal focuses its own first field at 50ms (studio.js modal()) — land after it,
+      // so the row we were asked to open on is the one holding the caret
+      if (focusIdx >= 0) setTimeout(function () {
+        var row = listBox.children[focusIdx];
+        var inp = row && row.querySelector(focusSel);
+        if (inp) { inp.focus(); inp.select(); }
+      }, 80);
       var foot = D.el("div"); foot.style.cssText = "display:flex;justify-content:space-between;gap:8px;margin-top:14px";
       var add = D.el("button", "btn"); add.type = "button"; add.textContent = "+ Add column";
-      add.onclick = function () { draft.push({ name: "", formula: "" }); paint(); };
+      add.onclick = function () {
+        draft.push({ name: "", formula: "" }); paint();
+        var last = listBox.children[draft.length - 1];
+        var inp = last && last.querySelector(".bd-calc-name"); if (inp) inp.focus();
+      };
       var save = D.el("button", "btn primary"); save.type = "button"; save.textContent = "Apply";
       save.onclick = function () { bdSetCalcs(draft); wrap.closest(".modal-ov").remove(); };
       foot.appendChild(add); foot.appendChild(save);
@@ -331,7 +379,7 @@
 
   // ---------- dataset outline (LEFT) ----------
   // Same sourcing rules as Explore's picker: visible workspace datasets first,
-  // then the sample catalog's authored/sample queries (showSamples-gated).
+  // then the sample catalog's authored/sample queries (gated on the owning pack).
   // Kept local rather than reaching into explore.js's private xpDatasets —
   // LF51's shared-nav convergence epic is where these unify.
   // VB-1: rows carry `folder` (ws) / `stem` (sample) so the outline can render
@@ -351,8 +399,8 @@
     // Management pack's data — they only appear when that pack is actually installed
     // (uninstalled pack = zero presence), not as an always-there SAMPLE DATA dump.
     // SP-0: ask the registry which pack owns them (`catalogSamples`) rather than naming one.
-    if (D.showSamples() && Studio.demoPacksWith &&
-        Studio.demoPacksWith("catalogSamples").some(function (pid) { return Studio.demoPackInstalled(pid); })) {
+    // N32: pack state is the whole gate now — the global Sample-content mask is retired.
+    if (D.catalogSamplesInstalled()) {
       var cat = D.getCatalog();
       Object.keys(cat).forEach(function (stem) {
         (cat[stem].dataAccesses || []).forEach(function (d) {
@@ -424,8 +472,13 @@
     BD.filters = draft.filters || []; BD.calcs = draft.calcs || [];
     BD.shelfColor = draft.shelfColor || []; BD.paletteKey = draft.paletteKey || "";
     BD.chartType = draft.chartType || "table"; BD.mapScale = draft.mapScale || "";
+    BD.trend = !!draft.trend; // N33b
     BD.analysisId = draft.analysisId || null; BD.name = draft.name || "";
     BD.folder = draft.folder || ""; BD.panelTitle = draft.panelTitle || "";
+    // N33: the carried opts belong to the View that was open, not to the canvas.
+    // Switching datasets drops them (bdLoad/bdLoadForeign re-capture after their
+    // own noDraft select), so a draft can never inherit another View's settings.
+    BD.carried = null;
     BD._eff = null;
     BD.run = null;
     var entry = bdDatasets().filter(function (d) { return d.kind === kind && d.id === id; })[0];
@@ -966,6 +1019,16 @@
     { t: "heatmap", label: "Heatmap" },
     { t: "choropleth", label: "Map" },
     { t: "scatter", label: "Scatter" },
+    // N33b: Quadrant rides scatter's basis EXACTLY — Studio.newPanel maps
+    // cols[0..2] to labelCol/xCol/yCol for both types (model.js), so the only
+    // difference is the renderer and the four labelled zones it draws. Before
+    // this it was the builder's one genuinely LOSSY type: a pack-authored
+    // quadrant View wasn't in this row, so it opened as a table (no entry in
+    // FOREIGN_TYPE_FALLBACK) and N33's carry-through deliberately withheld its
+    // thresholds from that table. Now the type survives, so the thresholds ride
+    // back in with it. Their EDITORS still live in the dashboard panel
+    // inspector — the strip note below says so rather than implying it.
+    { t: "quadrant", label: "Quadrant" },
     { t: "kpi", label: "KPI" },
   ];
   // The chart types that share Line's [labelCol, series] basis shape and its
@@ -1028,7 +1091,7 @@
       if (!st.shelfRows[0] || !bdColsDim(st)) return "Needs a field on Rows and a plain field on Columns";
       return "";
     }
-    if (type === "scatter") {
+    if (type === "scatter" || type === "quadrant") {
       if (!bdFirstDim(st)) return "Needs at least one non-aggregated field on a shelf";
       if (bdMeasures(st).length < 2) return "Needs two measures (aggregated fields)";
       return "";
@@ -1059,11 +1122,13 @@
       if (series) return series;
     }
     var dim = bdFirstDim(st);
-    if (type === "scatter") {
+    if (type === "scatter" || type === "quadrant") {
       // Two measures, one point per dimension value — the same [dim, m1, m2]
       // shape Studio.newPanel's scatter mapping expects positionally (cols[0]
       // = labelCol, cols[1] = xCol, cols[2] = yCol), so no bdPanelFor wiring
       // is needed beyond the default Studio.newPanel(type, da) call below.
+      // N33b: quadrant's own mapping (model.js) is the identical positional
+      // triple, so it shares this basis rather than growing a parallel one.
       var ms2 = bdMeasures(st).slice(0, 2);
       return compute(bdEff(st).cols, rows, [{ col: dim.col, agg: null }].concat(ms2), [], limit);
     }
@@ -1155,6 +1220,101 @@
     }
     return null;
   }
+  // ---------- N33: don't lose what you can't edit ----------
+  // A View's chart carries per-type OPTIONS (`chart.opts`) — a scatter's trend
+  // line, a map's class count, a table's page size. The View Builder models the
+  // shelves, the type and the Region scale; it has no editor for the rest. Yet
+  // both the preview and Save mint a chart from `Studio.newPanel` DEFAULTS, so
+  // opening a pack-authored View here used to silently drop everything the
+  // author had set, and Update wrote the stripped version back over it. That is
+  // the quiet, lossy round-trip N33 is about (and the reason N34 refused to
+  // persist the canvas height — see the note above bdChartH).
+  //
+  // The fix carries them through instead: capture on load, re-apply on every
+  // bdPanelFor(), and say in the notice which ones are being carried rather than
+  // edited. Nothing is stored anywhere new — the opts round-trip through the
+  // saved `chart.opts` they came from, so there is no blob schema change and no
+  // migration.
+  //
+  // "Authored" means DIFFERENT FROM THE TYPE'S DECLARED DEFAULT (model.js's
+  // CHARTS[type].opts `def`). Diffing against the defaults rather than carrying
+  // the whole opts bag is what keeps this honest: newPanel stamps every key,
+  // so a blind copy would report a scatter's untouched `xLabel: ""` as an
+  // authored setting and the notice would cry wolf on every View.
+  // N33b: `trend` joins `scale` here — the builder now has a real toggle for the
+  // scatter's regression line, so it is EDITED, not carried. (bdLoad/bdLoadForeign
+  // read the authored value into BD.trend and bdPanelFor stamps it back, so the
+  // round-trip is still lossless; it just runs through a control the reader can see.)
+  var BD_BUILDER_OWNED_OPTS = { scale: 1, trend: 1 };
+  // Carried, but never NAMED in the notice: the builder doesn't claim to edit a
+  // stored height, and the drag-resize canvas is a viewport that says so itself
+  // (N34). Carrying it is still right — it stops Update from flattening an
+  // authored height back to the type default.
+  var BD_QUIET_CARRIED_OPTS = { height: 1 };
+  var BD_CARRIED_LABELS = {
+    trend: "the trend line", showTrend: "the trend line", trendMethod: "the trend line",
+    xThreshold: "the quadrant thresholds", yThreshold: "the quadrant thresholds",
+    q1: "the quadrant labels", q2: "the quadrant labels",
+    q3: "the quadrant labels", q4: "the quadrant labels",
+    xLabel: "the axis labels", yLabel: "the axis labels",
+    fmt: "the value format", agg: "the aggregate", classes: "the map classes",
+    maxRows: "the row limit", grandTotal: "the grand total row",
+    pageSize: "paging", freezeHeader: "the frozen header", density: "the row density",
+    legend: "the legend", stacked: "stacking"
+  };
+  // The saved opts that differ from their type's declared default, minus the ones
+  // this builder owns. Returns null when there is nothing to carry.
+  function bdCarryFrom(a) {
+    var chart = a && a.chart;
+    var type = chart && chart.type;
+    if (!type || !chart.opts) return null;
+    var defs = {}, spec = (Studio.CHARTS || {})[type];
+    (spec && spec.opts || []).forEach(function (o) { defs[o.key] = o.def; });
+    var out = {}, any = false;
+    Object.keys(chart.opts).forEach(function (k) {
+      if (BD_BUILDER_OWNED_OPTS[k]) return;
+      // JSON-compare so object/array-valued opts (choice lists, content blocks)
+      // are judged by value, not identity. A key the type doesn't declare at all
+      // has no default to match, so it counts as authored.
+      var has = Object.prototype.hasOwnProperty.call(defs, k);
+      if (has && JSON.stringify(defs[k]) === JSON.stringify(chart.opts[k])) return;
+      out[k] = Studio.clone(chart.opts[k]); any = true;
+    });
+    return any ? { type: type, opts: out } : null;
+  }
+  // Applied only while the chart type is still the one the opts were authored
+  // for — pasting a quadrant's thresholds onto a table would be worse than
+  // dropping them. Switching type away and back restores them, because the
+  // capture lives in BD, not in the panel.
+  function bdApplyCarried(p, type) {
+    if (!p || !p.chart || !BD.carried || BD.carried.type !== type) return p;
+    p.chart.opts = p.chart.opts || {};
+    Object.keys(BD.carried.opts).forEach(function (k) { p.chart.opts[k] = Studio.clone(BD.carried.opts[k]); });
+    return p;
+  }
+  // The human list for the notice — deduped (q1..q4 are all "the quadrant
+  // labels") and capped, so a rich chart doesn't produce a paragraph.
+  function bdCarriedNames() {
+    var seen = {}, names = [];
+    Object.keys((BD.carried || {}).opts || {}).forEach(function (k) {
+      if (BD_QUIET_CARRIED_OPTS[k]) return;
+      var label = BD_CARRIED_LABELS[k] || k;
+      if (seen[label]) return;
+      seen[label] = true; names.push(label);
+    });
+    if (names.length > 4) names = names.slice(0, 3).concat(["and " + (names.length - 3) + " more"]);
+    return names;
+  }
+  // "" when there is nothing worth telling the reader about. `subject` is the
+  // lead-in clause so the same sentence works on its own (bdLoad) and appended
+  // to the VB-5 cross-editor notice (bdLoadForeign).
+  function bdCarriedNotice(subject) {
+    var names = bdCarriedNames();
+    if (!names.length) return "";
+    return subject + " chart settings the View Builder doesn’t edit yet (" + names.join(", ") +
+      "). They’re shown in the preview and kept when you update — changing the chart type drops them.";
+  }
+
   // Both the live preview and Save build the panel the same way — when the
   // basis is wider than [label, value] for a line-shaped chart (bdLineSeriesBasis
   // above), map every extra column as its own series instead of newPanel's
@@ -1182,7 +1342,15 @@
       // "county", which silently no-data'd any state-FIPS/HUC8/district id column.
       if (p.chart.opts && "scale" in p.chart.opts) p.chart.opts.scale = bdMapScale();
     }
-    return p;
+    // N33b: the scatter's trend line is a builder control, so stamp the state
+    // the toggle holds — same shape as the choropleth's `scale` above, and for
+    // the same reason (a builder-owned opt must not fall back to newPanel's
+    // default just because this builder never wrote it).
+    if (type === "scatter" && p.chart.opts && "trend" in p.chart.opts) p.chart.opts.trend = !!BD.trend;
+    // N33: last, so the author's own settings win over newPanel's defaults —
+    // and after the choropleth branch, whose `scale` is builder-owned and so is
+    // never in the carried set to begin with.
+    return bdApplyCarried(p, type);
   }
   // VB-4 remaining major: KPI. Structurally different from every other chart
   // type here — a KPI tile lives in spec.kpis, not spec.panels, so it gets its
@@ -1215,27 +1383,99 @@
     try { return JSON.parse(localStorage.getItem(BD_SIZE_KEY) || "{}") || {}; } catch (e) { return {}; }
   }
   function bdPrevSaveSize(s) { try { localStorage.setItem(BD_SIZE_KEY, JSON.stringify(s)); } catch (e) {} }
+  // The canvas height in px — ONE source of truth, because N34 made two callers
+  // need the same number: the iframe's own style height, and the height the chart
+  // inside it is drawn to. `ifr` may be absent on the very first paint (the frame
+  // is created below), in which case the container stands in for it — they share
+  // a top edge, which is all the auto formula reads.
+  function bdCanvasH(result, ifr) {
+    var s = bdPrevSize();
+    if (s.h) return Math.max(260, s.h);
+    // auto: fill to the bottom of the viewport (like .bd-left), never < 260px
+    var top = (ifr || result).getBoundingClientRect().top;
+    return Math.max(260, Math.round(window.innerHeight - top - 18));
+  }
   function bdSyncPreviewSize(result, ifr) {
     var s = bdPrevSize();
     var maxW = Math.round(result.getBoundingClientRect().width) || 0;
     if (s.w && maxW) ifr.style.width = Math.max(320, Math.min(maxW, s.w)) + "px";
     else ifr.style.width = "";
-    if (s.h) {
-      ifr.style.height = Math.max(260, s.h) + "px";
-    } else {
-      // auto: fill to the bottom of the viewport (like .bd-left), never < 260px
-      var top = ifr.getBoundingClientRect().top;
-      ifr.style.height = Math.max(260, window.innerHeight - top - 18) + "px";
-    }
+    ifr.style.height = bdCanvasH(result, ifr) + "px";
     // keep the width handle riding the canvas's live right edge
     var wBar = result.querySelector(".bd-rs-w");
     if (wBar) wBar.style.left = (ifr.offsetLeft + ifr.offsetWidth - 5) + "px";
+  }
+  // ---------- N34: the chart fills the canvas it was given ----------
+  // Kevin, 2026-08-09: "when I drag the canvas open the view would resize? like the
+  // chart object is the same." VB-12's handles resize the IFRAME and nothing else,
+  // so a chart authored at (say) 360px kept that size inside a doubled box and left
+  // a dead band underneath. The chart is drawn to an EXPLICIT pixel height, so the
+  // only honest fix is to recompute that height from the canvas and repaint.
+  //
+  // Reuses the dashboard builder's existing knob rather than inventing one:
+  // `chart.opts.height` is "the exact knob charts already draw to" (studio.js's
+  // PANEL-H `resizeH` handler), written here against this builder's own preview spec.
+  //
+  // DECISION — the canvas is a VIEWPORT, not part of the View, and the UI says so
+  // instead of implying it (see the handle's tooltip + Help). The height is stamped
+  // onto the PREVIEW panel only; bdSaveView mints its stored chart from its own
+  // bdPanelFor() call, so a saved View keeps its authored height and dragging never
+  // rewrites it. Deliberate: the canvas size lives in ONE browser-local key shared
+  // by every View you open (BD_SIZE_KEY), so persisting it into the spec would let
+  // the last drag in this browser silently overwrite a pack-authored height on the
+  // next save — the same class of quiet, lossy round-trip N33 is about.
+  // The height handed to the chart is NOT the height the frame ends up occupying —
+  // the panel adds its own furniture (header, card padding, grid padding), and some
+  // renderers draw a little taller than the box they were given (a choropleth fits
+  // geography to its box; measured overshoot ~54px). Rather than model those two
+  // separately and hope the model stays true, measure the ONE number that matters:
+  //
+  //     overhead = what the frame occupied − what we asked the chart to be
+  //
+  // Read back after every paint, it is a direct solve rather than a running
+  // correction — so it converges in a single step and can never accumulate. A CSS
+  // change to the card or a renderer that sizes differently is absorbed silently.
+  var BD_OVERHEAD_FALLBACK = 178; // first paint only, before a real measurement exists
+  var _bdOverhead = null, _bdReqH = 0, _bdFitAt = null;
+  function bdChartH(canvasH) {
+    var over = _bdOverhead == null ? BD_OVERHEAD_FALLBACK : _bdOverhead;
+    return Math.max(160, Math.round(canvasH - over));
+  }
+  function bdMeasureChrome(ifr, result) {
+    try {
+      var doc = ifr.contentDocument; if (!doc) return;
+      var content = doc.documentElement.scrollHeight;
+      if (!content || !_bdReqH) return;
+      var o = content - _bdReqH;
+      if (isFinite(o) && o >= 0 && o < 500) _bdOverhead = o;
+      if (!result) return;
+      // Safety net for the first paint at a size the learned overhead did not yet
+      // cover: one corrective repaint per canvas height. The guard is what stops a
+      // renderer whose height depends on its own height from ping-ponging.
+      var canvasH = bdCanvasH(result, ifr);
+      if (_bdFitAt === canvasH || Math.abs(content - canvasH) <= 8) return;
+      _bdFitAt = canvasH;
+      bdRepaintForCanvas(result, ifr);
+    } catch (e) {} // never let a measurement break the paint
+  }
+  // A repaint is a full buildHtml + srcdoc swap, so it is debounced and happens on
+  // RELEASE, not per mousemove — the same convention PANEL-H already uses in the
+  // dashboard builder ("the real chart redraw happens on release"). The canvas
+  // itself still grows live under the pointer, so the drag never feels frozen.
+  var _bdSizeRepaintT = null;
+  function bdRepaintForCanvas(result, ifr) {
+    clearTimeout(_bdSizeRepaintT);
+    _bdSizeRepaintT = setTimeout(function () {
+      if (ifr && ifr.isConnected && BD.chartType && BD.chartType !== "table") renderChartPreview(result);
+    }, 120);
   }
   function bdWirePreviewResize(result, ifr) {
     if (result.querySelector(".bd-rs-h")) { bdSyncPreviewSize(result, ifr); return; }
     var hBar = document.createElement("div");
     hBar.className = "bd-rs-h";
-    hBar.title = "Drag to make the canvas taller or shorter — double-click to fill to the bottom again";
+    // N34: the second sentence is the decision, stated rather than implied — the
+    // chart follows the canvas here, and the saved View keeps its authored height.
+    hBar.title = "Drag to make the canvas taller or shorter — the chart resizes to fill it — double-click to fill to the bottom again. Preview only: the saved View keeps its own height.";
     hBar.setAttribute("aria-label", "Resize canvas height");
     var wBar = document.createElement("div");
     wBar.className = "bd-rs-w";
@@ -1258,6 +1498,7 @@
           ifr.style.pointerEvents = ""; bar.classList.remove("drag");
           document.removeEventListener("pointermove", move);
           document.removeEventListener("pointerup", up);
+          if (axis === "h") bdRepaintForCanvas(result, ifr); // N34: redraw the chart at the new canvas height
         }
         document.addEventListener("pointermove", move);
         document.addEventListener("pointerup", up);
@@ -1265,14 +1506,19 @@
     }
     hBar.addEventListener("pointerdown", startDrag("h", hBar));
     wBar.addEventListener("pointerdown", startDrag("w", wBar));
-    hBar.addEventListener("dblclick", function () { var s = bdPrevSize(); delete s.h; bdPrevSaveSize(s); bdSyncPreviewSize(result, ifr); });
+    // N34: fill-to-bottom and a window resize both change the canvas height in auto
+    // mode, so both owe the chart the same repaint the drag does.
+    hBar.addEventListener("dblclick", function () { var s = bdPrevSize(); delete s.h; bdPrevSaveSize(s); bdSyncPreviewSize(result, ifr); bdRepaintForCanvas(result, ifr); });
     wBar.addEventListener("dblclick", function () { var s = bdPrevSize(); delete s.w; bdPrevSaveSize(s); bdSyncPreviewSize(result, ifr); });
-    window.addEventListener("resize", function () { if (ifr.isConnected) bdSyncPreviewSize(result, ifr); });
+    window.addEventListener("resize", function () { if (ifr.isConnected) { bdSyncPreviewSize(result, ifr); bdRepaintForCanvas(result, ifr); } });
     bdSyncPreviewSize(result, ifr);
   }
   // test hooks
   window.__bdPreviewSize = bdPrevSize;
   window.__bdSyncPreviewSize = bdSyncPreviewSize;
+  window.__bdCanvasH = bdCanvasH;             // N34
+  window.__bdChartH = bdChartH;               // N34
+  window.__bdLastChartH = function () { return _bdReqH; }; // N34: height actually stamped on the last paint
 
   var _bdPvTimer = null;
   // N15: the live preview frame + the exact one-panel spec/rows it is painting. The View
@@ -1319,6 +1565,11 @@
       } else {
         var p = bdPanelFor(BD.chartType, da, basis);
         p.title = title; p.span = "full";
+        // N34: PREVIEW-ONLY height — the chart fills the canvas it was given. The
+        // save path calls bdPanelFor() itself, so this never reaches a stored View
+        // (see the decision note above bdChartH).
+        p.chart.opts = p.chart.opts || {};
+        p.chart.opts.height = _bdReqH = bdChartH(bdCanvasH(result, result.querySelector("iframe.bd-ifr")));
         spec.panels = [p];
       }
       var mock = { build_result: { cols: basis.head, rows: basis.rows } };
@@ -1329,6 +1580,9 @@
           result.innerHTML = "";
           ifr = document.createElement("iframe");
           ifr.className = "bd-ifr"; ifr.title = "Chart preview"; ifr.setAttribute("aria-label", "Chart preview");
+          // N34: re-measure the frame's non-chart chrome on every srcdoc swap, so the
+          // next canvas-height computation is based on this card, not on a constant.
+          ifr.addEventListener("load", function () { bdMeasureChrome(ifr, result); });
           result.appendChild(ifr);
         }
         D.postThemeOnLoad(ifr);
@@ -1413,11 +1667,20 @@
               var used = bdOnShelf(c);
               var numeric = bdFieldKind(c) === "Numeric";
               var calc = bdIsCalc(c);
-              return '<button type="button" class="bd-col' + (used ? " used" : "") + (numeric ? " num" : "") + (calc ? " calc" : "") +
+              var pill = '<button type="button" class="bd-col' + (used ? " used" : "") + (numeric ? " num" : "") + (calc ? " calc" : "") +
                 '" draggable="true" data-bd-col="' + esc(c) + '" title="' + (calc ? "Calculated column — " : "") + (used ? "Already on a shelf" : "Add to the Columns shelf (drag for Rows)") + '">' +
                 '<span class="bd-col-k">' + (calc ? "=" : numeric ? "#" : "a") + '</span>' + esc(c) + "</button>";
+              // N35: a calc column carries its own way back to its formula, the way a
+              // filter chip does. The ✎ is a SIBLING of the pill, not a child, so
+              // `.used` (opacity:.45) dims the pill without taking the edit away — the
+              // calc you most want to edit is the one already on a shelf. Shown at
+              // rest, never hover-only: a hover pencil does not exist on a phone.
+              return calc
+                ? '<span class="bd-colwrap">' + pill +
+                    '<button type="button" class="bd-col-edit" data-bd-calc-edit="' + esc(c) + '" title="Edit the formula for ' + esc(c) + '" aria-label="Edit the formula for ' + esc(c) + '">✎</button></span>'
+                : pill;
             }).join("") +
-            '<button type="button" class="bd-col bd-col-calc" id="bdCalcBtn" title="Define calculated columns (=[colA] / [colB])">＋ calc…</button>' +
+            '<button type="button" class="bd-col bd-col-calc" id="bdCalcBtn" title="Add a calculated column (=[colA] / [colB]) — opens the list with a blank row ready">＋ calc…</button>' +
             "</div>"
           : "";
         // full name in the title: the pane is narrow, ellipsized labels need the
@@ -1611,6 +1874,29 @@
             : "") +
           "</label>";
       }
+      // N33b (Kevin, 2026-08-09: "I think there is a trend line on the view but I
+      // can't see it turn it on/off in the View Builder yet, maybe I should?").
+      // Same slot as the Region scale, same reason: an opt that changes the picture
+      // deserves a visible control, not a value the builder silently carries.
+      // WHICH trend, deliberately: this is the STATISTICAL one — scatter's own
+      // least-squares fit (`trend`, drawn as the dashed line.trend-line in
+      // studio-charts.js), maths the app already has. The REFERENCE-line reading of
+      // the same ask is the Quadrant's threshold crosshair, which is a different
+      // chart type with a different meaning — so it is offered as a type, one button
+      // over, rather than blurred into this toggle. A checkbox, not a hover control:
+      // it has to be tappable at 390×780.
+      if (BD.chartType === "scatter" && BD.run) {
+        strip.innerHTML += '<label class="bd-opt-tog" title="Draw a least-squares regression line through the points">' +
+          '<input type="checkbox" id="bdTrend"' + (BD.trend ? " checked" : "") + "/>" +
+          "<span>Trend line</span></label>";
+      }
+      // The quadrant's zones ARE the analysis, and this builder doesn't edit them
+      // yet — say so where the type is chosen instead of letting the defaults look
+      // authored. A View opened here keeps its own thresholds and labels (they ride
+      // the N33 carry-through, and the notice names them).
+      if (BD.chartType === "quadrant" && BD.run) {
+        strip.innerHTML += '<small class="bd-map-hint bd-ct-note">splits at the midpoints — thresholds and zone labels are edited on the dashboard panel</small>';
+      }
     }
 
     // CENTER — status + result (both computed over the FILTERED source rows)
@@ -1801,6 +2087,10 @@
     if (mapScaleSel) {
       mapScaleSel.onchange = function () { BD.mapScale = mapScaleSel.value; render(); }; // VB-10
     }
+    var trendTog = $("#bdTrend", sec);
+    if (trendTog) {
+      trendTog.onchange = function () { BD.trend = !!trendTog.checked; render(); }; // N33b
+    }
     var clearBtn = $("#bdClearCanvas", sec);
     if (clearBtn) clearBtn.onclick = function () { bdClearCanvas(); }; // VB-14
     $$("[data-bd-flt-edit]", sec).forEach(function (btn) {
@@ -1812,8 +2102,14 @@
     $$("[data-bd-flt-rm]", sec).forEach(function (btn) {
       btn.onclick = function () { bdRemoveFilter(btn.getAttribute("data-bd-flt-rm")); };
     });
+    // N35: ＋ means "make a new one" — it opens with a blank row appended and focused,
+    // instead of handing back the previous calc pre-filled; ✎ on a calc column opens the
+    // same list with that column's formula focused.
     var calcBtn = $("#bdCalcBtn", sec);
-    if (calcBtn) calcBtn.onclick = function () { openCalcEditor(); };
+    if (calcBtn) calcBtn.onclick = function () { openCalcEditor({ addBlank: true }); };
+    $$("[data-bd-calc-edit]", sec).forEach(function (btn) {
+      btn.onclick = function (e) { e.stopPropagation(); openCalcEditor({ focus: btn.getAttribute("data-bd-calc-edit") }); };
+    });
     var fltAdd = $("#bdFilterAdd", sec);
     if (fltAdd) fltAdd.onchange = function () {
       var col = fltAdd.value;
@@ -1907,7 +2203,8 @@
             shelfCols: Studio.clone(BD.shelfCols), shelfRows: Studio.clone(BD.shelfRows),
             filters: Studio.clone(BD.filters), calcs: Studio.clone(BD.calcs),
             shelfColor: Studio.clone(BD.shelfColor), paletteKey: BD.paletteKey || "",
-            mapScale: BD.mapScale || "" // VB-10: "" = auto (re-inferred from the geo field)
+            mapScale: BD.mapScale || "", // VB-10: "" = auto (re-inferred from the geo field)
+            trend: !!BD.trend // N33b: the scatter's regression line, as the toggle left it
           }
         };
         // #118 (live re-run): the da carries the builder blob too — the da is what
@@ -2021,10 +2318,20 @@
       // VB-10: a Quick Views map's Region scale survives the trip — carry it in as the
       // explicit pick (auto-inference might disagree with what the user chose there).
       if (BD.chartType === "choropleth" && a.chart && a.chart.opts && a.chart.opts.scale) BD.mapScale = a.chart.opts.scale;
+      // N33b: likewise the scatter's trend line — an authored one arrives ON, and the
+      // toggle shows it, instead of the reader having to trust an invisible carry.
+      if (BD.chartType === "scatter" && a.chart && a.chart.opts) BD.trend = !!a.chart.opts.trend;
       var typeNote = supported ? "" :
         " Its chart type (" + ((Studio.CHARTS[t] || {}).label || t) + ") isn’t in the View Builder yet, so it opens as " +
         (FOREIGN_TYPE_FALLBACK[t] ? "the nearest type" : "a table") + ".";
-      BD.notice = "“" + (a.name || "This View") + "” was built in the simpler Quick Views editor — its settings were mapped onto the shelves as a starting point." + typeNote + " Updating from here saves it as a View Builder View.";
+      // N33: same carry-through as bdLoad. It only ever APPLIES when the type
+      // survived the trip (bdApplyCarried gates on that), so a quadrant that
+      // fell back to a table keeps its thresholds out of the table — the
+      // typeNote above is what tells the reader about that case.
+      BD.carried = bdCarryFrom(a);
+      var carriedNote = supported ? bdCarriedNotice("It also carries") : "";
+      BD.notice = "“" + (a.name || "This View") + "” was built in the simpler Quick Views editor — its settings were mapped onto the shelves as a starting point." + typeNote + " Updating from here saves it as a View Builder View." +
+        (carriedNote ? " " + carriedNote : "");
       render();
     });
   }
@@ -2049,6 +2356,16 @@
       BD.paletteKey = b.paletteKey || "";
       BD.chartType = b.chartType || "table";
       BD.mapScale = b.mapScale || ""; // VB-10
+      // N33b: the blob carries the toggle from now on; a View saved BEFORE this
+      // slice has no `trend` in its blob, so fall back to the authored chart —
+      // which is where N33's carry-through had been keeping it alive.
+      BD.trend = b.trend != null ? !!b.trend
+        : !!(a.chart && a.chart.opts && a.chart.opts.trend);
+      // N33: the authored chart settings this builder has no editor for, taken
+      // off the saved chart itself (the blob has never carried opts, and now
+      // doesn't need to — see bdCarryFrom).
+      BD.carried = bdCarryFrom(a);
+      BD.notice = bdCarriedNotice("“" + (openName || "This View") + "” was authored with");
       render();
     });
   }

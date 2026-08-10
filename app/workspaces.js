@@ -95,9 +95,24 @@ window.STUDIO_WS_STORE = (function () {
       CONN_KEY = "analytics.datasource.v1",      // the live connection (Sync's own)
       LOCAL = { id: "local", label: "Local only (this browser)" };
 
-  // A usable entry must say WHERE it points; anything else is a corrupt row we
-  // silently drop rather than render as an unpickable option.
-  function valid(w) { return !!(w && w.id && w.sourceId && w.cfg && w.cfg.url); }
+  /* N36 slice 1 — STORABLE and OFFERABLE are two different questions, and this
+     file used to answer only the second one.
+     `addr()` is an entry's address in its ADAPTER's own terms: cfg.url for the
+     URL-shaped adapters (Supabase, Turso), cfg.projectId for Firebase, which has
+     no URL at all — reading only cfg.url would have silently dropped every
+     Firebase entry the moment Admin's list converged onto this store.
+     `valid()` (unchanged meaning, wider adapter coverage) is "may be OFFERED":
+     an entry that cannot say where it points is a corrupt row we drop rather
+     than render as an unpickable option, and `list()` still filters on it, so
+     the sign-in picker is exactly as strict as it was.
+     `storable()` is the weaker "may be KEPT" — id + adapter + a cfg object.
+     Admin can register a backend it has not finished configuring (its wizard
+     asks only for a name), and the local-first rule says a store never drops a
+     row on the user's behalf. Such a row is kept and managed, and simply never
+     offered as somewhere to sign in. */
+  function addr(w) { return (w && w.cfg && (w.cfg.url || w.cfg.projectId)) || ""; }
+  function storable(w) { return !!(w && w.id && w.sourceId && w.cfg && typeof w.cfg === "object"); }
+  function valid(w) { return !!(storable(w) && addr(w)); }
 
   /* ---- N25 — the stage rules ---------------------------------------------
      Three small functions, all reading `window.STUDIO_STAGE` LIVE rather than
@@ -147,12 +162,14 @@ window.STUDIO_WS_STORE = (function () {
   function customs() {
     try {
       var l = JSON.parse(localStorage.getItem(CUSTOM_KEY) || "[]");
-      return Array.isArray(l) ? l.filter(valid) : [];
+      // storable, not valid: list() re-filters on valid() before offering
+      // anything, so keeping a half-configured row here costs the picker nothing.
+      return Array.isArray(l) ? l.filter(storable) : [];
     } catch (e) { return []; }
   }
   function writeCustoms(list) { try { localStorage.setItem(CUSTOM_KEY, JSON.stringify(list)); } catch (e) {} }
   function save(entry) {
-    if (!valid(entry)) return null;
+    if (!storable(entry)) return null;
     writeCustoms(customs().filter(function (w) { return w.id !== entry.id; }).concat([entry]));
     return entry;
   }
@@ -190,14 +207,17 @@ window.STUDIO_WS_STORE = (function () {
   // gate's picker selection. "__connected" means a bound workspace that is in no
   // list (slice 1 makes that transient, but a hand-edited storage can still do it).
   function connectedId() {
-    var url = "";
-    try { var c = JSON.parse(localStorage.getItem(CONN_KEY) || "null"); url = (c && c.cfg && c.cfg.url) || ""; } catch (e) {}
-    if (!url) return "local";
-    var hit = list().filter(function (w) { return w.cfg && w.cfg.url === url; })[0];
+    var at = "";
+    // Compare by addr(), not cfg.url — same reason as addr() itself: a Firebase
+    // connection is identified by its projectId and would never match here.
+    try { at = addr(JSON.parse(localStorage.getItem(CONN_KEY) || "null")); } catch (e) {}
+    if (!at) return "local";
+    var hit = list().filter(function (w) { return addr(w) === at; })[0];
     return hit ? hit.id : "__connected";
   }
   function host(entry) {
-    return valid(entry) ? String(entry.cfg.url).replace(/^https?:\/\//, "").replace(/[\/?#].*$/, "") : "this browser";
+    if (!valid(entry)) return "this browser";
+    return String(addr(entry)).replace(/^https?:\/\//, "").replace(/[\/?#].*$/, "");
   }
   function esc(s) {
     return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) {
@@ -323,7 +343,10 @@ window.STUDIO_WS_STORE = (function () {
     // N25
     stage: stage, stageFor: window.STUDIO_STAGE_FOR, stageOf: stageOf,
     packaged: packaged, blockReason: blockReason,
-    valid: valid, list: list, byId: byId, customs: customs, isCustom: isCustom,
+    // N36 slice 1: storable/addr are the store-layer half of valid() — Admin's
+    // list is the caller that needs "may be kept" rather than "may be offered".
+    valid: valid, storable: storable, addr: addr,
+    list: list, byId: byId, customs: customs, isCustom: isCustom,
     save: save, rename: rename, remove: remove,
     defaultId: defaultId, setDefault: setDefault,
     connectedId: connectedId, host: host,

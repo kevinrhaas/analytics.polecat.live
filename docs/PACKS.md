@@ -10,16 +10,23 @@ whose data is this, under what terms, and can anyone reproduce it?
 
 ## The two kinds of pack data
 
-**Synthetic** — generated in JS at install time, as both shipped packs do today. No
-files, no fetch, no licence question. It must still say so in plain words: the entry
-declares `source: { kind: "synthetic", label: "…" }` and the app shows that line.
+**Synthetic** — generated in JS at install time, which is what two of the three
+shipped packs do (Conservation Insight and Data Management; Market Coverage is the
+real one). No files, no fetch, no licence question. It must still say so in plain
+words: the entry declares `source: { kind: "synthetic", label: "…" }` and the app
+shows that line.
 
 **Real** — a genuine outside dataset. Four rules, all enforced:
 
 1. **Embedded, never fetched.** Data ships as committed CSV in `data/packs/<id>/`
    and is inlined at install. The app is local-first and works offline; a pack must
    not break because a government site moved a URL, and installing one must not
-   depend on the network.
+   depend on the network. That last clause is only true if the service worker has
+   the bytes, so **every file an entry's `data.files` names is precached in
+   `sw.js`** — see § "How the CSV reaches the app". `tools/doc-truth.mjs` (check 48)
+   fails the dev gate on a declared file that is missing from the tree or from
+   `SHELL_FILES`; without it, "works offline" was the one rule here enforced by
+   nothing but the author's memory.
 2. **Extracted by a committed script.** `tools/pack-extract/<id>.mjs` fetches the
    public source, subsets/aggregates it, and writes the CSV through
    `writePack()` in `tools/pack-extract/lib.mjs`. **The script is the provenance
@@ -37,8 +44,13 @@ declares `source: { kind: "synthetic", label: "…" }` and the app shows that li
    `licence` and an ISO `retrieved` date. That line renders on the pack's Settings
    card AND in the subtitle of every dashboard the pack seeds (backfilled by
    `reconcilePackDashboards`, idempotently, so an existing install heals without a
-   reinstall). Anything **not** public domain is `kind: "licensed"` and must also
-   have a `THIRD-PARTY-NOTICES.md` line.
+   reinstall). Anything **not** public domain is `kind: "licensed"`; and **every
+   pack that is not `synthetic` — `public` as well as `licensed` — must also have a
+   `THIRD-PARTY-NOTICES.md` line naming its source.** Public-domain material is
+   still somebody's work, and that document's job is to be the complete list of what
+   we redistribute. `tools/validate.mjs` holds only the `licensed` half (it is a
+   licence obligation there); `tools/doc-truth.mjs` check 47 holds both, so omitting
+   the line for a `public` pack reds the dev gate.
 
 ## How the CSV reaches the app (SP-1)
 
@@ -121,6 +133,9 @@ write, so the data and its registry entry can never describe different sources.
 | `data/packs/<id>/` holds only CSV + `SOURCE.json` | `tools/validate.mjs` |
 | ≤150 KB CSV per pack | `writePack()` at extract time, `tools/validate.mjs` at gate time |
 | licensed data is in `THIRD-PARTY-NOTICES.md` | `tools/validate.mjs` |
+| ANY non-synthetic data (`public` too) is in `THIRD-PARTY-NOTICES.md` | `tools/doc-truth.mjs` check 47 |
+| every file `data.files` names exists and is precached in `sw.js` | `tools/doc-truth.mjs` check 48 |
+| this file's own claims match the registry it governs | `tools/doc-truth.mjs` check 48 |
 | the source line reaches the Settings card and pack dashboards' subtitles | `tests/run.js` |
 
 ## Adding a real-data pack (the checklist)
@@ -128,8 +143,15 @@ write, so the data and its registry entry can never describe different sources.
 1. Write `tools/pack-extract/<id>.mjs`; run it from the repo root; commit
    `data/packs/<id>/`.
 2. Register the pack in `app/demopacks.js` with its `source` (and the usual
-   `folder`/`seeds`/`install` — the SP-0 entry contract).
-3. `kind: "licensed"`? Add the `THIRD-PARTY-NOTICES.md` row in the same PR.
-4. `node tools/validate.mjs`, then the suite. The SP-0 conformance loop already
-   covers install/tagging/folders/uninstall for any registered pack — a new pack is
-   covered by construction, not by someone remembering to write it a test.
+   `folder`/`seeds`/`install` — the SP-0 entry contract), plus the `data.files` /
+   `data.seed` / `afterInstall` half from § "How the CSV reaches the app".
+3. Add each file `data.files` names to `SHELL_FILES` in `sw.js` and bump
+   `CACHE_NAME` in the same commit. This is rule 1's offline half, and it is the
+   step that is easiest to forget because nothing about the pack looks broken on a
+   warm cache — check 48 fails the gate instead.
+4. `kind` is `public` or `licensed`? Add the `THIRD-PARTY-NOTICES.md` row in the
+   same PR — **both** kinds, not just `licensed` (rule 4; check 47 holds it).
+5. `node tools/validate.mjs`, `node tools/doc-truth.mjs`, then the suite. The SP-0
+   conformance loop already covers install/tagging/folders/uninstall for any
+   registered pack — a new pack is covered by construction, not by someone
+   remembering to write it a test.

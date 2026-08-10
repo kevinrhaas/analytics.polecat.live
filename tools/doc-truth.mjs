@@ -1908,6 +1908,32 @@ const packRegistry = [...registryBlock.matchAll(/\n {4}(\w+): \{/g)].map((m) => 
     // above so one reading of the registry serves both checks.
     tagline: stringProp(body, "tagline"),
     blurb: stringProp(body, "blurb"),
+    // The pack's declared provenance — check 47's subject. Same reading of the same
+    // registry rather than a second parse: `kind` is synthetic|public|licensed and
+    // `name` is what THIRD-PARTY-NOTICES.md has to credit when it is not synthetic.
+    // Brace-walked to the `source: {…}` object itself — a lazy regex for `name:` would
+    // happily wander into the next dashboard literal on a pack whose source has no name.
+    ...(() => {
+      const at = body.indexOf("source:");
+      const block = at < 0 ? "" : braceBlockAt(body, body.indexOf("{", at));
+      return {
+        sourceKind: (block.match(/kind:\s*"([a-z]+)"/) || [, ""])[1],
+        sourceName: (block.match(/name:\s*"([^"]+)"/) || [, ""])[1],
+      };
+    })(),
+    // The pack's committed CSV — check 48's subject, and the same one-reading rule: a
+    // `data: { files: [...] }` entry is the pack opting into the asynchronous half
+    // (docs/PACKS.md § "How the CSV reaches the app"), so these are exactly the files
+    // that have to be in the tree AND in sw.js for "installing must not depend on the
+    // network" to hold. Brace-walked to the `data:` object so a `files:` belonging to
+    // anything else in the entry cannot be picked up instead.
+    dataFiles: (() => {
+      const at = body.search(/\n\s{6}data:\s*\{/);
+      if (at < 0) return [];
+      const block = braceBlockAt(body, body.indexOf("{", at));
+      return [...((block.match(/files:\s*\[([^\]]*)\]/) || [, ""])[1])
+        .matchAll(/"([^"]+)"/g)].map((x) => x[1]);
+    })(),
   };
 });
 const defaultInstalled = [...((packSrc.match(/DEFAULT_INSTALLED = \[([^\]]*)\]/) || [, ""])[1])
@@ -2445,7 +2471,10 @@ for (const f of sourceFiles) {
   decls.forEach((m, i) => {
     const window = src.slice(m.index, i + 1 < decls.length ? decls[i + 1].index : src.length);
     const caps = (window.match(/caps:\s*\{([^}]*)\}/) || [, fileCaps])[1];
-    pickerRegistry.push({ id: m[1], label: m[2], meta: /meta:\s*true/.test(caps), data: /data:\s*true/.test(caps) });
+    // `local` is the adapter's own "I am this browser, not a remote" flag — registry.js's
+    // remoteMetaSources() filters on it, and check 39 needs the same distinction.
+    pickerRegistry.push({ id: m[1], label: m[2], meta: /meta:\s*true/.test(caps),
+      data: /data:\s*true/.test(caps), local: /\blocal:\s*true/.test(window) });
   });
 }
 const connectors = pickerRegistry.filter((a) => a.data);
@@ -2543,6 +2572,3678 @@ ok(`docs/index.html: the "used either way" paragraph names all ${bothWays.length
   `unnamed in the paragraph: ${bothWays.filter((a) => !bothWaysNamed.includes(a)).map((a) => a.label).join(", ") || "(none)"}\n      ` +
   "this sentence is the one that tells a reader the Snowflake section above and this list are " +
   "the same backend — a wrong count here sends them looking for a seventh");
+
+/* ── 39. Help's workspace-backend chooser vs the picker Settings really renders ──
+   N7, and check 38's move one picker over. There are TWO adapter pickers in the app and
+   check 38 only held the first. Settings → Workspace backend → Connect renders
+   `Studio.remoteMetaSources()` (every caps.meta adapter except the local one) and then a
+   hard-coded roadmap row of greyed, unselectable "Future" cards.
+
+   Measured 2026-08-09, before the fix — the picker rendered SIX cards and Help's
+   "Choosing a workspace backend" table documented four:
+   · The three Future cards — PostgreSQL, Cloudflare D1, MongoDB Atlas — were named NOWHERE
+     on the page. `Cloudflare`, `MongoDB`, `Atlas` and `D1` each had zero occurrences in
+     docs/index.html, so a reader who opened the picker met three greyed cards Help had not
+     prepared them for and no way to tell "planned" from "broken".
+   · The first of them makes that worse rather than merely incomplete: the card says
+     **PostgreSQL**, and Help's own Connections inventory three sections above — check 38's
+     subject, shipped the same day — lists **PostgreSQL (PostgREST)** as a connector you can
+     use today. The page appeared to contradict itself, and the thing that resolves it
+     (answering dataset queries and hosting the catalog are different capabilities;
+     postgrest's caps.meta is false) was stated nowhere.
+
+   Five rules:
+   (a) every backend the table has to document is there — the caps.meta adapters, which is
+       remoteMetaSources() PLUS the local one (the wizard never offers Local because it is
+       where you already are, but it is the default and the table's first row);
+   (b) the table names no backend the registry does not have (the negative half — a retired
+       adapter would otherwise sit in a comparison table forever);
+   (c) the table is in the registry's own order, so it reads beside the picker;
+   (d) the intro's count word matches the number of rows the derivation produces — the
+       sentence opens "All four options", the exact shape of claim check 38 rule (e) caught;
+   (e) the roadmap paragraph names EXACTLY the picker's Future set — every one of them, and
+       none that has since shipped. The second direction is the one that goes stale: the day
+       a D1 adapter lands, this paragraph is advertising it as unavailable.
+
+   The row label may be the adapter's label with its parenthetical dropped ("Local (this
+   browser)" → "Local"), which is what the table does and what the rail prints; anything
+   else is a mismatch. */
+
+const shortLabel = (s) => s.replace(/\s*\([^)]*\)\s*$/, "").trim();
+const backends = pickerRegistry.filter((a) => a.meta);
+const futureBlock = (read("app/studio.js")
+  .match(/\/\/ BACKEND-FUTURE[\s\S]*?\[([\s\S]*?)\]\.forEach/) || [, ""])[1];
+const futureBackends = [...futureBlock.matchAll(/\{\s*label:\s*"([^"]+)",\s*blurb:\s*"((?:[^"\\]|\\.)*)"\s*\}/g)]
+  .map((m) => m[1]);
+ok(`app/sources/ + app/studio.js: the workspace-backend roster parsed for check 39 ` +
+   `(${backends.length} shipped, ${futureBackends.length} on the roadmap)`,
+  backends.length >= 3 && backends.some((a) => a.local) && futureBackends.length > 0,
+  `shipped: ${backends.map((a) => a.label).join(", ") || "(none)"}\n      ` +
+  `roadmap: ${futureBackends.join(", ") || "(none)"}\n      ` +
+  "the roadmap list is the literal above `.forEach` under the BACKEND-FUTURE comment in " +
+  "openBackendWizard — all five rules below read these two lists, and an empty parse would " +
+  "pass every one of them");
+
+// Help's table: the first <tbody> inside the "Choosing a workspace backend" section, one <tr>
+// per backend, each led by its name in <strong>.
+const backendSection = (read("docs/index.html")
+  .match(/<h3 id="backend-choose">([\s\S]*?)(?=<h3[ >])/) || [, ""])[1];
+const backendIntro = backendSection.replace(/<div class="table-scroll">[\s\S]*/, "")
+  .replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
+const backendRows = [...((backendSection.match(/<tbody>([\s\S]*?)<\/tbody>/) || [, ""])[1])
+  .matchAll(/<tr>\s*<td>\s*<strong>([\s\S]*?)<\/strong>/g)]
+  .map((m) => labelKey(m[1].replace(/<[^>]+>/g, "")));
+ok(`docs/index.html: the workspace-backend table parsed for check 39 (${backendRows.length} row(s))`,
+  !!backendSection && backendRows.length > 0,
+  'the <h3 id="backend-choose"> section, or the <tbody> inside it, was not found — rules (a)–(d) read it');
+
+// (a) every backend the registry can host a workspace in has a row
+const rowSet = new Set(backendRows);
+const rowFor = (a) => rowSet.has(labelKey(a.label)) || rowSet.has(labelKey(shortLabel(a.label)));
+const undocumentedBackends = backends.filter((a) => !rowFor(a));
+ok(`docs/index.html: the workspace-backend table documents every backend that can host one (${backends.length})`,
+  !undocumentedBackends.length,
+  `hosts a workspace, missing from the table: ${undocumentedBackends.map((a) => `${a.label} (${a.id})`).join(", ")}\n      ` +
+  "this table is where a reader decides where their whole workspace is going to live — an " +
+  "adapter with no row is one they can only evaluate by connecting to it");
+
+// (b) and no row names a backend the registry does not have
+const backendKeys = new Set(backends.flatMap((a) => [labelKey(a.label), labelKey(shortLabel(a.label))]));
+const strayBackends = backendRows.filter((r) => !backendKeys.has(r));
+ok("docs/index.html: the workspace-backend table names no backend the registry does not have",
+  !strayBackends.length,
+  `in the table, not caps.meta in the registry: ${strayBackends.join(", ")}\n      ` +
+  `the registry's own workspace-capable adapters are: ${backends.map((a) => a.label).join(", ")}`);
+
+// (c) in the registry's order (which is app/index.html's <script> load order — see check 38 rule (0))
+ok("docs/index.html: the workspace-backend table is in the registry's own order",
+  backendRows.length === backends.length &&
+    backends.every((a, i) => backendRows[i] === labelKey(a.label) || backendRows[i] === labelKey(shortLabel(a.label))),
+  `Help: ${backendRows.join(" · ")}\n      ` +
+  `registry: ${backends.map((a) => shortLabel(a.label)).join(" · ")}`);
+
+// (d) the intro counts them
+ok(`docs/index.html: the workspace-backend intro counts the options as ` +
+   `"${NUMBER_WORD[backends.length] || backends.length}"`,
+  new RegExp(`\\b${NUMBER_WORD[backends.length] || backends.length}\\b`, "i").test(backendIntro),
+  `the intro reads: ${backendIntro.slice(0, 220)}…\n      ` +
+  `it should count ${backends.length} — a wrong number here is a reader hunting for a backend ` +
+  "that is not on the table, or missing one that is");
+
+// (e) the roadmap paragraph names exactly the picker's Future set — both directions
+const futurePara = (read("docs/index.html").match(/<p id="backend-future">([\s\S]*?)<\/p>/) || [, ""])[1]
+  .replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
+const futureKey = labelKey(futurePara);
+const futureMissing = futureBackends.filter((l) => !futureKey.includes(labelKey(l)));
+const futureShipped = backends.filter((a) =>
+  new RegExp(`\\b${shortLabel(a.label).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i").test(futurePara));
+ok(`docs/index.html: the roadmap paragraph names exactly the ${futureBackends.length} "Future" card(s) the picker shows`,
+  !!futurePara && !futureMissing.length && !futureShipped.length,
+  `in the picker as Future, unnamed in Help: ${futureMissing.join(", ") || "(none)"}\n      ` +
+  `named as Future but already shipped: ${futureShipped.map((a) => shortLabel(a.label)).join(", ") || "(none)"}\n      ` +
+  'the paragraph is <p id="backend-future"> under the table — these cards are greyed and ' +
+  "unselectable, so a reader who is not told they are the roadmap reads them as broken");
+
+/* ── 40. Help's two theme lists vs the two theme rosters the app really renders ──
+   N7, and check 39's move one pair of pickers over. The app themes ITSELF twice, from two
+   registries that are deliberately kept in parity:
+   · `Studio.DASHBOARD_THEMES` (app/model.js) — the whole-look presets the Dashboard theme
+     swatch row renders (app/studio.js, one `.dt-swatch` per entry), and the same list the
+     Settings "Default dashboard theme" <select> is built from. The row then appends ONE
+     extra swatch, `data-dashboard-theme="custom"`, which has no registry entry by design
+     (its colors are authored, not curated) — so it is derived here from that markup rather
+     than carried in an exemption list, check 18's idiom.
+   · `APP_THEME_KEYS` / `APP_THEME_LABELS` (app/studio.js) — the app-chrome Color theme cards
+     in Settings → Appearance. Different keys ("modern" for the dashboard list's
+     "fleet-modern"), same LABELS, bound by `APP_THEME_TO_DASHBOARD_THEME`.
+
+   Measured 2026-08-09, before the fix — both rosters ship SEVEN looks and Help's Dashboard
+   theme list published SIX:
+   · **Conservation** was missing from it. The theme is in the registry (UX11 added it), the
+     swatch row renders it, the Settings default <select> offers it — and the section a
+     reader consults to choose a dashboard look did not mention it.
+   · The page therefore contradicted itself in a way neither section could show alone: the
+     Color theme list four sections below is complete, and its intro says the picker "offers
+     the same seven looks as the Dashboard theme picker" — pointing at a list of six.
+
+   Five rules:
+   (a) the Dashboard theme list names every curated preset in the registry;
+   (b) it names no preset the registry does not have, except the Custom swatch the row really
+       appends (the negative half — a retired preset would otherwise sit in the list forever);
+   (c) the Color theme list names exactly the app-chrome roster, both directions;
+   (d) the count word in the Color theme intro's cross-reference matches the roster size —
+       the exact shape of claim check 39 rule (d) caught, and the sentence that made the
+       missing bullet visible;
+   (e) parity-only-when-true: that cross-reference is only allowed to say "the same N looks"
+       while the two registries really do carry the same labels. The day they diverge, this
+       fails and the sentence has to change rather than quietly mislead.
+
+   Deliberately NOT order-strict, unlike check 39 rule (c): both Help lists lead with Polecat,
+   the default, where both registries lead with `classic`. That is an editorial choice about
+   what a reader meets first, not drift — so this check holds the SETS and the counts, and
+   leaves the order to the writer. Scoped to docs/index.html: `app/welcome.js` and
+   `app/tutorial.js` were audited in the same pass and enumerate no themes at all. */
+
+const dashThemes = [...(read("app/model.js")
+  .match(/Studio\.DASHBOARD_THEMES = \[([\s\S]*?)\n  \];/) || [, ""])[1]
+  .matchAll(/\{ key: "([a-z0-9-]+)", label: "([^"]+)"/g)].map((m) => ({ key: m[1], label: m[2] }));
+// The one swatch the row appends that is NOT a registry entry — read from the markup that
+// appends it, so "Custom" stays exempt only for as long as the picker really offers it.
+const customSwatch = /data-dashboard-theme", "custom"/.test(read("app/studio.js"));
+const appThemeLabels = [...(read("app/studio.js")
+  .match(/var APP_THEME_LABELS = \{([\s\S]*?)\};/) || [, ""])[1]
+  .matchAll(/(?:"[a-z0-9-]+"|[a-z0-9]+):\s*"([^"]+)"/g)].map((m) => m[1]);
+ok(`app/model.js + app/studio.js: the two theme rosters parsed for check 40 ` +
+   `(${dashThemes.length} dashboard preset(s), ${appThemeLabels.length} app theme(s)` +
+   `${customSwatch ? ", plus the Custom swatch" : ""})`,
+  dashThemes.length > 1 && appThemeLabels.length > 1,
+  `dashboard: ${dashThemes.map((t) => t.label).join(", ") || "(none)"}\n      ` +
+  `app chrome: ${appThemeLabels.join(", ") || "(none)"}\n      ` +
+  "both are read by regex from their own literals — an empty parse would pass every rule below");
+
+// Each Help list is the first <ul> after its <h3>; each entry is led by its name in <strong>.
+function themeBullets(anchor) {
+  const section = (read("docs/index.html")
+    .match(new RegExp(`<h3 id="${anchor}">([\\s\\S]*?)(?=<h3[ >]|</section>)`)) || [, ""])[1];
+  // The intro is the section's first <p> — the prose a reader meets above the list. Read it
+  // narrowly rather than "everything before the <ul>" so a count word in the figure's alt text
+  // can never stand in for one the sentence is missing.
+  const intro = ((section.match(/<p>([\s\S]*?)<\/p>/) || [, ""])[1])
+    .replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+  const list = (section.match(/<ul>([\s\S]*?)<\/ul>/) || [, ""])[1];
+  const names = [...list.matchAll(/<li><strong>([\s\S]*?)<\/strong>/g)]
+    .map((m) => labelKey(m[1].replace(/<[^>]+>/g, "")));
+  return { found: !!section, intro, names };
+}
+const dashHelp = themeBullets("dash-theme");
+const appHelp = themeBullets("color-theme");
+ok(`docs/index.html: both theme lists parsed for check 40 ` +
+   `(${dashHelp.names.length} dashboard bullet(s), ${appHelp.names.length} color-theme bullet(s))`,
+  dashHelp.found && appHelp.found && dashHelp.names.length > 0 && appHelp.names.length > 0,
+  'the <h3 id="dash-theme"> / <h3 id="color-theme"> sections, or the first <ul> inside them, ' +
+  "were not found — rules (a)–(e) read them");
+
+// (a) every curated preset the swatch row renders has a bullet
+const dashHelpSet = new Set(dashHelp.names);
+const undocumentedThemes = dashThemes.filter((t) => !dashHelpSet.has(labelKey(t.label)));
+ok(`docs/index.html: the Dashboard theme list names every curated preset the picker renders (${dashThemes.length})`,
+  !undocumentedThemes.length,
+  `in Studio.DASHBOARD_THEMES, missing from the list: ${undocumentedThemes.map((t) => `${t.label} (${t.key})`).join(", ")}\n      ` +
+  "this list is where a reader picks a dashboard's whole look — a preset with no bullet is one " +
+  "they can only find by clicking every swatch");
+
+// (b) and names none the registry does not have (Custom excepted, while the row really appends it)
+const dashKeys = new Set(dashThemes.map((t) => labelKey(t.label)).concat(customSwatch ? ["custom"] : []));
+const strayThemes = dashHelp.names.filter((n) => !dashKeys.has(n));
+ok("docs/index.html: the Dashboard theme list names no preset the picker does not offer",
+  !strayThemes.length,
+  `in the list, not in the registry: ${strayThemes.join(", ")}\n      ` +
+  `the picker offers: ${dashThemes.map((t) => t.label).join(", ")}${customSwatch ? ", Custom" : ""}`);
+
+// (c) the Color theme list is exactly the app-chrome roster, both directions
+const appHelpSet = new Set(appHelp.names);
+const missingAppThemes = appThemeLabels.filter((l) => !appHelpSet.has(labelKey(l)));
+const strayAppThemes = appHelp.names.filter((n) => !appThemeLabels.some((l) => labelKey(l) === n));
+ok(`docs/index.html: the Color theme list names exactly the ${appThemeLabels.length} app themes Settings renders`,
+  !missingAppThemes.length && !strayAppThemes.length,
+  `rendered by the picker, missing from the list: ${missingAppThemes.join(", ") || "(none)"}\n      ` +
+  `in the list, not in APP_THEME_KEYS: ${strayAppThemes.join(", ") || "(none)"}`);
+
+// (d) the cross-reference counts them
+const appCount = NUMBER_WORD[appThemeLabels.length] || appThemeLabels.length;
+ok(`docs/index.html: the Color theme intro counts the looks as "${appCount}"`,
+  new RegExp(`\\b${appCount}\\b`, "i").test(appHelp.intro),
+  `the intro reads: ${appHelp.intro.slice(0, 220)}…\n      ` +
+  `it should count ${appThemeLabels.length} — this sentence points AT the Dashboard theme list, ` +
+  "so a wrong number here is the page disagreeing with itself");
+
+// (e) …and is only allowed to claim parity while the two registries actually have it
+const rostersMatch = appThemeLabels.length === dashThemes.length &&
+  dashThemes.every((t) => appThemeLabels.some((l) => labelKey(l) === labelKey(t.label)));
+ok("docs/index.html: the Color theme intro claims parity with the Dashboard theme picker only while it holds",
+  rostersMatch === /\bthe same\b/i.test(appHelp.intro),
+  `registries match: ${rostersMatch} (dashboard: ${dashThemes.map((t) => t.label).join(", ")}; ` +
+  `app chrome: ${appThemeLabels.join(", ")})\n      ` +
+  `the intro ${/\bthe same\b/i.test(appHelp.intro) ? "claims" : "does not claim"} they are the same set\n      ` +
+  "if a theme ever ships to one picker and not the other, this sentence is the copy that has to " +
+  "change — silently, it would send a reader looking for a chrome theme in the dashboard picker");
+
+/* ── 41. README.md vs the app it introduces ─────────────────────────────────
+   N7, and the document every check in this family had skipped: checks 9–40 hold the
+   Help page, the tours, the app's own strings and the landing page, and README.md — the
+   repo's FRONT PAGE, the first thing anyone reading the source sees — answered to none
+   of them. It had drifted further than any surface those checks have measured, because
+   nothing had read it since the app was a third of its current size.
+
+   Measured 2026-08-09, before the fix:
+   · **The adapter list named 9 of the 13 connectors** the wizard offers, and named three
+     of those nine by strings the picker has never printed ("DuckDB-Wasm remote files",
+     "SQLite over HTTP", "generic SQL-over-HTTP"). PostgreSQL (PostgREST), CSV / JSON file,
+     Google Sheets and Amazon Redshift were absent — the same four Help was missing before
+     check 38, one document over.
+   · **The export table had 2 rows where Export ▾ has 7.** xlsx, docx, pptx, PDF and the
+     editable spec — every office format the app grew — were undocumented on the page a
+     reader lands on first. Check 37 had just held Help to this exact menu.
+   · **The ASCII diagram called the builder's left pane "Query Library"** — the id-flavoured
+     name checks 16→18 deleted from the tours, from Help and from the app's own runtime
+     strings. README was the last place it survived.
+   · **The rail listed 5 sections and one of them does not exist.** "Home · Dashboards ·
+     Datasets · Connections · Studio": the rail has 13 sections and none is called Studio.
+   · **The Roadmap promised adapters that had already shipped** — "more adapters (Postgres,
+     Redshift, … file drop, Sheets)" — four of the thirteen above, offered as future work.
+   · **The tour-reopen route pointed at a control that has never existed** ("reopen via
+     **ⓘ Tour**"). Check 13 fixed the same class of claim across the six tours; the route
+     is the ⌘K palette's own Interactive tutorial command.
+
+   Seven rules, every one of them reusing a derivation an earlier check already built —
+   this check adds no new source of truth, it points the existing ones at one more document:
+   (a) the connector inventory names every connector the picker offers, by the picker's label;
+   (b) it names none the registry does not have, and counts them in words (check 38's shape);
+   (c) the *(workspace-capable)* mark falls on exactly the connectors whose caps.meta is true;
+   (d) the export table has a row for every Export ▾ format and none it does not offer, and
+       the viewer sentence names the viewer menu's own formats (check 37's three rules);
+   (e) the builder's left pane is called by its RENDERED name, never by its id — check 18's
+       idiom, with `library` inside a code span exempt BY SHAPE rather than by a list;
+   (f) the rail list names exactly the rail's sections, in the rail's order (check 9's
+       derivation, order-strict as check 39's is — README prints it as a walk);
+   (g) the tour-reopen route names the command palette's own tutorial label (check 13). */
+
+// The document minus its fenced code blocks and inline code spans: prose only. Rules (a)–(c)
+// and (e)–(g) are about sentences a reader trusts, and `app/sources/` or `caps.data` inside
+// backticks is a path, not a claim.
+const readmeProse = readme.replace(/```[\s\S]*?```/g, " ").replace(/`[^`]*`/g, " ");
+
+// The Adapters bullet: from its own lead-in to the next top-level bullet.
+const adapterBullet = (() => {
+  const at = readme.indexOf("- **Adapters**");
+  if (at < 0) return "";
+  const end = readme.indexOf("\n- **", at + 5);
+  return readme.slice(at, end < 0 ? readme.length : end);
+})();
+// Its inventory: the bolded names in the sentence that promises the picker's order, up to the
+// `Local (this browser)` note that deliberately sits OUTSIDE the list (rule (b) would flag it).
+const invStart = adapterBullet.indexOf("in the picker's own order");
+const invText = invStart < 0 ? "" : adapterBullet.slice(invStart).split("Local (this browser)")[0];
+const readmeConnectors = [...invText.matchAll(/\*\*([^*]+)\*\*(\s*\*\(workspace-capable\)\*)?/g)]
+  .map((m) => ({ label: m[1].replace(/\s+/g, " ").trim(), badged: !!m[2] }));
+ok(`README.md: the Adapters bullet's connector inventory parsed for check 41 ` +
+   `(${readmeConnectors.length} entry/entries)`,
+  !!adapterBullet && readmeConnectors.length > 0,
+  "the `- **Adapters**` bullet, or the sentence promising the picker's own order inside it, was " +
+  "not found — rules (a), (b) and (c) all read this list, and an empty parse would pass all three");
+
+// (a) every connector the wizard offers is on the front page
+const readmeConnKeys = new Set(readmeConnectors.map((e) => labelKey(e.label)));
+const readmeMissingConn = connectors.filter((a) => !readmeConnKeys.has(labelKey(a.label)));
+ok(`README.md: the connector inventory names every connector the wizard offers (${connectors.length})`,
+  !readmeMissingConn.length,
+  `in the picker, missing from README: ${readmeMissingConn.map((a) => `${a.label} (${a.id})`).join(", ")}\n      ` +
+  "this is the list someone evaluating the repo reads before they ever open the app — check 38 " +
+  "holds Help to the same source, and README had drifted the same four adapters' worth");
+
+// (b) the negative half, plus the count in words — check 38's shape, one document over
+const connectorKeys = new Set(connectors.map((a) => labelKey(a.label)));
+const readmeStrayConn = readmeConnectors.filter((e) => !connectorKeys.has(labelKey(e.label)));
+// NUMBER_WORD (check 38) stops at ten; the connector roster passed it, so extend rather than
+// let the rule silently fall back to digits and stop testing the word README actually prints.
+const NUMBER_WORD_TEENS = ["eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen",
+  "seventeen", "eighteen", "nineteen", "twenty"];
+const connWord = NUMBER_WORD[connectors.length] || NUMBER_WORD_TEENS[connectors.length - 11] ||
+  String(connectors.length);
+ok(`README.md: the connector inventory names no connector the registry lacks, and counts them as ` +
+   `"${connWord}"`,
+  !readmeStrayConn.length &&
+    new RegExp(`\\b${connWord}\\b|\\b${connectors.length}\\b`, "i").test(invText),
+  `in README, not in the picker: ${readmeStrayConn.map((e) => e.label).join(", ") || "(none)"}\n      ` +
+  `the picker's own labels are: ${connectors.map((a) => a.label).join(", ")}\n      ` +
+  `the sentence should count ${connectors.length}; it reads: …${invText.replace(/\s+/g, " ").trim().slice(-160)}\n      ` +
+  "the negative half is what stops a renamed adapter (\"SQLite over HTTP\" for " +
+  "\"SQLite (remote .sqlite)\") sitting on the front page forever");
+
+// (c) the workspace-capable mark is the caps.meta claim, not decoration
+const shouldBadge = connectors.filter((a) => a.meta);
+const readmeBadgeWrong = [
+  ...shouldBadge.filter((a) => !readmeConnectors.some((e) => labelKey(e.label) === labelKey(a.label) && e.badged))
+    .map((a) => `${a.label} hosts a workspace but README does not mark it`),
+  ...readmeConnectors.filter((e) => e.badged && !shouldBadge.some((a) => labelKey(a.label) === labelKey(e.label)))
+    .map((e) => `${e.label} is marked workspace-capable but its caps.meta is false`),
+];
+ok(`README.md: the (workspace-capable) mark falls on exactly the ${shouldBadge.length} connector(s) ` +
+   "whose caps.meta is true",
+  !readmeBadgeWrong.length,
+  readmeBadgeWrong.join("\n      ") + "\n      " +
+  "check 38 rule (d) holds Help's badge to this same capability — where a whole workspace can " +
+  "live is a data-durability decision, so it is a claim rather than a flourish");
+
+// (d) the export table, and the viewer's smaller menu beside it — check 37's rules (a)–(c)
+const readmeExportTable = (() => {
+  const at = readme.indexOf("| Export ▾ |");
+  if (at < 0) return "";
+  const end = readme.indexOf("\n\n", at);
+  return readme.slice(at, end < 0 ? readme.length : end);
+})();
+const readmeExportRows = [...readmeExportTable.matchAll(/^\|\s*\*\*([^*]+)\*\*\s*\|/gm)]
+  .map((m) => m[1].replace(/\s+/g, " ").trim());
+ok(`README.md: the export table parsed for check 41 (${readmeExportRows.length} row(s))`,
+  !!readmeExportTable && readmeExportRows.length > 0,
+  "the `| Export ▾ |` table was not found, or none of its rows lead with a bolded format name");
+const readmeExportKeys = new Set(readmeExportRows.map(labelKey));
+const readmeMissingExports = studioExports.filter((l) => !readmeExportKeys.has(labelKey(l)));
+const studioExportKeys = new Set(studioExports.map(labelKey));
+const readmeStrayExports = readmeExportRows.filter((l) => !studioExportKeys.has(labelKey(l)));
+ok(`README.md: the export table has a row for every format Export ▾ offers (${studioExports.length}), ` +
+   "and none it does not",
+  !readmeMissingExports.length && !readmeStrayExports.length,
+  `in the menu, missing from README: ${readmeMissingExports.join(", ") || "(none)"}\n      ` +
+  `in README, not in the menu: ${readmeStrayExports.join(", ") || "(none)"}\n      ` +
+  `the menu's own labels are: ${studioExports.join(", ")}\n      ` +
+  "check 37 holds Help's copy of this table to the same buttons");
+// The paragraph directly under the table, taken whole — every format name here ends in a
+// dotted extension, so a sentence-splitting regex would cut the list in half at ".html".
+const viewerSentence = (() => {
+  const at = readme.indexOf("The viewer", readme.indexOf("| Export ▾ |"));
+  if (at < 0) return "";
+  const end = readme.indexOf("\n\n", at);
+  return readme.slice(at, end < 0 ? readme.length : end);
+})();
+const readmeUnnamedViewer = viewerExports.filter((l) => !labelKey(viewerSentence).includes(labelKey(l)));
+ok(`README.md: the viewer's own Export menu is named in full (${viewerExports.length} format(s))`,
+  !!viewerSentence && !readmeUnnamedViewer.length,
+  `in the viewer's menu, unnamed in README: ${readmeUnnamedViewer.join(", ") || "(none)"}\n      ` +
+  `the sentence reads: ${viewerSentence.replace(/\s+/g, " ").trim().slice(0, 200) || "(not found)"}\n      ` +
+  "check 37 rule (d) exists because this menu is a SUBSET — README must not imply parity either");
+
+// (e) the builder's left pane, by the name it renders. Check 18's idiom: a code span is an
+// identifier, not a claim, so `library` in backticks or inside a fence is exempt BY SHAPE.
+// Scanned over the WHOLE document minus inline code spans, not over `readmeProse` — the pane's
+// stale name lived in the ASCII architecture diagram, which is a fenced block, and a fence in
+// this document is a picture of the UI as often as it is a command.
+// (single-backtick, same-line spans only: a ``` fence marker is three backticks in a row and
+// must not be paired off as if it were a span, or the prose between two fences vanishes)
+// Two shapes, and the case matters — check 18's by-shape idiom rather than an exemption list.
+// A CAPITALISED "Query Library" / "Studio Library" is a proper noun, so it is naming the pane;
+// a bare "the library" is the pane by its id. Lowercase "sample-query library" is neither —
+// that is the bundled catalog of sample queries, a real thing with a real name.
+const paneById = [
+  ...readme.replace(/`[^`\n]+`/g, " ").matchAll(/[^.\n]*\b(?:Studio|Query)\s+[Ll]ibrar(?:y|ies)\b[^.\n]*/g),
+  ...readme.replace(/`[^`\n]+`/g, " ").matchAll(/[^.\n]*\b(?:the|a|an)\s+[Ll]ibrar(?:y|ies)\b[^.\n]*/g),
+].map((m) => `"…${m[0].replace(/\s+/g, " ").trim().slice(0, 100)}…"`);
+ok(`README.md: the builder's left pane is called "${dataPaneName}", never by its id ("library")`,
+  !paneById.length && new RegExp(`\\b${dataPaneName} panel\\b`).test(readme),
+  (paneById.join("\n      ") || `no stale name found, but README never names the pane "${dataPaneName} panel" either`) +
+  "\n      the pane is `#library` in the markup and has RENDERED \"" + dataPaneName + "\" since " +
+  "STUDIO-PANELS — checks 16, 17 and 18 removed the id-flavoured name from the tours, from Help " +
+  "and from the app's own strings, and README was the document none of them read");
+
+// (f) the rail walk, in the rail's own order — check 9's derivation, order-strict
+const readmeRailWalk = (() => {
+  const at = readme.indexOf("The rail:");
+  if (at < 0) return [];
+  const end = readme.indexOf("├──", at);
+  return readme.slice(at + "The rail:".length, end < 0 ? readme.length : end)
+    .replace(/[│├└─]/g, " ").split("·").map((s) => s.replace(/\s+/g, " ").trim()).filter(Boolean);
+})();
+const readmeRailExpected = [...new Set(railSecs)].map((s) => railLabels[s] || s);
+ok(`README.md: the rail walk names exactly the ${readmeRailExpected.length} sections the rail has, in its order`,
+  readmeRailWalk.length === readmeRailExpected.length &&
+    readmeRailWalk.every((l, i) => l === readmeRailExpected[i]),
+  `README: ${readmeRailWalk.join(" · ") || "(not found)"}\n      ` +
+  `the rail: ${readmeRailExpected.join(" · ")}\n      ` +
+  "check 9 holds Help's rail block to this same list; README printed five names and one of " +
+  "them (\"Studio\") is not a section at all");
+
+// (g) the route back into the tour — check 13's source, one document over
+const paletteTutorial = [...read("app/palette.js").matchAll(/\blabel:\s*"((?:[^"\\]|\\.)*)"/g)]
+  .map((m) => m[1]).find((l) => /tutorial/i.test(l));
+ok(`app/palette.js: the command that reopens the tour parsed for check 41 ("${paletteTutorial || "(none)"}")`,
+  !!paletteTutorial, "rule (g) reads it; no palette command matches /tutorial/i");
+const tourSentence = (readmeProse.match(/[^.]*\bwelcome tour\b[^.]*\./i) || [""])[0];
+ok(`README.md: the tour-reopen route names the palette's own "${paletteTutorial}" command`,
+  !!tourSentence && labelKey(tourSentence).includes(labelKey(paletteTutorial || " ")),
+  `the sentence reads: ${tourSentence.replace(/\s+/g, " ").trim() || "(no sentence mentions the welcome tour)"}\n      ` +
+  "README said \"reopen via ⓘ Tour\", a control the app has never had — the same class of dead " +
+  "route check 13 found eleven times across the tours themselves");
+
+/* ── 42. CLAUDE.md + the pipeline runbook vs the gates the workflows really run ──
+   N7, and check 41's own closing note named it: check 7 holds CLAUDE.md's SIZE figures
+   (~LOC, ~checks) and nothing else, so the document that tells every agent WHAT MUST BE
+   GREEN before merging answered to no derivation at all. Three documents publish that
+   list — CLAUDE.md, docs/PIPELINE.md and `.github/pipeline.json`'s documentary `gates`
+   block — and the source of truth is the workflow YAML, which is why one derivation can
+   hold all three.
+
+   Measured 2026-08-09, before the fix:
+   · **All three published a dev gate of three steps where `ci.yml` runs four.**
+     `tools/doc-truth.mjs` — this file, a hard step since the doc-truth family began —
+     was in none of them. CLAUDE.md contradicted ITSELF about it: its Layout block calls
+     doc-truth part of "the dev gate" while its pipeline bullet, the sentence an agent
+     actually reads before merging, listed the other three. The v927 shape exactly:
+     neither half was wrong alone and together they were.
+   · **The stage gate was under-reported the same way.** `promote-to-stage.yml` runs the
+     full suite, then `tests/rls.mjs`, then `tests/rls-verify.mjs`, then the staged boot
+     smoke; PIPELINE.md and pipeline.json both named the suite and the smoke and skipped
+     the two posture checks between them.
+   · **The workflow roster named 9 of the 11 files** in `.github/workflows/`. The two
+     missing ones are `rls-dev.yml` and `rls-verify.yml` — the whole database-posture CI
+     surface, and the pair the open ⛔ N29 tells its reader to re-dispatch by name.
+   · **The database-posture bullet described one test where the repo has two**, said
+     `tests/rls.mjs` applies "both shipped RLS files" when the script applies THREE
+     postures (its own POSTURES table: the two .sql files plus the Edge Function's
+     inlined SQL), and said it runs "on the live project" — the opposite of what N25
+     shipped, which was moving it to `polecat_dev` precisely so production stops being
+     the thing we experiment on. `tests/rls-verify.mjs`, the read-only check that gates
+     promote-to-prod and runs daily, appeared nowhere in the document.
+
+   Five rules, all derived from the workflows and the test script themselves — no new
+   hand-maintained list:
+   (a) each of the three documents' dev-gate sentence names every `tools/` script
+       `ci.yml` runs;
+   (b) the negative half — none of them names a `tools/` script the gate does NOT run
+       (a step deleted from ci.yml must not linger in the prose as a promise);
+   (c) the stage-gate sentence in PIPELINE.md and pipeline.json names every `tests/`
+       script `promote-to-stage.yml` runs;
+   (d) CLAUDE.md's Layout block names every file in `.github/workflows/`, and names no
+       workflow that does not exist;
+   (e) CLAUDE.md's database bullet names both posture scripts, every posture source
+       `tests/rls.mjs` applies, and counts them in words. */
+
+const wfDir = ".github/workflows";
+const workflowFiles = fs.readdirSync(path.join(ROOT, wfDir)).filter((f) => f.endsWith(".yml")).sort();
+
+// What a workflow RUNS: the `node <path>` invocations in its `run:` bodies. Reading the YAML as
+// text rather than parsing it keeps this dependency-free (the file's own rule), and a gate step
+// is a `node tools/x.mjs` / `node tests/x.js` line in every workflow this repo has.
+const nodeScriptsIn = (wf, dir) =>
+  [...read(`${wfDir}/${wf}`).matchAll(new RegExp(`node\\s+(${dir}/[\\w.-]+\\.(?:mjs|js))`, "g"))]
+    .map((m) => m[1]).filter((v, i, a) => a.indexOf(v) === i);
+
+const devGateScripts = nodeScriptsIn("ci.yml", "tools");
+const stageGateTests = nodeScriptsIn("promote-to-stage.yml", "tests");
+const stem = (p) => path.basename(p).replace(/\.(mjs|js)$/, "");
+// Every tools/ script that COULD be named as a gate step — rule (b) compares against this so a
+// prose mention of `export.js` (a CLI, not a gate) is only flagged inside a gate sentence.
+const toolScripts = fs.readdirSync(path.join(ROOT, "tools"))
+  .filter((f) => /\.(mjs|js)$/.test(f)).map(stem);
+
+const claudeGateSentence = (claude.match(/the dev gate is green \(([^)]*)\)/) || ["", ""])[1];
+const claudePipelineBullet = (() => {
+  const at = claude.indexOf("- **This repo is on the dev → stage → main pipeline**");
+  if (at < 0) return "";
+  const end = claude.indexOf("\n- **", at + 5);
+  return claude.slice(at, end < 0 ? claude.length : end);
+})();
+const pipelineMd = read("docs/PIPELINE.md");
+const pipelineBulletIn = (label) => {
+  const at = pipelineMd.indexOf(`- *${label}*`);
+  if (at < 0) return "";
+  const end = pipelineMd.indexOf("\n  - *", at + 5);
+  const stop = end < 0 ? pipelineMd.indexOf("\n- **", at + 5) : end;
+  return pipelineMd.slice(at, stop < 0 ? pipelineMd.length : stop);
+};
+const pipelineJson = JSON.parse(read(".github/pipeline.json"));
+
+ok(`ci.yml + promote-to-stage.yml parsed for check 42 (${devGateScripts.length} dev-gate script(s), ` +
+   `${stageGateTests.length} stage-gate test(s))`,
+  devGateScripts.length >= 3 && stageGateTests.length >= 2,
+  `dev gate: ${devGateScripts.join(", ") || "(none found)"}\n      ` +
+  `stage gate: ${stageGateTests.join(", ") || "(none found)"}\n      ` +
+  "every rule below reads these two lists, and an empty parse would pass all of them");
+
+// (a) + (b) the dev gate, in all three documents that publish it
+const DEV_GATE_SURFACES = [
+  ["CLAUDE.md", claudeGateSentence, "the sentence an agent reads before merging"],
+  ["docs/PIPELINE.md", pipelineBulletIn("Dev gate"), "the canonical runbook's own gate list"],
+  [".github/pipeline.json", pipelineJson.gates?.devGate || "", "the documentary gates block"],
+];
+for (const [where, text, why] of DEV_GATE_SURFACES) {
+  const missing = devGateScripts.filter((s) => !text.includes(stem(s)));
+  ok(`${where}: the dev-gate list names all ${devGateScripts.length} steps ci.yml runs`,
+    !!text && !missing.length,
+    `ci.yml runs: ${devGateScripts.join(", ")}\n      ` +
+    `missing from ${where}: ${missing.join(", ") || "(the gate sentence itself was not found)"}\n      ` +
+    `this is ${why} — doc-truth.mjs was absent from all three while being a hard step`);
+  // the negative half: a tools/ script named here that the gate does not run
+  const gateStems = new Set(devGateScripts.map(stem));
+  const stray = toolScripts.filter((t) => !gateStems.has(t) && new RegExp(`\\b${t}\\b`).test(text));
+  ok(`${where}: the dev-gate list names no step ci.yml does not run`,
+    !stray.length,
+    `named as a gate step but not run by ci.yml: ${stray.join(", ")}\n      ` +
+    "a step deleted from the workflow must not linger in the prose as a promise");
+}
+
+// (c) the stage gate — the same shape, one workflow over. CLAUDE.md's pipeline bullet
+// summarises it too, so it is held to the same list.
+const STAGE_SURFACES = [
+  ["CLAUDE.md", claudePipelineBullet],
+  ["docs/PIPELINE.md", pipelineBulletIn("Stage gate")],
+  [".github/pipeline.json", pipelineJson.gates?.stageSuite || ""],
+];
+for (const [where, text] of STAGE_SURFACES) {
+  const missing = stageGateTests.filter((s) => !text.includes(stem(s)));
+  ok(`${where}: the stage-gate list names all ${stageGateTests.length} tests promote-to-stage.yml runs`,
+    !!text && !missing.length,
+    `promote-to-stage.yml runs: ${stageGateTests.join(", ")}\n      ` +
+    `missing from ${where}: ${missing.join(", ") || "(the stage-gate text itself was not found)"}\n      ` +
+    "both posture checks sit BETWEEN the suite and the boot smoke, and all three surfaces skipped them");
+}
+
+// (d) the workflow roster in CLAUDE.md's Layout block. Names are basenames without .yml; the
+// parentheticals are commentary, so they are stripped before the roster is read (check 18's
+// by-shape idiom — a token outside a parenthetical, in the file's own naming shape, is a claim).
+const claudeWfBlock = (() => {
+  const at = claude.indexOf(`${wfDir}/`);
+  if (at < 0) return "";
+  const end = claude.indexOf("```", at);
+  return claude.slice(at + wfDir.length + 1, end < 0 ? claude.length : end);
+})();
+const claimedWorkflows = claudeWfBlock.replace(/\([^)]*\)/g, " ").split(/[\s,/]+/)
+  .filter((t) => /^[a-z][a-z0-9-]*$/.test(t)).filter((v, i, a) => a.indexOf(v) === i);
+const realWorkflows = workflowFiles.map((f) => f.replace(/\.yml$/, ""));
+const wfMissing = realWorkflows.filter((w) => !claimedWorkflows.includes(w));
+const wfStray = claimedWorkflows.filter((w) => !realWorkflows.includes(w));
+ok(`CLAUDE.md: the Layout block names all ${realWorkflows.length} workflows, and none it lacks`,
+  !!claudeWfBlock && !wfMissing.length && !wfStray.length,
+  `in ${wfDir}/, unnamed in CLAUDE.md: ${wfMissing.join(", ") || "(none)"}\n      ` +
+  `named in CLAUDE.md, not a workflow: ${wfStray.join(", ") || "(none)"}\n      ` +
+  "rls-dev and rls-verify were the missing pair — the whole database-posture CI surface, and " +
+  "the two the open N29 tells its reader to re-dispatch by name");
+
+// (e) the database-posture bullet vs the script it describes. tests/rls.mjs's POSTURES table
+// declares its own `source:` for each posture it applies — that IS the list, and the bullet
+// said "both shipped RLS files" while the table has had three entries since the Edge Function
+// grew its inlined copy.
+// Scoped to the POSTURES array itself — rls.mjs declares `source:` in other tables too
+// (MARKER_ARTIFACTS is a different question), and counting those would inflate the claim.
+const posturesBlock = (() => {
+  const src = read("tests/rls.mjs");
+  const at = src.indexOf("const POSTURES = [");
+  if (at < 0) return "";
+  const end = src.indexOf("\n];", at);
+  return src.slice(at, end < 0 ? src.length : end);
+})();
+const postureSources = [...posturesBlock.matchAll(/^\s*source:\s*"([^"]+)"/gm)].map((m) => m[1]);
+// The ARTIFACTS under test — what "run it after ANY change to those files" actually points at.
+// One posture can combine two files ("a + b") and two postures can share one file, so the
+// artifact list is neither the posture count nor a de-duped source list.
+const postureArtifacts = [...new Set(postureSources.flatMap((s) => s.split(" + ")))]
+  .map((s) => s.split(" ")[0]).filter((v, i, a) => a.indexOf(v) === i);
+const claudeDbBullet = (() => {
+  const at = claude.indexOf("- **The database posture");
+  if (at < 0) return "";
+  const end = claude.indexOf("\n- **", at + 5);
+  return claude.slice(at, end < 0 ? claude.length : end);
+})();
+ok(`tests/rls.mjs's POSTURES table parsed for check 42 (${postureSources.length} posture(s), ` +
+   `${postureArtifacts.length} artifact(s))`,
+  postureSources.length >= 2 && postureArtifacts.length >= 2,
+  `sources found: ${postureSources.join(", ") || "(none)"}`);
+const postureMissing = postureArtifacts.filter((s) => !claudeDbBullet.includes(path.basename(s)));
+const postureWord = NUMBER_WORD[postureSources.length] || String(postureSources.length);
+ok(`CLAUDE.md: the posture bullet names all ${postureArtifacts.length} artifacts rls.mjs applies, ` +
+   `and counts the postures as "${postureWord}"`,
+  !!claudeDbBullet && !postureMissing.length &&
+    new RegExp(`\\b${postureWord}\\b|\\b${postureSources.length}\\b`, "i").test(claudeDbBullet),
+  `rls.mjs applies ${postureSources.length} postures across: ${postureArtifacts.join(", ")}\n      ` +
+  `missing from the bullet: ${postureMissing.join(", ") || "(none)"}\n      ` +
+  `the bullet should count ${postureSources.length}; it said "both shipped RLS files" and named two`);
+// The same claim, in the workflow that runs the script — its header said "three shipped
+// postures", the number this table had when N25 wrote it, and the table has grown twice since.
+const rlsDevHeader = read(`${wfDir}/rls-dev.yml`).split("\non:")[0];
+const rlsDevCount = (rlsDevHeader.match(/applies the (\w+)/) || ["", ""])[1];
+ok(`rls-dev.yml: its header counts the postures rls.mjs applies as "${postureWord}"`,
+  rlsDevCount.toLowerCase() === postureWord,
+  `the header says "applies the ${rlsDevCount || "(no count found)"} shipped postures", ` +
+  `the POSTURES table has ${postureSources.length}\n      ` +
+  "this comment is the first thing anyone debugging a red posture run reads");
+const postureTests = ["tests/rls.mjs", "tests/rls-verify.mjs"]
+  .filter((t) => fs.existsSync(path.join(ROOT, t)));
+const testsMissing = postureTests.filter((t) => !claudeDbBullet.includes(path.basename(t)));
+ok(`CLAUDE.md: the posture bullet names both posture scripts (${postureTests.length})`,
+  !testsMissing.length,
+  `in tests/, unnamed in the bullet: ${testsMissing.join(", ")}\n      ` +
+  "they answer different questions — \"do our SQL FILES produce a secure database?\" vs \"is a " +
+  "LIVE database readable RIGHT NOW?\" — and neither subsumes the other, which is exactly why " +
+  "N29 exists: rls.mjs went 81/81 green in the same hour rls-verify found dev wide open");
+
+/* ── 43. Help's own NAVIGATION vs the page it navigates ─────────────────────
+   N7, and the surface every check in this family had read THROUGH without ever reading:
+   checks 9, 14–21, 28, 34–40 hold what docs/index.html SAYS. Nothing held whether a
+   reader can get to it. The page's own nav bar is a published claim like any other —
+   "these are the topics on this page" — and it is derivable from the page itself, so it
+   belongs here rather than in anyone's judgement.
+
+   Measured 2026-08-09, before the fix:
+   · **The page had 15 topics, 10 addressable sections and 9 nav links.** Five `<h2>`
+     topics — Quick Views, View Builder, Sample packs, Jobs and *the builder itself* —
+     were BURIED inside one `<section id="builder">` that opened on a sixth, Home. They
+     had no section of their own, so nothing could address them and nothing did.
+   · **`#builder` — the link labelled "The builder" — landed on "Home — instant
+     analytics"**, ~400 lines above the builder. That is also where the app's own
+     contextual `?` sends people: `app/index.html`'s `inspHelpLink` and `studio.js`'s
+     `_hlAnchors` fallback both point at `docs/index.html#builder`.
+   · **The docs search collapsed 40% of the page into one entry.** Its index is
+     `main > section[id]` titled by each section's first `<h2>` (LF60 slice 2), so a
+     search for "jobs" or "sample pack" returned a hit titled *Home — instant analytics*
+     and jumped to the top of Home. The scroll-spy above it had the same blind spot: one
+     `.active` link for six topics.
+   · **Glossary was a real `<section id>` with no link at all** — reachable only by
+     scrolling past everything.
+
+   Six rules, all derived from the page's own structure — the check adds no new source of
+   truth, it makes the document answer to itself:
+   (a) every `<h2>` in `<main>` opens its own `main > section[id]` — no topic buried
+       inside another's section, which is what makes (b)–(e) and the search index possible;
+   (b) the nav links every section (coverage — the negative direction of (a));
+   (c) every nav href resolves to a section that exists (the negative half);
+   (d) within each nav GROUP the links follow the page's own order — grouped rather than
+       globally strict on purpose: `#admin-docs` sits mid-page and trails in the bar by
+       design, which is editorial, and check 39's order-strictness would call it drift;
+   (e) every word of a nav label appears in the heading it points at, so a label may be
+       SHORTER than its heading ("Ensembles & honesty" for "Ensembles & scientific
+       honesty") but may never say something the section does not;
+   (f) every `docs/index.html#anchor` the app itself links to resolves on the page —
+       the contextual `?`, whose default anchor is the one this slice re-pointed. */
+
+const helpMain = help.slice(help.indexOf("<main>"), help.indexOf("</main>"));
+const htmlText = (s) => s.replace(/<[^>]+>/g, "").replace(/&amp;/g, "&").replace(/&nbsp;/g, " ")
+  .replace(/\s+/g, " ").trim();
+const helpSections = [...helpMain.matchAll(/<section id="([^"]+)"[^>]*>/g)]
+  .map((m) => ({ id: m[1], at: m.index }));
+const helpTopics = [...helpMain.matchAll(/<h2[^>]*>([\s\S]*?)<\/h2>/g)]
+  .map((m) => ({ text: htmlText(m[1]), at: m.index }));
+// `<section>` appears exactly as many times as we matched top-level ones, so there is no
+// nesting to reason about and "the last section that opened before this h2" is its owner.
+const sectionOpens = (helpMain.match(/<section\b/g) || []).length;
+const ownerOf = (at) => [...helpSections].filter((s) => s.at < at).pop();
+
+const navBlock = help.slice(help.indexOf("<nav>"), help.indexOf("</nav>"));
+// Groups and links in document order, so (d) can walk the bar group by group.
+const navEntries = [...navBlock.matchAll(/<span class="nav-group">([\s\S]*?)<\/span>|<a href="#([^"]+)"[^>]*>([\s\S]*?)<\/a>/g)]
+  .map((m) => (m[2] === undefined
+    ? { group: htmlText(m[1]) }
+    : { href: m[2], label: htmlText(m[3]) }));
+const navLinks = navEntries.filter((e) => e.href);
+
+ok(`docs/index.html parsed for check 43 (${helpSections.length} section(s), ${helpTopics.length} topic(s), ` +
+   `${navLinks.length} nav link(s))`,
+  helpSections.length >= 10 && helpTopics.length >= 10 && navLinks.length >= 9 &&
+    sectionOpens === helpSections.length,
+  `found ${sectionOpens} <section> tag(s) but ${helpSections.length} with an id at top level — ` +
+  "check 43 assumes sections do not nest");
+
+// (a) every topic owns a section, and is the FIRST h2 in it.
+const buried = helpTopics.filter((t) => {
+  const owner = ownerOf(t.at);
+  return !owner || helpTopics.find((x) => ownerOf(x.at) === owner) !== t;
+});
+ok(`docs/index.html: all ${helpTopics.length} <h2> topics open their own addressable section`,
+  !buried.length,
+  `buried inside another topic's section: ${buried.map((t) => `"${t.text}" (in #${(ownerOf(t.at) || {}).id})`).join("; ")}\n      ` +
+  "a buried topic has no anchor, no nav link, and no entry of its own in the LF60 docs " +
+  "search — which indexes main > section[id] by each section's FIRST h2");
+
+// (b) + (c) the nav and the sections describe the same page.
+const navHrefs = navLinks.map((l) => l.href);
+const unlinked = helpSections.filter((s) => !navHrefs.includes(s.id));
+ok(`docs/index.html: the nav links all ${helpSections.length} sections`,
+  !unlinked.length,
+  `on the page, absent from the nav: ${unlinked.map((s) => "#" + s.id).join(", ")}`);
+const danglingNav = navHrefs.filter((h) => !helpSections.some((s) => s.id === h));
+ok("docs/index.html: every nav link resolves to a section that exists",
+  !danglingNav.length,
+  `in the nav, not on the page: ${danglingNav.map((h) => "#" + h).join(", ")}`);
+
+// (d) order, within each group.
+const outOfOrder = [];
+let groupStart = 0;
+for (let i = 0; i <= navEntries.length; i++) {
+  if (i < navEntries.length && !navEntries[i].group) continue;
+  const links = navEntries.slice(groupStart, i).filter((e) => e.href)
+    .map((l) => helpSections.findIndex((s) => s.id === l.href)).filter((n) => n >= 0);
+  links.forEach((n, k) => { if (k && n < links[k - 1]) outOfOrder.push(navHrefs[k]); });
+  groupStart = i + 1;
+}
+ok("docs/index.html: each nav group lists its sections in the page's own order",
+  !outOfOrder.length,
+  `out of order within their group: ${outOfOrder.map((h) => "#" + h).join(", ")}`);
+
+// (e) a label may abbreviate its heading; it may not contradict it.
+const IGNORE_WORD = new Set(["the", "a", "an", "and", "&", "of", "in", "vs"]);
+const words = (s) => s.toLowerCase().replace(/[^a-z0-9\s]/g, " ").split(/\s+/)
+  .filter((w) => w && !IGNORE_WORD.has(w));
+const mislabelled = navLinks.map((l) => {
+  const sec = helpSections.find((s) => s.id === l.href);
+  if (!sec) return null;
+  const heading = helpTopics.find((t) => ownerOf(t.at) === sec);
+  if (!heading) return null;
+  const stray = words(l.label).filter((w) => !words(heading.text).includes(w));
+  return stray.length ? `"${l.label}" (#${l.href} is "${heading.text}"; stray: ${stray.join(", ")})` : null;
+}).filter(Boolean);
+ok(`docs/index.html: all ${navLinks.length} nav labels say what their section's heading says`,
+  !mislabelled.length,
+  `labels naming something their heading does not: ${mislabelled.join("; ")}`);
+
+// (f) the anchors the APP links to. The contextual `?` in the inspector picks one per
+// selection kind and falls back to the builder's; a rename on the page silently breaks it.
+const helpIds = new Set([...help.matchAll(/id="([^"]+)"/g)].map((m) => m[1]));
+const appSrc = ["app/index.html", "app/studio.js", "app/viewer.html"]
+  .filter((f) => fs.existsSync(path.join(ROOT, f))).map(read).join("\n");
+const hlMap = (appSrc.match(/var _hlAnchors = \{([^}]*)\}/) || ["", ""])[1];
+const appAnchors = [...new Set([
+  // Literal anchors only: the negative lookahead drops a string that is a PREFIX being
+  // concatenated (`"docs/index.html#ct-" + t`, the chart-card links) — those resolve per
+  // chart type and check 3 above already holds the whole `#ct-*` set.
+  ...[...appSrc.matchAll(/docs\/index\.html#([a-z0-9-]+)(?=["'`])(?!["'`]\s*\+)/g)].map((m) => m[1]),
+  ...[...hlMap.matchAll(/:\s*"([a-z0-9-]+)"/g)].map((m) => m[1]),
+  ...(appSrc.match(/_hlAnchors\[[^\]]*\]\s*\|\|\s*"([a-z0-9-]+)"/) || []).slice(1),
+])];
+const brokenAnchors = appAnchors.filter((a) => !helpIds.has(a));
+ok(`docs/index.html: all ${appAnchors.length} help anchors the app links to resolve on the page`,
+  appAnchors.length >= 5 && !brokenAnchors.length,
+  `linked from app/, missing from docs/index.html: ${brokenAnchors.map((a) => "#" + a).join(", ") || "(none)"}\n      ` +
+  `anchors found: ${appAnchors.join(", ") || "(none — the extraction itself broke)"}`);
+
+/* ── 44. PUBLISH.md vs the way the site really publishes ────────────────────
+   N7, and the document check 41 pointed at without reading: README's Publish section is
+   three sentences that end "Full runbook: **PUBLISH.md**", so v928 corrected the summary
+   and left the page it forwards to untouched. Nothing had ever read that page. It is the
+   one document in the repo whose instructions an operator EXECUTES against repo settings,
+   and it was describing a publishing pipeline this repo replaced.
+
+   Measured 2026-08-09, before the fix:
+   · **§ 1 instructed the wrong Pages source.** "Deploy from a branch → `main` / `/ (root)`",
+     while `deploy.yml`'s own header says the opposite in as many words — it *replaced* the
+     branch pipeline, and its NOTE reads "requires repo Settings → Pages → Source = GitHub
+     Actions". An operator who followed the runbook would have switched Pages back to the
+     branch source, taking the deploy workflow out of the path and, with it, both preview
+     stages. This is the only drift this family has measured that BREAKS something rather
+     than merely misinforming.
+   · **The artifact's other two trees were named nowhere.** `deploy.yml` assembles `/stage/`
+     and `/dev/` beside production on every deploy; the runbook still described one tree
+     ("GitHub Pages serves the repo root directly").
+   · **"push to the deploy branch and the live site updates"** named no branch, and is false
+     for two of the three the workflow triggers on: the deploy job is `if: github.ref ==
+     'refs/heads/main'` and the `github-pages` environment refuses any other ref.
+   · **It told you to run `tools/push.js`, which does not exist** — part of a Notes bullet
+     about "Live Pentaho features", a module `app/model.js` records as retired and which has
+     no adapter in `app/sources/`.
+   · **The tour-reopen route pointed at "ⓘ Tour"** — the identical dead control check 41
+     rule (g) had just deleted from README, in the document README forwards to.
+
+   Six rules. (a)–(c) derive from `deploy.yml` itself, (d)–(f) reuse derivations this file
+   already built:
+   (a) § 1 names the Pages source the workflow requires, and never the branch one;
+   (b) every stage tree the assembly step builds is described;
+   (c) the opening claim about what ships names the ref the deploy job actually guards on;
+   (d) every `tools/…` script the runbook tells you to run exists;
+   (e) the tour-reopen route resolves against the command palette (check 13's resolver, one
+       document over) and the reset key matches `app/welcome.js`'s own literal;
+   (f) the demo accounts are exactly `app/auth.js`'s first-run SEED, both directions.
+
+   Deliberately NOT held: the retired module's NAME. Rule (d) kills the bullet's actionable
+   half (a script that is not there), and the fix removed the name with it, but "no module
+   the code calls retired may be named here" would have to derive the retired set from prose
+   in a comment — a rule that stops testing the day someone rewords the comment. The next
+   runbook claim of that shape wants a real source, not a regex over English. */
+const publish = read("PUBLISH.md");
+const deployYml = read(".github/workflows/deploy.yml");
+
+// (a) the Pages SOURCE. A workflow is the publisher the moment it runs actions/deploy-pages,
+// and that action only ever publishes when Settings → Pages → Source is "GitHub Actions" —
+// under the branch source the workflow runs and its artifact is discarded.
+const actionsDeploy = /actions\/deploy-pages@/.test(deployYml);
+ok(".github/workflows/deploy.yml: the Pages deploy parsed for check 44 (actions/deploy-pages)",
+  actionsDeploy,
+  "no actions/deploy-pages step found — rules (a), (b) and (c) all read this workflow, and an " +
+  "unparsed file would pass (a) vacuously");
+ok('PUBLISH.md: § 1 names the Pages source the deploy requires ("GitHub Actions"), not the branch one',
+  !actionsDeploy || (/Source → `GitHub Actions`/.test(publish) && !/Deploy from a branch/i.test(publish)),
+  "the runbook must instruct Settings → Pages → Source → `GitHub Actions` and must not instruct " +
+  "the branch source\n      " +
+  "it said \"Deploy from a branch → `main` / `/ (root)`\" — following it would have unhooked " +
+  "deploy.yml and both previews with it");
+
+// (b) the artifact's other trees, from the assembly step's own loop.
+const stagePreviews = ((deployYml.match(/for stage in ([a-z ]+);/) || [, ""])[1] || "")
+  .trim().split(/\s+/).filter(Boolean);
+ok(`.github/workflows/deploy.yml: the stage-preview assembly loop parsed for check 44 ` +
+   `(${stagePreviews.join(", ") || "(none)"})`,
+  stagePreviews.length >= 2, "rule (b) reads the `for stage in …` loop in the assembly step");
+const undescribedStages = stagePreviews.filter((s) => !publish.includes(`/${s}/`));
+ok(`PUBLISH.md: describes every stage tree the deploy assembles (${stagePreviews.map((s) => "/" + s + "/").join(" ")})`,
+  !undescribedStages.length,
+  `assembled by deploy.yml, absent from the runbook: ${undescribedStages.map((s) => "/" + s + "/").join(", ")}\n      ` +
+  "the page said \"GitHub Pages serves the repo root directly\" — one tree, where the artifact " +
+  "has carried three since the promotion pipeline landed (docs/PIPELINE.md)");
+
+// (c) which ref actually publishes. The deploy job's own guard, quoted into the runbook's
+// opening claim — the sentence that tells you what shipping IS. The pre-fix intro said
+// "push to the deploy branch", which names nothing and is false for two of the three refs
+// deploy.yml triggers on.
+const prodRef = (deployYml.match(/github\.ref == 'refs\/heads\/([a-z]+)'/) || [, ""])[1];
+const publishIntro = publish.split(/\n## /)[0];
+ok(`.github/workflows/deploy.yml: the deploy job's branch guard parsed for check 44 ("${prodRef || "(none)"}")`,
+  !!prodRef, "rule (c) reads the `if: github.ref == 'refs/heads/…'` guard on the deploy job");
+ok(`PUBLISH.md: the opening claim about what ships names the branch that deploys (\`${prodRef}\`)`,
+  !prodRef || new RegExp("`" + prodRef + "`").test(publishIntro),
+  `the intro reads: ${publishIntro.replace(/\s+/g, " ").trim().slice(0, 220)}\n      ` +
+  `it said "push to the deploy branch and the live site updates" — the deploy job runs only on ` +
+  `\`${prodRef}\`, and the github-pages environment refuses every other ref outright`);
+
+// (d) a runbook may only tell you to run scripts that are here. The retired-Pentaho bullet
+// sent readers to `tools/push.js`, gone with the module it belonged to.
+const publishTools = [...publish.matchAll(/`(tools\/[A-Za-z0-9._-]+)`/g)].map((m) => m[1]);
+const missingPublishTools = publishTools.filter((t) => !fs.existsSync(path.join(ROOT, t)));
+ok(`PUBLISH.md: every tools/ script it names exists (${publishTools.length} named)`,
+  publishTools.length >= 1 && !missingPublishTools.length,
+  (publishTools.length ? `named in the runbook, missing from the repo: ${missingPublishTools.join(", ")}`
+    : "the runbook names no tools/ script at all — the extraction may have broken") +
+  "\n      it told you to \"run `tools/push.js` from a networked host\"");
+
+// (e) the way back into the tour, and the key that resets it — check 13's resolver and
+// app/welcome.js's own literal, one document over from check 41 rule (g).
+const publishNorm = norm(publish);
+const badPublishRoutes = [
+  ...unresolvedRoutes(publishNorm, norm("⌘K"), PAL_L, "command in app/palette.js", "PUBLISH.md"),
+  ...unresolvedRoutes(publishNorm, norm("⋯ More"), MORE_L, "entry in #menuMore", "PUBLISH.md"),
+];
+const tourCommands = [...PAL_L].filter((l) => /\btour\b|\btutorial\b/.test(l));
+const publishTourSentence = (publish.match(/[^.\n]*\bwelcome tour\b[\s\S]*?\./i) || [""])[0];
+ok(`PUBLISH.md: the tour-reopen route names a real palette command and resolves`,
+  !badPublishRoutes.length && tourCommands.length > 0 &&
+    tourCommands.some((l) => norm(publishTourSentence).includes(l)),
+  (badPublishRoutes.join("\n      ") ||
+    `the sentence reads: ${publishTourSentence.replace(/\s+/g, " ").trim() || "(none mentions the welcome tour)"}`) +
+  `\n      the palette's tour commands: ${tourCommands.join(", ") || "(none)"}\n      ` +
+  "it said \"reopen any time via **ⓘ Tour**\" — the same control check 41 rule (g) had just " +
+  "removed from README, still standing in the runbook README forwards to");
+const welcomeSeenKey = (read("app/welcome.js").match(/var SEEN = "([^"]+)"/) || [, ""])[1];
+ok(`PUBLISH.md: the tour-reset key matches app/welcome.js's own ("${welcomeSeenKey}")`,
+  !!welcomeSeenKey && publish.includes(`localStorage.removeItem('${welcomeSeenKey}')`),
+  `app/welcome.js stores the seen flag under "${welcomeSeenKey}"; the runbook must print that key ` +
+  "verbatim — a reset instruction that clears the wrong key silently does nothing");
+
+// (f) the accounts § 3 hands an operator, from the store's own first-run seed. Both
+// directions: an account the seed creates and the runbook omits leaves an operator unable
+// to sign in; one the runbook invents sends them to a login that fails.
+const seedBlock = (read("app/auth.js").match(/var SEED = \[([\s\S]*?)\];/) || [, ""])[1];
+const seedAccounts = [...seedBlock.matchAll(/u:\s*"([^"]+)"[^}]*?pass:\s*"([^"]+)"/g)]
+  .map((m) => `${m[1]}/${m[2]}`);
+ok(`app/auth.js: the first-run SEED parsed for check 44 (${seedAccounts.join(", ") || "(none)"})`,
+  seedAccounts.length >= 1, "rule (f) reads `var SEED = [ … ]`");
+const publishPairs = [...publish.matchAll(/`([A-Za-z0-9]+)`\/`([A-Za-z0-9]+)`/g)]
+  .map((m) => `${m[1]}/${m[2]}`);
+const missingSeed = seedAccounts.filter((a) => !publishPairs.includes(a));
+const straySeed = publishPairs.filter((a) => !seedAccounts.includes(a));
+ok(`PUBLISH.md: § 3's demo accounts are exactly the ${seedAccounts.length} the store seeds`,
+  !missingSeed.length && !straySeed.length,
+  `seeded, not in the runbook: ${missingSeed.join(", ") || "(none)"}\n      ` +
+  `in the runbook, not seeded: ${straySeed.join(", ") || "(none)"}\n      ` +
+  "app/auth.js's SEED is what a fresh browser gets — § 3 is where an operator reads it");
+
+/* ── 45. SPEC.md vs the spec it publishes ───────────────────────────────────
+   N7, and the document check 44's own note named as the last one answering to no rule at
+   all: `README.md` sends a reader here three times ("the dashboard-spec schema"), and
+   nothing had ever read it against `app/model.js`. It was the last file in the repo still
+   titled **DashKit Dashboard Studio** — the vendored chart toolkit's name, where README's
+   H1 and every <title> say *Analytics* — and the title was the smallest of it.
+
+   Measured 2026-08-09, before the fix:
+   · **It published a data pipeline this app removed.** "Every exporter (CDF html, CDE
+     `.cdfde`/`.wcdf`, `.cda`)" — of those four artifacts the app produces exactly one, and
+     `tools/lib.js`'s buildArtifacts returns a single `.html`. The Export ▾ menu's seven
+     formats (check 37's list) were named nowhere on the page.
+   · **Its chart-type registry had 11 of the 54 types**, each with a `CDE / CCC component`
+     column naming a component library the repo does not contain.
+   · **Its "Data resolution" section said the live path hits
+     `/pentaho/plugin/cda/api/doQuery`.** Nothing has fetched that in months —
+     `app/exporters.js:115` says so in a comment ("legacy id namespace … nothing fetches
+     it"); live rows come from the referenced Connection's adapter.
+   · **13 of the 25 keys `Studio.emptySpec()` writes were undocumented** — every appearance
+     key (`dashboardTheme`, `customTheme`, `paletteKey`, `headerLogo/Link/Bg`, `titleSize`,
+     `subtitleStyle`, `headerAlign`, `cardSkin`, `renderMode`, `themeColor`) plus
+     `templateVars`, the `{{key}}` substitution a template author needs most.
+   · **The colour-token list elided eight tokens** behind `--c1`…`--c10`, on the page whose
+     job is to be the exhaustive one.
+   `deploy.sh` — the CLI README tells you to feed a spec to — carried the same dead artifact
+   list in its header, so it is fixed and held here too.
+
+   Six rules. The registry ones EVALUATE `app/model.js` rather than regexing it: the file is
+   a pure `window.Studio` IIFE with no DOM (its own header says so), so one `new Function`
+   yields the real labels, fields, formats and defaults — exact where a regex over 54
+   entries would be approximate. Still browser-free, still dependency-free, still instant.
+   (a) SPEC.md's H1 names the product README's H1 names;
+   (b) every top-level key `Studio.emptySpec()` writes is documented, and no key is
+       documented that neither it nor a shipped example carries (the negative half);
+   (c) every format the builder's Export ▾ publishes is named (check 37's own derivation);
+   (d) every file extension SPEC.md or deploy.sh names standalone is one this app exports
+       or accepts as an import — the rule that kills `.cdfde`/`.wcdf`/`.cda`;
+   (e) the chart table IS `Studio.CHARTS`: same keys, same labels, same `map` fields, both
+       directions;
+   (f) the `fmt`, colour-token and KPI-state vocabularies are their registries', both
+       directions — the elision rule, since a page that abbreviates its only exhaustive
+       list is not exhaustive. */
+const spec = read("SPEC.md");
+const deploySh = read("deploy.sh");
+
+// app/model.js is a pure data+helpers IIFE over `window` — no DOM, no imports (file header).
+// Evaluating it is the exact source of truth for rules (b), (e) and (f).
+function studioModel() {
+  const win = {};
+  new Function("window", read("app/model.js"))(win);
+  if (!win.Studio || !win.Studio.CHARTS || !win.Studio.emptySpec) {
+    throw new Error("doc-truth: app/model.js did not yield a Studio model");
+  }
+  return win.Studio;
+}
+const M = studioModel();
+const emptySpecKeys = Object.keys(M.emptySpec());
+ok(`app/model.js: the spec model evaluated for check 45 (${emptySpecKeys.length} top-level keys, ` +
+   `${Object.keys(M.CHARTS).length} chart types)`,
+  emptySpecKeys.length >= 10 && Object.keys(M.CHARTS).length >= 10,
+  "rules (b), (e) and (f) read this model — an empty one would pass them vacuously");
+
+// A markdown section: the given `## ` heading up to the next one.
+function mdSection(src, heading) {
+  const at = src.indexOf(`\n## ${heading}\n`);
+  if (at < 0) return "";
+  const rest = src.slice(at + 1);
+  const end = rest.indexOf("\n## ", 1);
+  return end < 0 ? rest : rest.slice(0, end);
+}
+const ticked = (s) => [...s.matchAll(/`([^`]+)`/g)].map((m) => m[1]);
+
+// (a) the product name. README's H1 is the app's own masthead; SPEC.md had the vendored
+// toolkit's name where README says the product's.
+const productName = (read("README.md").match(/^#\s+(.+)$/m) || [, ""])[1].split("·")[0].trim();
+const specH1 = (spec.match(/^#\s+(.+)$/m) || [, ""])[1].trim();
+ok(`SPEC.md: its H1 names the product README's H1 names ("${productName}")`,
+  !!productName && specH1.includes(productName),
+  `README.md: "${productName}"\n      SPEC.md:   "${specH1}"\n      ` +
+  'it read "DashKit Dashboard Studio" — vendor/dashkit.js is the chart toolkit this app ' +
+  "vendors, not the app");
+
+// (b) the top-level key inventory, from the model that writes it. The negative half allows a
+// key no blank spec carries but a shipped one does (`demoPackId`), and nothing else.
+const keyTable = mdSection(spec, "Top-level keys");
+const documentedKeys = [...keyTable.matchAll(/^\|\s*`([A-Za-z_]\w*)`\s*\|/gm)].map((m) => m[1]);
+ok(`SPEC.md: the top-level key table parsed for check 45 (${documentedKeys.length} row(s))`,
+  documentedKeys.length >= 5,
+  'the "## Top-level keys" section must be a table whose first cell is the key in backticks');
+const undocumentedKeys = emptySpecKeys.filter((k) => !documentedKeys.includes(k));
+ok(`SPEC.md: documents every top-level key Studio.emptySpec() writes (${emptySpecKeys.length})`,
+  !undocumentedKeys.length,
+  `written by the model, undocumented here: ${undocumentedKeys.join(", ")}\n      ` +
+  "this page is the schema — a key it omits is one an author editing a spec by hand cannot know about");
+const exampleKeys = new Set();
+for (const f of fs.readdirSync(path.join(ROOT, "data/examples")).filter((f) => f.endsWith(".studio.json"))) {
+  try { Object.keys(JSON.parse(read("data/examples/" + f))).forEach((k) => exampleKeys.add(k)); } catch { /* not a spec */ }
+}
+const strayKeys = documentedKeys.filter((k) => !emptySpecKeys.includes(k) && !exampleKeys.has(k));
+ok("SPEC.md: documents no top-level key the model never writes and no shipped spec carries",
+  !strayKeys.length,
+  `documented here, written nowhere: ${strayKeys.join(", ")}\n      ` +
+  "the negative half — (b) alone would let a retired key sit in the table forever, which is " +
+  "exactly how the Pentaho-era `cda.connection.jndi` outlived the module that read it");
+
+// (c) what the spec actually becomes, from check 37's own menu derivation.
+const specKey = labelKey(spec);
+const unnamedExports = studioExports.filter((l) => !specKey.includes(labelKey(l)));
+ok(`SPEC.md: names every format Export ▾ writes from a spec (${studioExports.length})`,
+  !unnamedExports.length,
+  `in the menu, unnamed on this page: ${unnamedExports.join(", ")}\n      ` +
+  'it said "Every exporter (CDF html, CDE `.cdfde`/`.wcdf`, `.cda`)" — one of those four ' +
+  "artifacts exists, and the seven that do were named nowhere");
+
+// (d) a file artifact these two documents may name: one an export writes, or one an import
+// accepts. Both sets come from the markup. The token must stand alone — `.js` inside
+// `app/model.js` is a path, not a claim about an artifact.
+const attrAccepts = ["app/index.html", "app/viewer.html", "app/studio.js", "app/gate.js"]
+  .filter((f) => fs.existsSync(path.join(ROOT, f)))
+  .flatMap((f) => [...read(f).matchAll(/accept="([^"]*)"/g)].map((m) => m[1]))
+  .flatMap((v) => v.split(",")).map((s) => s.trim().toLowerCase()).filter((s) => s.startsWith("."));
+const menuExts = [...studioExports, ...viewerExports]
+  .flatMap((l) => [...l.matchAll(/\((\.[a-z0-9.]+)\)/g)].map((m) => m[1].toLowerCase()));
+const knownExts = new Set([...menuExts, ...attrAccepts]);
+ok(`SPEC.md + deploy.sh: the artifact vocabulary parsed for check 45 ` +
+   `(${[...knownExts].sort().join(" ") || "(none)"})`,
+  knownExts.size >= 4, "rule (d) reads the export menus' labels and the file inputs' accept lists");
+const namedExts = (src) => [...new Set([...src.matchAll(/(?<![A-Za-z0-9_])(\.[a-z][a-z0-9]*(?:\.[a-z][a-z0-9]*)*)\b/g)]
+  .map((m) => m[1].toLowerCase()))];
+const deadArtifacts = [["SPEC.md", spec], ["deploy.sh", deploySh]]
+  .flatMap(([f, src]) => namedExts(src).filter((e) => !knownExts.has(e)).map((e) => `${e} (${f})`));
+ok("SPEC.md + deploy.sh: every file artifact they name is one this app exports or accepts",
+  !deadArtifacts.length,
+  `named, produced by nothing: ${deadArtifacts.join(", ")}\n      ` +
+  "both documents advertised `.cdfde`, `.wcdf` and `.cda` — tools/lib.js's buildArtifacts " +
+  "returns exactly one file, and it is the .html");
+
+// (e) the chart table IS the registry: keys, labels and map fields, both directions.
+const chartTable = mdSection(spec, "Chart types");
+// Body rows only: everything after the header separator (`|---|---|---|`), so the header's
+// own `type` / `map` cells are never read as a chart.
+const chartBody = chartTable.split(/\n\|[\s|:-]+\|\n/)[1] || "";
+const chartRows = [...chartBody.matchAll(/^\|\s*`([A-Za-z_]\w*)`\s*\|([^|]*)\|([^|]*)\|/gm)]
+  .map((m) => ({ key: m[1], label: m[2].trim(), fields: ticked(m[3]) }));
+ok(`SPEC.md: the chart-type table parsed for check 45 (${chartRows.length} row(s))`,
+  chartRows.length >= 10,
+  'the "## Chart types" section must be a table of | `type` | Label | `field`, `field` |');
+const specRegistryKeys = Object.keys(M.CHARTS);
+const rowKeys = chartRows.map((r) => r.key);
+const missingTypes = specRegistryKeys.filter((k) => !rowKeys.includes(k));
+const strayTypes = rowKeys.filter((k) => !specRegistryKeys.includes(k));
+ok(`SPEC.md: its chart table is exactly Studio.CHARTS (${specRegistryKeys.length} types)`,
+  !missingTypes.length && !strayTypes.length,
+  `in the registry, missing from the table: ${missingTypes.join(", ") || "(none)"}\n      ` +
+  `in the table, not in the registry: ${strayTypes.join(", ") || "(none)"}\n      ` +
+  "it published 11 of them, under a column naming a component library this repo does not contain");
+const wrongLabels = chartRows.filter((r) => M.CHARTS[r.key] && r.label !== M.CHARTS[r.key].label)
+  .map((r) => `${r.key}: "${r.label}" vs "${M.CHARTS[r.key].label}"`);
+ok("SPEC.md: every chart row's label is the registry's own",
+  !wrongLabels.length, `table vs registry — ${wrongLabels.join("; ")}`);
+const wrongFields = chartRows.filter((r) => {
+  const c = M.CHARTS[r.key];
+  return c && r.fields.join(",") !== (c.fields || []).join(",");
+}).map((r) => `${r.key}: [${r.fields.join(", ")}] vs [${(M.CHARTS[r.key].fields || []).join(", ")}]`);
+ok("SPEC.md: every chart row's map fields are the ones its registry entry declares",
+  !wrongFields.length,
+  `table vs registry — ${wrongFields.join("; ")}\n      ` +
+  "the `map` block is what an author writes by hand; a wrong field list is a spec that renders empty");
+
+// (f) the small closed vocabularies. A page that elides its own exhaustive list ("`--c1`…
+// `--c10`") is not exhaustive, so both directions are enforced on the literal tokens.
+// Prose only. A fenced example block is illustration, not the published vocabulary — and a
+// ``` fence would desynchronise backtick pairing across everything below it.
+const specProse = spec.replace(/```[\s\S]*?```/g, "");
+const vocab = (line, exclude) => ticked(line).filter((t) => /^[a-z]+$/.test(t) && t !== exclude);
+const fmtLine = (specProse.match(/^.*`fmt`\s*∈.*$/m) || [""])[0];
+const fmtIds = M.FORMATS.map((f) => f.id);
+const fmtDoc = vocab(fmtLine, "fmt");
+ok(`SPEC.md: the fmt vocabulary is exactly Studio.FORMATS (${fmtIds.length})`,
+  fmtIds.every((i) => fmtDoc.includes(i)) && fmtDoc.every((i) => fmtIds.includes(i)),
+  `registry: ${fmtIds.join(", ")}\n      page: ${fmtDoc.join(", ") || "(the `fmt` ∈ line was not found)"}`);
+const stateLine = (specProse.match(/^.*KPI `state`\s*∈.*$/m) || [""])[0];
+const stateIds = M.KPI_STATES.map((s) => s.id).filter(Boolean);
+const stateDoc = vocab(stateLine, "state");
+ok(`SPEC.md: the KPI state vocabulary is exactly Studio.KPI_STATES (${stateIds.length} named + the default)`,
+  stateIds.every((i) => stateDoc.includes(i)) && stateDoc.every((i) => stateIds.includes(i)),
+  `registry: ${stateIds.join(", ")}\n      page: ${stateDoc.join(", ") || "(the KPI `state` ∈ line was not found)"}`);
+const tokensDoc = [...new Set(ticked(specProse).filter((t) => /^--[a-z0-9]+$/.test(t)))];
+const missingTokens = M.COLOR_TOKENS.filter((t) => !tokensDoc.includes(t));
+const strayTokens = tokensDoc.filter((t) => !M.COLOR_TOKENS.includes(t));
+ok(`SPEC.md: the colour tokens are exactly Studio.COLOR_TOKENS (${M.COLOR_TOKENS.length})`,
+  !missingTokens.length && !strayTokens.length,
+  `in the registry, absent from the page: ${missingTokens.join(", ") || "(none)"}\n      ` +
+  `on the page, not in the registry: ${strayTokens.join(", ") || "(none)"}\n      ` +
+  "the page wrote `--c1`…`--c10` and hid eight real tokens inside the ellipsis");
+
+/* ── 46. the RLS runbook + the posture scripts' own headers vs the POSTURES table ──
+   Check 42's move, three surfaces over, and it needs no new source of truth: rule (e)
+   there already derives the posture list from `tests/rls.mjs`'s own POSTURES table
+   (`postureSources` / `postureArtifacts` above) and holds CLAUDE.md and rls-dev.yml's
+   header to it. The three documents that describe those postures at LENGTH answered to
+   nothing — including the two SCRIPTS' own headers, so the file that owns the table was
+   miscounting the table.
+
+   Measured on the pre-fix tree: `tools/M7-RLS-GOLIVE-RUNBOOK.md` said `rls.mjs` "installs
+   both posture files" and "runs the SAME 27 checks it runs against the two `/tools`
+   files"; `tests/rls.mjs` said "ALL THREE shipped postures" (and "The three shipped
+   postures" again, directly above the seven-entry table); `tests/rls-verify.mjs`, whose
+   whole header exists to stop the two scripts being confused, said "the three shipped
+   postures". The table has grown four times since anyone read those sentences.
+
+   The runbook is the highest-stakes of the three for the PUBLISH.md reason: an operator
+   EXECUTES it against a live security posture. So it also has to name both scripts —
+   `rls-verify.mjs`, the answer to "is this database secure right now?", appeared nowhere
+   in the runbook whose § A4 asks exactly that question by hand, and the open ⛔ N29 is
+   precisely the gap between the two answers.
+
+   Five rules. (a) each surface states the count at least once; (b) EVERY count any of
+   them states is the derived one (both directions — a surface may not under- or
+   over-count); (c) the runbook names all the artifacts under test; (d) the runbook names
+   both posture scripts; (e) the negative half — every repo file the runbook points an
+   operator at exists. */
+const rlsRunbookPath = "tools/M7-RLS-GOLIVE-RUNBOOK.md";
+const rlsRunbook = read(rlsRunbookPath);
+// A script's HEADER is its leading comment block — everything before the first import.
+// Scoped that way so a sentence inside the file's body (which may legitimately talk about
+// one posture) can neither satisfy nor fail a rule about the roster.
+const headerOf = (p) => { const s = read(p); const i = s.indexOf("\nimport "); return i < 0 ? s : s.slice(0, i); };
+const POSTURE_COUNT_RE = /\b([A-Za-z]+|\d+) shipped postures\b/g;
+const postureCountWord = NUMBER_WORD[postureSources.length] || String(postureSources.length);
+const postureSurfaces = [
+  { path: rlsRunbookPath, text: rlsRunbook },
+  { path: "tests/rls.mjs", text: headerOf("tests/rls.mjs") },
+  { path: "tests/rls-verify.mjs", text: headerOf("tests/rls-verify.mjs") },
+];
+for (const s of postureSurfaces) s.counts = [...s.text.matchAll(POSTURE_COUNT_RE)].map((m) => m[1].toLowerCase());
+ok(`the three posture surfaces parsed for check 46 are non-empty (${
+    postureSurfaces.map((s) => `${path.basename(s.path)}: ${s.text.split("\n").length} line(s)`).join(", ")})`,
+  postureSurfaces.every((s) => s.text.trim().length > 200),
+  "one of the runbook or the two script headers could not be read — the rules below would pass vacuously");
+
+// (a) each surface makes the claim. A document that describes the posture roster and never
+//     counts it is not "safe", it is unfalsifiable — check 40's count-word rule, three
+//     documents over.
+const noCount = postureSurfaces.filter((s) => !s.counts.length);
+ok(`the runbook and both posture scripts each state how many postures tests/rls.mjs applies`,
+  !noCount.length,
+  `states no count: ${noCount.map((s) => s.path).join(", ")}\n      ` +
+  "the phrase the rule looks for is \"<n> shipped postures\"");
+
+// (b) and every count they state is the real one, in BOTH directions — this is the rule
+//     that was failing on all three surfaces.
+const wrongCount = postureSurfaces.flatMap((s) =>
+  s.counts.filter((c) => c !== postureCountWord && c !== String(postureSources.length))
+    .map((c) => `${s.path} says "${c}"`));
+ok(`every posture count published across those three surfaces is "${postureCountWord}" (${
+    postureSources.length}, per the POSTURES table)`,
+  !wrongCount.length,
+  `${wrongCount.join("; ") || "(none)"}\n      ` +
+  `the table applies ${postureSources.length} postures across ${postureArtifacts.length} artifacts: ${
+    postureArtifacts.join(", ")}\n      ` +
+  "rls.mjs's own header said THREE while the table below it listed seven");
+
+// (c) the runbook names every artifact under test. An operator reading it is deciding what
+//     to paste; an artifact rls.mjs proves and the runbook never mentions is one the
+//     operator does not know is proven. Same derivation check 42 holds CLAUDE.md to.
+const runbookMissingArtifacts = postureArtifacts.filter((a) => !rlsRunbook.includes(path.basename(a)));
+ok(`${rlsRunbookPath}: names all ${postureArtifacts.length} artifacts tests/rls.mjs applies`,
+  !runbookMissingArtifacts.length,
+  `under test, unnamed in the runbook: ${runbookMissingArtifacts.join(", ") || "(none)"}\n      ` +
+  "app/sources/schema.js was the missing one — the connect wizard's generated script and the " +
+  "migration RPC are both proven by the same battery, and the runbook said neither");
+
+// (d) check 42's "name both scripts" rule, one document over — and it matters more here,
+//     because § A4 asks rls-verify.mjs's question in the SQL editor by hand.
+const runbookMissingTests = postureTests.filter((t) => !rlsRunbook.includes(path.basename(t)));
+ok(`${rlsRunbookPath}: names both posture scripts (${postureTests.length})`,
+  !runbookMissingTests.length,
+  `in tests/, unnamed in the runbook: ${runbookMissingTests.join(", ")}\n      ` +
+  "§ A4 verifies by hand what tests/rls-verify.mjs verifies from outside the database — and " +
+  "N29 is exactly the case where only the second one could have seen the leak");
+
+// (e) the negative half, and the PUBLISH.md failure mode: a runbook is EXECUTED, so a file
+//     it names that is not there costs an operator a debugging session mid-go-live. Every
+//     backticked repo path is resolved. Scoped by shape (a known source dir + a real
+//     extension) so prose in backticks and SQL identifiers cannot be mistaken for paths.
+const runbookPaths = [...new Set([...rlsRunbook.matchAll(/`((?:tools|tests|app|supabase|\.github)\/[\w./-]+\.(?:sql|mjs|js|ts|yml))`/g)]
+  .map((m) => m[1]))];
+const runbookDangling = runbookPaths.filter((p) => !fs.existsSync(path.join(ROOT, p)));
+ok(`${rlsRunbookPath}: every repo file it points an operator at exists (${runbookPaths.length} path(s))`,
+  runbookPaths.length >= 4 && !runbookDangling.length,
+  `named in the runbook, absent from the tree: ${runbookDangling.join(", ") || "(none)"}\n      ` +
+  `paths found: ${runbookPaths.join(", ") || "(none — the extractor matched nothing)"}`);
+
+/* ── 47. THIRD-PARTY-NOTICES.md vs what the repo actually redistributes ─────
+   N7, and the class of document this repo had not yet held to anything: not copy a
+   reader skims but a LEGAL notice, whose only job is to be a complete and current list
+   of what we ship that isn't ours. It answered to one narrow rule — `tools/validate.mjs`
+   makes a pack whose source is `kind: "licensed"` appear here — and to nothing at all
+   about the tree it describes. Three things had drifted past it, all three measured on
+   the pre-fix tree:
+   · **`vendor/fflate.js` (fflate 0.8.2, MIT) was not in the table.** LF24-XLSX vendored
+     it, `app/index.html` loads it, `sw.js` precaches it, and the document listing what we
+     redistribute never learned it existed. `vendor/dashkit.css` was missing beside it.
+   · **"No third-party fonts are bundled; the UI uses system font stacks."** DESIGN-1
+     bundled ten woff2 files — four in `assets/fonts/`, `@font-face`-declared by the
+     marketing page and Help, and six more inside the shell copy — and the section that
+     would have to credit them said there was nothing to credit. Hanken Grotesk is OFL
+     1.1, whose whole ask is that the notice travels with the font.
+   · **"no pack ships outside data: both shipped packs … are entirely synthetic".** SP-1
+     shipped a third pack the day before, and its 113KB of US Census CBP/ACS extract is
+     exactly the outside data that sentence denied. `validate.mjs` did not catch it
+     because the Census is public domain and its rule fires only on `licensed` — so the
+     document's own promise ("public-domain components listed here") was the part with no
+     check under it.
+
+   Five rules, all derived from the tree rather than from a list kept by hand:
+   (a) every redistributed artifact under `vendor/` is named somewhere in the notices —
+       `vendor/polecat-shell/` excluded because the table declares that whole directory
+       first-party and read-only, which is the honest description of a synced copy;
+   (b) the negative half — every repo path the notices cite exists, so a row can't outlive
+       the file it credits (the check-46 rule, one document over);
+   (c) the fonts: if the tree ships font binaries, the section must credit each family the
+       first-party `@font-face` blocks declare, must not claim none are bundled, and must
+       point at a licence file that is really there;
+   (d) every pack whose source is not `synthetic` is credited BY NAME — `public` included,
+       which is the half `validate.mjs` deliberately leaves alone;
+   (e) every third-party row cites its upstream licence text, and that file exists — the
+       document's own opening promise ("vendored files keep their upstream license text
+       alongside the code"), turned into a rule about itself. */
+const tpnPath = "THIRD-PARTY-NOTICES.md";
+const tpn = read(tpnPath);
+// What "redistributed" means here: a file under vendor/ that a browser could fetch. The
+// licence texts themselves are excluded (they are the credit, not the credited), as are
+// READMEs and anything without a shippable extension.
+const TPN_REDIST_EXT = new Set([".js", ".css", ".json", ".woff2"]);
+const tpnVendorFiles = [];
+(function walkVendor(dir) {
+  for (const e of fs.readdirSync(path.join(ROOT, dir), { withFileTypes: true }).sort((a, b) => a.name < b.name ? -1 : 1)) {
+    const rel = `${dir}/${e.name}`;
+    if (e.isDirectory()) { if (rel !== "vendor/polecat-shell") walkVendor(rel); continue; }
+    if (/^LICENSE/i.test(e.name)) continue;
+    if (TPN_REDIST_EXT.has(path.extname(e.name))) tpnVendorFiles.push(rel);
+  }
+})("vendor");
+ok(`${tpnPath}: the notices and the vendor tree parsed for check 47 (${tpnVendorFiles.length} redistributed file(s), ${tpn.split("\n").length} lines of notices)`,
+  tpnVendorFiles.length >= 8 && tpn.length > 500,
+  "every rule below reads one or the other — an empty read would pass all five vacuously");
+
+// (a) nothing ships uncredited. The document names paths in backticks; a plain
+//     `includes` is enough because a path is unique text.
+const tpnUncredited = tpnVendorFiles.filter((f) => !tpn.includes(f));
+ok(`${tpnPath}: every redistributed file under vendor/ is named in the notices (${tpnVendorFiles.length})`,
+  !tpnUncredited.length,
+  `shipped, uncredited: ${tpnUncredited.join(", ") || "(none)"}\n      ` +
+  "vendor/fflate.js and vendor/dashkit.css were the two — a component nobody wrote down is " +
+  "the one that ships under nobody's licence");
+
+// (b) every path the notices cite is real. Scoped by shape (a known top-level dir + a
+//     real extension, or a directory path) and skipping brace/glob forms like
+//     `assets/fonts/hanken-grotesk-{400,600,700,800}.woff2`, which name a set rather
+//     than a file — the set's members are checked by rule (c) from the tree instead.
+const tpnCited = [...new Set([...tpn.matchAll(
+  /`((?:vendor|data|app|tools|assets|css|docs|tests|js|supabase)\/[\w./-]*(?:\/|\.\w{2,5}))`/g)].map((m) => m[1]))];
+const tpnDangling = tpnCited.filter((p) => !fs.existsSync(path.join(ROOT, p)));
+ok(`${tpnPath}: every repo path it cites exists (${tpnCited.length} path(s))`,
+  tpnCited.length >= 8 && !tpnDangling.length,
+  `cited in the notices, absent from the tree: ${tpnDangling.join(", ") || "(none)"}\n      ` +
+  `paths found: ${tpnCited.join(", ") || "(none — the extractor matched nothing)"}`);
+
+// (c) the fonts. Families come from the first-party @font-face blocks that actually load
+//     a woff2, so the section is held to what the pages really ask the browser for; the
+//     binaries come from the tree, so a font nobody declares is still noticed.
+const tpnFontFiles = [];
+(function walkFonts(dir) {
+  for (const e of fs.readdirSync(path.join(ROOT, dir), { withFileTypes: true })) {
+    const rel = dir === "." ? e.name : `${dir}/${e.name}`;
+    // The generated preview trees are copies of the same files, not extra components.
+    if (e.isDirectory()) { if (!["dev", "stage", ".git", "node_modules", "reference", "provisioning"].includes(rel)) walkFonts(rel); continue; }
+    if (path.extname(e.name) === ".woff2") tpnFontFiles.push(rel);
+  }
+})(".");
+const tpnFontFaceSrc = ["css/landing.css", "docs/index.html", "index.html", "app/index.html"]
+  .filter((p) => fs.existsSync(path.join(ROOT, p))).map(read).join("\n");
+const tpnFontFamilies = [...new Set([...tpnFontFaceSrc.matchAll(/@font-face\s*\{[^}]*\}/g)]
+  .filter((m) => /\.woff2/.test(m[0]))
+  .map((m) => (m[0].match(/font-family:\s*'([^']+)'|font-family:\s*"([^"]+)"/) || [])
+    .slice(1).find(Boolean))
+  .filter(Boolean))];
+const tpnFontsSection = (tpn.match(/\n## Fonts\n([\s\S]*)$/) || [, ""])[1];
+const tpnFontsMissing = tpnFontFamilies.filter((f) => !tpnFontsSection.includes(f));
+const tpnDeniesFonts = /no (?:third-party )?fonts are bundled/i.test(tpnFontsSection);
+const tpnFontLicences = [...tpnFontsSection.matchAll(/`([\w./-]*LICENSE[\w./-]*)`/gi)].map((m) => m[1]);
+ok(`${tpnPath}: the Fonts section credits every bundled face (${tpnFontFiles.length} woff2 file(s), declared: ${tpnFontFamilies.join(", ") || "none"})`,
+  !!tpnFontsSection &&
+  (tpnFontFiles.length === 0 ? true
+    : !tpnDeniesFonts && !tpnFontsMissing.length &&
+      tpnFontLicences.length > 0 && tpnFontLicences.every((p) => fs.existsSync(path.join(ROOT, p)))),
+  `bundled: ${tpnFontFiles.join(", ") || "(none)"}\n      ` +
+  `declared but uncredited: ${tpnFontsMissing.join(", ") || "(none)"}; ` +
+  `section denies bundling: ${tpnDeniesFonts}; licence file(s) cited: ${tpnFontLicences.join(", ") || "(none)"}\n      ` +
+  "DESIGN-1 self-hosted the brand face and this section still said the UI used system stacks — " +
+  "the OFL asks for the notice to travel with the font, so the licence file is part of the rule");
+
+// (d) the half validate.mjs leaves alone. `public` data is still somebody's work.
+const tpnPacksToCredit = packRegistry.filter((p) => p.sourceKind && p.sourceKind !== "synthetic");
+const tpnPackGaps = tpnPacksToCredit.filter((p) => !p.sourceName || !tpn.includes(p.sourceName))
+  .map((p) => `${p.id} (${p.sourceKind}): ${p.sourceName ? `"${p.sourceName}" is not in the notices` : "declares no source name"}`);
+ok(`${tpnPath}: every pack shipping outside data is credited by name (${tpnPacksToCredit.map((p) => p.id).join(", ") || "none today"})`,
+  !tpnPackGaps.length,
+  `${tpnPackGaps.join("\n      ") || "(none)"}\n      ` +
+  "validate.mjs fires only on kind:\"licensed\"; this rule covers kind:\"public\" too, which is " +
+  "how a US Census extract shipped while the notices still said no pack ships outside data");
+
+// (e) the document's own opening promise, applied to the document. First-party rows are
+//     exempt by their own License cell — that is the claim being made about them.
+const tpnLibTable = (tpn.match(/\n## Vendored libraries\n([\s\S]*?)\n\n/) || [, ""])[1];
+const tpnLibRows = tpnLibTable.split("\n").filter((l) => l.startsWith("|") && !/^\|\s*-|^\| Component/.test(l))
+  .map((l) => l.split("|").map((c) => c.trim()));
+const tpnRowGaps = tpnLibRows.filter((cells) => !/first-party/i.test(cells[3] || ""))
+  .filter((cells) => {
+    const cited = [...(cells[3] || "").matchAll(/`([\w./-]+)`/g)].map((m) => m[1]);
+    return !cited.length || cited.some((p) => !fs.existsSync(path.join(ROOT, p)));
+  })
+  .map((cells) => `${cells[1]}: ${(cells[3] || "").slice(0, 60)}`);
+ok(`${tpnPath}: every third-party row cites licence text that is in the tree (${tpnLibRows.length} row(s))`,
+  tpnLibRows.length >= 4 && !tpnRowGaps.length,
+  `rows with a missing or dangling licence citation:\n      ${tpnRowGaps.join("\n      ") || "(none)"}\n      ` +
+  "the notices open by promising vendored files keep their upstream licence text alongside the " +
+  "code — this is that promise, checked");
+
+/* ── 48. docs/PACKS.md vs the packs it governs ──────────────────────────────
+   N7, and the same gap check 47 found one document over: PACKS.md is the CONTRACT for
+   what a pack's data may be and how it gets here — the PUBLISH.md class, a document an
+   author executes rather than skims — and it answered to nothing. Checks 34/35/47 read
+   the registry it governs; none read the contract. Three things had drifted past it,
+   two of them measured on the pre-fix tree:
+   · **"generated in JS at install time, as both shipped packs do today"** — written when
+     both shipped packs were synthetic. Three ship now, and the third is the real-data
+     kind this whole document exists for, so the sentence defining "synthetic" claimed
+     the entire fleet of packs for it.
+   · **"Anything not public domain is `kind: "licensed"` and must also have a
+     `THIRD-PARTY-NOTICES.md` line"** — and its checklist step, `kind: "licensed"`? So an
+     author shipping PUBLIC-domain data was told, twice, that the notices did not concern
+     them. Check 47 (d) shipped hours earlier (v934) and holds every non-`synthetic` pack,
+     `public` included: following this document to the letter now REDS THE GATE. That is
+     the PUBLISH.md failure exactly — a runbook whose instructions break something.
+   · **"Four rules, all enforced"** — rule 1's offline half ("installing one must not
+     depend on the network") was enforced by nothing. It holds only if the service worker
+     carries the bytes, and the precache list in `sw.js` is hand-maintained: today's two
+     CSVs are in it because the SP-1 (a) author remembered. Rule (c) below is that
+     missing enforcement, which is what lets the sentence say "all".
+
+   Five rules, derived from the registry and the tree rather than from a list kept here:
+   (a) every "<n> shipped packs" claim equals the number of registered packs, and every
+       "<n> of the <m> shipped packs" claim equals the number declaring kind:"synthetic"
+       — the two halves of the one drifted sentence, held separately because a fourth
+       pack moves only one of them ("both" counts as two: it was the drifted word);
+   (b) the sentences requiring a `THIRD-PARTY-NOTICES.md` line name every non-synthetic
+       source kind in the VOCABULARY (not merely the kinds registered today), and never
+       name `synthetic`. The vocabulary is read from `tools/pack-extract/lib.mjs` and
+       cross-checked against `tools/validate.mjs`, so the two code copies drifting apart
+       fails here too;
+   (c) every file a pack's `data.files` declares exists under `data/packs/<id>/` AND is
+       precached in `sw.js`'s `SHELL_FILES` — rule 1, finally enforced;
+   (d) the author's checklist names `sw.js` whenever a registered pack ships committed
+       data, so the step (c) now fails on is one the checklist actually tells you to do;
+   (e) the negative half — every repo path and every `Studio.*` entry point the document
+       names resolves in the tree (the check-46 rule, one document over). */
+const packsDoc = read("docs/PACKS.md");
+const packsPath = "docs/PACKS.md";
+
+// (a) the count. `both` is not in WORD_NUM and is exactly the word that had drifted, so
+//     it is spelled out here rather than left to fall through as an unparseable claim.
+const packsClaimNum = (w) => (/^both$/i.test(w) ? 2 : asNumber(w.replace(/\W/g, "")));
+const packsSynthetic = packRegistry.filter((p) => p.sourceKind === "synthetic");
+const packsShippedClaims = [...packsDoc.matchAll(/(\S+)\s+(?:shipped|registered)\s+packs\b/gi)];
+const packsShippedGaps = packsShippedClaims
+  .filter((m) => packsClaimNum(m[1]) !== packRegistry.length)
+  .map((m) => `"…${m[0].replace(/\s+/g, " ").trim()}" — the registry has ${packRegistry.length}`);
+// The same sentence's other half: "two of the three shipped packs [are synthetic]". Held
+// separately because it is a different measurement — the drift being guarded against is a
+// fourth pack of EITHER kind, and only one of the two numbers moves in each case.
+const packsSubsetGaps = [...packsDoc.matchAll(/\b(\S+)\s+of\s+the\s+\S+\s+(?:shipped|registered)\s+packs\b/gi)]
+  .filter((m) => packsClaimNum(m[1]) !== packsSynthetic.length)
+  .map((m) => `"…${m[0].replace(/\s+/g, " ").trim()}" — ${packsSynthetic.length} of them declare kind:"synthetic"`);
+ok(`${packsPath}: every claim about how many packs ship matches the registry (${packRegistry.length}: ${packRegistry.map((p) => p.id).join(", ")}; ${packsSynthetic.length} synthetic)`,
+  packsShippedClaims.length > 0 && !packsShippedGaps.length && !packsSubsetGaps.length,
+  `${[...packsShippedGaps, ...packsSubsetGaps].join("\n      ") || "(no claim of this shape found — the sentence naming the shipped packs was removed or reworded)"}\n      ` +
+  "the paragraph DEFINING synthetic data said \"as both shipped packs do today\" while the " +
+  "third pack, the real-data one this document exists for, had already shipped");
+
+// (b) the notices trigger. The vocabulary, not the roster: a rule scoped to the kinds that
+//     happen to be registered today would go stale the moment someone adds a licensed pack.
+const kindVocab = (src) => [...((src.match(/\[\s*("synthetic"[^\]]*)\]/) || [, ""])[1])
+  .matchAll(/"([a-z]+)"/g)].map((m) => m[1]);
+const extractKinds = kindVocab(read("tools/pack-extract/lib.mjs"));
+const validateKinds = kindVocab(read("tools/validate.mjs"));
+const kindsAgree = extractKinds.length >= 2 && extractKinds.join(",") === validateKinds.join(",");
+const creditedKinds = extractKinds.filter((k) => k !== "synthetic");
+const noticeLines = packsDoc.split("\n")
+  .map((l, i) => [i, l])
+  .filter(([, l]) => l.includes("THIRD-PARTY-NOTICES.md"));
+// A kind counts as named only inside a code span — the prose says "public domain" about
+// licence status, which is a different claim from the `public` source kind.
+const noticeContext = noticeLines.map(([i]) => packsDoc.split("\n").slice(Math.max(0, i - 3), i + 2).join("\n")).join("\n");
+const noticeSpans = [...noticeContext.matchAll(/`([a-z]+)`|`kind:\s*"([a-z]+)"`|kind:\s*"([a-z]+)"/g)]
+  .map((m) => m[1] || m[2] || m[3]);
+const kindsUncovered = creditedKinds.filter((k) => !noticeSpans.includes(k));
+// The negative half is the reverse direction — a kind the DOCUMENT invents. Every
+// `kind: "x"` it writes has to be one the code accepts, or the contract is teaching a
+// value `packSourceIssues` will reject. (It deliberately does NOT forbid naming
+// `synthetic` beside the notices rule: the corrected sentence defines the requirement
+// as "not synthetic", which is the clearest way to say it.)
+const kindsInvented = [...new Set([...packsDoc.matchAll(/kind:\s*"([a-z]+)"/g)].map((m) => m[1]))]
+  .filter((k) => !extractKinds.includes(k));
+ok(`${packsPath}: the THIRD-PARTY-NOTICES.md rule names every non-synthetic source kind (${creditedKinds.join(", ") || "none"})`,
+  kindsAgree && noticeLines.length > 0 && !kindsUncovered.length && !kindsInvented.length,
+  `kinds in the vocabulary needing credit: ${creditedKinds.join(", ") || "(none parsed)"}; ` +
+  `named beside the notices rule: ${[...new Set(noticeSpans)].join(", ") || "(none)"}\n      ` +
+  `uncovered: ${kindsUncovered.join(", ") || "(none)"}; invented by the document: ${kindsInvented.join(", ") || "(none)"}; ` +
+  `extract/validate vocabularies agree: ${kindsAgree}\n      ` +
+  "check 47 (d) makes the gate red for a `public` pack with no notices line; this document " +
+  "told its reader that only `licensed` data needed one");
+
+// (c) rule 1's offline half, which nothing enforced. A declared file that is absent from
+//     the tree breaks install outright; one absent from SHELL_FILES breaks it only for the
+//     reader on a cold cache, which is why it survived — it never fails for the author.
+const swSrc = read("sw.js");
+const shellFiles = new Set([...((swSrc.match(/var SHELL_FILES = \[([\s\S]*?)\n\];/) || [, ""])[1])
+  .matchAll(/"([^"]+)"/g)].map((m) => m[1]));
+const packDataGaps = [];
+for (const p of packRegistry)
+  for (const f of p.dataFiles) {
+    const rel = `data/packs/${p.id}/${f}`;
+    if (!fs.existsSync(path.join(ROOT, rel))) packDataGaps.push(`${p.id}: declares ${f}, absent from the tree (${rel})`);
+    else if (!shellFiles.has(rel)) packDataGaps.push(`${p.id}: ${rel} is not in sw.js SHELL_FILES — installing it needs the network`);
+  }
+const packsWithData = packRegistry.filter((p) => p.dataFiles.length);
+ok(`sw.js: every file a pack declares in \`data.files\` ships and is precached (${
+  packsWithData.map((p) => `${p.id}: ${p.dataFiles.length}`).join(", ") || "no pack ships data today"})`,
+  !packDataGaps.length && shellFiles.size > 0,
+  `${packDataGaps.join("\n      ") || "(none)"}\n      ` +
+  `SHELL_FILES parsed: ${shellFiles.size} entr(ies)\n      ` +
+  "docs/PACKS.md rule 1 says installing a pack must not depend on the network; a same-origin " +
+  "fetch only honours that if the service worker has the file");
+
+// (d) and the checklist has to TELL you to do it — otherwise (c) fails an author who
+//     followed the document faithfully, which is the worst kind of gate.
+const packsChecklist = (packsDoc.match(/\n## Adding a real-data pack[^\n]*\n([\s\S]*)$/) || [, ""])[1];
+ok(`${packsPath}: the author's checklist names sw.js while a pack ships committed data`,
+  !packsWithData.length || (!!packsChecklist && /\bsw\.js\b/.test(packsChecklist) && /SHELL_FILES/.test(packsChecklist)),
+  `checklist found: ${!!packsChecklist}; names sw.js: ${/\bsw\.js\b/.test(packsChecklist)}; ` +
+  `names SHELL_FILES: ${/SHELL_FILES/.test(packsChecklist)}\n      ` +
+  "the precache step lived in the prose above and in no step of the list an author works through");
+
+// (e) the negative half. Same extractor shape as check 47 (b), and the Studio entry points
+//     this document promises are held the way check 41 holds README's.
+const packsCited = [...new Set([...packsDoc.matchAll(
+  /`((?:app|tools|data|tests|docs|js|supabase|vendor)\/[\w./-]*(?:\/|\.\w{2,5}))`/g)].map((m) => m[1]))]
+  .filter((p) => !/<id>/.test(p));
+const packsDangling = packsCited.filter((p) => !fs.existsSync(path.join(ROOT, p)));
+const appSrcAll = fs.readdirSync(path.join(ROOT, "app"))
+  .filter((f) => f.endsWith(".js")).map((f) => read(`app/${f}`)).join("\n");
+const packsApis = [...new Set([...packsDoc.matchAll(/`Studio\.(\w+(?:\.\w+)?)\(/g)].map((m) => m[1]))];
+const packsApiGaps = packsApis.filter((a) => !new RegExp(`Studio\\.${a.replace(".", "\\.")}\\s*=|\\b${a.split(".").pop()}\\s*:\\s*function`).test(appSrcAll));
+ok(`${packsPath}: every repo path and Studio entry point it names resolves (${packsCited.length} path(s), ${packsApis.length} api(s))`,
+  // The floors only assert the extractors found the document at all — set below what the
+  // pre-fix file carried (4 paths, 3 entry points) on purpose, so a legitimate rewording
+  // can never redden this rule. The real assertions are the two emptiness checks.
+  packsCited.length >= 3 && packsApis.length >= 2 && !packsDangling.length && !packsApiGaps.length,
+  `dangling paths: ${packsDangling.join(", ") || "(none)"}\n      ` +
+  `unresolved entry points: ${packsApiGaps.map((a) => `Studio.${a}()`).join(", ") || "(none)"}\n      ` +
+  "a contract that names a script or a function nobody can find is not executable");
+
+/* ── 49. Help's app-bar chrome vs the bar the app renders ───────────────────
+   N7, and the check-21 move one paragraph over. Checks 9 and 43 hold Help's rail and
+   its navigation; check 21 holds the ⋯ More routes it names. Nothing held the two
+   paragraphs that describe the app bar's own right-hand cluster — the fleet waffle and
+   the What's-new feed — and both had drifted, in the two directions this family knows:
+   one under-counted a registry, the other routed a reader to a control that no longer
+   exists.
+
+   Measured 2026-08-09, before the fix:
+   · **The waffle paragraph named 7 apps where the switcher renders 8.** app/fleet.js
+     mounts `appSwitcher(publicFleet(), { current: "analytics" })`, and
+     vendor/polecat-shell/catalog.js carries EIGHT public entries. **Model Server** —
+     added to the fleet and arriving here whole, by sync PR, in a read-only vendor copy
+     this repo cannot edit — was named nowhere on the page.
+   · The same paragraph put the waffle "next to **＋ New**", the DATA PANEL's button
+     (check 16's subject). The app bar's is `New ▾`, and fleet.js inserts the waffle
+     before `#btnNew` specifically. The v877 drift, one document over.
+   · **The What's-new paragraph documented a button DECLUTTER-1 deleted.** "the
+     **Changelog** button in the footer" — app/index.html has carried no `id="btnChangelog"`
+     since 2026-07-31 (the app footer is retired pending a fleet-wide shell feature;
+     renderFooter and fleet.js null-guard its absence). The live routes are the top bar's
+     `#tbWhatsNew` on every section and ⋯ More → What's new on a phone, and this paragraph
+     named neither. Help contradicted ITSELF: its own top-bar section 600 lines above lists
+     **What's new** in the right-hand cluster and documents the phone route. The v927/v929
+     shape, except one half is not merely stale — it is a dead control, the class check 41
+     (g) deleted from README ("ⓘ Tour") and check 44 (f) from PUBLISH.md.
+
+   Five rules, no new source of truth — the catalog, app/fleet.js and app/index.html's own
+   markup:
+   (a) the switcher paragraph names every app the waffle offers;
+   (b) the negative half — it names none the catalog lacks (the list is parsed from the
+       paragraph's own parenthetical, so an invented app fails rather than hides);
+   (c) it reaches the waffle past the button the TOP BAR renders, not the Data panel's
+       `＋ New ▾` twin;
+   (d) the What's-new paragraph names the top-bar control by the title app/index.html
+       gives it;
+   (e) the negative half of (d) — while the markup renders no `#btnChangelog`, the
+       paragraph may not send a reader to the footer for it. Deliberately scoped to the
+       retired footer rather than "every control Help names": the general form is check
+       21's, already green over the whole page, and a looser rule here would false-positive
+       on the ✕/Escape/backdrop prose the same way check 13 avoids docs/index.html. */
+
+const fleetCatalogSrc = read("vendor/polecat-shell/catalog.js");
+const fleetApps = fleetCatalogSrc.split(/\n\s*\{\s*id:/).slice(1).map((e) => ({
+  id: (e.match(/^\s*'([^']+)'/) || [, ""])[1],
+  name: (e.match(/name:\s*'([^']+)'/) || [, ""])[1],
+  visibility: (e.match(/visibility:\s*'([^']+)'/) || [, ""])[1],
+})).filter((a) => a.id && a.name);
+const fleetPublic = fleetApps.filter((a) => a.visibility === "public");
+const fleetSrc = read("app/fleet.js");
+const fleetCurrent = (fleetSrc.match(/current:\s*"([^"]+)"/) || [, ""])[1];
+const appHtmlSrc = read("app/index.html");
+const topbarNewLabel = ((appHtmlSrc.match(/id="btnNew"[^>]*>([^<]+)</) || [, ""])[1] || "").trim();
+const tbWhatsNewTitle = (appHtmlSrc.match(/id="tbWhatsNew"[^>]*\stitle="([^"]+)"/) || [, ""])[1] || "";
+const switcherP = (help.match(/<p id="apps-switcher"[\s\S]*?<\/p>/) || [""])[0];
+const whatsNewP = (help.match(/<p id="whats-new"[\s\S]*?<\/p>/) || [""])[0];
+// Same apostrophe normalisation check 21 uses, so "What's new" in a title= attribute and
+// "What’s new" in prose compare as one string.
+const flat = (s) => htmlText(s).replace(/[’‘]/g, "'").replace(/\s+/g, " ").trim();
+
+ok(`the fleet roster + app-bar markup parsed for check 49 (${fleetPublic.length} public app(s), ` +
+   `current "${fleetCurrent}", New button "${topbarNewLabel}", What's-new title "${tbWhatsNewTitle}")`,
+  fleetPublic.length >= 6 && !!fleetCurrent && !!topbarNewLabel && !!tbWhatsNewTitle &&
+    !!switcherP && !!whatsNewP && fleetPublic.some((a) => a.id === fleetCurrent),
+  `catalog entries: ${fleetApps.length} (${fleetPublic.length} public) · ` +
+  `#apps-switcher found: ${!!switcherP} · #whats-new found: ${!!whatsNewP}\n      ` +
+  "the two paragraphs carry ids as check-49 anchors, the idiom id=\"viewer-export\" already set");
+
+// (a) coverage. publicFleet() minus the app fleet.js declares current — the switcher marks
+//     that one rather than offering it as a jump, which is what the copy says too.
+const wafflePeers = fleetPublic.filter((a) => a.id !== fleetCurrent);
+const switcherText = flat(switcherP);
+const waffleUnnamed = wafflePeers.filter((a) => !switcherText.includes(a.name));
+ok(`docs/index.html: the apps-switcher paragraph names all ${wafflePeers.length} apps the waffle offers`,
+  !waffleUnnamed.length,
+  `in publicFleet(), unnamed by Help: ${waffleUnnamed.map((a) => a.name).join(", ") || "(none)"}\n      ` +
+  "app/fleet.js renders publicFleet() whole — a reader counting tiles against this list finds one Help never mentions");
+
+// (b) the negative half, off the paragraph's own parenthetical.
+const waffleListed = flat((switcherP.match(/family\s*\(([^)]*)\)/) || [, ""])[1])
+  .split(/,\s*/).map((s) => s.trim()).filter(Boolean);
+const waffleInvented = waffleListed.filter((n) => !fleetPublic.some((a) => a.name === n));
+ok(`docs/index.html: the apps-switcher paragraph invents no app (${waffleListed.length} listed)`,
+  waffleListed.length >= 5 && !waffleInvented.length,
+  `listed by Help, absent from catalog.js: ${waffleInvented.join(", ") || "(none)"}\n      ` +
+  "vendor/polecat-shell/ is READ-ONLY here — the roster changes by sync PR, so Help is the half that drifts");
+
+// (c) the button the paragraph reaches past is the app bar's, not the Data panel's twin.
+//     Both end in "New ▾", so the substring test alone would pass on the wrong one — the
+//     panel's leading ＋ is the discriminator, and check 16 owns that pane's own copy.
+ok(`docs/index.html: the apps-switcher paragraph names the app bar's "${topbarNewLabel}", not the Data panel's ＋ form`,
+  switcherText.includes(topbarNewLabel) && !/＋\s*New/.test(switcherText),
+  `names "${topbarNewLabel}": ${switcherText.includes(topbarNewLabel)} · names a ＋ New form: ${/＋\s*New/.test(switcherText)}\n      ` +
+  "app/fleet.js inserts the waffle before #btnNew's menu-wrap — the topbar button, whose own label carries no ＋");
+
+// (d) + (e) the What's-new routes. The paragraph's own bolded lead-in ("What's new:") is
+//     stripped first: it repeats the title verbatim and would otherwise satisfy (d) on its
+//     own, which is exactly how the pre-fix copy passed a rule about a button it never named.
+const whatsNewBody = flat(whatsNewP.replace(/^<p[^>]*>\s*<strong>[^<]*<\/strong>/, ""));
+const whatsNewText = whatsNewBody;
+const wantTitle = tbWhatsNewTitle.replace(/[’‘]/g, "'");
+ok(`docs/index.html: the What's-new paragraph names the top-bar control by its own title ("${wantTitle}")`,
+  whatsNewBody.includes(wantTitle),
+  `paragraph: "${whatsNewText.slice(0, 120)}…"\n      ` +
+  "#tbWhatsNew is the route on every section; the paragraph described only the builder's footer");
+const footerChangelogLives = /id="btnChangelog"/.test(appHtmlSrc);
+ok("docs/index.html: the What's-new paragraph routes to no control app/index.html has retired",
+  footerChangelogLives || !/\bfooter\b/i.test(whatsNewText),
+  `#btnChangelog in app/index.html: ${footerChangelogLives} · paragraph says "footer": ${/\bfooter\b/i.test(whatsNewText)}\n      ` +
+  "DECLUTTER-1 retired the app footer on 2026-07-31 (brand line · Changelog toggle · Last-updated stamp); " +
+  "studio.js and fleet.js null-guard its absence, so nothing in the app ever complained");
+
+
+/* ── 50. Help's chart gallery vs the groups the picker really renders ───────
+   N7. Checks 2 and 3 have held this section since AUD-11 — 2 that every registry type
+   has a card, 3 that every published COUNT is 54 — so the section has been complete and
+   correctly numbered for weeks. Neither asks the question a reader actually asks it:
+   the cards are FILED under group headings, and the inspector's picker files the same
+   54 charts under tabs of its own. `app/studio.js`'s gallery builds `groupOrder` from
+   `Studio.CHARTS[t].group` and renders one `.cg-tab` per group, so those headings and
+   those tabs are the same vocabulary — published twice, derived once, compared never.
+
+   Measured 2026-08-09, before the fix — three charts and one whole group:
+   · **`ensembleSeries` was filed under Maps.** The registry (and the tab) says **Trend**.
+     It sat directly under the choropleth because the two share an ensemble channel, which
+     is a real relationship and the wrong shelf: a reader who opens the Maps tab looking
+     for the card Help showed them there finds one chart, not two.
+   · **`Comparison` appeared TWICE** — the fifteen bar-family cards at the top, then
+     `quadrant` alone in a second heading of the same name at the bottom, below
+     Distribution. The picker renders ONE Comparison tab of sixteen. A duplicate heading
+     is the failure mode a coverage check cannot see: every card was present, every count
+     was 54, and the page still published ten groups where the app renders nine.
+   · **`richtext` was filed under Detail, and `Content` — the app's ninth tab — was named
+     nowhere on the page.** `app/studio.js`'s own comment at the gallery says what the
+     group is for ("Content group = richtext/annotation"); Help had folded it into the
+     table's shelf, so the one tab a reader is least likely to guess was the one tab Help
+     never mentioned.
+
+   Five rules, no new source of truth — the same registry checks 2/3 read, plus the
+   picker's own grouping expression:
+   (a) every card sits under the h3 that names its registry group (`ct-kpi` stays exempt
+       via check 2's CARD_EXTRAS — the KPI tile is a panel kind, not a CHARTS entry, and
+       "Single value" is where it belongs);
+   (b) every group the picker renders a tab for is published as an h3 — the rule that
+       makes a vanished `Content` loud;
+   (c) the negative half — no h3 in the section names a group the registry does not have;
+   (d) no group heading appears twice, because no tab does;
+   (e) the premise itself: `app/studio.js` still derives `groupOrder` from `.group` and
+       still labels a tab per group. If the picker stops grouping this way the other four
+       rules are comparing Help against nothing, so this fails loudly rather than passing
+       green over a dead source. Deliberately NOT held: the ORDER of the groups. The
+       picker's is registry first-seen (Comparison first); Help leads with Maps because
+       the choropleth is the app's strongest chart, and check 12 already settled that a
+       teaching document owes coverage, not a walk order. */
+
+function chartRegistryGroups() {
+  const src = read("app/model.js");
+  const start = src.indexOf("Studio.CHARTS = {");
+  let depth = 0, open = src.indexOf("{", start), i = open;
+  for (; i < src.length; i++) {
+    if (src[i] === "{") depth++;
+    else if (src[i] === "}" && --depth === 0) break;
+  }
+  const block = src.slice(open, i + 1);
+  const at = [...block.matchAll(/\n {4}([A-Za-z_]\w*): \{/g)];
+  const out = new Map();
+  at.forEach((m, n) => {
+    const entry = block.slice(m.index, n + 1 < at.length ? at[n + 1].index : block.length);
+    out.set(m[1], (entry.match(/(?:^|[,{\s])group: "([^"]+)"/) || [, ""])[1]);
+  });
+  return out;
+}
+
+const chartGroups = chartRegistryGroups();
+const pickerSrc = read("app/studio.js");
+// The gallery's own grouping expression and its tab label, matched where they live rather
+// than by name, so a rename that keeps the behaviour still satisfies (e) and a rewrite
+// that drops the grouping does not.
+const pickerGroupsBy = /var g = \(Studio\.CHARTS\[t\]\.group \|\| "Other"\);/.test(pickerSrc);
+const pickerTabsPerGroup = /\["All"\]\.concat\(groupOrder\)\.forEach/.test(pickerSrc);
+const galleryStart = help.indexOf('<section id="chart-types"');
+const gallerySec = galleryStart < 0 ? "" : help.slice(galleryStart, help.indexOf("</section>", galleryStart));
+// One walk: an h3 opens a shelf, every ct- id after it lands on that shelf.
+const galleryShelves = [];
+for (const m of gallerySec.matchAll(/<h3[^>]*>([\s\S]*?)<\/h3>|id="ct-([A-Za-z]+)"/g)) {
+  if (m[1] !== undefined) galleryShelves.push({ name: htmlText(m[1]), cards: [] });
+  else if (galleryShelves.length) galleryShelves[galleryShelves.length - 1].cards.push(m[2]);
+}
+const registryGroups = [...new Set([...chartGroups.values()])];
+
+ok(`the chart registry + the picker's gallery parsed for check 50 ` +
+   `(${chartGroups.size} type(s) in ${registryGroups.length} group(s), ${galleryShelves.length} heading(s) in Help)`,
+  chartGroups.size === N && [...chartGroups.values()].every(Boolean) &&
+    registryGroups.length >= 5 && galleryShelves.length >= 5 && !!gallerySec,
+  `registry types: ${chartGroups.size} (check 2 counts ${N}) · ungrouped: ` +
+  `${[...chartGroups].filter(([, g]) => !g).map(([k]) => k).join(", ") || "none"} · ` +
+  `#chart-types found: ${!!gallerySec}\n      ` +
+  "every Studio.CHARTS entry declares a group — the picker falls back to \"Other\", but nothing ships on it");
+
+// (e) first: the other four rules are only meaningful while the picker still groups this way.
+ok("app/studio.js: the chart picker still files the gallery by Studio.CHARTS[t].group, one tab per group",
+  pickerGroupsBy && pickerTabsPerGroup,
+  `groups by .group: ${pickerGroupsBy} · renders a tab per group: ${pickerTabsPerGroup}\n      ` +
+  "check 50 (a)-(d) compare Help's headings against those tabs — if the gallery stopped grouping, " +
+  "they would be comparing the page against nothing, so the premise is asserted rather than assumed");
+
+// (a) every card on the shelf its own registry entry names.
+const cardsMisfiled = galleryShelves.flatMap((s) => s.cards
+  .filter((k) => !CARD_EXTRAS.has(k) && chartGroups.get(k) !== s.name)
+  .map((k) => `${k} is under "${s.name}", the picker files it under "${chartGroups.get(k)}"`));
+ok(`docs/index.html: every chart card is filed under the group the picker files it under (${chartGroups.size} type(s))`,
+  !cardsMisfiled.length,
+  `${cardsMisfiled.join("\n      ") || "(none)"}\n      ` +
+  "the headings and the picker's tabs are the same vocabulary — a card on the wrong shelf sends a reader to the wrong tab");
+
+// (b) coverage: a group the picker offers may not go groupsUnpublished.
+const galleryShelfNames = galleryShelves.map((s) => s.name);
+const groupsUnpublished = registryGroups.filter((g) => !galleryShelfNames.includes(g));
+ok(`docs/index.html: the gallery publishes every group the picker offers (${registryGroups.length})`,
+  !groupsUnpublished.length,
+  `offered by the picker, absent from Help: ${groupsUnpublished.join(", ") || "(none)"}\n      ` +
+  "Content is the case this rule exists for — one chart, one tab, and the tab a reader is least likely to guess");
+
+// (c) the negative half — no groupsInvented shelf. Scoped to the gallery's own h3s, which are
+//     group headings and nothing else (its prose lives in <p> and the tip block).
+const groupsInvented = galleryShelfNames.filter((n) => !registryGroups.includes(n));
+ok(`docs/index.html: the gallery invents no group (${galleryShelfNames.length} heading(s))`,
+  !groupsInvented.length,
+  `published by Help, unknown to the registry: ${groupsInvented.join(", ") || "(none)"}\n      ` +
+  "a heading with no tab behind it is a shelf the reader cannot find in the app");
+
+// (d) one heading per group, because one tab per group. The duplicate "Comparison" this
+//     check was written for passed (a), (b) and (c) — every card was on a correctly-named
+//     shelf, both galleryShelves were real groups — and was still a lie about the app's shape.
+const groupDupes = galleryShelfNames.filter((n, i) => galleryShelfNames.indexOf(n) !== i);
+ok("docs/index.html: no group is published twice",
+  !groupDupes.length,
+  `published more than once: ${[...new Set(groupDupes)].join(", ") || "(none)"}\n      ` +
+  "the picker renders exactly one tab per group; a second heading of the same name splits it on the page only");
+
+
+/* ── 51. Help's sort control vs the six catalog panels that render one ──────
+   N7, and the check-49 move one paragraph over. Help's catalog-pages block describes
+   the whole sort control in a single sentence — the option list, the per-section
+   extras, the default, and what a pin does to the order — for all six panels at once.
+   Each panel declares that control itself, as a literal option list handed to
+   `Studio.catalogSort.wire(sel, sec, "updated-desc", [[value, label], …], rerender)`,
+   and each sorts its own list a few lines below. Nothing had compared the two.
+
+   Measured 2026-08-09, before the fix — three drifts, and the last is the one a reader
+   acts on:
+   · **Dashboards labels the default option `Last updated`.** The other five label the
+     same `updated-desc` key "Newest first", which was the only name the paragraph gave,
+     so the page most readers start on is the one page where the option Help names is
+     not in the menu.
+   · **Connections' `By adapter` was named nowhere.** The extras parenthetical attributed
+     extras to four pages; Connections has one too, and it was the only offered option on
+     any of the six panels the paragraph left out entirely.
+   · **"pinned items always stay at the top whatever the sort" was true of three panels
+     out of six.** Datasets, Connections and Views really do sort a pinned item first
+     (`if (!!a.pinned !== !!b.pinned)` ahead of the sort key). `renderDashboards` sorts
+     with `list.sort(dashSortCmp)` and no such tiebreak — a dashboard's pin means "pin to
+     Home", which its own button title says — `app/jobs.js` contains the word `pinned`
+     nowhere, and the Repository renders no pin control at all. Help's own catalog-rows
+     section sixty lines below says so outright ("Jobs are the one of the three with no
+     pin"), so the page was simultaneously right and wrong about the same control — the
+     v929/v936 shape, and the stale half was again the one printed beside the feature.
+
+   Five rules, no new source of truth — the six wire() call sites and each panel's own
+   list sort:
+   (a) the premise + the roster: exactly six panels wire a sort control, all six on the
+       same `updated-desc` default, and the pages Help enumerates are exactly those six.
+       If a panel stops wiring one, the other four rules would be comparing the paragraph
+       against nothing, so this fails loudly rather than passing green over a dead source;
+   (b) the default option's LABEL per panel — the shared name is published, and a panel
+       that labels it differently is named beside its own label;
+   (c) the non-default options every panel shares — "Oldest first" and both name directions;
+   (d) extras, both directions: every per-section extra is named under its own page, and no
+       page is given an extra it does not offer. The parenthetical is segmented by page
+       name, so Datasets' and Connections' two `By adapter` extras cannot cover for each
+       other — which is exactly how the missing one hid;
+   (e) the pinned-first claim names exactly the panels whose sort really does it.
+   Deliberately NOT held: the ORDER the options appear in, and any wording beyond the
+   label's own noun — check 12's rule again, a teaching document owes coverage, not a
+   transcript. */
+
+const CATALOG_PAGES = {
+  dashboards: "Dashboards", views: "Views", datasets: "Datasets",
+  connections: "Connections", jobs: "Jobs", repository: "Repository",
+};
+const BASE_SORT_KEYS = ["updated-desc", "updated-asc", "name-asc", "name-desc"];
+
+// Every panel that wires a sort control, with its literal option list and whether its own
+// list sort puts pinned items first. The pinned tiebreak, where a panel has one, is the
+// first thing inside the first `.sort(` after the wire call — that is the panel's list
+// sort in all six files, and (a) asserts every panel had one to read.
+function catalogSortPanels() {
+  const out = [];
+  const wire = /Studio\.catalogSort\.wire\(\s*\$\("#[\w-]+"\),\s*"([\w-]+)",\s*"([\w-]+)",\s*\[/g;
+  for (const f of fs.readdirSync(path.join(ROOT, "app")).filter((n) => n.endsWith(".js")).sort()) {
+    const src = read("app/" + f);
+    for (const m of src.matchAll(wire)) {
+      // brace-walk the option array — the [value, label] pairs are themselves arrays, so a
+      // non-greedy match to the first "]" would stop inside the first option.
+      const open = m.index + m[0].length - 1;
+      let depth = 0, i = open;
+      for (; i < src.length; i++) {
+        if (src[i] === "[") depth++;
+        else if (src[i] === "]" && --depth === 0) break;
+      }
+      const list = src.slice(open, i + 1);
+      const at = src.indexOf(".sort(", i);
+      const body = at < 0 ? "" : src.slice(at, at + 400);
+      out.push({
+        sec: m[1], def: m[2], file: "app/" + f, sorted: at >= 0,
+        options: [...list.matchAll(/\["([\w-]+)",\s*"([^"]+)"\]/g)].map((o) => ({ key: o[1], label: o[2] })),
+        pinnedFirst: /!!a\.pinned !== !!b\.pinned/.test(body),
+      });
+    }
+  }
+  return out;
+}
+
+const panels = catalogSortPanels();
+const sortPara = htmlText((help.match(/<p><strong>Sorting\.<\/strong>[\s\S]*?<\/p>/) || [""])[0])
+  .replace(/\s+/g, " ").trim();
+// The paragraph's own enumeration, between the em dashes that open the sentence.
+const sortRoster = (sortPara.match(/Every catalog page — ([^—]+) — has a sort control/) || [, ""])[1]
+  .split(/,\s*|\s+and\s+/).map((s) => s.replace(/^the\s+/, "").trim()).filter(Boolean);
+
+// (a) first: the premise and the roster together.
+const panelSecs = panels.map((p) => p.sec).sort();
+const expectedSecs = Object.keys(CATALOG_PAGES).sort();
+const rosterExpected = expectedSecs.map((s) => CATALOG_PAGES[s]).sort();
+ok(`app/ + docs/index.html: six catalog panels wire a sort control, and Help enumerates those six ` +
+   `(${panels.length} panel(s), ${sortRoster.length} page(s) named)`,
+  panels.length === 6 && String(panelSecs) === String(expectedSecs) &&
+    panels.every((p) => p.def === "updated-desc" && p.sorted && p.options.length >= BASE_SORT_KEYS.length) &&
+    String([...sortRoster].sort()) === String(rosterExpected),
+  `wired: ${panels.map((p) => `${p.sec} (${p.file}, ${p.options.length} option(s), default ${p.def}` +
+    `${p.sorted ? "" : ", NO list sort found"})`).join(" · ")}\n      ` +
+  `Help enumerates: ${sortRoster.join(", ") || "(nothing)"}\n      ` +
+  "one sentence describes all six controls — rules (b)-(e) are only meaningful while all six exist");
+
+// (b) the default option's label, per panel. Five panels say "Newest first" and Dashboards
+//     says "Last updated"; the shared name is required, and any panel that differs has to be
+//     named beside the label it really carries (within its own clause).
+const defLabels = panels.map((p) => ({ page: CATALOG_PAGES[p.sec], label: (p.options.find((o) => o.key === "updated-desc") || {}).label }));
+const labelTally = {};
+defLabels.forEach((d) => { labelTally[d.label] = (labelTally[d.label] || 0) + 1; });
+const sharedDefault = Object.keys(labelTally).sort((a, b) => labelTally[b] - labelTally[a])[0];
+const defaultUnnamed = defLabels.filter((d) => {
+  if (d.label === sharedDefault) return !sortPara.includes(sharedDefault);
+  const i = sortPara.indexOf(d.label);
+  return i < 0 || !sortPara.slice(Math.max(0, i - 80), i).includes(d.page);
+});
+// The negative half, and check 49 (d)'s lesson about lead-ins: the paragraph marks a panel's
+// odd-one-out label with <strong>, and nothing else in it is bolded but the "Sorting." lead-in.
+// So every remaining bold phrase has to BE a label some panel carries, credited to a panel
+// that carries it — otherwise a rename in the app leaves a stale exception reading as current.
+const sortParaHtml = (help.match(/<p><strong>Sorting\.<\/strong>[\s\S]*?<\/p>/) || [""])[0];
+const boldClaims = [...sortParaHtml.matchAll(/<strong>([\s\S]*?)<\/strong>/g)].slice(1).map((m) => {
+  const label = htmlText(m[1]).replace(/\s+/g, " ").trim();
+  const before = htmlText(sortParaHtml.slice(0, m.index)).replace(/\s+/g, " ");
+  const pages = [...before.matchAll(new RegExp(`\\b(${Object.values(CATALOG_PAGES).join("|")})\\b`, "g"))];
+  return { label, page: pages.length ? pages[pages.length - 1][1] : "(none)" };
+}).filter((b) => !defLabels.some((d) => d.page === b.page && d.label === b.label));
+ok(`docs/index.html: the default sort is published by the label each panel really carries ` +
+   `(${Object.keys(labelTally).length} distinct label(s))`,
+  !defaultUnnamed.length && !boldClaims.length,
+  `${defaultUnnamed.map((d) => `${d.page} labels updated-desc "${d.label}" — not named beside "${d.page}" in the paragraph`)
+    .concat(boldClaims.map((b) => `Help bolds "${b.label}" after "${b.page}" — that panel's default is not labelled that`))
+    .join("\n      ") || "(none)"}\n      ` +
+  `panels say: ${defLabels.map((d) => `${d.page}: ${d.label}`).join(" · ")}\n      ` +
+  "a reader on Dashboards looking for the option Help calls the default has to find it in that menu");
+
+// (c) the options every panel shares. The name pair is held by its direction token, because
+//     the paragraph collapses the two labels into "Name A–Z / Z–A".
+const sharedOther = ["updated-asc", "name-asc", "name-desc"].map((k) => {
+  const labels = [...new Set(panels.map((p) => (p.options.find((o) => o.key === k) || {}).label))];
+  return { key: k, label: labels.length === 1 ? labels[0] : null };
+});
+const sharedMissing = sharedOther.filter((s) => {
+  if (!s.label) return true;
+  const token = s.key.startsWith("name-") ? s.label.replace(/^Name\s+/, "") : s.label;
+  return !sortPara.includes(token);
+});
+ok("docs/index.html: every option all six panels share is published",
+  !sharedMissing.length,
+  `unpublished (or not shared by all six): ${sharedMissing.map((s) => s.label || s.key).join(", ") || "(none)"}\n      ` +
+  `shared: ${sharedOther.map((s) => `${s.key} → ${s.label || "(varies)"}`).join(" · ")}`);
+
+// (d) the extras, both directions. The parenthetical is segmented by PAGE NAME so an extra
+//     credited to the wrong page is a miss, not a pass: Datasets and Connections both offer
+//     "By adapter", and the paragraph naming it once was how Connections' went missing.
+const extrasPara = (sortPara.match(/per-section extras \(([^)]*)\)/) || [, ""])[1];
+const pageAt = [...extrasPara.matchAll(new RegExp(`\\b(${Object.values(CATALOG_PAGES).join("|")})\\b`, "g"))];
+const extrasSeg = {};
+pageAt.forEach((m, i) => {
+  extrasSeg[m[1]] = extrasPara.slice(m.index + m[1].length, i + 1 < pageAt.length ? pageAt[i + 1].index : extrasPara.length);
+});
+const nounOf = (label) => label.replace(/^By\s+/, "").toLowerCase();
+const allNouns = [...new Set(panels.flatMap((p) => p.options.filter((o) => !BASE_SORT_KEYS.includes(o.key)).map((o) => nounOf(o.label))))];
+const extrasWrong = [];
+panels.forEach((p) => {
+  const page = CATALOG_PAGES[p.sec], seg = extrasSeg[page] || "";
+  const mine = p.options.filter((o) => !BASE_SORT_KEYS.includes(o.key)).map((o) => nounOf(o.label));
+  mine.filter((n) => !seg.toLowerCase().includes(n)).forEach((n) => extrasWrong.push(`${page} offers "${n}" — not published under ${page}`));
+  allNouns.filter((n) => !mine.includes(n) && seg.toLowerCase().includes(n))
+    .forEach((n) => extrasWrong.push(`Help credits ${page} with "${n}" — that panel does not offer it`));
+});
+ok(`docs/index.html: every per-section sort extra is published under its own page ` +
+   `(${panels.reduce((n, p) => n + p.options.length - BASE_SORT_KEYS.length, 0)} extra(s))`,
+  !extrasWrong.length,
+  `${extrasWrong.join("\n      ") || "(none)"}\n      ` +
+  "segmented by page name — two panels offering the same extra cannot cover for each other");
+
+// (e) the pinned-first claim. Three panels sort a pinned item first; the sentence used to
+//     promise all six, contradicting Help's own catalog-rows section ("Jobs are the one of
+//     the three with no pin") sixty lines below it.
+const pinSentence = (sortPara.split(/(?<=\.)\s+/).find((s) => /\bpin/i.test(s)) || "");
+const pinWrong = panels.map((p) => ({ page: CATALOG_PAGES[p.sec], first: p.pinnedFirst }))
+  .filter((p) => p.first !== new RegExp(`\\b${p.page}\\b[^;]*stays at the top|stays at the top[^;]*\\b${p.page}\\b`)
+    .test(pinSentence.split(";")[0]));
+ok(`docs/index.html: the pinned-first claim names exactly the panels whose sort does it ` +
+   `(${panels.filter((p) => p.pinnedFirst).length} of ${panels.length})`,
+  !!pinSentence && !pinWrong.length,
+  `${pinWrong.map((p) => p.first ? `${p.page} sorts pinned items first — Help does not say so`
+    : `Help promises pinned-first on ${p.page}, whose list sort has no pinned tiebreak`).join("\n      ") || "(none)"}\n      ` +
+  `sorts pinned first: ${panels.filter((p) => p.pinnedFirst).map((p) => CATALOG_PAGES[p.sec]).join(", ") || "(none)"}\n      ` +
+  `pin sentence: ${pinSentence || "(none found)"}\n      ` +
+  "a promised ordering the page does not do is the half of a contradiction a reader acts on");
+
+
+/* ── 52. Help's "what each page searches" vs the six panels' own search haystacks ────
+   N7, and the check-51 move one paragraph over — the same six catalog panels, the
+   control immediately left of the sort menu. Help described what a search looks at in
+   one clause of the Searching paragraph; each panel declares it itself, as the field
+   list handed to `Studio.catalogSearch.matcher(q, fn)` (Dashboards hands the same list
+   to `catalogSearch.hay()` because its column fallback needs the terms separately).
+   Nothing had compared the two.
+
+   Measured 2026-08-09, before the fix — the clause covered four of the six pages, and
+   what it left out is what a reader would have had to discover by accident:
+   · **Views and the Repository were absent entirely.** Views searches the CHART TYPE, so
+     typing "choropleth" finds every map you have saved — a genuinely useful thing that
+     was published nowhere. The Repository searches each row's one-line summary.
+   · **Datasets' list left out the connection's name**, which `datasets.js` really does
+     search — "snowflake" finds every dataset reading that connection, and Help's list of
+     seven Datasets fields named the other seven.
+   · **Connections' clause named the adapter and settings but not its tags**, and the
+     shape of the sentence ("name, folder, tags … for Datasets; adapter and settings for
+     Connections") published the two panels' shared fields as if they belonged to
+     Datasets alone — the reason the rewrite states the shared baseline once and then
+     what each page ADDS, rather than re-listing name and folder six times.
+
+   Five rules, and no new source of truth — the six panels check 51 already found, plus
+   each one's own haystack:
+   (a) the premise + the roster: every panel declares a haystack inside its own render
+       function, every expression in it has a row in the vocabulary below, no row is
+       stale, and Help's paragraph enumerates exactly those six pages one clause each.
+       The vocabulary is keyed by the EXPRESSION, so a panel that starts searching a new
+       field — or renames the one it searches — falls out of its row and fails here
+       rather than passing green while Help omits it;
+   (b) the baseline: all six really do search name + folder, and the paragraph publishes
+       that once, before naming any page;
+   (c) every non-baseline field a panel searches is published in that page's own clause;
+   (d) the negative half — no clause credits a page with a field it does not search.
+       Segmented by page, so Datasets' tags cannot cover for Connections' tags, which is
+       exactly how the missing one hid;
+   (e) the promise about secrets: the connection haystack still drops password-typed
+       config values, AND Help still says so. A claim about where a stored token can
+       never turn up is the one claim that must not be able to go stale quietly.
+   Deliberately NOT held: the ORDER the pages appear in, and any wording beyond each
+   field's own noun — check 12's rule again, a teaching document owes coverage, not a
+   transcript. Scoped to the catalog panels: the paragraph below it ("…and every other
+   search box too") is a claim about a different set of files and is its own check. */
+
+// The searchable fields each panel declares, in the panel's own words, mapped to the
+// noun Help has to publish for each. `null` marks the two baseline fields every panel
+// searches — published once in the paragraph's opening sentence, not per page.
+const CATALOG_SEARCH_FIELDS = {
+  dashboards: [
+    ["sp.title || sp.name", "name", null],
+    ["r.folder", "folder", null],
+    ["sp.desc", "the description", /\bdescription\b/i],
+    // The column fallback is a searchable field like any other, just reached only once
+    // the row's own text has missed — the extractor adds it wherever the panel calls it.
+    ["matchedColumnName()", "the bound column names", /column names/i],
+  ],
+  views: [
+    ["a.name", "name", null],
+    ["a.folder", "folder", null],
+    ['vwChartLabel(a.chartType || "bars")', "the chart type", /chart type/i],
+  ],
+  datasets: [
+    ["d.name", "name", null],
+    ["d.folder", "folder", null],
+    ["d.desc", "the description", /\bdescription\b/i],
+    ["d.owner", "the owner", /\bowner\b/i],
+    ["d.tags", "its tags", /\btags\b/i],
+    ["d.sql || d.table || d.collection", "the query text", /query text/i],
+    ["d.columns", "its column names", /column names/i],
+    ['conn ? conn.name : ""', "the connection's name", /connection it reads|connection'?s name/i],
+  ],
+  connections: [
+    ["c.name", "name", null],
+    ["c.folder", "folder", null],
+    ["src.label || c.adapter", "the adapter", /\badapter\b/i],
+    ["cfgHay", "the rest of its settings", /\bsettings\b/i],
+    ["c.tags", "its tags", /\btags\b/i],
+  ],
+  jobs: [
+    ["j.name", "name", null],
+    ["j.folder", "folder", null],
+    ['src ? src.name : ""', "the source dataset", /source dataset/i],
+    ["j.outputName", "the output dataset", /\boutput\b/i],
+  ],
+  repository: [
+    ["r.title", "name", null],
+    ["r.folder", "folder", null],
+    ["r.meta", "the row's one-line summary", /\bsummary\b/i],
+  ],
+};
+
+// A panel's haystack, read out of its OWN render function so the many other matcher
+// calls in the same file (the builder's Data panel, Explore, the activity log) can't be
+// mistaken for it. Brace/bracket walking rather than a non-greedy match: the field list
+// holds ternaries, calls and `||` chains, so the first "]" is not the end of it.
+function searchBlockAt(src, open, oc, cc) {
+  let depth = 0, i = open;
+  for (; i < src.length; i++) {
+    if (src[i] === oc) depth++;
+    else if (src[i] === cc && --depth === 0) break;
+  }
+  return src.slice(open, i + 1);
+}
+function searchFieldList(list) {
+  const out = [];
+  let depth = 0, cur = "", quote = null;
+  for (let i = 1; i < list.length - 1; i++) {
+    const c = list[i];
+    if (quote) { cur += c; if (c === quote && list[i - 1] !== "\\") quote = null; continue; }
+    if (c === '"' || c === "'") { quote = c; cur += c; continue; }
+    if ("([{".includes(c)) depth++;
+    else if (")]}".includes(c)) depth--;
+    if (c === "," && depth === 0) { out.push(cur.trim().replace(/\s+/g, " ")); cur = ""; continue; }
+    cur += c;
+  }
+  if (cur.trim()) out.push(cur.trim().replace(/\s+/g, " "));
+  return out;
+}
+function catalogSearchPanels() {
+  return panels.map((p) => {
+    const src = read(p.file);
+    const fn = "render" + p.sec[0].toUpperCase() + p.sec.slice(1);
+    const at = src.indexOf("function " + fn + "(");
+    const body = at < 0 ? "" : searchBlockAt(src, src.indexOf("{", at), "{", "}");
+    const m = body.match(/Studio\.catalogSearch\.matcher\(\s*\w+,\s*function \(\w+\) \{[\s\S]*?return (\[)/);
+    const hay = body.indexOf("Studio.catalogSearch.hay(");
+    const listAt = m ? body.indexOf("[", m.index + m[0].length - 1) : (hay < 0 ? -1 : body.indexOf("[", hay));
+    const fields = listAt < 0 ? [] : searchFieldList(searchBlockAt(body, listAt, "[", "]"));
+    if (/matchedColumnName\(/.test(body)) fields.push("matchedColumnName()");
+    return { sec: p.sec, page: CATALOG_PAGES[p.sec], fn, file: p.file, fields,
+      dropsPasswords: /f\.type === "password" \? "" :/.test(body) };
+  });
+}
+
+const searchPanels = catalogSearchPanels();
+const searchParaHtml = (help.match(/<p><strong>What each page searches\.<\/strong>[\s\S]*?<\/p>/) || [""])[0];
+const searchPara = htmlText(searchParaHtml).replace(/\s+/g, " ").trim();
+const searchBaselineSentence = searchPara.split(/On top of that:/)[0] || "";
+// One clause per page, semicolon-separated — the paragraph's own punctuation.
+const searchClauses = (searchPara.split(/On top of that:/)[1] || "").split(";")
+  .map((s) => s.trim()).filter(Boolean)
+  .map((text) => ({ text, pages: Object.values(CATALOG_PAGES).filter((pg) => new RegExp(`\\b${pg}\\b`).test(text)) }));
+const searchClauseOf = (page) => (searchClauses.find((c) => c.pages.length === 1 && c.pages[0] === page) || { text: "" }).text;
+
+// (a) first: the premise, the vocabulary and the roster together. The other four rules
+//     are only meaningful while every panel still declares a haystack this can read.
+const vocabWrong = [];
+searchPanels.forEach((p) => {
+  const rows = CATALOG_SEARCH_FIELDS[p.sec] || [];
+  if (!p.fields.length) vocabWrong.push(`${p.page}: no search field list found in ${p.fn} (${p.file})`);
+  p.fields.filter((f) => !rows.some((r) => r[0] === f))
+    .forEach((f) => vocabWrong.push(`${p.page} searches \`${f}\` — nothing in the vocabulary says what to call it`));
+  rows.filter((r) => !p.fields.includes(r[0]))
+    .forEach((r) => vocabWrong.push(`the vocabulary still maps \`${r[0]}\` for ${p.page} — that panel no longer searches it`));
+});
+const searchRoster = searchClauses.filter((c) => c.pages.length === 1).map((c) => c.pages[0]).sort();
+const searchRosterExpected = searchPanels.map((p) => p.page).sort();
+ok(`app/ + docs/index.html: six catalog panels declare a search haystack, and Help gives each one a clause ` +
+   `(${searchPanels.reduce((n, p) => n + p.fields.length, 0)} field(s) over ${searchPanels.length} panel(s), ` +
+   `${searchClauses.length} clause(s))`,
+  searchPanels.length === 6 && !vocabWrong.length && !!searchParaHtml &&
+    searchClauses.length === 6 && String(searchRoster) === String(searchRosterExpected),
+  `${vocabWrong.join("\n      ") || "(vocabulary complete)"}\n      ` +
+  `${searchPanels.map((p) => `${p.page} (${p.fn}, ${p.fields.length})`).join(" · ")}\n      ` +
+  `Help's clauses name: ${searchClauses.map((c) => c.pages.join("+") || "(no page)").join(", ") || "(paragraph not found)"}\n      ` +
+  "the vocabulary is keyed by the panel's own expression — a new or renamed searchable field lands here first");
+
+// (b) the baseline every panel shares, published once rather than six times.
+const baselineMissing = [];
+searchPanels.forEach((p) => {
+  (CATALOG_SEARCH_FIELDS[p.sec] || []).filter((r) => !r[2] && !p.fields.includes(r[0]))
+    .forEach((r) => baselineMissing.push(`${p.page} no longer searches ${r[1]} (\`${r[0]}\`)`));
+});
+const baselineUnpublished = [...new Set(Object.values(CATALOG_SEARCH_FIELDS).flat().filter((r) => !r[2]).map((r) => r[1]))]
+  .filter((n) => !new RegExp(`\\b${n}\\b`, "i").test(searchBaselineSentence));
+ok(`docs/index.html: the shared baseline is published once and every panel really searches it ` +
+   `(${[...new Set(Object.values(CATALOG_SEARCH_FIELDS).flat().filter((r) => !r[2]).map((r) => r[1]))].join(" + ")})`,
+  !baselineMissing.length && !baselineUnpublished.length && !!searchBaselineSentence.trim(),
+  `${[...baselineMissing, ...baselineUnpublished.map((n) => `the opening sentence never names "${n}"`)].join("\n      ") || "(none)"}\n      ` +
+  `baseline sentence: ${searchBaselineSentence.trim() || "(none found)"}\n      ` +
+  "six panels searching the same two fields is a claim about all six — it belongs above the per-page clauses");
+
+// (c) every non-baseline field a panel searches, published in that page's own clause.
+const searchUnpublished = [];
+searchPanels.forEach((p) => {
+  const clause = searchClauseOf(p.page);
+  (CATALOG_SEARCH_FIELDS[p.sec] || []).filter((r) => r[2] && p.fields.includes(r[0]) && !r[2].test(clause))
+    .forEach((r) => searchUnpublished.push(`${p.page} searches ${r[1]} (\`${r[0]}\`) — its clause does not say so`));
+});
+ok(`docs/index.html: every field a panel adds to the baseline is published under that page ` +
+   `(${Object.values(CATALOG_SEARCH_FIELDS).flat().filter((r) => r[2]).length} field(s))`,
+  !searchUnpublished.length,
+  `${searchUnpublished.join("\n      ") || "(none)"}\n      ` +
+  `clauses: ${searchPanels.map((p) => `${p.page}: ${searchClauseOf(p.page) || "(no clause)"}`).join("\n      ")}\n      ` +
+  "a field nobody publishes is one a reader finds by accident, or never");
+
+// (d) the negative half, segmented by page: no clause may credit its page with a field
+//     that page does not search.
+const searchOverclaimed = [];
+// Compared by the field's own PROBE, not by its noun: Datasets searches its columns and
+// Dashboards falls back to the ones its charts are bound to, which are two rows with two
+// nouns and one published phrase — a page that really searches the field must not be
+// flagged for saying so.
+const searchVocab = Object.values(CATALOG_SEARCH_FIELDS).flat().filter((r) => r[2])
+  .filter((r, i, all) => all.findIndex((o) => o[2].source === r[2].source) === i)
+  .map((r) => ({ noun: r[1], re: r[2] }));
+searchPanels.forEach((p) => {
+  const clause = searchClauseOf(p.page), mine = CATALOG_SEARCH_FIELDS[p.sec] || [];
+  searchVocab.filter((v) => !mine.some((r) => r[2] && r[2].source === v.re.source && p.fields.includes(r[0])) && v.re.test(clause))
+    .forEach((v) => searchOverclaimed.push(`Help credits ${p.page} with ${v.noun} — that panel does not search it`));
+});
+ok("docs/index.html: no page's clause credits it with a field that page does not search",
+  !searchOverclaimed.length,
+  `${[...new Set(searchOverclaimed)].join("\n      ") || "(none)"}\n      ` +
+  "segmented by page — two panels searching the same field cannot cover for each other");
+
+// (e) the promise about secrets, held from both ends.
+const pwPanel = searchPanels.find((p) => p.sec === "connections") || {};
+const pwPublished = /never a password or token/i.test(searchClauseOf(CATALOG_PAGES.connections));
+ok("app/connections.js + docs/index.html: a password-typed setting stays out of the haystack, and Help still promises it",
+  !!pwPanel.dropsPasswords && pwPublished,
+  `carve-out in ${pwPanel.fn || "renderConnections"}: ${!!pwPanel.dropsPasswords} · published: ${pwPublished}\n      ` +
+  `Connections clause: ${searchClauseOf(CATALOG_PAGES.connections) || "(none)"}\n      ` +
+  "a stored token that matched a search could be confirmed by typing it — the code and the promise move together");
+
+
+
+/* ── 53. Help's filter pills vs the facets the six catalog panels declare ───
+   N7, and the check-52 move one paragraph down: the block that tells a reader how the
+   catalog pages narrow a list had two paragraphs held to their sources (Searching, What
+   each page searches) and a third — Filtering with pills — held to nothing. Each panel
+   declares its facets itself: the shared kit's `matchMulti` (tick as many pills as you
+   like) and `matchOne` (one at a time) name the MODE outright and take the field
+   accessor as their second argument, and the two chip strips that predate the kit
+   declare the same thing in their markup, by comparing ONE scalar to the chip's id.
+
+   Measured 2026-08-09, before the fix — three drifts, and two of them run in the
+   direction that costs a reader clicks:
+   · **The Repository was absent entirely.** It filters by the KIND of row — Dashboards,
+     Datasets, Connections, Views, Jobs — off the same `wb-chip` strip the Dashboards
+     workbook chips render, and no sentence on the page said so. It is also the only
+     catalog page whose rows are all of different kinds, so it is the page where a type
+     facet matters most.
+   · **Dashboards' workbook chips were published as multi-select.** `_repoWbFilter` is a
+     scalar and the chip's active test is `_repoWbFilter === c.id`, so picking a second
+     workbook replaces the first. Help listed it beside three genuinely multi-select
+     facets under "The other facets are multi-select", which is copy promising more app
+     than ships — the v924 shape.
+   · **The Folders strip was described as if every page had one.** Five do; the Repository
+     groups its rows into a nested folder TREE instead and renders no strip at all. The
+     sentence never named a page, so a reader on the one page without the control was
+     left hunting for it.
+
+   Five rules, and no new source of truth beyond the panel roster check 51 already
+   found — each panel's own facet declarations:
+   (a) the premise + the vocabulary + the roster: every panel declares at least one facet
+       where this can read it, every axis has a row in the vocabulary below, no row is
+       stale, and Help's two halves each enumerate one clause per page. The vocabulary is
+       keyed by the panel's OWN identifier — the accessor `matchMulti`/`matchOne` reads,
+       or the scalar the chip strip compares — so a new facet, or a renamed one, falls out
+       of its row and fails here rather than passing green while Help omits it;
+   (b) every multi-select facet is published in the multi-select half, under its own page;
+   (c) every single-select facet that is NOT the folder strip is published in the
+       one-pill-at-a-time half, under its own page (the strip has its own paragraph);
+   (d) the folder strip's roster and its count word, plus the exception named as one: the
+       pages Help lists are exactly the pages that render a strip, and the page that does
+       not is named as the page that does not;
+   (e) the negative half, and it is segmented by page AND by mode — a clause may not
+       credit its page with a facet that page does not have, and may not credit a
+       single-select facet to the multi-select half. Mode is the half of this rule that
+       the pre-fix paragraph failed, which is why it is not enough to ask whether the
+       facet is named somewhere.
+   Deliberately NOT held: the ORDER the facets appear in, each pill's own LABEL (the
+   Datasets kind pills print sql/table/file/collection/sheet through `dsxKindLabel`;
+   holding thirteen pill labels to thirteen sentences is a different derivation and its
+   own slice), and any wording beyond each axis's own noun — check 12's rule again, a
+   teaching document owes coverage, not a transcript. */
+
+// Each panel's facet axes, keyed by the panel's own identifier for the axis, mapped to
+// the noun Help has to publish. `mode` is derived, not declared here — it is asserted
+// against the source in (a) — and `null` marks the folder strip, whose claims live in
+// its own paragraph rather than in the per-page clauses.
+const CATALOG_FACET_AXES = {
+  dashboards: [
+    ["dashFolderOf", "folder", null],
+    ["_repoWbFilter", "workbook", /\bworkbook\b/i],
+  ],
+  views: [
+    ["vwTypeOf", "the chart type", /chart type/i],
+    ["vwFolderOf", "folder", null],
+  ],
+  datasets: [
+    ["dsxAdapterIdOf", "the adapter", /\badapter\b/i],
+    ["dsxConnIdOf", "the connection", /\bconnection\b/i],
+    ["dsxTagsOf", "its tags", /\btags?\b/i],
+    // The lookbehind is load-bearing: Views' own clause says "chart type", and without it
+    // that page would read as claiming this facet in (e)'s negative half.
+    ["dsxKindOf", "the type", /(?<!chart )\btypes?\b/i],
+    ["dsxFolderOf", "folder", null],
+  ],
+  connections: [
+    ["connAdapterOf", "the adapter", /\badapter\b/i],
+    ["connTagsOf", "its tags", /\btags?\b/i],
+    ["connFolderOf", "folder", null],
+  ],
+  jobs: [
+    ["jobFolderOf", "folder", null],
+  ],
+  repository: [
+    ["_repoAllType", "the type", /(?<!chart )\btypes?\b/i],
+  ],
+};
+
+// A panel's facets, read out of its OWN render function — the same scoping check 52 uses,
+// and for the same reason: `Studio.catalogFacets` is called from Explore and the builder
+// too, and those are not catalog pages.
+function catalogFacetPanels() {
+  return panels.map((p) => {
+    const src = read(p.file);
+    const fn = "render" + p.sec[0].toUpperCase() + p.sec.slice(1);
+    const at = src.indexOf("function " + fn + "(");
+    const body = at < 0 ? "" : searchBlockAt(src, src.indexOf("{", at), "{", "}");
+    const axes = [];
+    // The kit's two matchers name the mode outright; their second argument is the field
+    // the axis reads, and that accessor is the axis's identity.
+    for (const m of body.matchAll(/(?:F|Studio\.catalogFacets)\.match(Multi|One)\(\s*\w+,\s*(\w+)\s*\)/g))
+      axes.push({ expr: m[2], mode: m[1] === "Multi" ? "many" : "one" });
+    // The two `wb-chip` strips predate the kit and filter inline, but the markup still
+    // declares the mode: an active test that compares one SCALAR to the chip's id is
+    // single-select by construction, and that scalar is the axis's identity.
+    for (const m of body.matchAll(/class="wb-chip' \+ \((_\w+) === c\.id/g))
+      axes.push({ expr: m[1], mode: "one" });
+    return { sec: p.sec, page: CATALOG_PAGES[p.sec], fn, file: p.file, axes,
+      folderStrip: /(?:F|Studio\.catalogFacets)\.folderStrip\(/.test(body) };
+  });
+}
+
+const facetPanels = catalogFacetPanels();
+const facetRowOf = (sec, expr) => (CATALOG_FACET_AXES[sec] || []).find((r) => r[0] === expr);
+const facetPara = htmlText((help.match(/<p><strong>Which pills take more than one\.<\/strong>[\s\S]*?<\/p>/) || [""])[0])
+  .replace(/\s+/g, " ").trim();
+const folderPara = htmlText((help.match(/<p><strong>The Folders strip\.<\/strong>[\s\S]*?<\/p>/) || [""])[0])
+  .replace(/\s+/g, " ").trim();
+// The paragraph's own punctuation, exactly as check 52 reads the search clauses: a colon
+// opens each half, semicolons separate one page's clause from the next.
+const facetHalves = facetPara.split(/One pill at a time:/);
+const facetClauses = (half) => (half || "").split(/[:;]/).slice(1).map((s) => s.trim()).filter(Boolean)
+  .map((text) => ({ text, pages: Object.values(CATALOG_PAGES).filter((pg) => new RegExp(`\\b${pg}\\b`).test(text)) }));
+const manyClauses = facetClauses(facetHalves[0]);
+// The second half opens at the split itself, so it has no leading colon to drop.
+const oneClauses = (facetHalves[1] || "").split(";").map((s) => s.trim()).filter(Boolean)
+  .map((text) => ({ text, pages: Object.values(CATALOG_PAGES).filter((pg) => new RegExp(`\\b${pg}\\b`).test(text)) }));
+const clauseOf = (list, page) => (list.find((c) => c.pages.length === 1 && c.pages[0] === page) || { text: "" }).text;
+
+// (a) first: the premise, the vocabulary and the roster together. The other four rules
+//     are only meaningful while every panel still declares facets this can read.
+const facetVocabWrong = [];
+facetPanels.forEach((p) => {
+  const rows = CATALOG_FACET_AXES[p.sec] || [];
+  if (!p.axes.length) facetVocabWrong.push(`${p.page}: no facet declaration found in ${p.fn} (${p.file})`);
+  p.axes.filter((a) => !facetRowOf(p.sec, a.expr))
+    .forEach((a) => facetVocabWrong.push(`${p.page} filters by \`${a.expr}\` — nothing in the vocabulary says what to call it`));
+  rows.filter((r) => !p.axes.some((a) => a.expr === r[0]))
+    .forEach((r) => facetVocabWrong.push(`the vocabulary still maps \`${r[0]}\` for ${p.page} — that panel no longer filters by it`));
+});
+const manyRoster = manyClauses.filter((c) => c.pages.length === 1).map((c) => c.pages[0]).sort();
+const manyExpected = facetPanels.filter((p) => p.axes.some((a) => a.mode === "many")).map((p) => p.page).sort();
+const oneRoster = oneClauses.filter((c) => c.pages.length === 1).map((c) => c.pages[0]).sort();
+const oneExpected = facetPanels
+  .filter((p) => p.axes.some((a) => a.mode === "one" && (facetRowOf(p.sec, a.expr) || [])[2]))
+  .map((p) => p.page).sort();
+ok(`app/ + docs/index.html: six catalog panels declare their facets, and Help gives each page a clause in the right half ` +
+   `(${facetPanels.reduce((n, p) => n + p.axes.length, 0)} axis/axes over ${facetPanels.length} panel(s))`,
+  facetPanels.length === 6 && !facetVocabWrong.length && !!facetPara && facetHalves.length === 2 &&
+    String(manyRoster) === String(manyExpected) && String(oneRoster) === String(oneExpected),
+  `${facetVocabWrong.join("\n      ") || "(vocabulary complete)"}\n      ` +
+  `${facetPanels.map((p) => `${p.page} (${p.fn}, ${p.axes.map((a) => a.expr + ":" + a.mode).join("+") || "none"})`).join(" · ")}\n      ` +
+  `multi-select half names: ${manyRoster.join(", ") || "(none)"} · expected ${manyExpected.join(", ")}\n      ` +
+  `one-at-a-time half names: ${oneRoster.join(", ") || "(none)"} · expected ${oneExpected.join(", ")}\n      ` +
+  "the vocabulary is keyed by the panel's own accessor or filter variable — a new or renamed facet lands here first");
+
+// (b) every multi-select facet, published under its own page in the multi-select half.
+const facetUnpublishedMany = [];
+facetPanels.forEach((p) => {
+  const clause = clauseOf(manyClauses, p.page);
+  p.axes.filter((a) => a.mode === "many").forEach((a) => {
+    const row = facetRowOf(p.sec, a.expr);
+    if (row && row[2] && !row[2].test(clause))
+      facetUnpublishedMany.push(`${p.page} filters by ${row[1]} (\`${a.expr}\`, multi-select) — its clause does not say so`);
+  });
+});
+ok(`docs/index.html: every multi-select facet is published under its own page ` +
+   `(${facetPanels.reduce((n, p) => n + p.axes.filter((a) => a.mode === "many").length, 0)} facet(s))`,
+  !facetUnpublishedMany.length,
+  `${facetUnpublishedMany.join("\n      ") || "(none)"}\n      ` +
+  `${facetPanels.map((p) => `${p.page}: ${clauseOf(manyClauses, p.page) || "(no clause)"}`).join("\n      ")}\n      ` +
+  "a facet nobody publishes is one a reader finds by accident, or never");
+
+// (c) every single-select facet that is not the folder strip, published under its own
+//     page in the one-pill-at-a-time half.
+const facetUnpublishedOne = [];
+facetPanels.forEach((p) => {
+  const clause = clauseOf(oneClauses, p.page);
+  p.axes.filter((a) => a.mode === "one").forEach((a) => {
+    const row = facetRowOf(p.sec, a.expr);
+    if (row && row[2] && !row[2].test(clause))
+      facetUnpublishedOne.push(`${p.page} filters by ${row[1]} (\`${a.expr}\`, one pill at a time) — its clause does not say so`);
+  });
+});
+ok(`docs/index.html: every single-select facet outside the Folders strip is published under its own page ` +
+   `(${facetPanels.reduce((n, p) => n + p.axes.filter((a) => a.mode === "one" && (facetRowOf(p.sec, a.expr) || [])[2]).length, 0)} facet(s))`,
+  !facetUnpublishedOne.length,
+  `${facetUnpublishedOne.join("\n      ") || "(none)"}\n      ` +
+  `${facetPanels.map((p) => `${p.page}: ${clauseOf(oneClauses, p.page) || "(no clause)"}`).join("\n      ")}\n      ` +
+  "the Folders strip has its own paragraph — everything else belongs in a page's own clause");
+
+// (d) the folder strip: the roster, its count word, and the exception named as one.
+const stripPages = facetPanels.filter((p) => p.folderStrip).map((p) => p.page);
+const noStripPages = facetPanels.filter((p) => !p.folderStrip).map((p) => p.page);
+const stripRoster = (folderPara.match(/pages? have one: ([^.]+)\./) || [, ""])[1]
+  .split(/,\s*|\s+and\s+/).map((s) => s.trim()).filter(Boolean);
+const stripCountWord = (folderPara.match(/(\w+) pages? have one:/) || [, ""])[1];
+const stripExceptionNamed = noStripPages.every((pg) => new RegExp(`\\b${pg}\\b[^.]*exception`, "i").test(folderPara));
+ok(`docs/index.html: the Folders strip is claimed for exactly the pages that render one ` +
+   `(${stripPages.length} of ${facetPanels.length}), counted in words, with the exception named`,
+  !!folderPara && String([...stripRoster].sort()) === String([...stripPages].sort()) &&
+    asNumber(stripCountWord || "") === stripPages.length && stripExceptionNamed,
+  `renders a strip: ${stripPages.join(", ") || "(none)"} · does not: ${noStripPages.join(", ") || "(none)"}\n      ` +
+  `Help lists: ${stripRoster.join(", ") || "(nothing)"} · count word: ${stripCountWord || "(none)"}\n      ` +
+  `exception named: ${stripExceptionNamed}\n      ` +
+  "the Repository groups into a folder TREE instead — a reader on the one page without the control must be told, not left hunting");
+
+// (e) the negative half, segmented by page AND by mode.
+const facetOverclaimed = [];
+const facetVocab = Object.values(CATALOG_FACET_AXES).flat().filter((r) => r[2])
+  .filter((r, i, all) => all.findIndex((o) => o[2].source === r[2].source) === i)
+  .map((r) => ({ noun: r[1], re: r[2] }));
+facetPanels.forEach((p) => {
+  [["many", manyClauses, "multi-select"], ["one", oneClauses, "one pill at a time"]].forEach(([mode, list, label]) => {
+    const clause = clauseOf(list, p.page);
+    facetVocab.filter((v) => v.re.test(clause)).forEach((v) => {
+      const has = p.axes.some((a) => a.mode === mode &&
+        (facetRowOf(p.sec, a.expr) || [])[2] && facetRowOf(p.sec, a.expr)[2].source === v.re.source);
+      if (has) return;
+      const otherMode = p.axes.some((a) => (facetRowOf(p.sec, a.expr) || [])[2] &&
+        facetRowOf(p.sec, a.expr)[2].source === v.re.source);
+      facetOverclaimed.push(otherMode
+        ? `Help calls the ${v.noun} on ${p.page} ${label} — that facet takes the other kind of click`
+        : `Help credits ${p.page} with ${v.noun} (${label}) — that panel has no such facet`);
+    });
+  });
+});
+ok("docs/index.html: no page's clause credits it with a facet it does not have, or with the wrong kind of click",
+  !facetOverclaimed.length,
+  `${[...new Set(facetOverclaimed)].join("\n      ") || "(none)"}\n      ` +
+  "segmented by page and by mode — a facet named in the wrong half tells a reader to click in a way the app ignores");
+
+
+
+/* ── 54. Help's "…and every other search box too" vs the boxes that really run the kit ──
+   N7, and the check-52 move one paragraph down — the one check 52 named as the slice it was
+   deliberately not taking. The paragraph above it says what each CATALOG page searches; this
+   one makes a bigger claim about a different set of files: that the same rules run behind
+   every OTHER search field in the app, and it enumerates them. Its source of truth is the
+   shared kit's own call sites — `Studio.catalogSearch` (AUD-06 slice 6 took the kit
+   catalog-only → app-wide), attributed to the top-level function each call sits in.
+
+   Measured 2026-08-09, before the fix — one stale name, two boxes missing, and an
+   exception clause that was not true:
+   · **The "Open a dashboard" picker was absent.** `openDashboardPicker` runs the kit over
+     your saved dashboards and is reached from Open ▾ and ⌘K — the most-used search box in
+     the builder after the Data panel — while its own sibling three lines below it in the
+     same paragraph (the "add to dashboard" picker, which shares the list and the markup)
+     was published.
+   · **The Data panel was published as two groups of three.** Its one search box narrows
+     your workspace datasets (`buildWorkspaceDatasets`), your own saved queries
+     (`buildLibrary`) and your **saved Views** (`buildAnalysesLib`) — the parenthetical
+     named the first two, so the group holding the objects LF57 renamed the app around read
+     as unsearchable.
+   · **"the Explore pane"** — the section has rendered as **Quick Views** since LF57, and
+     v876 fixed the two other routes on this page that still said Explore. This one sat in a
+     list of twelve and was missed.
+   · **The exception clause named one exception and there are two.** A table panel's own
+     **Filter rows** box matches ONE literal string across a row's cells
+     (`DashKit.table` → `String(cell).indexOf(q)`), so "crops 2024" finds nothing there
+     unless those words sit adjacent in one cell — the exact failure AUD-06 built the kit to
+     end. It cannot use the kit and should not: the table renderer inlines into every
+     exported dashboard, which is why it carries its own rules. The paragraph said the one
+     exception was this Help page's own search box.
+
+   Five rules, one new source of truth (the kit's call sites):
+   (a) the roster: every call site outside the kit's own definition has a row in the
+       vocabulary below. The row is keyed by the pair (file, enclosing top-level function),
+       which IS the surface's identity — so a new search box, or a renamed one, falls out of
+       its row and fails here rather than passing green while Help omits it;
+   (b) coverage: every non-catalog surface is named in the paragraph, and the paragraph
+       still declares its scope (the catalog pages belong to check 52's paragraph, not this
+       one — they are the rows with no phrase);
+   (c) the negative half: a row whose call site is gone must not still be published — copy
+       promising a search box the app no longer has is the v924 shape;
+   (d) the Help-page exception, held from both ends: `docs/index.html` really does run its
+       own search (it is a static page and never loads the kit), and Help says so;
+   (e) the table-panel exception, held from both ends: `app/studio-charts.js` really does
+       render a `tbl-filter` search box, really does match it with a bare substring test, and
+       really does not reach for the kit — and Help names the box, says it takes one literal
+       string, and says why (it travels inside every export). If that box ever adopts the
+       kit, this fails so the exception copy gets DELETED rather than left standing.
+   Deliberately NOT held: the order the boxes are listed in, or a count word — thirteen
+   surfaces spelled out one by one are their own count (check 12's rule: a teaching document
+   owes coverage, not a transcript). */
+
+// Every search surface in the app is a CALL SITE of the shared kit. Attributing each to the
+// nearest declaration at the file's TOP level (≤2 spaces of indent — every module here is one
+// IIFE deep) names the FEATURE rather than the `paint`/`render` closure inside it.
+function searchKitCallSites() {
+  const sites = new Map();
+  for (const file of fs.readdirSync(path.join(ROOT, "app")).filter((f) => f.endsWith(".js"))) {
+    const lines = read("app/" + file).split("\n");
+    // The kit defines itself in terms of itself (matcher → terms → hay); skip its own block
+    // so those three never read as three more search boxes.
+    let kitFrom = lines.findIndex((l) => /Studio\.catalogSearch\s*=\s*\{/.test(l)), kitTo = -1;
+    if (kitFrom >= 0) {
+      let depth = 0;
+      for (let i = kitFrom; i < lines.length; i++) {
+        for (const ch of lines[i]) { if (ch === "{") depth++; else if (ch === "}") depth--; }
+        if (i > kitFrom && depth <= 0) { kitTo = i; break; }
+      }
+    }
+    lines.forEach((line, i) => {
+      const at = line.search(/Studio\.catalogSearch\.(?:matcher|textMatcher|terms|hay|markRe)\s*\(/);
+      if (at < 0) return;
+      const slashes = line.indexOf("//");
+      if (slashes >= 0 && slashes < at) return;            // a comment ABOUT the kit is not a call site
+      if (kitFrom >= 0 && i >= kitFrom && i <= kitTo) return;
+      let fn = "(top level)";
+      for (let j = i; j >= 0; j--) {
+        const m = lines[j].match(/^ {0,2}(?:function\s+([A-Za-z0-9_$]+)|(?:var|const|let)\s+([A-Za-z0-9_$]+)\s*=\s*function|([A-Za-z0-9_$.]+)\s*=\s*function\s*\()/);
+        if (m) { fn = m[1] || m[2] || m[3]; break; }
+      }
+      const key = `${file}:${fn}`;
+      sites.set(key, (sites.get(key) || []).concat(i + 1));
+    });
+  }
+  return sites;
+}
+
+// Keyed by the surface's own identity, mapped to the noun Help has to publish for it.
+// `null` marks the six catalog panels: they are published by the paragraph ABOVE this one
+// (check 52), and this paragraph's whole point is what it adds to them.
+const SEARCH_SURFACES = [
+  ["studio.js:renderDashboards", "the Dashboards page", null],
+  ["studio.js:renderRepository", "the Repository page", null],
+  ["datasets.js:renderDatasets", "the Datasets page", null],
+  ["connections.js:renderConnections", "the Connections page", null],
+  ["jobs.js:renderJobs", "the Jobs page", null],
+  ["views.js:renderViews", "the Views page", null],
+  // The Data panel is ONE search box over three groups, so its three rows are held against
+  // the parenthetical that names them — the panel's own group headers, not a phrase invented
+  // here. Scoped that way so "Views" later in the same sentence (the Quick Views pane) can
+  // never stand in for the group this row is about.
+  ["studio.js:buildLibrary", "the Data panel's My queries group", /\bMy queries\b/, "dataPanel"],
+  ["studio.js:buildWorkspaceDatasets", "the Data panel's Datasets group", /\bDatasets\b/, "dataPanel"],
+  ["explore.js:buildAnalysesLib", "the Data panel's Views group", /\bViews\b/, "dataPanel"],
+  ["studio.js:applyInspSearch", "the panel inspector's search", /panel inspector/i],
+  // The gallery opens FROM the inspector, so its top-level home is renderPanelInspector —
+  // a different surface from applyInspSearch's, with its own box and its own row.
+  ["studio.js:renderPanelInspector", "the chart-type gallery", /chart-type gallery/i],
+  ["palette.js:refresh", "the command palette", /command palette/i],
+  ["studio.js:buildWhatsNewBody", "the What's-new feed", /what[’']s-new feed/i],
+  ["studio.js:hlq", "the What's-new feed's hit highlighting", /what[’']s-new feed/i],
+  ["studio.js:openFolderPicker", "the folder picker", /folder picker/i],
+  ["explore.js:renderExplore", "the Quick Views pane", /quick views pane/i],
+  ["build.js:render", "the View Builder's datasets pane", /view builder[’']s datasets pane/i],
+  ["build.js:openFilterEditor", "the View Builder's value filter", /value filter/i],
+  ["studio.js:buildNewMenu", "the auto-build set list", /auto-build set list/i],
+  ["studio.js:openDashboardPicker", "the Open a dashboard picker", /open a dashboard/i],
+  ["explore.js:openAddToExistingDashboardPicker", "the add-to-dashboard picker", /add to dashboard/i],
+  ["connections.js:renderSchemaPanel", "a connection's schema browser", /schema browser/i],
+];
+
+const kitSites = searchKitCallSites();
+const boxParaHtml = (help.match(/<p><strong>…and every other search box too\.<\/strong>[\s\S]*?<\/p>/) || [""])[0];
+const boxPara = htmlText(boxParaHtml);
+// The Data panel's own parenthetical — the three rows above read this, not the whole sentence.
+const boxDataPanelGroups = (boxPara.match(/Data panel \(([^)]*)\)/) || [, ""])[1];
+const boxScopeOf = (row) => (row[3] === "dataPanel" ? boxDataPanelGroups : boxPara);
+
+// (a) the roster: the code's call sites, every one of them accounted for.
+const boxUnknown = [...kitSites.keys()].filter((k) => !SEARCH_SURFACES.some((r) => r[0] === k))
+  .map((k) => `${k} runs the shared kit (line ${kitSites.get(k).join(", ")}) — nothing in the vocabulary says what to call it`);
+ok(`app/: every search box that runs Studio.catalogSearch has a row in this check ` +
+   `(${kitSites.size} surface(s) over ${new Set([...kitSites.keys()].map((k) => k.split(":")[0])).size} file(s))`,
+  !!boxParaHtml && !boxUnknown.length,
+  `${boxUnknown.join("\n      ") || "(every call site is accounted for)"}\n      ` +
+  `${boxParaHtml ? "" : 'the "…and every other search box too" paragraph was not found in docs/index.html\n      '}` +
+  "keyed by (file, enclosing top-level function) — a new or renamed search box lands here first");
+
+// (b) coverage: every non-catalog surface named, and the paragraph's scope still stated.
+const boxScopeStated = /not just the catalog pages/i.test(boxPara);
+const boxUnpublished = SEARCH_SURFACES.filter((r) => r[2] && kitSites.has(r[0]) && !r[2].test(boxScopeOf(r)))
+  .map((r) => `${r[1]} (${r[0]}) runs the same rules — the paragraph does not name it`);
+ok(`docs/index.html: every non-catalog search box is named in the paragraph that claims them all ` +
+   `(${SEARCH_SURFACES.filter((r) => r[2] && kitSites.has(r[0])).length} call site(s))`,
+  !boxUnpublished.length && boxScopeStated,
+  `${boxUnpublished.join("\n      ") || "(none)"}\n      ` +
+  `${boxScopeStated ? "" : 'the paragraph no longer says the catalog pages are covered elsewhere ("not just the catalog pages")\n      '}` +
+  `Data panel groups named: ${boxDataPanelGroups || "(no parenthetical)"}\n      ` +
+  "a box left out of a list that says EVERY search field is a reader told the rules stop somewhere they do not");
+
+// (c) the negative half: a retired box must not still be published.
+const boxStale = SEARCH_SURFACES.filter((r) => !kitSites.has(r[0]))
+  .map((r) => `${r[1]} (${r[0]}) no longer calls the kit` + (r[2] && r[2].test(boxScopeOf(r)) ? " — and Help still names it" : ""));
+ok("docs/index.html: the paragraph credits the app with no search box it no longer has",
+  !boxStale.length,
+  `${boxStale.join("\n      ") || "(none)"}\n      ` +
+  "a vocabulary row with no call site is either a box that moved (rename the row) or one that went (delete the copy)");
+
+// (d) the Help page's own box: a static page that never loads the app's kit, and says so.
+const helpBoxIsOwn = /<input[^>]+type="search"/.test(help) && !/catalogSearch/.test(help);
+const helpBoxPublished = /Help page[’']s own search box/i.test(boxPara);
+ok("docs/index.html: this page runs its own search, and the paragraph still says so",
+  helpBoxIsOwn && helpBoxPublished,
+  `own box, kit absent from the page: ${helpBoxIsOwn} · published as an exception: ${helpBoxPublished}\n      ` +
+  "the one search box on this page is the one box these rules do not reach");
+
+// (e) the table panel's Filter rows box — the exception a reader meets inside their own
+//     dashboard, and inside every export. Measured from the renderer, not asserted.
+const chartsSrc = read("app/studio-charts.js");
+const tableBody = (() => {
+  const at = chartsSrc.indexOf("DashKit.table = function");
+  if (at < 0) return "";
+  return searchBlockAt(chartsSrc, chartsSrc.indexOf("{", at), "{", "}");
+})();
+const tableBoxIsPlain = /class\s*=\s*"tbl-filter"|className = "tbl-filter"/.test(tableBody) &&
+  /indexOf\(q\)\s*>=\s*0/.test(tableBody) && !/catalogSearch/.test(chartsSrc);
+const tableBoxPublished = /filter rows/i.test(boxPara) && /literal/i.test(boxPara) && /export/i.test(boxPara);
+ok("app/studio-charts.js + docs/index.html: a table panel's Filter rows box matches one literal string, and Help says so",
+  tableBoxIsPlain && tableBoxPublished,
+  `plain substring match, kit absent from the renderer: ${tableBoxIsPlain} · published as an exception: ${tableBoxPublished}\n      ` +
+  `paragraph: ${boxPara || "(not found)"}\n      ` +
+  "it inlines into every exported dashboard, so it carries its own rules — that is worth stating, not hiding");
+
+/* ── 55. Help's search SYNTAX vs the rules the kit really implements ────────
+   N7, and the check-54 move one paragraph UP — the slice check 54 named as the one it was
+   deliberately not taking. Checks 52 and 54 hold search by ROSTER: which pages, which boxes.
+   This one holds it by BEHAVIOUR — what the syntax IS — and so it needs a different source
+   of truth and a different method. `Studio.catalogSearch` states four rules in its own
+   header comment, and a comment is not a measurement, so this check EVALUATES the kit
+   (check 45's idiom over app/model.js) and RUNS it. Every assertion below is a probe: the
+   claim is compared against what the kit did, not against what it says about itself.
+
+   Measured 2026-08-09, before the fix. Three of the four rules the paragraph publishes were
+   already true; what it omitted are the three that decide whether a search comes back EMPTY:
+   · **The empty-box rule was unpublished.** `matcher("")` short-circuits to a predicate that
+     accepts every row, and the paragraph never said so — the Clear chip sentence beside it
+     implies it for the chip and for nothing else.
+   · **Spaces are the ONLY separator, and that was unpublished.** `terms()` splits on `\S+`,
+     so punctuation stays inside the word: `crops, 2024` parses to `["crops,", "2024"]` and
+     `crops,` is then looked for LITERALLY. Measured: `crops 2024` matches
+     `["Cover crops", "2024"]` and `crops, 2024` does not — same query, one comma, no
+     results, and nothing on the page explained it. (The rule earns its keep in the other
+     direction too: it is what makes `q2.2024` find "Revenue q2.2024".)
+   · **An unpaired quote is an ordinary character, and that was unpublished.** The term
+     regex alternates `"([^"]*)"` with `(\S+)`, so a lone `"` falls to the second branch and
+     rides along: `cover "crops` parses to `["cover", "\"crops"]` and finds nothing on
+     `["cover crops"]`. Copy that says quotes mean "the exact phrase" and stops there leaves
+     a reader with a search that looks right and returns nothing — the v941 shape.
+   · **"the exact phrase" was true but under-stated.** `hay()` joins a row's fields with a
+     space and never inserts a separator, so a quoted phrase matches ACROSS a field boundary:
+     `"crops 2024"` matches `["Cover crops", "2024 plans"]`, where the phrase appears in no
+     single field. The word "exact" invites the opposite reading.
+
+   Five rules plus the premise, all measured by running the kit:
+   (a) the AND rule: every term must appear, in any order, across any field — and the
+       paragraph says ALL of them rather than any (the probe asserts the OR reading is false,
+       so the copy cannot drift into it while this passes);
+   (b) the quoted phrase: adjacent when quoted, non-adjacent when not — and the copy states
+       the straddle, because the kit's own join is what makes it true;
+   (c) case-insensitivity;
+   (d) the empty query matching everything;
+   (e) the term boundary: spaces separate, punctuation and an unpaired quote do not — held
+       from both ends, since this is the rule whose absence reads as a broken search.
+   The PREMISE guard is why the other five cannot pass green over a dead source: if the kit
+   block stops being extractable or evaluable from app/studio.js, this fails loudly instead
+   of silently testing nothing. Deliberately NOT held: the wording of any example, or the
+   dedupe in `terms()` (identical terms AND to the same result, so it is invisible to a
+   reader and there is nothing to publish). */
+
+// The source of truth, evaluated rather than regexed: Studio.catalogSearch as the app runs it.
+const searchKit = (() => {
+  const src = read("app/studio.js");
+  const at = src.indexOf("Studio.catalogSearch = {");
+  if (at < 0) return null;
+  const block = searchBlockAt(src, src.indexOf("{", at), "{", "}");
+  try {
+    const Studio = {};
+    // eslint-disable-next-line no-new-func
+    new Function("Studio", "Studio.catalogSearch = " + block + ";")(Studio);
+    const cs = Studio.catalogSearch;
+    return typeof cs?.terms === "function" && typeof cs?.matcher === "function" ? cs : null;
+  } catch { return null; }
+})();
+
+// A probe runs the kit exactly as a panel does: matcher(query, row => its haystack FIELDS).
+const kitFinds = (q, fields) => searchKit.matcher(q, (r) => r)(fields);
+const syntaxParaHtml = (help.match(/<p><strong>Searching\.<\/strong>[\s\S]*?<\/p>/) || [""])[0];
+const wordParaHtml = (help.match(/<p><strong>What counts as a word\.<\/strong>[\s\S]*?<\/p>/) || [""])[0];
+const syntaxPara = htmlText(syntaxParaHtml);
+const wordPara = htmlText(wordParaHtml);
+
+// The premise. Everything below dereferences searchKit, so it is checked first and the rest
+// is skipped rather than crashing — a check that cannot measure must say so, not throw.
+const kitLive = ok("app/studio.js: Studio.catalogSearch is still extractable and evaluable — the premise the rules below measure against",
+  !!searchKit && !!syntaxParaHtml,
+  `kit evaluated: ${!!searchKit} · Searching paragraph found: ${!!syntaxParaHtml}\n      ` +
+  "these rules PROBE the kit; if it cannot be run, they must fail rather than pass over nothing");
+
+if (kitLive) {
+  // (a) every term must appear — ANDed, in any order, across any field.
+  const andHolds = kitFinds("crops 2024", ["Cover crops", "2024"]) && !kitFinds("crops zzz", ["Cover crops"]);
+  const andPublished = /\ball of them, not any of them\b/i.test(syntaxPara) && /in any order/i.test(syntaxPara);
+  ok("docs/index.html: the search ANDs its terms in any order, and the paragraph says all of them rather than any",
+    andHolds && andPublished,
+    `measured — "crops 2024" over ["Cover crops","2024"]: ${kitFinds("crops 2024", ["Cover crops", "2024"])}, ` +
+    `"crops zzz" over ["Cover crops"]: ${kitFinds("crops zzz", ["Cover crops"])} · published: ${andPublished}\n      ` +
+    "an AND search described as \"any of these words\" sends a reader to type fewer terms to find more");
+
+  // (b) quotes mean adjacency — and the adjacency is measured over the JOINED fields.
+  const phraseHolds = kitFinds('"cover crops"', ["Cover crops"]) && !kitFinds('"cover crops"', ["crops cover"]);
+  const straddles = kitFinds('"crops 2024"', ["Cover crops", "2024 plans"]);
+  const phrasePublished = /double quotes/i.test(syntaxPara) && /exact phrase/i.test(syntaxPara);
+  const straddlePublished = /rather than within one field|across the whole item/i.test(syntaxPara);
+  ok("docs/index.html: a quoted phrase matches adjacently, spans the joined fields, and Help states both halves",
+    phraseHolds && straddles === straddlePublished && phrasePublished,
+    `measured — adjacent-only: ${phraseHolds} · straddles a field boundary: ${straddles} · ` +
+    `straddle published: ${straddlePublished}\n      ` +
+    "hay() joins a row's fields with a space and inserts no separator, so \"exact\" needs the qualifier");
+
+  // (c) case-insensitivity, from the query side and the haystack side.
+  const caseHolds = kitFinds("COVER", ["cover"]) && kitFinds("cover", ["COVER"]);
+  ok("docs/index.html: matching is case-insensitive both ways, and Help says case never matters",
+    caseHolds && /case never matters/i.test(syntaxPara),
+    `measured: ${caseHolds} · published: ${/case never matters/i.test(syntaxPara)}`);
+
+  // (d) the empty box — the rule that says how you get the whole list back.
+  const emptyHolds = kitFinds("", ["anything"]) && kitFinds("   ", ["anything"]) && searchKit.terms("").length === 0;
+  const emptyPublished = /empty box matches everything/i.test(syntaxPara);
+  ok("docs/index.html: an empty query matches every row, and Help publishes that rather than leaving it to the Clear chip",
+    emptyHolds && emptyPublished,
+    `measured: ${emptyHolds} · published: ${emptyPublished}\n      ` +
+    "matcher() short-circuits to an accept-all predicate when terms() is empty — a rule, not an accident");
+
+  // (e) the term boundary, held from both ends: this is the rule whose absence reads as a
+  //     broken search, so a drift in EITHER direction has to fail.
+  const commaBreaks = !kitFinds("crops, 2024", ["Cover crops", "2024"]) && kitFinds("crops 2024", ["Cover crops", "2024"]);
+  const punctuationRides = kitFinds("q2.2024", ["Revenue q2.2024"]);
+  const loneQuoteRides = searchKit.terms('cover "crops').includes('"crops') && !kitFinds('cover "crops', ["cover crops"]);
+  const boundaryHolds = commaBreaks && punctuationRides && loneQuoteRides;
+  const boundaryPublished = /spaces are the only separator/i.test(wordPara) &&
+    /crops,/.test(wordPara) && /unmatched/i.test(wordPara);
+  ok("docs/index.html: spaces are the only term separator — punctuation and an unpaired quote stay in the word, and Help explains both",
+    boundaryHolds === boundaryPublished && boundaryHolds,
+    `measured — a comma breaks the query: ${commaBreaks} · punctuation is searchable: ${punctuationRides} · ` +
+    `an unpaired quote rides along: ${loneQuoteRides} · published: ${boundaryPublished}\n      ` +
+    `paragraph: ${wordPara || "(not found)"}\n      ` +
+    "terms() splits on \\S+, so `crops, 2024` looks for the literal `crops,` — the commonest way a correct-looking search returns nothing");
+}
+
+
+/* ── 56. Help's filter pills vs the labels they PRINT, and the pill that gets you back ──
+   N7, and the slice check 53 named as the one it was deliberately not taking: "each pill's
+   own LABEL … holding thirteen pill labels to thirteen sentences is a different derivation
+   and its own slice." Check 53 holds the AXES — which page filters by what, and with how many
+   clicks. This one holds the pill FACES: the words a reader actually sees on the strip, and
+   how a strip that cannot be un-ticked is un-picked.
+
+   The derivation sits one level deeper than check 53's and is keyed differently. Check 53
+   keys a facet by the accessor it READS; a pill's label has nothing to do with that accessor,
+   so this check keys each axis by the pill's own DATA ATTRIBUTE — its DOM identity, the one
+   thing a renamed accessor or a renamed label helper cannot move — and resolves the `label:`
+   option the panel hands `Studio.catalogFacets.pills`. Where that option delegates to a named
+   helper, the helper's own body is appended, so the authority is FOLLOWED rather than assumed
+   ("No connection" lives inside `dsxConnLabel`, not at the call site). The two chip strips
+   that predate the kit declare their faces as `chipDefs` literals instead, and the two closed
+   label SETS are read from the tables that own them — `DSX_KIND_LABEL` and `REPO_TYPES`.
+
+   Measured 2026-08-09, before the fix — the pills' faces were published nowhere on the page,
+   and two of the omissions cost a reader more than a word:
+   · **Both closed sets were unpublished.** Help said "Datasets … by type" and "the Repository
+     by type, one pill per kind of row it lists" — a roster claim with no roster. The pills
+     read *SQL query · Table · Collection · File · Sheet* and *Dashboards · Datasets ·
+     Connections · Views · Jobs*, and nothing on the page said which of those "type" meant.
+   · **The *All* pill was unpublished on both pre-kit strips**, and it is the way back: their
+     handlers ASSIGN the clicked value (`_repoWbFilter = btn.getAttribute(…)`), so clicking the
+     pill you are already on does not un-pick it. Help named *Sample packs* and *Unfiled* on
+     the workbook strip and skipped the one pill that undoes a pick — while the Folders
+     paragraph immediately below named *All folders*, so the same control was documented
+     twice, once with its escape hatch and once without.
+   · **"Every catalog page has one, Dashboards included" was false of the Clear chip.** Five
+     panels render `clearChip(…)`; the Repository renders none. The page promised the
+     universal way back on the one page that has neither route — no Clear chip AND no
+     un-ticking — leaving its *All* pill the only one, unpublished until this slice.
+   · **"pills are listed … alphabetically by their label" was false of those same two strips.**
+     The kit sorts on `cmpLabel`; the pre-kit `chipDefs` sort nothing, so workbook pills come out
+     newest-first (`addWorkbook` unshifts) and type pills in `REPO_TYPES`' declaration order.
+     Check 53 left order alone for want of a reason to look; this slice's derivation supplied one.
+   · The `#` a tag pill wears, the adapter's own name, the connection's name and the *KPI*
+     label the chart registry does not hold were all unpublished too.
+
+   Seven rules. (a) is the premise, and it is keyed so that a new facet, a renamed one, or a
+   label authority that moves lands HERE first rather than passing green while Help describes
+   a pill that no longer exists:
+   (a) the premise + the vocabulary + the roster — every kit pill strip resolves to a
+       vocabulary row whose label authority still matches, no row is stale, both pre-kit chip
+       strips are readable, and Help carries both paragraphs;
+   (b) the two CLOSED sets, held from both ends: every label the tables declare is published,
+       and the paragraph publishes no face the tables do not have (a renamed kind fails as an
+       omission, a retired one as a leftover);
+   (c) the OPEN axes publish their RULE rather than their values — the adapter's own name, the
+       connection's name, the "No connection" sentinel, the `#` on a tag, the gallery as the
+       chart pill's authority. Those values are the user's own words; a list would go stale by
+       design;
+   (d) the illustrative chart names the copy volunteers are real — every <em> value in the
+       chart-type sentence is a label the registry holds, or the one exception it does not
+       (check 45's idiom: examples measured, not trusted);
+   (e) the toggle asymmetry and the escape pill, both derived from the handlers and the pill
+       markup: every multi-select handler toggles, every single-select handler assigns, each
+       single-select strip renders a value-"" pill, and Help publishes both halves naming
+       those pills' own labels;
+   (f) the Clear chip's roster and the exception named as one — the claim that was false;
+   (g) the pill ORDER: the shared strips sort on the label a reader sees (digit-aware), the two
+       pre-kit strips sort nothing, and Help's flat alphabetical claim is scoped to the ones that
+       do, naming both exceptions.
+   Deliberately NOT held: each individual workbook, folder or tag VALUE (the user's words, not
+   the app's), the pill COUNTS and the disappear-when-empty rule in the same paragraph as (g)
+   — those are `tally()`/`prune()` behaviour and holding them means evaluating the kit, check
+   55's idiom one kit over, which is its own slice — and the adapter dot's colour. */
+{
+  const PL_FILES = ["app/datasets.js", "app/connections.js", "app/views.js", "app/jobs.js", "app/studio.js"];
+  // The label authority for one strip: the options object the panel hands pills(), plus — when
+  // `label:` delegates to a named helper — that helper's own body. Following the delegation is
+  // the whole point: the "No connection" sentinel is inside dsxConnLabel, not at the call site.
+  const plAuthority = (src, opts) => {
+    const m = opts.match(/label:\s*([A-Za-z_$][\w$]*)\s*[,}]/);
+    if (!m) return opts;
+    const at = src.indexOf("function " + m[1] + "(");
+    return at < 0 ? opts : opts + "\n" + searchBlockAt(src, src.indexOf("{", at), "{", "}");
+  };
+  // A whole statement, from `var x = …` to the `;` that ends it at depth 0 — the chip strips'
+  // chipDefs is an array literal followed by three .concat() calls, and one of those calls
+  // contains a `;` of its own, so neither a bracket walk nor "up to the first ;" reads it all.
+  const plStatementAt = (src, at) => {
+    let d = 0;
+    for (let i = at; i < src.length; i++) {
+      const c = src[i];
+      if ("([{".includes(c)) d++;
+      else if (")]}".includes(c)) d--;
+      else if (c === ";" && d === 0) return src.slice(at, i + 1);
+    }
+    return src.slice(at);
+  };
+  const plFnBody = (src, fn) => {
+    const at = src.indexOf("function " + fn + "(");
+    return at < 0 ? "" : searchBlockAt(src, src.indexOf("{", at), "{", "}");
+  };
+
+  // Every kit pill strip in the app, keyed by the attribute its buttons carry.
+  const plStrips = [];
+  for (const f of PL_FILES) {
+    const src = read(f);
+    for (const m of src.matchAll(/(?:F|Studio\.catalogFacets)\.pills\(\s*\w+,\s*\w+,\s*"([\w-]+)",\s*\{/g)) {
+      const opts = searchBlockAt(src, m.index + m[0].length - 1, "{", "}");
+      plStrips.push({ attr: m[1], file: f, authority: plAuthority(src, opts) });
+    }
+  }
+  // The vocabulary: what each pill's label is derived FROM (`sig`, asserted against the
+  // authority above) and what Help therefore owes the reader (`claim`). The two axes whose
+  // labels are a closed table carry no claim — (b) holds those by enumeration instead.
+  const PILL_FACES = {
+    "data-dsx-adapter": { sig: /Studio\.sourceById\(\w+\)[\s\S]*?label/, claim: /adapter's name/i,
+      note: "the adapter registry's own label" },
+    "data-dsx-conn": { sig: /conn \? conn\.name : "No connection"/, claim: /connection's own name/i,
+      note: "the connection's own name, or the No-connection sentinel" },
+    "data-dsx-tag": { sig: /"#" \+ \w+/, claim: /#finance/, note: "the tag, hash included" },
+    "data-dsx-kind": { sig: /label: dsxKindLabel/, note: "DSX_KIND_LABEL (a closed set — see (b))" },
+    "data-conn-adapter": { sig: /Studio\.sourceById\(\w+\)[\s\S]*?label/, claim: /adapter's name/i,
+      note: "the adapter registry's own label" },
+    "data-conn-tag": { sig: /"#" \+ \w+/, claim: /#finance/, note: "the tag, hash included" },
+    "data-vw-type": { sig: /label: vwChartLabel/, claim: /gallery/i,
+      note: "the chart registry's own label, KPI apart" },
+  };
+
+  // The two chip strips that predate the kit: their faces are `chipDefs` literals, and the
+  // mapped entries name the table they read (REPO_TYPES' label / a workbook's own name).
+  const plStudio = read("app/studio.js");
+  const plChipStrips = ["renderDashboards", "renderRepository"].map((fn) => {
+    const body = plFnBody(plStudio, fn);
+    const at = body.indexOf("var chipDefs = [");
+    const defs = at < 0 ? "" : plStatementAt(body, at);
+    return {
+      fn, defs,
+      literals: [...defs.matchAll(/name: "([^"]+)"/g)].map((m) => m[1]),
+      allLabel: (defs.match(/\{ id: "", name: "([^"]+)"/) || [, ""])[1],
+      mapped: [...defs.matchAll(/(\w+)\.map\(function[\s\S]*?name: ([\w.]+)/g)].map((m) => `${m[1]} → ${m[2]}`),
+    };
+  });
+  // The closed label tables, read where they are declared, and the folder strip's own escape
+  // pill, read from the kit that renders it.
+  const plKindLabels = [...(read("app/datasets.js").match(/var DSX_KIND_LABEL = \{[^}]*\}/) || [""])[0]
+    .matchAll(/: "([^"]+)"/g)].map((m) => m[1]);
+  const plRepoLabels = [...plStatementAt(plStudio, plStudio.indexOf("var REPO_TYPES = ["))
+    .matchAll(/label: "([^"]+)"/g)].map((m) => m[1]);
+  const plFolderAll = (plStudio.match(/F\.pill\(\{ attr: attr, value: "", label: "([^"]+)"/) || [, ""])[1];
+
+  // Help's two paragraphs, plus the Searching paragraph that carries the Clear-chip roster.
+  const plFacesHtml = (help.match(/<p><strong>What a pill says\.<\/strong>[\s\S]*?<\/p>/) || [""])[0];
+  const plFaces = htmlText(plFacesHtml).replace(/\s+/g, " ").trim();
+  const plUnpick = htmlText((help.match(/<p><strong>Un-picking a pill\.<\/strong>[\s\S]*?<\/p>/) || [""])[0])
+    .replace(/\s+/g, " ").trim();
+  const plSearch = htmlText((help.match(/<p><strong>Searching\.<\/strong>[\s\S]*?<\/p>/) || [""])[0])
+    .replace(/\s+/g, " ").trim();
+
+  // (a) the premise: the vocabulary is complete, every label authority still reads the way the
+  //     vocabulary says it does, both pre-kit strips are readable, and Help has both paragraphs.
+  const plWrong = [];
+  plStrips.forEach((s) => {
+    const row = PILL_FACES[s.attr];
+    if (!row) { plWrong.push(`${s.attr} (${s.file}) prints a pill label nothing in the vocabulary explains`); return; }
+    if (!row.sig.test(s.authority))
+      plWrong.push(`${s.attr}: its label no longer comes from ${row.note} — the authority moved (expected ${row.sig})`);
+  });
+  Object.keys(PILL_FACES).filter((a) => !plStrips.some((s) => s.attr === a))
+    .forEach((a) => plWrong.push(`the vocabulary still describes ${a} — no panel renders that pill strip any more`));
+  plChipStrips.filter((c) => !c.defs || !c.allLabel || !c.mapped.length)
+    .forEach((c) => plWrong.push(`${c.fn}: its chipDefs no longer read (all-pill "${c.allLabel}", mapped ${c.mapped.join(", ") || "none"})`));
+  ok(`app/ + docs/index.html: every pill strip's label authority is known, and Help carries the two paragraphs that publish them ` +
+     `(${plStrips.length} kit strip(s) + ${plChipStrips.length} pre-kit strip(s))`,
+    plStrips.length === Object.keys(PILL_FACES).length && !plWrong.length && !!plFaces && !!plUnpick &&
+      plKindLabels.length === 5 && plRepoLabels.length === 5 && !!plFolderAll,
+    `${plWrong.join("\n      ") || "(vocabulary complete)"}\n      ` +
+    `kit strips: ${plStrips.map((s) => s.attr).join(", ") || "(none)"}\n      ` +
+    `pre-kit strips: ${plChipStrips.map((c) => `${c.fn} [${c.literals.join(" · ")}] ${c.mapped.join(", ")}`).join(" | ")}\n      ` +
+    `closed sets: kind [${plKindLabels.join(", ")}] · row [${plRepoLabels.join(", ")}] · folder escape pill "${plFolderAll}"\n      ` +
+    `Help paragraphs found: faces ${!!plFaces}, un-picking ${!!plUnpick}\n      ` +
+    "keyed by the pill's data-attribute — a renamed accessor or label helper cannot move it, a deleted strip lands here");
+
+  // (b) the two closed sets, from both ends.
+  const plEms = [...plFacesHtml.matchAll(/<em>([^<]+)<\/em>/g)].map((m) => m[1].trim());
+  const plChartEms = [...(plFacesHtml.match(/by chart type[\s\S]*?(?=<strong>Repository)/) || [""])[0]
+    .matchAll(/<em>([^<]+)<\/em>/g)].map((m) => m[1].trim());
+  const plKindMissing = plKindLabels.filter((l) => !plEms.includes(l));
+  const plRepoMissing = plRepoLabels.filter((l) => !plEms.includes(l));
+  const plKnownFaces = [...plKindLabels, ...plRepoLabels, ...plChipStrips.flatMap((c) => c.literals),
+    plFolderAll, "#finance", "No connection"];
+  const plStale = plEms.filter((v) => !plKnownFaces.includes(v) && !plChartEms.includes(v));
+  ok(`docs/index.html: both closed pill sets are published exactly as their tables declare them ` +
+     `(${plKindLabels.length} dataset kind(s), ${plRepoLabels.length} row kind(s))`,
+    !plKindMissing.length && !plRepoMissing.length && !plStale.length,
+    `dataset kinds unpublished: ${plKindMissing.join(", ") || "(none)"}\n      ` +
+    `row kinds unpublished: ${plRepoMissing.join(", ") || "(none)"}\n      ` +
+    `published as a pill face but in no table: ${plStale.join(", ") || "(none)"}\n      ` +
+    `DSX_KIND_LABEL: ${plKindLabels.join(", ")} · REPO_TYPES: ${plRepoLabels.join(", ")}\n      ` +
+    "held from both ends — a renamed kind fails as an omission, a retired one as a leftover");
+
+  // (c) the open axes: the RULE, since the values are the user's own data.
+  const plUnpublished = [];
+  plStrips.filter((s) => PILL_FACES[s.attr].claim).forEach((s) => {
+    if (!PILL_FACES[s.attr].claim.test(plFaces))
+      plUnpublished.push(`${s.attr} prints ${PILL_FACES[s.attr].note} — the paragraph never says what that pill says`);
+  });
+  if (!/No connection/.test(plFaces)) plUnpublished.push("the No-connection sentinel pill is unpublished");
+  ok(`docs/index.html: every open-ended pill axis publishes where its label comes from, rather than a list that would go stale ` +
+     `(${plStrips.filter((s) => PILL_FACES[s.attr].claim).length} axis/axes + the sentinel)`,
+    !plUnpublished.length,
+    `${[...new Set(plUnpublished)].join("\n      ") || "(none)"}\n      ` +
+    `paragraph: ${plFaces.slice(0, 200) || "(not found)"}…\n      ` +
+    "an adapter, connection or tag pill wears words the user chose — the rule is the only stable thing to publish");
+
+  // (d) the chart names the copy volunteers as examples are ones a pill really prints.
+  const plModel = read("app/model.js");
+  const plChartLabels = chartRegistryKeys()
+    .map((k) => (plModel.match(new RegExp(`\\n {4}${k}: \\{\\s*label: "([^"]+)"`)) || [, ""])[1])
+    .filter(Boolean);
+  const plKpi = (read("app/views.js").match(/t === "kpi" \? "([^"]+)"/) || [, ""])[1];
+  const plBadChartEms = plChartEms.filter((v) => v !== plKpi && !plChartLabels.includes(v));
+  ok(`docs/index.html: every chart name the pill sentence volunteers is one the registry really prints ` +
+     `(${plChartEms.length} example(s) against ${plChartLabels.length} label(s) + "${plKpi}")`,
+    plChartEms.length >= 2 && !!plKpi && !plBadChartEms.length && plChartEms.includes(plKpi),
+    `examples: ${plChartEms.join(", ") || "(none)"} · not in the registry: ${plBadChartEms.join(", ") || "(none)"}\n      ` +
+    `the registry's one exception, read from vwChartLabel: "${plKpi}"\n      ` +
+    "vwChartLabel prints Studio.CHARTS[t].label, so an example that is not one is a face no pill ever shows");
+
+  // (e) the toggle asymmetry and the escape pill, derived from the handlers and the markup.
+  const plHandler = (attr) => {
+    for (const f of PL_FILES) {
+      const src = read(f);
+      const at = src.indexOf(`$$("[${attr}]"`);
+      if (at >= 0) return src.slice(at, at + 420);
+    }
+    return "";
+  };
+  const PL_SINGLE = ["data-wb-filter", "data-repo-type-filter", "data-dash-folder", "data-dsx-folder",
+    "data-conn-folder", "data-vw-folder", "data-jobs-folder"];
+  const plModeWrong = [];
+  plStrips.forEach((s) => {
+    if (!/if \(_\w+\[\w+\]\) delete _\w+\[\w+\]; else _\w+\[\w+\] = true;/.test(plHandler(s.attr)))
+      plModeWrong.push(`${s.attr}: a multi-select pill whose handler does not toggle`);
+  });
+  PL_SINGLE.forEach((a) => {
+    if (!new RegExp(`_\\w+ = btn\\.getAttribute\\("${a}"\\)`).test(plHandler(a)))
+      plModeWrong.push(`${a}: a single-select pill whose handler does not simply assign the clicked value`);
+  });
+  const plAllLabels = [...new Set(plChipStrips.map((c) => c.allLabel).concat(plFolderAll))].filter(Boolean);
+  const plAllUnpublished = plAllLabels
+    .filter((l) => !new RegExp(`\\b${l.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`).test(plUnpick));
+  const plAsymmetry = /toggle/i.test(plUnpick) && /un-tick/i.test(plUnpick) &&
+    /single-select/i.test(plUnpick) && /(does not|do not)/i.test(plUnpick);
+  ok(`docs/index.html: multi-select pills toggle, single-select pills do not, and Help publishes both halves and every escape pill ` +
+     `(${plStrips.length} toggling, ${PL_SINGLE.length} assigning, ${plAllLabels.length} escape label(s))`,
+    !plModeWrong.length && !plAllUnpublished.length && plAsymmetry,
+    `${plModeWrong.join("\n      ") || "(every handler matches its mode)"}\n      ` +
+    `escape pills: ${plAllLabels.join(", ") || "(none)"} · unpublished: ${plAllUnpublished.join(", ") || "(none)"}\n      ` +
+    `asymmetry published: ${plAsymmetry}\n      ` +
+    `paragraph: ${plUnpick || "(not found)"}\n      ` +
+    "a single-select handler ASSIGNS, so the strip's own escape pill is the only way back — that is the sentence a reader needs");
+
+  // (f) the Clear chip's roster, and the page without one named as the exception.
+  const plClearPages = Object.keys(CATALOG_PAGES).filter((sec) => {
+    const p = facetPanels.find((x) => x.sec === sec);
+    return !!p && /clearChip\(/.test(plFnBody(read(p.file), p.fn));
+  }).map((sec) => CATALOG_PAGES[sec]);
+  const plNoClear = Object.values(CATALOG_PAGES).filter((pg) => !plClearPages.includes(pg));
+  const plClearRoster = (plSearch.match(/pages? have a Clear chip — ([^;.]+)[;.]/) || [, ""])[1]
+    .split(/,\s*|\s+and\s+/).map((s) => s.trim()).filter(Boolean);
+  const plClearCount = (plSearch.match(/(\w+) pages? have a Clear chip/) || [, ""])[1];
+  const plClearException = !!plNoClear.length &&
+    plNoClear.every((pg) => new RegExp(`\\b${pg}\\b[^.]*exception`, "i").test(plSearch));
+  ok(`docs/index.html: the Clear chip is claimed for exactly the pages that render one (${plClearPages.length} of ` +
+     `${Object.keys(CATALOG_PAGES).length}), counted in words, with the exception named`,
+    String([...plClearRoster].sort()) === String([...plClearPages].sort()) &&
+      asNumber(plClearCount || "") === plClearPages.length && plClearException,
+    `renders a Clear chip: ${plClearPages.join(", ") || "(none)"} · does not: ${plNoClear.join(", ") || "(none)"}\n      ` +
+    `Help lists: ${plClearRoster.join(", ") || "(nothing)"} · count word: ${plClearCount || "(none)"} · ` +
+    `exception named: ${plClearException}\n      ` +
+    "the Repository has no Clear chip AND cannot un-pick a type pill, so this was the page the universal claim stranded");
+
+  // (g) the pill ORDER, and the two strips that do not follow it. Check 53 left order alone
+  //     because it had no reason to look; this slice's own derivation supplies one — the same
+  //     two pre-kit strips that were missing their escape pill also sort nothing at all, so the
+  //     page's flat "alphabetically by their label" was false of exactly them.
+  const plKit = plFnBody(plStudio, "pills") || plStatementAt(plStudio, plStudio.indexOf("pills: function (t, state, attr, opts)"));
+  const plKitSorts = /\.sort\(function \(a, b\) \{ return F\.cmpLabel\(labelOf\(a\), labelOf\(b\)\); \}\)/.test(plKit);
+  const plFolderSorts = /t\.keys\.slice\(\)\.sort\(F\.cmpLabel\)/.test(plStudio);
+  const plNumericAware = /localeCompare\([\s\S]{0,80}numeric: true/.test(plStudio);
+  const plUnsorted = plChipStrips.filter((c) => !/\.sort\(/.test(c.defs)).map((c) => c.fn);
+  const plOrderPara = htmlText((help.match(/<p><strong>Filtering with pills\.<\/strong>[\s\S]*?<\/p>/) || [""])[0])
+    .replace(/\s+/g, " ").trim();
+  const plOrderPublished = /alphabetically by their label/i.test(plOrderPara) && /numerically/i.test(plOrderPara) &&
+    /newest-first/i.test(plOrderPara) && /\bRepository\b/.test(plOrderPara) && /order of their own/i.test(plOrderPara);
+  ok(`docs/index.html: the shared strips order their pills by label, the ${plUnsorted.length} pre-kit strip(s) do not, and Help scopes the claim to the ones that do`,
+    plKitSorts && plFolderSorts && plNumericAware && plUnsorted.length === 2 && plOrderPublished,
+    `kit pills() sorts on cmpLabel: ${plKitSorts} · folderStrip sorts on cmpLabel: ${plFolderSorts} · ` +
+    `cmpLabel is digit-aware: ${plNumericAware}\n      ` +
+    `sorts nothing: ${plUnsorted.join(", ") || "(none)"}\n      ` +
+    `Help scopes the claim: ${plOrderPublished}\n      ` +
+    `paragraph: ${plOrderPara || "(not found)"}\n      ` +
+    "workbook pills come out of loadWorkbooks() (addWorkbook unshifts, so newest-first) and the type pills out of " +
+    "REPO_TYPES' declaration order — neither is alphabetical, and the flat claim sent a reader hunting the wrong end of the strip");
+}
+
+/* ── 57. The NUMBER on a pill, and the pills that stay at zero ──────────────────────────
+   N7, and the slice check 56 named as the one it was deliberately not taking: "the pill
+   COUNTS and the disappear-when-empty rule in the same paragraph … are tally()/prune()
+   behaviour and holding them means evaluating the kit, check 55's idiom one kit over,
+   which is its own slice."
+
+   So this is the third derivation over the same paragraph family. Check 53 holds the AXES
+   (which page filters by what), check 56 the FACES (the words on a pill). This one holds
+   the NUMBER — where it comes from, what it counts, and when a pill carrying one goes
+   away — and like check 55 it EVALUATES `Studio.catalogFacets` and PROBES it rather than
+   reading its comments. The half the kit cannot answer is the DENOMINATOR (a pill's number
+   is whatever list the panel handed `tally()`), so that half is derived from the six
+   panels' own call sites against a roster of their raw list sources.
+
+   Measured 2026-08-09, before the fix. Both of the claims in that paragraph were published
+   in a form a reader could act on and be wrong about:
+   · **"each showing how many items it covers" never said WHICH items.** Every panel tallies
+     its RAW list — `F.tally(list, …)` runs before the search matcher and before every facet
+     matcher, its own strip's included — so the numbers do not move as you filter. Search a
+     workspace down to two rows and the pill above them still reads its full count. Nothing
+     on the page said so, and the natural reading of "how many items it covers" is the
+     opposite one, which turns a correct number into a bug report.
+   · **"A pill disappears as soon as its last item does" is false on three strips, and the
+     reassurance built on it was true for a different reason.** `pills()` maps `t.keys`, so
+     a kit strip really never prints a zero — but `folderStrip()` appends *Unfiled*
+     unconditionally, Dashboards' hand-rolled strip prints `wbCounts.byId[w.id] || 0` for
+     every workbook you have made plus its own unconditional *Unfiled*, and the Repository
+     prints `counts[t.key] || 0` for all five of `REPO_TYPES` — so an empty workspace shows
+     five zeros there, and an emptied workbook keeps its pill (which is how you file
+     something back into it). The sentence's promise — that a filter can never keep
+     narrowing from a chip you cannot see — holds anyway, because what gets dropped is the
+     SELECTION, not the pill: `prune()` deletes a multi-select key whose count is gone,
+     `pick()` falls back to "", and the two hand-rolled strips guard their own scalars.
+     A reader who believed the stated mechanism would take those zeros for a bug.
+   · The overlap was unpublished too: `tally()` counts a row once per key when `keyOf`
+     returns an ARRAY, so a two-tag dataset is counted under both tag pills and a strip's
+     numbers can sum past the list length.
+   · And the escape pills are counted differently — `folderStrip`'s *All folders* prints the
+     `total` argument (the whole list), not anything in the tally, as do the two *All* chips.
+
+   Seven rules, every kit-side one a probe that RUNS the kit:
+   (a) the premise — the kit is extractable and evaluable, all six panel bodies read, and
+       Help carries the paragraph plus both new ones (a rule that cannot measure must fail,
+       not pass over nothing);
+   (b) every pill prints a count, from all three renderers (the kit's `pill()` and the two
+       hand-rolled chip strips), and Help says so;
+   (c) the DENOMINATOR: every ident whose rows become a pill number is the panel's raw list
+       — matched against a per-panel roster of that source — its declaration is free of the
+       search matcher, and the panel's visible rows come from a LATER filter over that same
+       ident. This is the rule that fails if anyone re-points a tally at the filtered list,
+       and it is also the rule that makes the copy's "before the search box" measurable;
+   (d) the overlap, probed with an array-keyed facet, and published;
+   (e) the escape pills carry the whole list's count — probed on `folderStrip`, derived from
+       `{ all: <list>.length }` on the two chip strips;
+   (f) the zero rule from BOTH ends: a kit strip never prints a zero (probed, including the
+       vanishing pill), the three strips that do persist at zero are each derived from their
+       own source, and Help names exactly those three. The roster of hand-rolled strips is
+       held at two, so a fourth persisting strip lands here rather than passing green;
+   (g) the mechanism behind the reassurance: `prune()`, `pick()` and the three hand-written
+       guards drop the SELECTION, and Help says the filter is dropped rather than the pill.
+   Deliberately NOT held: the adapter dot, the pill faces (check 56) and the axes (check 53);
+   and `tally`'s `unfiled` bucket never becoming a pill of its own, which is `folderStrip`'s
+   *Unfiled* by another name and already held by (f). */
+{
+  // The source of truth, evaluated rather than regexed: Studio.catalogFacets as the app
+  // runs it. `esc` is the app's own escaper, supplied as identity — these rules probe the
+  // markup for its NUMBERS; check 56 owns the faces.
+  const fkKit = (() => {
+    const src = read("app/studio.js");
+    const at = src.indexOf("Studio.catalogFacets = {");
+    if (at < 0) return null;
+    const block = searchBlockAt(src, src.indexOf("{", at), "{", "}");
+    try {
+      const Studio = {};
+      // eslint-disable-next-line no-new-func
+      new Function("Studio", "esc", "Studio.catalogFacets = " + block + ";")(Studio, (s) => String(s));
+      const F = Studio.catalogFacets;
+      return ["tally", "prune", "pick", "pill", "pills", "folderStrip"].every((k) => typeof F[k] === "function") ? F : null;
+    } catch { return null; }
+  })();
+  const fkStudio = read("app/studio.js");
+  const fkBody = (file, fn) => {
+    const src = read(file);
+    const at = src.indexOf("function " + fn + "(");
+    return at < 0 ? "" : searchBlockAt(src, src.indexOf("{", at), "{", "}");
+  };
+  // A whole `var x = …;` statement — the list declarations end in a `.sort(function () { … })`
+  // whose body carries `;` of its own, so this walks to the semicolon at depth 0.
+  const fkStmt = (src, at) => {
+    let d = 0;
+    for (let i = at; i < src.length; i++) {
+      const c = src[i];
+      if ("([{".includes(c)) d++;
+      else if (")]}".includes(c)) d--;
+      else if (c === ";" && d === 0) return src.slice(at, i + 1);
+    }
+    return src.slice(at);
+  };
+  const fkNums = (html) => [...String(html).matchAll(/wb-chip-n">(\d+)</g)].map((m) => Number(m[1]));
+  const fkLabels = (html) => [...String(html).matchAll(/wb-chip-label">([^<]*)</g)].map((m) => m[1]);
+
+  const fkPanels = facetPanels.map((p) => ({ ...p, body: fkBody(p.file, p.fn) }));
+  const fkChipStrips = ["renderDashboards", "renderRepository"].map((fn) => ({ fn, body: fkBody("app/studio.js", fn) }));
+  const fkPara = (lead) => htmlText((help.match(new RegExp(`<p><strong>${lead}\\.<\\/strong>[\\s\\S]*?<\\/p>`)) || [""])[0])
+    .replace(/\s+/g, " ").trim();
+  const fkPills = fkPara("Filtering with pills");
+  const fkCountPara = fkPara("What the number on a pill counts");
+  const fkGonePara = fkPara("When a pill goes away");
+
+  // (a) the premise. Everything below dereferences fkKit or a panel body.
+  const fkNoBody = fkPanels.filter((p) => !p.body).map((p) => p.fn)
+    .concat(fkChipStrips.filter((c) => !c.body).map((c) => c.fn));
+  const fkLive = ok(`app/studio.js + docs/index.html: Studio.catalogFacets is evaluable, all ${fkPanels.length} panel bodies read, ` +
+     "and Help carries the three pill paragraphs — the premise the rules below measure against",
+    !!fkKit && !fkNoBody.length && fkPanels.length === Object.keys(CATALOG_PAGES).length &&
+      !!fkPills && !!fkCountPara && !!fkGonePara,
+    `kit evaluated: ${!!fkKit} · bodies unread: ${fkNoBody.join(", ") || "(none)"}\n      ` +
+    `paragraphs found — filtering: ${!!fkPills}, counts: ${!!fkCountPara}, disappearing: ${!!fkGonePara}\n      ` +
+    "these rules PROBE the kit; if it cannot be run they must fail rather than pass over nothing");
+
+  if (fkLive) {
+    // (b) every pill prints a count — the kit's one renderer plus the two hand-rolled strips.
+    const fkOne = fkKit.pill({ attr: "data-x", value: "k", label: "L", n: 7 });
+    const fkChipPrints = fkChipStrips.filter((c) => /wb-chip-n">' \+ c\.n \+ '/.test(c.body)).map((c) => c.fn);
+    const fkCountPublished = /count beside its label/i.test(fkPills) && /every pill has one/i.test(fkCountPara);
+    ok(`docs/index.html: every pill carries a count — the kit's pill() and both hand-rolled strips print one (${fkChipPrints.length} of ${fkChipStrips.length})`,
+      String(fkNums(fkOne)) === "7" && fkChipPrints.length === fkChipStrips.length && fkCountPublished,
+      `kit pill({n:7}) prints: ${fkNums(fkOne).join(", ") || "(no number)"} · chip strips printing c.n: ${fkChipPrints.join(", ") || "(none)"}\n      ` +
+      `published: ${fkCountPublished}\n      ` +
+      "the number is the first thing a reader trusts on a strip; a pill that stopped carrying one would make the paragraph fiction");
+
+    // (c) the denominator: a pill's number is counted over the panel's RAW list, before the
+    //     search box and before every facet matcher. The roster names each panel's own list
+    //     source, so re-pointing a tally at a filtered list fails here rather than silently
+    //     changing what the published number means.
+    const FK_RAW = {
+      dashboards: /loadRecents\(\)/, views: /Studio\.Workspace\.all\("analyses"\)/,
+      datasets: /Studio\.Workspace\.all\("datasets"\)/, connections: /Studio\.Workspace\.all\("connections"\)/,
+      jobs: /Studio\.Workspace\.all\("jobs"\)/, repository: /repoAllRows\(\)/,
+    };
+    // Each site is captured as the EXPRESSION it counts, not as an identifier: a tally
+    // handed `list.filter(dsxMatch)` must land here as a violation, and a pattern that only
+    // matched bare idents would simply not see it (measured — that was this rule's first
+    // shape, and the mutation walked straight through it).
+    const fkCountSites = (body) => {
+      const out = [];
+      for (const m of body.matchAll(/(?:F|Studio\.catalogFacets)\.tally\(\s*([^,]*?)\s*,/g))
+        out.push({ what: "tally", expr: m[1] });
+      for (const m of body.matchAll(/folderStrip\(\s*[^,]*,\s*[^,]*,\s*"[\w-]+",\s*([^,)]*)/g))
+        out.push({ what: "the folder strip's total", expr: m[1].trim(), counted: true });
+      for (const m of body.matchAll(/var (?:wbCounts|counts) = \{ all: ([^,}]*)/g))
+        out.push({ what: "the chip strip's All", expr: m[1].trim(), counted: true });
+      // …and the loop that fills the rest of that map, which is the hand-rolled tally.
+      for (const m of body.matchAll(/var (?:wbCounts|counts) = \{[^}]*\};\s*([^;]*?)\.forEach\(/g))
+        out.push({ what: "the chip strip's own tally", expr: m[1].trim() });
+      return out;
+    };
+    const fkDenomWrong = [];
+    fkPanels.forEach((p) => {
+      const sites = fkCountSites(p.body);
+      if (!sites.length) { fkDenomWrong.push(`${p.page}: nothing on this page turns rows into a pill count any more`); return; }
+      if (!/Studio\.catalogSearch\.(matcher|terms)\(q/.test(p.body))
+        fkDenomWrong.push(`${p.page}: no search box behind this list — "before the search box" would be a claim about nothing`);
+      sites.forEach((s) => {
+        // The whole point of the rule: the counted thing is a plain list variable, never an
+        // expression that could narrow it on the way in.
+        const bare = s.counted ? /^(\w+)\.length$/.exec(s.expr) : /^(\w+)$/.exec(s.expr);
+        if (!bare) {
+          fkDenomWrong.push(`${p.page}: ${s.what} counts \`${s.expr}\` — an expression, not the page's own list, so its pills would move as you filter`);
+          return;
+        }
+        const id = bare[1];
+        const decl = fkStmt(p.body, p.body.search(new RegExp(`\\bvar ${id} = `)));
+        if (!FK_RAW[p.sec].test(decl))
+          fkDenomWrong.push(`${p.page}: the counted list \`${id}\` is no longer the page's raw list (expected ${FK_RAW[p.sec]})`);
+        if (/catalogSearch\.(matcher|terms)\(|Match\(/.test(decl))
+          fkDenomWrong.push(`${p.page}: \`${id}\` is filtered before it is counted — the published numbers would move as you type`);
+        if (!new RegExp(`\\b${id}\\.filter\\(`).test(p.body))
+          fkDenomWrong.push(`${p.page}: the visible rows no longer come from a later filter over \`${id}\``);
+      });
+    });
+    const fkDenomPublished = /before the search box/i.test(fkCountPara) && /every other pill/i.test(fkCountPara) &&
+      /never moves as you filter/i.test(fkCountPara);
+    ok(`app/ + docs/index.html: every pill's number is counted over its page's raw list, before the search box and every pill (${fkPanels.length} panels)`,
+      !fkDenomWrong.length && fkDenomPublished,
+      `${fkDenomWrong.join("\n      ") || "(every counted list is the raw one)"}\n      ` +
+      `published: ${fkDenomPublished}\n      ` +
+      `counted lists: ${fkPanels.map((p) => `${p.page} [${fkCountSites(p.body).map((s) => s.expr).join(", ")}]`).join(" · ")}\n      ` +
+      "a pill reading 40 above two visible rows is correct and looks broken — the page has to say which list it counts");
+
+    // (d) the overlap: keyOf may return an array, so one row lands under several pills.
+    const fkTags = fkKit.tally([{ t: ["finance", "eu"] }, { t: ["finance"] }], (r) => r.t);
+    const fkOverlaps = fkTags.counts.finance === 2 && fkTags.counts.eu === 1 &&
+      Object.values(fkTags.counts).reduce((a, b) => a + b, 0) > 2;
+    const fkOverlapPublished = /add up to more than the list/i.test(fkCountPara) && /#finance/.test(fkCountPara);
+    ok("docs/index.html: a multi-valued facet counts a row under every pill it matches, and Help says the numbers can out-total the list",
+      fkOverlaps && fkOverlapPublished,
+      `measured — two rows, three pill counts: ${JSON.stringify(fkTags.counts)} · published: ${fkOverlapPublished}\n      ` +
+      "tally() adds 1 per key when keyOf returns an array, so a two-tag dataset is under both pills");
+
+    // (e) the escape pills count the whole list — folderStrip prints its `total` argument,
+    //     and both chip strips open on `{ all: <the raw list>.length }`.
+    const fkFolder = fkKit.folderStrip(fkKit.tally([{ f: "A" }, { f: "A" }], (r) => r.f), "", "data-x", 40, {});
+    const fkFolderNums = fkNums(fkFolder);
+    const fkAllChips = fkChipStrips.filter((c) => /var chipDefs = \[\{ id: "", name: "All", n: (?:wbCounts|counts)\.all \}\]/.test(c.body)).map((c) => c.fn);
+    const fkTotalPublished = /whole list's count/i.test(fkCountPara) && /All folders/i.test(fkCountPara);
+    ok(`docs/index.html: the pills that mean everything carry the whole list's count, not a tallied one (folderStrip + ${fkAllChips.length} chip strip(s))`,
+      fkFolderNums[0] === 40 && fkFolderNums.slice(1).reduce((a, b) => a + b, 0) === 2 &&
+        fkAllChips.length === fkChipStrips.length && fkTotalPublished,
+      `measured — folderStrip(total 40) over 2 filed rows prints: ${fkFolderNums.join(", ")}\n      ` +
+      `chip strips opening on the raw total: ${fkAllChips.join(", ") || "(none)"} · published: ${fkTotalPublished}\n      ` +
+      "All folders takes `total`, the unfiltered row count, so it is the one pill whose number is not from the tally");
+
+    // (f) the zero rule, from both ends: a kit strip cannot print a zero, three strips
+    //     deliberately can, and Help names exactly those three.
+    const fkTwo = fkKit.pills(fkKit.tally([{ k: "a" }, { k: "b" }], (r) => r.k), {}, "data-x", {});
+    const fkGoneOne = fkKit.pills(fkKit.tally([{ k: "a" }], (r) => r.k), {}, "data-x", {});
+    const fkKitNeverZero = fkNums(fkTwo).length === 2 && fkLabels(fkGoneOne).join() === "a" &&
+      !fkNums(fkTwo).includes(0) && !fkNums(fkGoneOne).includes(0);
+    const fkFilledOnly = fkKit.folderStrip(fkKit.tally([{ f: "A" }], (r) => r.f), "", "data-x", 1, {});
+    const fkUnfiledStays = fkLabels(fkFilledOnly).includes("Unfiled") &&
+      fkNums(fkFilledOnly)[fkLabels(fkFilledOnly).indexOf("Unfiled")] === 0;
+    const fkDashBody = fkChipStrips[0].body, fkRepoBody = fkChipStrips[1].body;
+    const fkWorkbookStays = /n: wbCounts\.byId\[w\.id\] \|\| 0/.test(fkDashBody) &&
+      /\.concat\(\[\{ id: "__unfiled", name: "Unfiled", n: wbCounts\.unfiled \}\]\)/.test(fkDashBody);
+    const fkRepoTypes = [...fkStmt(fkStudio, fkStudio.indexOf("var REPO_TYPES = [")).matchAll(/label: "([^"]+)"/g)].map((m) => m[1]);
+    const fkRepoStays = /\.concat\(REPO_TYPES\.map\(function \(t\) \{ return \{ id: t\.key, name: t\.label, n: counts\[t\.key\] \|\| 0 \}/.test(fkRepoBody);
+    const fkHandRolled = [...fkStudio.matchAll(/var chipDefs = \[/g)].length;
+    const fkZeroPublished = /never reads zero/i.test(fkGonePara) && /Unfiled/.test(fkGonePara) &&
+      /workbook/i.test(fkGonePara) && /all five type pills/i.test(fkGonePara) && /Folders/.test(fkGonePara);
+    ok(`docs/index.html: a shared pill strip never prints a zero, the ${fkHandRolled + 1} strips that keep an empty pill are named, and Help says which`,
+      fkKitNeverZero && fkUnfiledStays && fkWorkbookStays && fkRepoStays && fkRepoTypes.length === 5 &&
+        fkHandRolled === 2 && fkZeroPublished,
+      `measured — kit strip drops a key with no rows: ${fkKitNeverZero} · folderStrip keeps Unfiled at 0: ${fkUnfiledStays}\n      ` +
+      `workbook pill kept at 0: ${fkWorkbookStays} · all ${fkRepoTypes.length} Repository type pills kept: ${fkRepoStays} · ` +
+      `hand-rolled strips: ${fkHandRolled}\n      ` +
+      `published: ${fkZeroPublished}\n      ` +
+      "pills() maps t.keys, so a kit pill cannot read 0 — the three that can are each a deliberate affordance, and an unexplained zero reads as a bug");
+
+    // (g) what actually protects the reader: the SELECTION is dropped, never the pill.
+    const fkPruned = { a: true, b: true };
+    fkKit.prune(fkPruned, fkKit.tally([{ k: "a" }], (r) => r.k));
+    const fkTally = fkKit.tally([{ k: "live" }], (r) => r.k);
+    const fkPicks = fkKit.pick("gone", fkTally) === "" && fkKit.pick("live", fkTally) === "live" &&
+      fkKit.pick("", fkTally) === "" && fkKit.pick(fkKit.UNFILED, fkTally) === fkKit.UNFILED;
+    const fkGuards = [
+      /if \(_repoWbFilter === "__packs" && !packCount\) _repoWbFilter = "";/.test(fkDashBody),
+      /&& !validWbIds\[_repoWbFilter\]\) _repoWbFilter = "";/.test(fkDashBody),
+      /if \(_repoAllType && !counts\[_repoAllType\]\) _repoAllType = "";/.test(fkRepoBody),
+    ];
+    const fkDropPublished = /drops that filter for you/i.test(fkGonePara);
+    ok(`docs/index.html: a filter whose last item went away is dropped for you — prune(), pick() and the ${fkGuards.length} hand-written guards, and Help says so`,
+      String(Object.keys(fkPruned)) === "a" && fkPicks && fkGuards.every(Boolean) && fkDropPublished,
+      `measured — prune kept: ${Object.keys(fkPruned).join(", ") || "(nothing)"} · pick() falls back and keeps "" / __unfiled: ${fkPicks}\n      ` +
+      `hand-written guards present: ${fkGuards.map((g, i) => `${i + 1}:${g}`).join(" ")} · published: ${fkDropPublished}\n      ` +
+      "this, not the pill vanishing, is what makes the reassurance true on the three strips that keep an empty pill");
+  }
+}
+
+/* ── 58. How the strips COMPOSE — OR inside a facet, AND across them ────────────────────
+   N7, and the slice check 57 named as the one it was deliberately not taking: "the *Which
+   pills take more than one* paragraph's claim that ticking two pills of one facet shows
+   'anything matching either' — `matchMulti` really does OR within a facet while the facets
+   AND against each other, and the AND half is unpublished on a page that has now taught the
+   reader to expect the composition rules to be stated. Same probing idiom, one method down
+   (`matchMulti`/`matchOne` rather than `tally`)."
+
+   So this is the fourth derivation over the same paragraph family, and the last axis of it:
+   check 53 holds WHICH page filters by what, 56 the WORDS on a pill, 57 the NUMBER, and this
+   one holds what happens when you pick more than one. Like 55 and 57 it EVALUATES
+   `Studio.catalogFacets` and PROBES it rather than reading its comments — but only half the
+   claim lives in the kit. `matchMulti`/`matchOne` decide what ONE strip does; the AND is not
+   in the kit at all, it is the `&&` each panel writes when it composes its matchers, so that
+   half is derived from the six panels' own predicates.
+
+   Measured 2026-08-09, before the fix. The OR half was published and the AND half was not:
+   · **"tick two pills and the list shows anything matching either" is the whole of what the
+     catalog-wide copy said.** Every panel then ANDs: `dsxAdapterMatch(d) && dsxConnMatch(d)
+     && dsxTagMatch(d) && dsxKindMatch(d) && dsxFolderMatch(d) && dsxMatch(d)` on Datasets,
+     the same shape on Connections/Views/Jobs, and a `return false` guard per axis on the two
+     hand-rolled strips (Dashboards' workbook chips, the Repository's types) — so picking in
+     a second strip does the OPPOSITE of picking a second pill in the first one, and the page
+     stated one of those two and not the other.
+   · **The search box is one more conjunct and was never counted as one.** Five panels put
+     their `catalogSearch` matcher inside the same predicate; Dashboards runs it as a later
+     stage over the facet-filtered list (it has the column fallback the others do not). Same
+     semantics, and the copy named neither.
+   · **A row with several values of one facet only needs one of them ticked** — `matchMulti`
+     `.some()`s over an array key — which is the reading a reader has to have to make sense
+     of the tag pills. Check 57 published the COUNTING side of the same array (a two-tag
+     dataset is counted twice); the matching side was unpublished.
+   · The one thing that was published, in the pills paragraph, is that an empty strip means
+     all of them — and it is what makes the AND safe to state, since a strip you never
+     touched cannot be the reason a combination came back empty.
+   The narrower jargon line under *Filtering datasets and connections* ("Pills in the same
+   strip are OR'd; different strips are AND'd") has said it correctly all along, for those
+   two pages, in words the rest of the page deliberately avoids. This slice states it once,
+   catalog-wide, in the page's own voice, and holds it.
+
+   Six rules, every kit-side one a probe that RUNS the kit:
+   (a) the premise — the kit evaluates with both matchers and all six panel predicates are
+       readable (a rule that cannot measure must fail rather than pass over nothing). It
+       deliberately does NOT require the new paragraph: a missing paragraph is the drift the
+       other rules report, so gating them on it would have let the pre-fix tree pass;
+   (b) OR inside a strip, probed from both ends (two keys ticked accept both rows and reject
+       a third; an array-valued row matches on ANY one of its own values), and published;
+   (c) the AND across strips, derived from every panel's predicate: each facet the panel
+       built appears in it, no `||` joins them, and every `return` is either `false` or a
+       chain of `&&`-ed calls — so a panel that started OR-ing its facets lands here rather
+       than quietly making the copy false. Plus published;
+   (d) the search box as one more conjunct, per panel, in whichever of the two shapes that
+       panel uses, and published;
+   (e) an untouched strip narrows nothing, probed on both matchers, and published in both
+       paragraphs — this is the sentence that makes (c) safe to state;
+   (f) the negative half: a single-select strip cannot OR. `matchOne` takes one value and
+       rejects the rest (UNFILED matching only the unfiled rows), and the facet paragraph
+       still says which strips are one-at-a-time.
+   Deliberately NOT held: which page has which axis (check 53), the pill faces (56), the
+   numbers (57), and the jargon line above — holding two copies of one rule in two voices
+   would make the narrower one impossible to reword. */
+{
+  // The source of truth, evaluated rather than regexed: the two matchers as the app runs them.
+  const cpKit = (() => {
+    const src = read("app/studio.js");
+    const at = src.indexOf("Studio.catalogFacets = {");
+    if (at < 0) return null;
+    const block = searchBlockAt(src, src.indexOf("{", at), "{", "}");
+    try {
+      const Studio = {};
+      // eslint-disable-next-line no-new-func
+      new Function("Studio", "esc", "Studio.catalogFacets = " + block + ";")(Studio, (s) => String(s));
+      const F = Studio.catalogFacets;
+      return ["matchMulti", "matchOne"].every((k) => typeof F[k] === "function") ? F : null;
+    } catch { return null; }
+  })();
+  const cpBody = (file, fn) => {
+    const src = read(file);
+    const at = src.indexOf("function " + fn + "(");
+    return at < 0 ? "" : searchBlockAt(src, src.indexOf("{", at), "{", "}");
+  };
+  // A whole `var x = …;` statement — the search stage ends in a `.filter(function () { … })`
+  // carrying `;` of its own, so this walks to the semicolon at depth 0 (check 57's idiom).
+  const cpStmt = (src, at) => {
+    let d = 0;
+    for (let i = at; i < src.length; i++) {
+      const c = src[i];
+      if ("([{".includes(c)) d++;
+      else if (")]}".includes(c)) d--;
+      else if (c === ";" && d === 0) return src.slice(at, i + 1);
+    }
+    return src.slice(at);
+  };
+  const cpFlat = (s) => String(s).replace(/\s+/g, " ").trim();
+  const cpPara = cpFlat(htmlText((help.match(/<p><strong>How the strips combine\.<\/strong>[\s\S]*?<\/p>/) || [""])[0]));
+  const cpPills = cpFlat(htmlText((help.match(/<p><strong>Filtering with pills\.<\/strong>[\s\S]*?<\/p>/) || [""])[0]));
+
+  // Each panel, read the way check 57 reads its counts: the predicate that turns the raw
+  // list into the rows you see, the facets it has to honour, and where the search box joins.
+  const cpPanels = facetPanels.map((p) => {
+    const body = cpBody(p.file, p.fn);
+    const at = body.search(/\bvar (?:shown|filtered) = \w+\.filter\(function \(\w+\) \{/);
+    const visible = at < 0 ? "" : /\bvar (\w+) =/.exec(body.slice(at))[1];
+    const pred = at < 0 ? "" : searchBlockAt(body, body.indexOf("{", body.indexOf("function", at)), "{", "}");
+    return {
+      ...p, body, pred, visible,
+      // the kit's matchers, however they are declared (Datasets chains five off one `var`)
+      matchers: [...body.matchAll(/(\w+) = (?:F|Studio\.catalogFacets)\.match(?:Multi|One)\(/g)].map((m) => m[1]),
+      // …and the two hand-rolled strips' scalars, which check 53 already identifies as axes
+      scalars: p.axes.filter((a) => a.expr.startsWith("_")).map((a) => a.expr),
+      search: (/var (\w+) = Studio\.catalogSearch\.(?:matcher|terms)\(q/.exec(body) || [])[1] || "",
+    };
+  });
+
+  // (a) the premise. Everything below dereferences cpKit or a panel predicate.
+  const cpNoPred = cpPanels.filter((p) => !p.pred).map((p) => p.fn);
+  // The premise is deliberately the CODE side plus the pre-existing pills paragraph, and not
+  // the composition paragraph this slice added: a missing paragraph is exactly the drift the
+  // rules below exist to report, so gating them on it would have made the pre-fix tree pass.
+  const cpLive = ok(`app/studio.js: both facet matchers evaluate and all ${cpPanels.length} panel predicates are readable — ` +
+     "the premise the rules below measure against",
+    !!cpKit && !cpNoPred.length && cpPanels.length === Object.keys(CATALOG_PAGES).length && !!cpPills,
+    `kit evaluated: ${!!cpKit} · predicates unread: ${cpNoPred.join(", ") || "(none)"}\n      ` +
+    `the pills paragraph found: ${!!cpPills}\n      ` +
+    "these rules PROBE the kit; if it cannot be run they must fail rather than pass over nothing");
+
+  if (cpLive) {
+    const cpKeyOf = (r) => r.k, cpTagsOf = (r) => r.t;
+
+    // (b) OR inside one strip — the kit's `!!state[k]`, and `.some()` when the row's own key
+    //     is an array. Both directions, so a matcher that started AND-ing lands here.
+    const cpTwo = cpKit.matchMulti({ a: true, b: true }, cpKeyOf);
+    const cpOrKeys = cpTwo({ k: "a" }) && cpTwo({ k: "b" }) && !cpTwo({ k: "c" });
+    const cpTag = cpKit.matchMulti({ eu: true }, cpTagsOf);
+    const cpOrValues = cpTag({ t: ["finance", "eu"] }) && !cpTag({ t: ["finance"] });
+    const cpOrPublished = /need only match one of them/i.test(cpPara) && /either tag/i.test(cpPara) &&
+      /only one of its own values ticked/i.test(cpPara);
+    ok("docs/index.html: two pills on one strip are alternatives, and a row with several values needs only one of them ticked",
+      cpOrKeys && cpOrValues && cpOrPublished,
+      `measured — {a,b} ticked accepts a and b, rejects c: ${cpOrKeys} · {eu} ticked accepts a #finance #eu row, rejects #finance: ${cpOrValues}\n      ` +
+      `published: ${cpOrPublished}\n      ` +
+      "matchMulti ORs within a facet and .some()s over an array key — the reading the tag pills only make sense under");
+
+    // (c) the AND across strips. Not in the kit: it is the `&&` (or the `return false` guard)
+    //     each panel writes, so it is derived from all six predicates.
+    const cpAndWrong = [];
+    cpPanels.forEach((p) => {
+      const want = p.matchers.concat(p.scalars);
+      if (!want.length) { cpAndWrong.push(`${p.page}: no facet reaches this page's predicate any more`); return; }
+      const missing = want.filter((id) => !new RegExp(`\\b${id}\\b`).test(p.pred));
+      if (missing.length) cpAndWrong.push(`${p.page}: ${missing.join(", ")} never reach the predicate — the strip would stop narrowing`);
+      if (p.pred.includes("||"))
+        cpAndWrong.push(`${p.page}: its predicate ORs somewhere — the published rule is that every picked strip has to be satisfied at once`);
+      [...p.pred.matchAll(/return ([^;]*);/g)].map((m) => cpFlat(m[1])).forEach((r) => {
+        if (r !== "false" && !/^[\w.]+\([\w.]+\)(\s*&&\s*[\w.]+\([\w.]+\))*$/.test(r))
+          cpAndWrong.push(`${p.page}: \`return ${r}\` is neither a rejection nor a chain of ANDed matchers`);
+      });
+    });
+    const cpAndPublished = /every strip you have picked from has to be satisfied at once/i.test(cpPara);
+    ok(`app/ + docs/index.html: the strips AND against each other on all ${cpPanels.length} catalog pages, and Help says so`,
+      !cpAndWrong.length && cpAndPublished,
+      `${cpAndWrong.join("\n      ") || "(every panel ANDs its facets)"}\n      ` +
+      `published: ${cpAndPublished}\n      ` +
+      `predicates: ${cpPanels.map((p) => `${p.page} [${p.matchers.concat(p.scalars).join(", ")}]`).join(" · ")}\n      ` +
+      "picking in a second strip does the opposite of picking a second pill in the first one — a reader cannot infer that from the OR half");
+
+    // (d) the search box is one more conjunct, in whichever of the two shapes the panel uses.
+    const cpSearchOf = (p) => {
+      if (!p.search) return { how: "", ok: false };
+      if (new RegExp(`\\b${p.search}\\b`).test(p.pred)) return { how: "in the predicate", ok: true };
+      // Dashboards searches AFTER its facets, because its column fallback needs the terms
+      // the row's own text missed — same conjunction, one stage later.
+      const at = p.body.search(new RegExp(`\\bvar \\w+ = ${p.visible}\\.(?:map|filter)\\(`));
+      if (at < 0) return { how: "", ok: false };
+      const stmt = cpStmt(p.body, at);
+      return { how: `over \`${p.visible}\``, ok: new RegExp(`\\b${p.search}\\b`).test(stmt) && /\.filter\(/.test(stmt) };
+    };
+    const cpSearch = cpPanels.map((p) => ({ page: p.page, ...cpSearchOf(p) }));
+    const cpSearchPublished = /search box counts as one more/i.test(cpPara);
+    ok(`app/ + docs/index.html: the search box narrows alongside the pills on every catalog page (${cpSearch.filter((s) => s.ok).length} of ${cpSearch.length})`,
+      cpSearch.every((s) => s.ok) && cpSearchPublished,
+      `${cpSearch.map((s) => `${s.page}: ${s.ok ? s.how : "no search stage found over its filtered rows"}`).join(" · ")}\n      ` +
+      `published: ${cpSearchPublished}\n      ` +
+      "a reader who has just been told the strips AND has to be told whether the box they typed in is one of them");
+
+    // (e) an untouched strip narrows nothing — what makes (c) safe to state.
+    const cpEmpty = cpKit.matchMulti({}, cpKeyOf)({ k: "anything" }) === true &&
+      cpKit.matchOne("", cpKeyOf)({ k: "anything" }) === true;
+    const cpEmptyPublished = /narrows nothing/i.test(cpPara) &&
+      /picking none of a facet's pills means all of them/i.test(cpPills);
+    ok("docs/index.html: a strip you have picked nothing in narrows nothing — probed on both matchers, published in both paragraphs",
+      cpEmpty && cpEmptyPublished,
+      `measured — empty multi-select and empty single-select both accept every row: ${cpEmpty} · published: ${cpEmptyPublished}\n      ` +
+      "without this the AND rule reads as though six untouched strips had to agree before anything showed at all");
+
+    // (f) the negative half: a single-select strip cannot OR.
+    const cpOne = cpKit.matchOne("a", cpKeyOf);
+    const cpUnfiled = cpKit.matchOne(cpKit.UNFILED, cpKeyOf);
+    const cpOnly = cpOne({ k: "a" }) && !cpOne({ k: "b" }) && cpUnfiled({}) && !cpUnfiled({ k: "a" });
+    const cpOnePublished = /one pill at a time/i.test(facetPara);
+    ok("docs/index.html: a single-select strip holds exactly one value — matchOne rejects every other row, and Help still names those strips",
+      cpOnly && cpOnePublished,
+      `measured — matchOne("a") accepts only a, and the unfiled value only the unfiled rows: ${cpOnly} · published: ${cpOnePublished}\n      ` +
+      "the OR sentence is scoped to the multi-select strips, so the page has to keep saying which ones those are");
+  }
+}
+
+/* ── 59. Simple mode vs the mode the app really builds ──────────────────────────────────
+   N7. Checks 2/3/4 have held the SIZE of Simple mode since AUD-11 — "15 chart types", and
+   `SIMPLE_CHART_TYPES` really does have fifteen — so the section has been correctly numbered
+   for weeks about the one thing anybody counted. Nothing held what the mode DOES: which
+   inspector sections it hides, how you turn it on, or what it puts on screen that Advanced
+   mode does not. The find is that the page said all three, and got all three wrong.
+
+   Measured 2026-08-09, before the fix:
+   · **The Simple-mode bullet named 7 of the 15 advanced inspector sections and closed on
+     "etc."** — Detail drawer, Target line, Reference band, Point annotations, Compare to,
+     Click-through, Calculated columns and Output options appeared nowhere, and Output
+     options and Calculated columns are the two a data author is most likely to go looking
+     for when they vanish.
+   · **The Advanced-mode bullet named a DIFFERENT 7 of the same 15**, three of them by
+     labels the inspector has never printed (`Color scales`, `Target lines`,
+     `Reference bands` — the app's headers are singular). Neither list was wrong alone in a
+     way a reader could see; together they published two partial, disagreeing copies of one
+     registry, which is why this check holds ONE list and makes the other defer to it.
+   · **Two of the four ways in were unpublished**, and the one detail the sentence did give
+     was attached to the wrong control: "a labelled switch on the Settings page (left rail)
+     alongside Dark mode and Demo mode". Dark mode really is Simple mode's neighbour — on
+     the LEFT RAIL's own quick switches (`#railQuickDark` / `#railQuickSimple`), the route
+     the sentence does not mention; on the Settings page `SETTINGS_TOGGLES` files Simple
+     mode under **Mode** while Dark mode is Appearance and Demo mode is Presentation, so it
+     neighbours neither. The ⌘K palette's own `Simple mode` command was unpublished too.
+   · **Everything Simple mode ADDS was unpublished or misnamed.** The mode is subtractive on
+     this page — a list of what goes away — while the builder grows five things in it: the
+     `Simple mode is active` note and its `Switch to Advanced mode →` button (the in-app way
+     back, named nowhere), the top-bar `Simple mode` badge (the only always-visible answer to
+     "which mode am I in"), the `Getting started` checklist, the `What's next?` card, and the
+     guided column setup whose button is `Auto-pick columns ▶` — published as an "Auto-pick"
+     button on the "KPI and View data sections", where it is really the panel Data section's,
+     for every chart type except richtext.
+   · **The boot claim contradicted itself two sections apart.** `app/studio.js`'s V5/V6 block
+     is `__studioShellSetSection(hasFeatured ? "home" : "explore")`, and Home's own section
+     says exactly that; the Quick Views section said "In Simple mode, Explore is the default
+     section on first open" flat, so the page was simultaneously right and wrong about the
+     same boot — the v927/v929 shape.
+
+   Eight rules. The sources of truth are the `advSection()` call sites (the sections the
+   inspector marks `.adv-sect` for `body.simple-mode` to hide), `SETTINGS_TOGGLES`, the rail
+   and More markup, `app/palette.js`'s command labels, the labels the `S.simpleMode`-guarded
+   blocks print, and the boot expression itself:
+   (a) the premise — the sections parse, `advSection()` still stamps `.adv-sect`, and the CSS
+       still hides it; a rule that cannot measure must fail rather than pass over nothing;
+   (b) coverage — the one list names every section, in bold, by the title the header prints;
+   (c) the negative half — every bolded name in that list is a section the inspector builds,
+       so a retired or invented one fails rather than reading as documentation;
+   (d) one list, not two — the Advanced-mode bullet defers to it and republishes no partial
+       copy (a title, or a title pluralised, appearing there is the drift itself);
+   (e) the count word — every "<n> advanced … sections" claim is the registry's number;
+   (f) the routes — every control that toggles the mode is published, and a toggle the page
+       calls its neighbour must really neighbour it (the rail's other quick switch, or a
+       member of Simple mode's own Settings group);
+   (g) what the mode ADDS — every label its own UI prints, held in bold, plus the badge from
+       both ends (Help may describe one only while `#simpleBadge` is in the markup);
+   (h) the boot section, held from both ends — while the expression is conditional, every
+       sentence on the page that says what Simple mode boots to states the condition.
+   Deliberately NOT held: the CSS-derived authoring controls the mode hides (`#btnNewDS`,
+   `.mine-add`, `.da-mine-acts`, `.da-acts`, `.repo-ds-acts`). They are published now, but
+   mapping a selector to the name a reader knows it by is a hand-written table, not a
+   derivation — check 21's idiom over a different set, and its own slice. */
+{
+  const smStudio = read("app/studio.js");
+  const smCss = read("app/studio.css");
+  const smIndex = read("app/index.html");
+  const smPalette = read("app/palette.js");
+
+  // The registry: every advanced inspector section, by the title its header prints.
+  const advTitles = [...smStudio.matchAll(/\badvSection\(\s*\w+\s*,\s*"([^"]+)"/g)].map((m) => m[1]);
+  const advWired = /classList\.add\("adv-sect"\)/.test(smStudio) &&
+    /body\.simple-mode \.adv-sect\{display:none/.test(smCss);
+
+  const smSec = (() => {
+    const at = help.indexOf('<section id="simple-mode">');
+    return at < 0 ? "" : help.slice(at, help.indexOf("</section>", at) + 10);
+  })();
+  const flat = (s) => s.replace(/<[^>]+>/g, " ").replace(/&amp;/g, "&")
+    .replace(/&nbsp;/g, " ").replace(/[’‘]/g, "'").replace(/\s+/g, " ").trim();
+  const liById = (id) => {
+    const at = smSec.indexOf(`<li id="${id}"`);
+    return at < 0 ? "" : smSec.slice(at, smSec.indexOf("</li>", at));
+  };
+  const boldIn = (html) => [...html.matchAll(/<strong>([\s\S]*?)<\/strong>/g)].map((m) => flat(m[1]));
+  const smText = flat(smSec);
+
+  const advLi = liById("adv-sections");
+  const advModeLi = liById("adv-mode-sections");
+  const advNamed = boldIn(advLi);
+
+  // (a) the premise.
+  ok(`app/studio.js + app/studio.css: Simple mode's advanced sections parsed for check 59 ` +
+    `(${advTitles.length} section(s))`,
+    advTitles.length >= 10 && advWired && smSec.length > 0 && advLi.length > 0,
+    `advSection() call sites: ${advTitles.length} · .adv-sect stamped + hidden: ${advWired} · ` +
+    `<section id="simple-mode"> found: ${smSec.length > 0} · its <li id="adv-sections"> found: ${advLi.length > 0}\n      ` +
+    "the other seven rules read these — if the mode's own wiring moved, they must fail here rather than pass over nothing");
+
+  // (b) coverage: the one list names every section the inspector builds.
+  const advMissing = advTitles.filter((t) => !advNamed.includes(t));
+  ok(`docs/index.html: the Simple-mode list names all ${advTitles.length} advanced inspector sections`,
+    !advMissing.length,
+    `unpublished: ${advMissing.join(", ") || "(none)"}\n      ` +
+    `named: ${advNamed.join(", ") || "(none)"}\n      ` +
+    "a section that vanishes in Simple mode and is named nowhere reads as a bug, not as a mode");
+
+  // (c) the negative half: nothing in that list is invented or retired.
+  const advInvented = advNamed.filter((n) => !advTitles.includes(n));
+  ok("docs/index.html: every advanced section the Simple-mode list names is one the inspector builds",
+    !advInvented.length,
+    `named but not an advSection() title: ${advInvented.join(", ") || "(none)"}\n      ` +
+    `the inspector builds: ${advTitles.join(", ")}`);
+
+  // (d) one list, not two — the Advanced-mode bullet defers rather than republishing a partial copy.
+  const advEchoed = advTitles.filter((t) => new RegExp(`<strong>\\s*${esc(t)}s?\\s*</strong>`, "i").test(advModeLi));
+  ok("docs/index.html: the Advanced-mode bullet defers to that list instead of publishing a second, partial one",
+    advModeLi.length > 0 && !advEchoed.length,
+    `<li id="adv-mode-sections"> found: ${advModeLi.length > 0} · re-listed there: ${advEchoed.join(", ") || "(none)"}\n      ` +
+    "two hand-maintained copies of one registry is how the page came to name a different seven in each");
+
+  // (e) the count word.
+  const NUMWORD = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine",
+    "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen",
+    "eighteen", "nineteen", "twenty"];
+  const advCountClaims = [...smText.matchAll(/\b(\d+|[a-z]+)\s+advanced\s+(?:inspector\s+)?sections?\b/gi)]
+    .filter((m) => /^\d+$/.test(m[1]) || NUMWORD.includes(m[1].toLowerCase()));
+  const advWordOk = (w) => /^\d+$/.test(w)
+    ? Number(w) === advTitles.length
+    : NUMWORD.indexOf(w.toLowerCase()) === advTitles.length;
+  ok(`docs/index.html: every "<n> advanced sections" claim reads ${advTitles.length}`,
+    advCountClaims.length >= 1 && advCountClaims.every((m) => advWordOk(m[1])),
+    `claims: ${advCountClaims.map((m) => `"${m[0]}"`).join(", ") || "(none — the section publishes no count)"}` +
+    ` — the registry has ${advTitles.length}`);
+
+  // (f) the routes in, and who Simple mode really sits beside.
+  const togBlock = (() => {
+    const at = smStudio.indexOf("var SETTINGS_TOGGLES");
+    return at < 0 ? "" : searchBlockAt(smStudio, smStudio.indexOf("[", at), "[", "]");
+  })();
+  const toggles = [...togBlock.matchAll(/\{\s*grp: "([^"]+)", id: "([^"]+)", t: "([^"]+)"/g)]
+    .map((m) => ({ grp: m[1], id: m[2], t: m[3] }));
+  const simpleTog = toggles.find((t) => t.id === "simple");
+  const railQuick = (() => {
+    const at = smIndex.indexOf('id="railQuick"');
+    return at < 0 ? "" : smIndex.slice(at, smIndex.indexOf("</div>", at));
+  })();
+  const railLbls = [...railQuick.matchAll(/rail-quick-lbl">([^<]+)</g)].map((m) => m[1]);
+  // Held from BOTH ends, check 54's idiom: a control renamed out from under its published
+  // route has to fail loudly rather than quietly drop out of the roster.
+  const smRoutes = [
+    { name: "the ⋯ More menu", built: /<button id="moreSimple">/.test(smIndex), pub: /More menu/i },
+    { name: "the rail's quick switches", built: /id="railQuickSimple"/.test(smIndex), pub: /quick switch/i },
+    { name: "the Settings page", built: !!simpleTog, pub: /Settings/ },
+    { name: "the ⌘K command palette", built: /label: "Simple mode"/.test(smPalette), pub: /command palette|⌘K/ },
+  ];
+  const smLive = smRoutes.filter((r) => r.built);
+  const smUnpublished = smLive.filter((r) => !r.pub.test(smText));
+  const smStale = smRoutes.filter((r) => !r.built && r.pub.test(smText));
+  // A toggle may be called Simple mode's neighbour only where it really is one: the rail's
+  // OTHER quick switch, or a member of Simple mode's own Settings group.
+  const legalNeighbour = new Set([
+    ...railLbls.filter((l) => l !== "Simple mode"),
+    ...toggles.filter((t) => simpleTog && t.grp === simpleTog.grp && t.id !== "simple").map((t) => t.t),
+  ]);
+  const badNeighbours = toggles
+    .filter((t) => t.id !== "simple" && !legalNeighbour.has(t.t) && new RegExp(`\\b${esc(t.t)}\\b`, "i").test(smText));
+  const groupPublished = !!simpleTog &&
+    new RegExp(`<strong>${esc(simpleTog.grp)}</strong> group`).test(smSec);
+  ok(`docs/index.html: all ${smLive.length} ways into Simple mode are published, and its neighbours are real`,
+    !smUnpublished.length && !smStale.length && !badNeighbours.length && groupPublished,
+    `unpublished routes: ${smUnpublished.map((r) => r.name).join(", ") || "(none)"}\n      ` +
+    `published but no longer built: ${smStale.map((r) => r.name).join(", ") || "(none)"}\n      ` +
+    `named as a neighbour but is not one: ${badNeighbours.map((t) => `${t.t} (Settings group ${t.grp})`).join(", ") || "(none)"}\n      ` +
+    `real neighbours: ${[...legalNeighbour].join(", ")} · Simple mode's own Settings group ` +
+    `"${simpleTog ? simpleTog.grp : "?"}" published: ${groupPublished}`);
+
+  // (g) what the mode ADDS — every label its own UI prints, held in bold.
+  const smOwnLabels = (() => {
+    const out = [];
+    const re = /if \(S\.simpleMode/g;
+    let m;
+    while ((m = re.exec(smStudio))) {
+      const p = smStudio.indexOf("(", m.index);
+      const cond = searchBlockAt(smStudio, p, "(", ")");
+      const at = smStudio.indexOf("{", p + cond.length);
+      if (at < 0) continue;
+      const body = searchBlockAt(smStudio, at, "{", "}");
+      for (const b of body.matchAll(/el\("button", "[^"]*"\);[\s\S]{0,90}?textContent = "((?:[^"\\]|\\.)*)"/g)) out.push(b[1]);
+      for (const t of body.matchAll(/el\("div", "[^"]*-title"\);\s*\w+\.textContent = "((?:[^"\\]|\\.)*)"/g)) out.push(t[1]);
+    }
+    return [...new Set(out)];
+  })();
+  // The label is the claim; its trailing affordance glyph is not, so it is stripped before matching.
+  const labelWords = (s) => flat(s).replace(/[\s→▶»›…]+$/, "").trim();
+  const smBold = boldIn(smSec);
+  const smLabelMissing = smOwnLabels.filter((l) => !smBold.includes(labelWords(l)));
+  const badgeBuilt = /id="simpleBadge"/.test(smIndex);
+  const badgePublished = /\bbadge\b/i.test(smText);
+  ok(`docs/index.html: Simple mode's own ${smOwnLabels.length} on-screen labels are published, and its badge is held from both ends`,
+    smOwnLabels.length >= 4 && !smLabelMissing.length && badgeBuilt === badgePublished,
+    `unpublished: ${smLabelMissing.join(" · ") || "(none)"}\n      ` +
+    `the mode prints: ${smOwnLabels.join(" · ")}\n      ` +
+    `#simpleBadge in the markup: ${badgeBuilt} · Help describes a badge: ${badgePublished}\n      ` +
+    "a mode with no published way back is the one a reader is stuck in");
+
+  // (h) what it boots to — held from both ends.
+  const bootCond = /__studioShellSetSection\(\s*\w+ \? "home" : "explore"\)/.test(smStudio);
+  const bootClaims = [...help.matchAll(/In <strong>Simple mode<\/strong>[^.]*\./g)]
+    .map((m) => m[0]).filter((s) => /\bboots?\b|default section/i.test(s));
+  // Both directions: while the branch exists every claim must state it, and if the branch ever
+  // goes away no claim may keep asserting a condition the code no longer has.
+  const bootBare = bootClaims.filter((s) => bootCond !== /featured/i.test(s));
+  ok("docs/index.html: every claim about what Simple mode boots to states the condition the code branches on",
+    bootClaims.length >= 1 && !bootBare.length,
+    `claims: ${bootClaims.length} · out of step with the code: ${bootBare.map((s) => `"${flat(s)}"`).join(" · ") || "(none)"}\n      ` +
+    `app/studio.js branches on featured content: ${bootCond}\n      ` +
+    "one section said Home-when-featured and another said Explore flat — neither wrong alone, both wrong together");
+}
 
 console.log(failed ? `\n✗ doc-truth: ${failed} claim(s) have drifted from the source of truth`
   : "\n✅ doc-truth: every published claim matches the source it describes");

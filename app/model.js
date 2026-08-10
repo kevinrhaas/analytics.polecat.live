@@ -3374,26 +3374,62 @@
   // its way into being ignored. Returns an array of { level:'warn', msg } — empty means
   // "nothing obviously wrong", never "valid SQL". The Preview/Test buttons remain the real
   // run-the-query verification path. Pure (string in, issues out) so it's unit-testable.
-  Studio.sqlLint = function (sql, declaredCols) {
+  // N44 slice 1 rewrote the scan and gave it a third argument, because it stopped
+  // being the data-source builder's private helper and became THE check behind
+  // app/sqledit.js — the one SQL editor every surface adopts. What changed: one
+  // left-to-right scan instead of four independent regex counts, so /* */ block
+  // comments and `backtick` identifiers are understood, a stray ")" is told apart
+  // from an unclosed "(", and a quote inside a block comment stops counting. What
+  // did NOT change is the posture or the wording — still balance and shape only,
+  // still "empty means nothing obviously wrong, never valid SQL".
+  //   opts.expectSelect === false  — drop the reads-only check, for a surface where
+  //   the statement legitimately isn't a bare SELECT (the Jobs step, gviz boxes).
+  Studio.sqlLint = function (sql, declaredCols, opts) {
     var issues = [];
     sql = String(sql || "");
+    opts = opts || {};
     if (!sql.trim()) return issues;
-    // Strip string literals + line comments FIRST so quotes/parens inside them don't
-    // count, then check balance on what's left. '' escapes inside a literal are handled
-    // by the literal regex itself ('a''b' is one literal).
-    var stripped = sql.replace(/'(?:[^']|'')*'/g, "''").replace(/--[^\n]*/g, "");
-    if ((stripped.match(/'/g) || []).length % 2 !== 0)
+    var i = 0, n = sql.length, depth = 0, extraClose = 0, openQuote = "", openComment = false;
+    while (i < n) {
+      var ch = sql.charAt(i);
+      if (ch === "-" && sql.charAt(i + 1) === "-") { var nl = sql.indexOf("\n", i); i = nl < 0 ? n : nl + 1; continue; }
+      if (ch === "/" && sql.charAt(i + 1) === "*") {
+        var end = sql.indexOf("*/", i + 2);
+        if (end < 0) { openComment = true; i = n; } else i = end + 2;
+        continue;
+      }
+      if (ch === "'" || ch === '"' || ch === "`") {
+        var q = ch, j = i + 1, closed = false;
+        while (j < n) {
+          if (sql.charAt(j) === q) {
+            if (sql.charAt(j + 1) === q) { j += 2; continue; }   // '' / "" is an escape, not a close
+            closed = true; j++; break;
+          }
+          j++;
+        }
+        if (!closed && !openQuote) openQuote = q;
+        i = j; continue;
+      }
+      if (ch === "(") depth++;
+      else if (ch === ")") { if (depth > 0) depth--; else extraClose++; }
+      i++;
+    }
+    if (openQuote === "'")
       issues.push({ level: "warn", msg: "Unbalanced single quote — a string literal never closes." });
-    if ((stripped.match(/"/g) || []).length % 2 !== 0)
+    else if (openQuote)
       issues.push({ level: "warn", msg: "Unbalanced double quote — a quoted identifier never closes." });
-    var open = (stripped.match(/\(/g) || []).length, close = (stripped.match(/\)/g) || []).length;
-    if (open !== close)
-      issues.push({ level: "warn", msg: "Unbalanced parentheses — " + open + " opening vs " + close + " closing." });
-    if (!/^\s*(select|with)\b/i.test(sql))
+    if (openComment)
+      issues.push({ level: "warn", msg: "Unclosed /* — the rest of the query is commented out." });
+    if (depth > 0)
+      issues.push({ level: "warn", msg: "Unbalanced parentheses — " + depth + " “(” never closed." });
+    if (extraClose)
+      issues.push({ level: "warn", msg: "Unbalanced parentheses — " + extraClose + " “)” with no “(” before it." });
+    if (opts.expectSelect !== false && !/^[\s(]*(select|with)\b/i.test(sql.replace(/\/\*[\s\S]*?\*\//g, " ").replace(/--[^\n]*/g, " ")))
       issues.push({ level: "warn", msg: "Queries here are reads — expected the statement to start with SELECT or WITH." });
     // Declared columns the query never mentions: only when the query is explicit enough
     // to judge (no SELECT * anywhere) — a bare word-boundary containment check, cheap and
     // dialect-safe. Catches the classic drift where a chip was renamed but the SQL wasn't.
+    var stripped = sql.replace(/'(?:[^']|'')*'/g, "''").replace(/--[^\n]*/g, "");
     if (declaredCols && declaredCols.length && stripped.indexOf("*") < 0) {
       declaredCols.forEach(function (c) {
         if (!c) return;

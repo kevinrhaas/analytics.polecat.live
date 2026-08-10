@@ -54,7 +54,12 @@ if (!entries.length) { console.error("changelog-normalize: no entries found"); p
 const NOW = realNowISO();
 let stamped = 0;
 const canon = entries.map((e) => {
-  const v = typeof e.v === "number" ? e.v : parseInt(String(e.v).replace(/[^0-9]/g, ""), 10) || 0;
+  // `v: null` (or missing) means "assign it below". Do NOT coerce that to 0
+  // here: a fresh entry would silently become version zero and sort under
+  // every release ever shipped.
+  const blank = e.v === null || e.v === undefined || String(e.v).trim() === "";
+  const v = blank ? null
+    : (typeof e.v === "number" ? e.v : parseInt(String(e.v).replace(/[^0-9]/g, ""), 10) || 0);
   const out = { v, title: String(e.title || "") };
   if (e.kind && KINDS.indexOf(e.kind) >= 0) out.kind = e.kind;
   let ts = e.ts;
@@ -63,6 +68,34 @@ const canon = entries.map((e) => {
   out.items = Array.isArray(e.items) ? e.items.map(String) : [];
   return out;
 });
+
+// ── assign versions the author could not know (fleet contract, 2026-08-10) ──
+// Authors write `v: null`; the number is assigned here, after any merge. Two
+// branches that each prepend an entry both compute the same "top + 1" and the
+// second to merge is silently wrong. See polecat-platform docs/SHELL-API.md,
+// plus the `merge=union` half of the fix in .gitattributes.
+//
+// Only the unnumbered run at the TOP is touched, and existing numbers are never
+// changed: Manager keys release rows on `v` and the What's-New "seen" marker
+// compares against it, so renumbering history would re-notify every reader.
+{
+  let head = 0;
+  while (head < canon.length && canon[head].v === null) head++;
+  if (head > 1) {
+    const at = (e) => { const t = Date.parse(e.ts); return isNaN(t) ? 0 : t; };
+    const fresh = canon.slice(0, head).sort((a, b) => (at(b) > at(a) ? 1 : at(b) < at(a) ? -1 : 0));
+    canon.splice(0, head, ...fresh);
+  }
+  let base = (canon[head] && Number(canon[head].v)) || 0;
+  for (let i = head - 1; i >= 0; i--) canon[i].v = ++base;
+  for (let i = 1; i <= head && i < canon.length; i++) {
+    if (!(canon[i - 1].v > canon[i].v)) {
+      console.error(`changelog-normalize: versions not strictly decreasing (v${canon[i - 1].v} `
+        + `then v${canon[i].v}) — refusing to write.`);
+      process.exit(1);
+    }
+  }
+}
 
 // ── lint: reject text the manager's bare-key regex would mangle ──
 // The manager quotes bare object keys with /([{,]\s*)(ident)\s*:/ AFTER requoting

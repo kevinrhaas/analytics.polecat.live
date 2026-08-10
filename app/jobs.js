@@ -925,6 +925,20 @@
           sqlBox.placeholder = "SELECT * FROM t"; sqlBox.value = step.query || "";
           sqlBox.oninput = function () { step.query = sqlBox.value; };
           wrap.appendChild(sqlBox);
+          // N44 slice 2 — the last of the nine SQL surfaces, and the one where the
+          // app knows the most: this step runs against the rows the pipeline has
+          // produced SO FAR, loaded into a DuckDB table named "t", so the completer
+          // is handed exactly the incoming column names (read live, because editing
+          // a step above changes them) and that one table. The hint below has always
+          // described those columns; now you can type them.
+          // N44 slice 3: "t" carries those same columns, so "t." narrows to them —
+          // this is the surface where the app knows the table's shape exactly.
+          if (Studio.SQLEdit) Studio.SQLEdit.attach(sqlBox, {
+            schema: function () {
+              var cols = colsBeforeStep(stepIdx);
+              return { columns: cols, tables: [{ name: "t", columns: cols }] };
+            }
+          });
           var sqlHint = el("small", "cx-hint");
           sqlHint.textContent = "Runs against the pipeline's rows so far, in a DuckDB table named \"t\" (loaded on first use).";
           wrap.appendChild(sqlHint);

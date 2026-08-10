@@ -184,6 +184,49 @@
       return das.some(function (da) { return da.datasetId === dsId; });
     });
   }
+  // N43b — the blast radius as a COUNT, not just a list. dsxLineage above answers
+  // "which dashboards", which is what the catalog row needs; the save guard needs
+  // "how many panels", because "3 panels across 2 dashboards" is the sentence that
+  // makes a warning worth reading. Counts panels (chart.da) AND KPIs (k.da), the
+  // same two places daUsageCount reads inside the builder.
+  // The dashboard OPEN in the builder is included through D.openSpecBindings —
+  // it may never have been saved (N43a's whole point is that this editor is now
+  // reachable from a live canvas), and it is deduped against its own saved row by
+  // spec id so an open-and-saved dashboard is counted once.
+  function dsxBindings(dsId) {
+    var seen = {}, dashboards = 0, panels = 0, names = [];
+    function countSpec(spec, name, id) {
+      var daIds = ((spec && spec.cda && spec.cda.dataAccesses) || [])
+        .filter(function (da) { return da.datasetId === dsId; })
+        .map(function (da) { return da.id; });
+      if (!daIds.length) return;
+      if (id && seen[id]) return;
+      if (id) seen[id] = true;
+      var n = (spec.panels || []).filter(function (p) { return p.chart && daIds.indexOf(p.chart.da) >= 0; }).length +
+        (spec.kpis || []).filter(function (k) { return daIds.indexOf(k.da) >= 0; }).length;
+      dashboards++; panels += n; names.push(name || id || "Untitled dashboard");
+    }
+    var open = D.openSpecBindings ? D.openSpecBindings() : null;
+    if (open) countSpec(open.spec, open.name, open.id);
+    Studio.Workspace.all("dashboards").forEach(function (r) {
+      countSpec(r.spec, r.title || r.name || r.id, r.id);
+    });
+    return { dashboards: dashboards, panels: panels, names: names };
+  }
+  // N43b — what a save actually CHANGES about what runs. Everything the runner
+  // reads (dsxRunnableDef below, plus the connection it runs against), and nothing
+  // else: renaming a dataset, refiling it, retagging it or rewriting its
+  // description cannot break a panel, so those saves must never be questioned.
+  // A file dataset fingerprints its content by length rather than by value — the
+  // content IS the data, so a byte-identical re-drop is not a change worth asking about.
+  function dsxDefFingerprint(x) {
+    if (!x) return "";
+    return JSON.stringify([
+      x.connectionId || "", x.kind || "sql", x.sql || "", x.query || "", x.table || "",
+      x.sheet || "", x.collection || "", x.fileName || "", (x.content || "").length,
+      (x.params || []).map(function (p) { return [p.key || "", p.value || ""]; })
+    ]);
+  }
   // What a dataset's definition looks like for a given adapter: SQL for the
   // sql-family, a table+query for Supabase (PostgREST), a collection for
   // Firestore. One place so the editor + runner + library agree.
@@ -595,6 +638,32 @@
       }).join("");
       var defWrap = el("div"); form.appendChild(defWrap);
       var defInputs = {};
+      // N44 slice 1 — what the SQL field's completer knows about. Three
+      // sources, all of them things the app already has and none of them
+      // fetched for this purpose: the columns a Preview actually returned
+      // (the most trustworthy, because they came back from the query), the
+      // columns/tables "Browse schema" already loaded, and the dataset's own
+      // declared parameters. Read live through a function, so a Preview run
+      // after the field was built still teaches it.
+      var previewCols = [], schemaTables = [];
+      function sqlSchema() {
+        var cols = previewCols.slice();
+        (schemaTables || []).slice(0, 40).forEach(function (t) {
+          (t.columns || []).forEach(function (c) { if (cols.length < 400) cols.push(c); });
+        });
+        if (!cols.length && Array.isArray(d.columns)) cols = d.columns.slice();
+        return {
+          columns: cols,
+          // N44 slice 3: each table keeps its own columns as well as contributing
+          // to the flat list, which is what lets "orders." (and "o." via the
+          // query's own FROM alias) narrow to that one table.
+          tables: (schemaTables || []).map(function (t) {
+            return { name: t.schema && t.schema !== "public" ? t.schema + "." + t.name : t.name,
+              schema: t.schema || "", columns: t.columns || [] };
+          }),
+          params: (d.params || []).map(function (p) { return p.key; }).filter(Boolean)
+        };
+      }
       function renderDefFields() {
         defWrap.innerHTML = ""; defInputs = {};
         var conn = Studio.Workspace.get("connections", connSel.value);
@@ -620,6 +689,7 @@
             schemaPanel.innerHTML = '<div class="cx-schema-status">Loading…</div>';
             adapter.listSchema(conn.cfg || {}).then(function (r) {
               schemaBtn.disabled = false; schemaBtn.textContent = "Browse schema";
+              schemaTables = (r && r.tables) || [];   // N44: the same load also feeds the SQL completer
               Studio.Connections.renderSchemaPanel(schemaPanel, r, function (pickedKind, name, schemaName) {
                 if (kind === "table") {
                   if (!defInputs.table) return;
@@ -646,6 +716,11 @@
           row.appendChild(inp);
           if (hint) { var h = el("small", "cx-hint"); h.textContent = hint; row.appendChild(h); }
           defWrap.appendChild(row); defInputs[key] = inp;
+          // N44 slice 1 — the app's one SQL editor, adopted at its busiest
+          // surface first. attach() enhances the SAME element in place, so the
+          // save loop's defInputs[key].value, the schema browser's
+          // insertAtCursor and every existing test hook are untouched.
+          if (multiline && key === "sql" && Studio.SQLEdit) Studio.SQLEdit.attach(inp, { schema: sqlSchema });
         }
         if (kind === "table") {
           defField("Table", "table", false, "orders", "The exposed table or view (RLS/grants govern access).");
@@ -750,10 +825,20 @@
       b.appendChild(form);
       var result = el("div", "cx-test-result"); b.appendChild(result);
       var preview = el("div", "dsx-preview"); b.appendChild(preview);
+      var guard = el("div", "dsx-save-guard"); guard.hidden = true;
+      guard.setAttribute("role", "alert"); guard.tabIndex = -1;
+      b.appendChild(guard);
       var foot = el("div", "cx-wiz-foot");
       var runBtn = el("button", "btn"); runBtn.type = "button"; runBtn.textContent = "Preview";
       var saveBtn = el("button", "btn primary"); saveBtn.type = "button"; saveBtn.textContent = existing ? "Save changes" : "Add dataset";
       foot.appendChild(runBtn); foot.appendChild(saveBtn); b.appendChild(foot);
+      // N43b — what "test" means for a dataset a dashboard is already bound to.
+      // The definition this editor OPENED with; a save that leaves it untouched
+      // cannot break anything downstream and is never questioned.
+      var openedDef = existing ? dsxDefFingerprint(existing) : "";
+      var provenDef = "";   // the definition the last SUCCESSFUL Preview actually ran
+      var failedDef = "";   // …and the one the last FAILED Preview ran
+      var lastError = "";
       function collect() {
         d.name = nameInp.value.trim();
         d.desc = descInp.value.trim();
@@ -766,30 +851,106 @@
         d.owner = ownerInp.value.trim();
         return d;
       }
-      runBtn.onclick = function () {
+      // The Preview, factored out so the save guard can offer it as one tap
+      // ("Preview, then save") instead of telling the user to go and press it.
+      function runPreview(then) {
         collect();
+        var ran = dsxDefFingerprint(d);
+        guard.hidden = true; guard.innerHTML = "";
         runBtn.disabled = true; runBtn.textContent = "Running…";
         result.className = "cx-test-result"; result.textContent = ""; preview.innerHTML = "";
         runDataset(d).then(function (r) {
           runBtn.disabled = false; runBtn.textContent = "Preview";
-          if (r.error) { result.className = "cx-test-result bad"; result.textContent = "✕ " + r.error; return; }
+          if (r.error) {
+            failedDef = ran; lastError = r.error; if (provenDef === ran) provenDef = "";
+            result.className = "cx-test-result bad"; result.textContent = "✕ " + r.error;
+            if (then) then(false);
+            return;
+          }
+          provenDef = ran; if (failedDef === ran) { failedDef = ""; lastError = ""; }
+          previewCols = (r.columns || []).slice();   // N44: a green Preview is the best column list there is
           result.className = "cx-test-result ok"; result.textContent = "✓ " + r.rows.length + " rows · " + r.columns.length + " columns";
           var head = "<tr>" + r.columns.map(function (c) { return "<th>" + esc(c) + "</th>"; }).join("") + "</tr>";
           var body = r.rows.slice(0, 8).map(function (row) {
             return "<tr>" + row.map(function (v) { return "<td>" + esc(v == null ? "" : String(v)) + "</td>"; }).join("") + "</tr>";
           }).join("");
           preview.innerHTML = "<table>" + head + body + "</table>";
+          if (then) then(true);
         });
-      };
-      saveBtn.onclick = function () {
-        collect();
-        if (!d.name) { nameInp.focus(); result.className = "cx-test-result bad"; result.textContent = "Give the dataset a name first."; return; }
-        if (!d.connectionId) { connSel.focus(); result.className = "cx-test-result bad"; result.textContent = "Pick the connection this dataset runs against."; return; }
+      }
+      runBtn.onclick = function () { runPreview(null); };
+      function commitSave() {
         if (!existing) { var newUid = currentUserId(); if (newUid) d.acctOwner = newUid; }
         Studio.Workspace.put("datasets", d);
         toast(existing ? "Saved " + d.name : "Added " + d.name);
         document.querySelector(".modal-ov .x").click();
         if (onSaved) onSaved(d);
+      }
+      // N43b — a save that could break a panel says so BEFORE it lands, not after.
+      // Deliberately a warn-and-confirm rather than a block: this app is local-first
+      // and the user is the authority, and there are honest reasons to save SQL you
+      // cannot run right now (no credentials in this browser, a connector that is
+      // down). What it refuses to be is SILENT — before N43a this editor was reached
+      // from the Datasets catalog, where you at least chose to go there; it is now
+      // reachable from a canvas, where the person editing may have no idea what else
+      // reads this dataset. This is the one moment the app knows both facts at once.
+      // It fires only when all three are true: the definition CHANGED, something is
+      // bound to it, and what is being saved was never proven to run.
+      function showGuard() {
+        var bound = dsxBindings(d.id);
+        guard.innerHTML = "";
+        var head = el("div", "dsx-guard-head");
+        head.appendChild(Studio.icon("warn", 14));
+        var why = failedDef === dsxDefFingerprint(d)
+          ? "The last Preview of this query failed: " + lastError
+          : (provenDef ? "This query has changed since the Preview that ran." : "This query has not been run here.");
+        head.appendChild(document.createTextNode(" " + why));
+        guard.appendChild(head);
+        var who = el("div", "dsx-guard-who");
+        var dashes = bound.dashboards + (bound.dashboards === 1 ? " dashboard" : " dashboards");
+        var named = bound.names.slice(0, 3).join(", ") +
+          (bound.names.length > 3 ? " and " + (bound.names.length - 3) + " more" : "");
+        // A dataset can be in a dashboard's data pane without anything on the canvas
+        // drawing it yet — say which of the two it is rather than "0 panels".
+        who.textContent = bound.panels
+          ? bound.panels + (bound.panels === 1 ? " panel" : " panels") + " in " + dashes + " read this dataset — " + named + "."
+          : dashes + " hold this dataset, with nothing drawn from it yet — " + named + ".";
+        guard.appendChild(who);
+        var acts = el("div", "dsx-guard-acts");
+        var tryBtn = el("button", "btn primary"); tryBtn.type = "button";
+        tryBtn.setAttribute("data-dsx-guard", "preview");
+        tryBtn.textContent = "Preview, then save";
+        tryBtn.onclick = function () { runPreview(function (okRun) { if (okRun) commitSave(); else showGuard(); }); };
+        var anyway = el("button", "btn"); anyway.type = "button";
+        anyway.setAttribute("data-dsx-guard", "anyway");
+        anyway.textContent = "Save anyway";
+        anyway.onclick = function () { guard.hidden = true; commitSave(); };
+        var back = el("button", "btn"); back.type = "button";
+        back.setAttribute("data-dsx-guard", "edit");
+        back.textContent = "Keep editing";
+        back.onclick = function () {
+          guard.hidden = true; guard.innerHTML = "";
+          var box = defInputs.sql || defInputs.query || defInputs.table || defInputs.collection || defInputs.sheet;
+          if (box) box.focus();
+        };
+        acts.appendChild(tryBtn); acts.appendChild(anyway); acts.appendChild(back);
+        guard.appendChild(acts);
+        guard.hidden = false;
+        // This editor is a tall scrolling form and the guard sits at its foot: measured
+        // at 390×780 it rendered entirely below the fold, so pressing Save looked like
+        // pressing nothing. Scroll it in and take focus — role="alert" + focus is also
+        // what announces it to a screen reader, which is the same problem in another form.
+        if (guard.scrollIntoView) guard.scrollIntoView({ block: "nearest" });
+        guard.focus();
+      }
+      saveBtn.onclick = function () {
+        collect();
+        if (!d.name) { nameInp.focus(); result.className = "cx-test-result bad"; result.textContent = "Give the dataset a name first."; return; }
+        if (!d.connectionId) { connSel.focus(); result.className = "cx-test-result bad"; result.textContent = "Pick the connection this dataset runs against."; return; }
+        var now = dsxDefFingerprint(d);
+        if (existing && now !== openedDef && now !== provenDef && dsxBindings(d.id).dashboards > 0) { showGuard(); return; }
+        guard.hidden = true;
+        commitSave();
       };
       nameInp.focus();
     }, function () { renderDatasets(); }, true);
@@ -802,6 +963,8 @@
     togglePrivate: toggleDsxPrivate,
     connOf: dsxConnOf,
     adapterOf: dsxAdapterOf,
-    runnableDef: dsxRunnableDef
+    runnableDef: dsxRunnableDef,
+    bindings: dsxBindings,             // N43b — the save guard's blast radius (and its tests)
+    defFingerprint: dsxDefFingerprint  // N43b — what a save changes about what RUNS
   };
 })();

@@ -324,6 +324,10 @@
         sigv4: r[16], redshift: r[17], icons: r[18]
       };
       S.examples = r[19] || [];
+      // N39: a default-installed examples pack has no install click to hang its
+      // materialization off, so boot is where it has to happen. Fire-and-forget — the
+      // Workspace change hooks below repaint Home/Dashboards when the rows land.
+      try { seedDefaultPackExamples(); } catch (e) { /* never block boot on sample content */ }
       wireTopbar();
       try { renderFooter(); } catch (e) { /* footer is non-critical chrome */ }
       setupPanes();
@@ -837,24 +841,26 @@
   }
 
   /* ---------- query library ---------- */
-  // Sample-content visibility (user ask: "I might want to start with an empty
-  // repository"): one pref hides the built-in demo content everywhere it
-  // surfaces — the Sample packs library group, New ▾ auto-build sets, and
-  // Home's example gallery. Nothing is deleted; flip it back and the full demo
-  // suite (which shows the app's feature breadth against the internal sample
-  // database) reinstates itself. (LF65: the legacy "Samples" library group is
-  // gone — packs are the one source of sample content in the Data panel.)
-  function showSamples() {
-    var v; try { v = localStorage.getItem("studio-show-samples"); } catch (e) {}
-    return v !== "0";
+  // N32 (Kevin, 2026-08-09: "I don't think this mode should be here any more… that should
+  // all be fully handled by the sample packs"): the global "Sample content" mask — one pref
+  // (`studio-show-samples`) that hid the demo suite everywhere at once — is RETIRED. It was a
+  // second system governing what the pack registry already models per pack, and the two could
+  // contradict each other (a pack installed, and hidden). Sample content is now exactly what
+  // the installed packs contain, which is the empty workspace the pref was asked for: remove
+  // the packs and there is nothing sample-shaped left. Nothing is uninstalled on anyone's
+  // behalf — the mask is gone, pack state is untouched — and `studio-show-samples` stays on
+  // CLEAR_DATA_KEYS so an old copy of the retired pref is still swept off disk.
+  // Where the mask used to gate, real pack state does now: Home's sample-dashboard card and
+  // gallery read visibleExamples() (every gallery entry declares its demoPackId — LF2), and
+  // the raw demo-DB catalog tables follow the pack that OWNS them, in all three places they
+  // surface (Explore's picker, the View Builder outline, and the New ▾ starter sets).
+  // SP-0: ask the registry WHICH pack owns them (`catalogSamples`) rather than naming one.
+  function catalogSamplesInstalled() {
+    return !!(Studio.demoPacksWith && Studio.demoPacksWith("catalogSamples").some(function (id) {
+      return Studio.demoPackInstalled(id);
+    }));
   }
-  function setShowSamples(on) {
-    try { localStorage.setItem("studio-show-samples", on ? "1" : "0"); } catch (e) {}
-    // Viridis V7: the Demo packs Settings card is also gated on showSamples(),
-    // so it needs the same re-render the other three sample-gated surfaces get.
-    buildLibrary(); renderHome(); buildNewMenu(); renderSettings(); renderExplore();
-  }
-  window.__studioShowSamples = { get: showSamples, set: setShowSamples }; // test hook
+  window.__studioCatalogSamplesInstalled = catalogSamplesInstalled; // test hook
   // #114: the "Restore unsaved work" banner is opt-in — off by default (Kevin found it
   // distracting). Autosave still runs in the background, so turning this on makes the most
   // recent unsaved edit recoverable on the next visit; off means the banner never appears.
@@ -987,15 +993,8 @@
       sWrap.appendChild(sBox);
       list.appendChild(sWrap);
     }
-    if (!showSamples()) {
-      // Sample packs are hidden along with the rest of the sample content (see
-      // buildDemoPacksLib's early return) — leave a way back.
-      var off = el("div", "lib-samples-off");
-      off.innerHTML = 'Sample content is hidden. <button type="button" class="lib-samples-show" id="libSamplesShow">Show samples</button>';
-      list.appendChild(off);
-      var showBtn = $("#libSamplesShow", list);
-      if (showBtn) showBtn.onclick = function () { setShowSamples(true); toast("Sample content restored"); };
-    }
+    // N32: the "Sample content is hidden — show samples" strip is gone with the mask that
+    // produced it. There is no hidden state to offer a way back from any more.
     // "Analyses" (saved Quick Views results), then "Workspace datasets" (the shared
     // connections → datasets catalog), then "This dashboard's datasets" — all
     // pinned over the authored queries (each insertBefore stacks above the previous).
@@ -1012,10 +1011,10 @@
 
   // ---------- Demo packs (Viridis V7) — a SECOND sample library, separate
   // from the CDA catalog, of one-click install/remove pitch-specific content
-  // (see app/demopacks.js). Hide-samples aware: nests under the same
-  // showSamples() toggle as the CDA "Samples" group above it. ----------
+  // (see app/demopacks.js). Unwired since DECLUTTER-1 (Settings' pack cards are
+  // the one install/remove surface); N32 removed its showSamples() gate along
+  // with the mask itself. ----------
   function buildDemoPacksLib(list) {
-    if (!showSamples()) return;
     var packs = (Studio.DEMO_PACKS || {});
     var keys = Object.keys(packs);
     if (!keys.length) return;
@@ -1069,14 +1068,18 @@
       var snap = Studio.removeDemoPack(id);
       Studio.undoToast("Sample pack removed.", function () {
         if (Studio.restoreDemoPack(snap) < 1) toast("Sample pack restored");
-        buildLibrary(); renderSettings(); renderHome();
+        buildLibrary(); renderSettings(); renderHome(); buildNewMenu(); renderExplore();
       });
     } else {
       Studio.installDemoPack(id);
       ensurePackExamplesMaterialized(id);
       toast("Sample pack installed — see its dashboards in Dashboards");
     }
-    buildLibrary(); renderSettings(); renderHome();
+    // N32: the New ▾ auto-build starter sets and Explore's dataset picker both follow the
+    // pack that owns the demo-DB catalog tables now, so they repaint with the other three
+    // pack-state surfaces. Explore's immediate repaint is the property the retired
+    // setShowSamples() used to provide (and the suite still holds it).
+    buildLibrary(); renderSettings(); renderHome(); buildNewMenu(); renderExplore();
   }
   window.__studioToggleDemoPack = toggleDemoPack; // test hook
 
@@ -1116,6 +1119,33 @@
     }));
   }
   window.__studioEnsurePackExamplesMaterialized = ensurePackExamplesMaterialized; // test hook
+
+  // N39 (Kevin live, 2026-08-09 — fresh incognito): `datamanagement` is in
+  // DEFAULT_INSTALLED, so a brand-new workspace has it INSTALLED without anyone ever
+  // clicking Install — and the only two callers of ensurePackExamplesMaterialized were the
+  // install click and the provisioning path. Nothing ran at boot, so a fresh workspace
+  // showed a pack that says "12 showcase dashboards" over a Dashboards list holding one
+  // self-registered boot spec. Measured before the fix: 0 of 12 materialized on first boot
+  // AND on every reload after it; an uninstall + reinstall was the only way to get them.
+  // Seeded ONCE per workspace, guarded by a meta stamp, for the same reason
+  // migrateDashboardCatalog() carries one: re-running it every boot would resurrect a
+  // showcase dashboard the user had deliberately deleted, and absence is not deletion
+  // (N17 / DUR). Uninstalling the pack still sweeps its rows; reinstalling still
+  // re-materializes them through the install path, which is unchanged.
+  function seedDefaultPackExamples() {
+    var W = Studio.Workspace;
+    var ids = Object.keys(Studio.DEMO_PACKS || {}).filter(function (id) {
+      return Studio.DEMO_PACKS[id].kind === "examples" && Studio.demoPackInstalled(id) &&
+        !W.meta()["packExamplesSeeded_" + id];
+    });
+    if (!ids.length) return Promise.resolve();
+    return Promise.all(ids.map(function (id) {
+      return ensurePackExamplesMaterialized(id).then(function () {
+        W.setMeta("packExamplesSeeded_" + id, new Date().toISOString());
+      });
+    }));
+  }
+  window.__studioSeedDefaultPackExamples = seedDefaultPackExamples; // test hook
 
   // One-pass boot reconcile for workspaces materialized BEFORE the rename:
   // strip the legacy shared prefix off pack rows and backfill the pack folder,
@@ -1248,6 +1278,7 @@
   }
   function wsDatasetCard(ds, q) {
     var c = el("div", "da");
+    c.setAttribute("data-ws-ds", ds.id); // N42: so the selection ring can find this card again
     c.draggable = true;
     var conn = Studio.Workspace.get("connections", ds.connectionId);
     var src = conn && Studio.sourceById(conn.adapter);
@@ -1266,6 +1297,7 @@
       e.dataTransfer.setData("text/plain", JSON.stringify({ wsDataset: ds.id }));
       e.dataTransfer.effectAllowed = "copy";
     });
+    if (selectedWsDatasetId() === ds.id) c.classList.add("da-mine-sel");
     return c;
   }
   // Import a workspace dataset into the spec as a self-contained data access
@@ -1294,6 +1326,34 @@
     da.authored = true;
     return da;
   }
+  // N43 slice 1 — push a workspace-dataset edit back into the spec's own copy.
+  // dsToDA above deliberately COPIES the query into the spec so an export keeps
+  // working after the workspace row is deleted; the price is that editing the
+  // dataset left every dashboard built from it still showing — and sampling —
+  // the query it was imported with. (The live "Run live" path already resolved
+  // the row fresh, see runLive; it was everything ELSE — the Query preview, the
+  // detected columns, the exported runtime — that stayed stale.)
+  // Deliberately NOT synced: `da.id`, which every panel/kpi/filter references,
+  // and `da.name`, the label authored onto the canvas. Renaming a dataset must
+  // not silently rewrite a dashboard's labels or break its references.
+  // Columns are only replaced when the dataset actually knows some, so a save
+  // made without a Preview (columns unknown) keeps the shelves it had.
+  function syncDAFromDataset(da, ds) {
+    if (!da || !ds) return { changed: false, removedColumns: [] };
+    var fresh = dsToDA(ds, null); // the exact conversion the import uses, so the two can't drift
+    var removed = fresh.columns.length
+      ? (da.columns || []).filter(function (c) { return fresh.columns.indexOf(c) < 0; })
+      : [];
+    var changed = false;
+    ["sql", "query", "params", "dataset", "connectionId", "kind"].forEach(function (k) {
+      if (JSON.stringify(da[k]) !== JSON.stringify(fresh[k])) { da[k] = fresh[k]; changed = true; }
+    });
+    if (fresh.columns.length && JSON.stringify(da.columns || []) !== JSON.stringify(fresh.columns)) {
+      da.columns = fresh.columns; changed = true;
+    }
+    return { changed: changed, removedColumns: removed };
+  }
+  Studio.syncDAFromDataset = syncDAFromDataset;
   function specDAFromDataset(ds) {
     var existing = (S.spec.cda.dataAccesses || []).filter(function (x) { return x.datasetId === ds.id; })[0];
     if (existing) return existing;
@@ -1383,7 +1443,7 @@
     defaultDashboardTheme: function () { return defaultDashboardTheme(); },
     postThemeOnLoad: function (ifr) { postThemeOnLoad(ifr); },
     ensureGeoAssets: function (spec) { return ensureGeoAssets(spec); },
-    showSamples: function () { return showSamples(); },
+    catalogSamplesInstalled: function () { return catalogSamplesInstalled(); },
     currentUserId: function () { return currentUserId(); },
     themedChartSvg: function (svg, type) { return themedChartSvg(svg, type); },
     hlq: function (text, q) { return hlq(text, q); },
@@ -1447,6 +1507,7 @@
   // table folds into "+N" instead of stretching the card into a wall.
   function myDACard(da) {
     var c = el("div", "da da-mine");
+    c.setAttribute("data-da-id", da.id); // N42: so the selection ring can find this card again
     var isCompound = Studio.isCompoundDA(da);
     var shortKind = isCompound ? (da.compoundType === "union" ? "UNION" : "JOIN") : ((da.kind || "sql").split(".")[0]).toUpperCase();
 
@@ -1503,7 +1564,7 @@
       var freshEl = el("div", "da-mine-fresh"); freshEl.textContent = daFreshnessLabel(da.id);
       c.appendChild(freshEl);
     }
-    if (S.selection && S.selection.kind === "da" && S.selection.id === da.id) c.classList.add("da-mine-sel");
+    if (selectedDaId() === da.id) c.classList.add("da-mine-sel");
     return c;
   }
 
@@ -1760,22 +1821,54 @@
       var qSection = el("div", "dsb-qsec");
       wrap.appendChild(qSection);
 
-      // LF63 slice 3 — live SQL sanity hints (Studio.sqlLint): a passive warning strip
-      // under the query editor that re-checks on every keystroke and whenever the
-      // declared-columns chips change. Deliberately shape/balance checks only — the
-      // Preview/Test buttons stay the real "does it actually run" verification.
-      var lintBox = el("div", "dsb-lint"); lintBox.hidden = true;
-      wrap.appendChild(lintBox);
-      function runLint() {
-        var issues = Studio.sqlLint(draft.query, draft.columns);
-        lintBox.hidden = !issues.length;
-        lintBox.innerHTML = issues.map(function (i) {
-          return '<div class="dsb-lint-row">' + esc(i.msg) + "</div>";
-        }).join("");
+      // LF63 slice 3 shipped these findings as a separate `.dsb-lint` strip under the
+      // query editor. N44 slice 2 adopts app/sqledit.js on this builder's query boxes,
+      // and that component renders the SAME Studio.sqlLint findings on its own status
+      // line directly under the field — so the strip is REMOVED rather than stacked on
+      // a second copy of itself. Unchanged: the findings, their wording, the
+      // declared-columns drift check, and that they re-run on every keystroke (the
+      // editor's own input handler) AND whenever the column chips change (renderCols
+      // still calls runLint, which now just repaints the editor).
+      var curSql = null;                       // the editor attached to the kind on screen
+      function runLint() { if (curSql) curSql.refresh(); }
+
+      // N44 slice 2 — what this builder's completer knows about. The same three
+      // sources the dataset editor's field uses, read live through a function and
+      // none of them fetched for completion: the declared column chips (which
+      // "Detect from query" and every adapter's Test-connection button already
+      // fill in), whatever "Browse schema" has loaded this session, and the query's
+      // own declared parameters. A brand-new source with nothing tested and nothing
+      // browsed therefore offers keywords and functions and invents nothing —
+      // these boxes run BEFORE a connection is saved, so that is the honest floor.
+      var dsbTables = [];
+      function dsbSchema() {
+        var cols = draft.columns.slice();
+        dsbTables.slice(0, 40).forEach(function (t) {
+          (t.columns || []).forEach(function (c) { if (cols.length < 400) cols.push(c); });
+        });
+        // N44 slice 3: the table's OWN columns ride along, so "orders." resolves to
+        // orders rather than to the flattened union above. Only the browsed tables
+        // can carry them — the two engine-named tables added below are real names
+        // with no column list, and a table that cannot say what it holds correctly
+        // offers nothing after its dot instead of guessing.
+        var tables = dsbTables.map(function (t) {
+          return { name: t.schema && t.schema !== "public" ? t.schema + "." + t.name : t.name,
+            schema: t.schema || "", columns: t.columns || [] };
+        });
+        function addTable(name) {
+          if (!name) return;
+          for (var i = 0; i < tables.length; i++) if (tables[i].name === name) return;
+          tables.push({ name: name });
+        }
+        // the two in-browser engines name their own table: DuckDB aliases the file as
+        // "t" (the field's label says so), and SQLite-WASM opens the detected table.
+        if (draft.kind === "duckdb") addTable("t");
+        addTable(draft.tableName);
+        return {
+          columns: cols, tables: tables,
+          params: draft.params.map(function (p) { return p.name; }).filter(Boolean)
+        };
       }
-      qSection.addEventListener("input", function (e) {
-        if (e.target && e.target.classList && e.target.classList.contains("dsb-query")) runLint();
-      });
 
       // 4 — columns (detect + edit chips)
       var colsBox = el("div", "dsb-chips");
@@ -1888,6 +1981,7 @@
           panel.innerHTML = '<div class="cx-schema-status">Loading schema…</div>';
           adapter.listSchema(getCfg()).then(function (r) {
             btn.disabled = false;
+            dsbTables = (r && r.tables) || [];   // N44 slice 2: the same load also feeds the SQL completer
             Studio.Connections.renderSchemaPanel(panel, r, function (pickedKind, name, schemaName) {
               var ta = getTa(); if (!ta) return;
               var text = pickedKind === "table" && schemaName && schemaName !== "public" ? schemaName + "." + name : name;
@@ -2490,6 +2584,19 @@
           qSection.appendChild(renderSQLBuilder(qTa));
           detectBtn.style.display = "";
         }
+        // N44 slice 2 — the seven per-adapter query boxes above are all the SAME
+        // editor the dataset editor got in slice 1, adopted in ONE place rather
+        // than seven. attach() enhances the textarea in place, so each branch keeps
+        // its own oninput (which is what writes draft.query), its placeholder, the
+        // date-token and Browse-schema insert buttons, the SQL Builder's generated
+        // SELECT — and every test that queries ".dsb-query". The adapter branches
+        // deliberately learn nothing about the editor.
+        curSql = null;
+        if (Studio.SQLEdit) {
+          $$(".dsb-query", qSection).forEach(function (ta) {
+            curSql = Studio.SQLEdit.attach(ta, { schema: dsbSchema, declaredColumns: draft.columns });
+          });
+        }
       }
       function syncType() { renderQSection(); }
       b.appendChild(wrap); renderQSection(); renderCols(); renderParams(); renderCalcCols(); renderPreview();
@@ -2543,8 +2650,62 @@
   }
 
   /* ---------- selection + inspector ---------- */
-  function select(sel) { S.selection = sel; renderInspector(); highlightPreview(); }
-  function selectDashboard() { S.selection = null; renderInspector(); highlightPreview(); }
+  function select(sel) { S.selection = sel; renderInspector(); highlightPreview(); highlightLibrarySelection(true); }
+  function selectDashboard() { S.selection = null; renderInspector(); highlightPreview(); highlightLibrarySelection(false); }
+
+  // N42 (Kevin, 2026-08-09): "if you select a panel you should see the dataset
+  // selected/highlighted on the left for the panel… so you can tell which one from the
+  // list." The binding was always there — a panel names its data access in chart.da and
+  // a KPI in k.da — the Data pane just never asked. This is the single answer used by
+  // BOTH the build-time class (myDACard / wsDatasetCard) and the live repaint below, so
+  // a card rebuilt mid-session can't disagree with one that was already on screen.
+  function selectedDaId() {
+    var sel = S.selection; if (!sel) return null;
+    if (sel.kind === "da") return sel.id || null;
+    if (sel.kind === "panel") { var p = panelById(sel.id); return (p && p.chart && p.chart.da) || null; }
+    if (sel.kind === "kpi") { var k = (S.spec.kpis || [])[sel.index]; return (k && k.da) || null; }
+    return null; // header/filter — and a rich-text panel has no da, so nothing lights up
+  }
+  // The workspace dataset a spec data access was imported FROM (dsToDA keeps the link via
+  // datasetId), so the shared "Datasets" group answers the same question as the
+  // dashboard's own copy rather than staying dark next to it.
+  function selectedWsDatasetId() {
+    var daId = selectedDaId(); if (!daId) return null;
+    var da = Studio.daById(S.spec, daId);
+    return (da && da.datasetId) || null;
+  }
+  // Repaint only the Data pane's selection ring. buildLibrary() would also do it, but it
+  // rebuilds the entire pane — discarding scroll position, the search box's place and
+  // every group's open state — and selection changes on every click in the canvas.
+  function highlightLibrarySelection(scroll) {
+    var list = $("#libList"); if (!list) return;
+    var daId = selectedDaId(), dsId = selectedWsDatasetId(), hit = null;
+    $$("[data-da-id],[data-ws-ds]", list).forEach(function (c) {
+      var on = (!!daId && c.getAttribute("data-da-id") === daId) ||
+               (!!dsId && c.getAttribute("data-ws-ds") === dsId);
+      c.classList.toggle("da-mine-sel", on);
+      if (on && !hit) hit = c;
+    });
+    if (scroll && hit) revealLibCard(hit);
+  }
+  // A highlight you cannot see is half an answer: the card's group may be collapsed and
+  // the pane scrolls. Open the ancestor groups WITHOUT persisting them (this is a peek
+  // driven by the canvas, not the user's own collapse choice, so their layout comes back
+  // on the next rebuild), and scroll only when the card is genuinely out of view — so
+  // clicking from panel to panel never yanks the pane around for no reason.
+  function revealLibCard(card) {
+    var grp = card.closest(".lib-mine, .lib-cda, .lib-samples");
+    while (grp) {
+      grp.classList.add("open");
+      grp = grp.parentElement ? grp.parentElement.closest(".lib-mine, .lib-cda, .lib-samples") : null;
+    }
+    var list = $("#libList");
+    var cr = card.getBoundingClientRect(), lr = list.getBoundingClientRect();
+    if (!cr.height && !cr.width) return; // still hidden (pane closed) — nothing to scroll to
+    if (cr.top < lr.top || cr.bottom > lr.bottom) {
+      list.scrollTop += (cr.top - lr.top) - Math.max(0, (lr.height - cr.height) / 2);
+    }
+  }
 
   function renderInspector() {
     var body = $("#inspBody"); body.innerHTML = "";
@@ -4289,6 +4450,42 @@
       }
       peek.appendChild(sqlWrap);
     }
+    // N43 slice 1 — the way OUT of "I can see the query is wrong and can't get to it".
+    // Until now this section was read-only: the only route to the SQL behind a panel was
+    // to leave the dashboard, find the dataset in the Datasets catalog and open it there.
+    // Reuse THE shared dataset editor (Studio.Datasets.openEditor) rather than growing a
+    // second SQL surface — it already has Preview → rows → Save, which is the whole loop
+    // being asked for, and the View Builder's own dataset pane opens it the same way.
+    // Only offered when the DA is genuinely LINKED to a workspace row that still exists:
+    // an authored/pack DA carries its rows inline and has no dataset to edit, and the app's
+    // rule is "capability absent → the UI hides it" rather than a button that apologises.
+    var wsDs = da.datasetId ? Studio.Workspace.get("datasets", da.datasetId) : null;
+    if (wsDs) {
+      var editWrap = el("div", "edit-src-link");
+      var editBtn = el("button", "edit-src-btn qpeek-edit"); editBtn.type = "button";
+      editBtn.setAttribute("data-qpeek-edit", da.id);
+      editBtn.appendChild(Studio.icon("edit", 12));
+      editBtn.appendChild(document.createTextNode(sql ? " Edit this query" : " Edit this dataset"));
+      editBtn.title = "Open “" + (wsDs.name || wsDs.id) + "” in the dataset editor — change it, Preview the rows, save. Your dashboard stays open behind it.";
+      editBtn.onclick = function () {
+        // Re-resolve at click time: the row can be deleted while the inspector sits open.
+        var row = Studio.Workspace.get("datasets", da.datasetId);
+        if (!row) { toast("“" + (wsDs.name || wsDs.id) + "” is no longer in this workspace.", true); return; }
+        openDatasetEditor(row, function (saved) {
+          var r = syncDAFromDataset(da, saved);
+          if (r.changed) daCacheClear(da.id);
+          refreshPreview(); renderInspector(); buildLibrary();
+          // A successful save can still drop a column a shelf is mapped to — say so by
+          // name rather than letting the panel quietly render an empty axis.
+          if (r.removedColumns.length) {
+            toast("Saved — but this query no longer returns " + r.removedColumns.join(", ") +
+              ". Check the panels mapped to it.", true);
+          }
+        });
+      };
+      editWrap.appendChild(editBtn);
+      peek.appendChild(editWrap);
+    }
     // sample data table
     var sd = Studio.sampleRows(da);
     if (sd.rows.length) {
@@ -5106,6 +5303,13 @@
   }
   function daCacheSet(da, paramVals, result) {
     _daLiveCache[daCacheKey(da, paramVals)] = { ts: Date.now(), result: result };
+  }
+  // N43 slice 1: the cache is keyed by DA id + params, NOT by the query text, so
+  // editing a dataset's SQL would otherwise keep serving the rows the old query
+  // returned for its whole cache duration. Drop every entry for that DA instead.
+  function daCacheClear(daId) {
+    var pre = daId + "|";
+    Object.keys(_daLiveCache).forEach(function (k) { if (k.indexOf(pre) === 0) delete _daLiveCache[k]; });
   }
 
   function renderDAPreview(body, da) {
@@ -6241,7 +6445,11 @@
       { act: "connection", ic: "link", t: "New connection", d: "Create a connection to your own data" },
       { act: "dataset", ic: "db", t: "New dataset", d: "Build datasets from an existing connection" },
       { act: "quickimport", ic: "upload", t: "Quick import", d: "Drop a CSV or JSON file to build a dashboard instantly" }
-    ].concat(showSamples() ? [{ act: "examples", ic: "grid", t: "Sample dashboards", d: "Curated dashboards from your installed sample packs" }] : [])
+      // N32: offered when there is something to open — i.e. when an installed pack actually
+      // contributes gallery cards (the card's own copy already says "from your installed
+      // sample packs"). It used to ride the global Sample-content mask, which meant a
+      // workspace with every pack removed still advertised a section with nothing in it.
+    ].concat(visibleExamples().length ? [{ act: "examples", ic: "grid", t: "Sample dashboards", d: "Curated dashboards from your installed sample packs" }] : [])
       .concat([{ act: "tour", ic: "play", t: "Take the tour", d: "Guided walkthrough of the builder" }])
       // LF44: "blank"/"quickimport"/"examples"/"tour" all route through enterStudio()
       // (Quick import via quickBuildDashboard) — a viewer-role account can't ever enter
@@ -6350,7 +6558,8 @@
         // quick-action cards above.
         if (!currentUserCanDevelop()) return "";
         var vis = visibleExamples();
-        if (!showSamples() || !vis.length) return "";
+        // N32: pack state is the only gate now — no cards, no section.
+        if (!vis.length) return "";
         function exCardHtml(e) {
           var types = (e.types || []).slice(0, 3).map(function (t) { return '<span class="ex-chip">' + esc(t) + '</span>'; }).join("");
           return '<button type="button" class="home-ex-card" data-home-example="' + esc(e.file) + '">' +
@@ -7329,7 +7538,17 @@
     isDatasetVisibleToMe: function (r) { return isDatasetVisibleToMe(r); },
     makeViewsStore: function (settingsKey) { return makeViewsStore(settingsKey); },
     makePinToggle: function (table, rerender) { return makePinToggle(table, rerender); },
-    runDataset: function (d, extraParams) { return runDataset(d, extraParams); }
+    runDataset: function (d, extraParams) { return runDataset(d, extraParams); },
+    // N43b — the dashboard open in the builder right now, for the save guard's
+    // blast-radius count. It may never have been saved (N43a made this editor
+    // reachable from a live canvas), so the workspace scan alone would miss the
+    // one dashboard the person is actually looking at. Its `id` is the same id
+    // its saved row carries (saveDashboardEntry writes entry.id = S.spec.id), so
+    // dsxBindings dedupes an open-and-saved dashboard to one.
+    openSpecBindings: function () {
+      if (!S.spec || !S.spec.cda) return null;
+      return { spec: S.spec, id: S.spec.id || "", name: S.spec.title || S.spec.name || "the dashboard you have open" };
+    }
   }));
 
   /* ---------- Jobs (Viridis V8: data-management-lite) — moved to app/jobs.js
@@ -7364,7 +7583,12 @@
   window.__studioRenderViews = renderViews; // test hook
   Studio.ViewsCatalog.configure(Object.assign(coreModuleDeps(), {
     themedChartSvg: function (svg, type) { return themedChartSvg(svg, type); },
-    exportAnalysisEmbed: function (a) { return exportAnalysisEmbed(a); }
+    exportAnalysisEmbed: function (a) { return exportAnalysisEmbed(a); },
+    // N37: the per-row ⋯ menu runs on the app's ONE dropdown convention rather than a
+    // second one — same open/close bookkeeping (single open menu, outside-click close,
+    // clampMenuIntoView) the topbar and Repository menus already use.
+    menuToggle: function (btn, menu) { return menuToggle(btn, menu); },
+    closeMenus: function () { return closeMenus(); }
   }));
 
   /* ---------- Build (View Builder, #117 slice 1) — app/build.js. The pivot/
@@ -7380,7 +7604,7 @@
     // VB-1: the outline's ＋ New / ✎ edit reuse THE shared dataset editor
     openDatasetEditor: function (existing, onSaved) { return openDatasetEditor(existing, onSaved); },
     getCatalog: function () { return S.catalog; },
-    showSamples: function () { return showSamples(); },
+    catalogSamplesInstalled: function () { return catalogSamplesInstalled(); },
     guessFieldKind: function (colName, vals) { return guessFieldKind(colName, vals); },
     // slice 2 (chart the result): the same real-renderer preview plumbing Explore uses
     getAssets: function () { return S.assets; },
@@ -8720,15 +8944,18 @@
     };
   }
   // LF42 slice 3: consolidate backend config so Settings' "Switch backend" reuses
-  // whatever the Admin "Backends" card already has registered, instead of making
-  // you re-type credentials for a database an admin already set up. No registered
-  // backends → same one-click behavior as before (straight to the blank wizard).
+  // whatever is already saved (Admin → Workspaces; the card was "Backends" until
+  // N36 slice 2), instead of making you re-type credentials for a database an
+  // admin already set up. Nothing saved → same one-click behavior as before
+  // (straight to the blank wizard). The BUTTON keeps the word backend on
+  // purpose: it acts on the Settings card's state — where this workspace's
+  // catalog lives — while the rows it lists are workspaces.
   function openSwitchBackendPicker() {
     var list = getAdminBackends();
     if (!list.length) { openBackendWizard(); return; }
     modal("Switch workspace backend", function (b) {
       var intro = el("p", "cx-wiz-intro");
-      intro.textContent = "Connect to a backend an admin has already registered, or enter new connection details.";
+      intro.textContent = "Connect to a workspace that is already saved on this device, or enter new connection details.";
       b.appendChild(intro);
       var rows = el("div", "cx-list");
       list.forEach(function (r) {
@@ -9028,8 +9255,113 @@
      (decline remembered) when this device already carries user-made data,
      and NEVER over-adopting an empty unauthenticated read (connectAdopt's
      skipIfEmpty guard). */
-  function getAdminBackends() { return lsGet("studio-admin-backends", []); }
-  function setAdminBackends(list) { lsSet("studio-admin-backends", list); }
+  /* ---- N36 slice 1 — ONE list (Kevin, 2026-08-09: "converge on the workspace
+     store so it's better, yes? that's sensible") ----------------------------
+     Admin's Backends card and the sign-in screen's Workspace picker describe the
+     SAME object — a named, credentialed database this app can sync to — and each
+     kept its own store. Register a backend here and it never reached the picker;
+     save a workspace at the gate and Admin could not see it to assign it to
+     anyone. `STUDIO_WS_STORE` (`studio-workspaces-custom`) is now the one list,
+     because it is the richer one and the one the sign-in screen actually reads;
+     this card is a VIEW over its saved entries. The two shapes are the same
+     fields under different names, so the mapping is total and lossless:
+     {id, name, adapter, cfg} ↔ {id, label, sourceId, cfg}.
+
+     THE MIGRATION IS ADDITIVE, per the local-first rule. Legacy
+     `studio-admin-backends` rows are COPIED across once; an id the workspace
+     store already knows is never overwritten (the workspace entry is the one the
+     gate has been signing into, so it wins); and the legacy key is left on disk
+     untouched, so a build from before this change still finds its rows. The
+     one-shot marker is what makes a later Remove stick instead of the entry
+     rising from the dead on the next read.
+
+     `lastTest` deliberately does NOT travel into the converged entry. It is this
+     card's own scratch metadata — "did Test pass, and when" — and writing it onto
+     an entry would eventually mean writing it onto a PACKAGED workspace, which
+     mints a local override that shadows the shipped one. It lives in its own
+     small map keyed by entry id.
+
+     N36 slice 2 — THE RENAME (2026-08-10). The card is "Workspaces" now, and so
+     is every noun on it that means a saved, credentialed destination: the add/
+     edit wizard, its name field, the remove confirmation, the empty state, the
+     user editor's "Assigned workspace" picker, and Settings' Switch-workspace-
+     backend picker copy. What deliberately did NOT change: the rail tooltip and
+     Settings' card still say "Workspace backend — Local (this browser)", because
+     that names a STATE (where is this workspace stored right now), not a list
+     entry; and no storage key, id or identifier moved — `provisioning.backendId`
+     is persisted user data on every account, and renaming a field to improve a
+     label would be a data migration for a word.
+
+     Two things slice 1 left for this slice to DECIDE rather than inherit:
+     (1) Admin still lists the browser's SAVED entries only, NOT
+     `STUDIO_WS_STORE.packaged()`. Three of the card's five actions — Edit,
+     Remove, and the per-row test record — are meaningless or actively wrong on a
+     shipped entry: writing to one mints a local override that shadows the
+     packaged original, which is the exact failure `lastTest` was kept out of the
+     entry to avoid. So the card names the packaged ones in its intro instead of
+     pretending they do not exist, which is what the rename actually owed them.
+     (2) Settings' manager panel still renders `list()` (valid only), so a
+     half-configured entry is still never offered as somewhere to sign in — that
+     is what `valid()` is for. The honest half is on THIS card: such a row now
+     carries a "not configured" badge, because a list that claims to be the
+     sign-in list has to say which of its rows the sign-in screen won't show. */
+  var ADMIN_BK_LEGACY_KEY = "studio-admin-backends",     // pre-N36; kept, never wiped
+      ADMIN_BK_MERGED_KEY = "studio-admin-backends-merged",
+      ADMIN_BK_TESTS_KEY  = "studio-admin-backend-tests";
+  function wsStore() { return window.STUDIO_WS_STORE || null; }
+  function bkEntry(r) { return { id: r.id, label: r.name, sourceId: r.adapter, cfg: r.cfg || {} }; }
+  function bkRow(w, tests, S) {
+    return { id: w.id, label: w.label, name: w.label, adapter: w.sourceId, cfg: w.cfg || {},
+      // N36 slice 2: "may be OFFERED at sign-in" — the store's own valid(), read
+      // here so the card can say which of its rows the picker will not show.
+      configured: !!(S && S.valid && S.valid(w)),
+      lastTest: (tests && tests[w.id]) || null };
+  }
+  function migrateAdminBackends() {
+    var S = wsStore();
+    if (!S || lsGet(ADMIN_BK_MERGED_KEY, "") === "v1") return;
+    var legacy = lsGet(ADMIN_BK_LEGACY_KEY, []), tests = lsGet(ADMIN_BK_TESTS_KEY, {}) || {};
+    // Nothing to merge is not "merged". Stamping the marker on an EMPTY legacy
+    // list would arm the one-shot against a list that had not arrived yet, and
+    // then a browser whose Admin rows show up later (an older build writing the
+    // retired key while this one is installed, or a restored backup) would never
+    // migrate them at all. Re-reading an absent key costs one lsGet.
+    if (!Array.isArray(legacy) || !legacy.length) return;
+    legacy.forEach(function (r) {
+      if (!r || !r.id) return;
+      var taken = S.byId(r.id) || S.customs().some(function (w) { return w.id === r.id; });
+      if (taken) return;                       // never overwrite a workspace entry
+      if (S.save(bkEntry(r)) && r.lastTest) tests[r.id] = r.lastTest;
+    });
+    lsSet(ADMIN_BK_TESTS_KEY, tests);
+    lsSet(ADMIN_BK_MERGED_KEY, "v1");
+  }
+  function getAdminBackends() {
+    var S = wsStore();
+    if (!S) return lsGet(ADMIN_BK_LEGACY_KEY, []);   // workspaces.js absent: the old store still answers
+    migrateAdminBackends();
+    var tests = lsGet(ADMIN_BK_TESTS_KEY, {}) || {};
+    return S.customs().map(function (w) { return bkRow(w, tests, S); });
+  }
+  function saveAdminBackend(row) {
+    var S = wsStore(); if (!S) return;
+    migrateAdminBackends();
+    S.save(bkEntry(row));
+  }
+  function removeAdminBackend(id) {
+    var S = wsStore(); if (!S) return;
+    migrateAdminBackends();
+    S.remove(id);
+    var tests = lsGet(ADMIN_BK_TESTS_KEY, {}) || {};
+    if (tests[id]) { delete tests[id]; lsSet(ADMIN_BK_TESTS_KEY, tests); }
+  }
+  function setAdminBackendTest(id, res) {
+    var tests = lsGet(ADMIN_BK_TESTS_KEY, {}) || {};
+    tests[id] = res; lsSet(ADMIN_BK_TESTS_KEY, tests);
+  }
+  window.__studioAdminBackends = { list: getAdminBackends, save: saveAdminBackend,
+    remove: removeAdminBackend, migrate: migrateAdminBackends,
+    keys: { legacy: ADMIN_BK_LEGACY_KEY, merged: ADMIN_BK_MERGED_KEY, tests: ADMIN_BK_TESTS_KEY } }; // test hooks
   function backendRowActive(r, st, curCfg) {
     return !!(st.isRemote && st.sourceId === r.adapter && JSON.stringify(curCfg) === JSON.stringify(r.cfg || {}));
   }
@@ -9056,6 +9388,10 @@
         '<span class="cx-ic" style="color:' + esc(src.accent || "var(--brand)") + '"></span>' +
         '<span class="cx-name"><b>' + esc(r.name) + '</b><small>' + esc(src.label || r.adapter) + '</small></span>' +
         (active ? '<span class="cx-badge admin">active</span>' : "") +
+        // N36 slice 2: this list IS the sign-in picker's list, so a row the
+        // picker will not offer has to say so on its face rather than just
+        // going quietly missing over there.
+        (r.configured ? "" : '<span class="cx-badge" data-bk-unconfigured="' + esc(r.id) + '" title="No address saved yet, so the sign-in screen’s Workspace picker cannot offer it. Edit it to finish.">not configured</span>') +
         (assigned ? '<span class="cx-badge" data-bk-assigned="' + esc(r.id) + '">' + assigned + (assigned === 1 ? " user" : " users") + '</span>' : "") +
         '<span class="cx-actions">' +
           '<button type="button" class="btn" data-bk-test="' + esc(r.id) + '">Test</button>' +
@@ -9064,10 +9400,23 @@
           '<button type="button" class="btn" data-bk-del="' + esc(r.id) + '" aria-label="Delete ' + esc(r.name) + '">✕</button>' +
         '</span></div>';
     }).join("");
-    return '<div class="settings-card"><h2>Backends</h2>' +
-      '<p class="ws-card-intro">Pre-register the databases this workspace can connect to — Turso, Supabase, or Firebase — so switching later is a click, not re-typed credentials. Registering a backend here does not connect it: use <b>Connect</b> below (or Settings → Workspace backend) to make one active.</p>' +
-      (rows ? '<div class="cx-list">' + rows + '</div>' : '<div class="cx-empty">No backends registered yet.</div>') +
-      '<div class="repo-io"><button type="button" class="btn primary" id="bkNewBtn">+ Add backend</button></div>' +
+    return '<div class="settings-card"><h2>Workspaces</h2>' +
+      // N36 slice 2: the rename. A workspace is the named, credentialed database
+      // this app syncs to — the same noun the sign-in screen and Settings use.
+      // "Backend" survives only where it names a STATE ("Workspace backend —
+      // Local (this browser)"), never a row in this list.
+      '<p class="ws-card-intro">Save the databases this app can work in — Turso, Supabase, or Firebase — under a name, with credentials, so switching later is a click, not re-typed credentials. Saving a workspace here does not connect it: use <b>Connect</b> below (or Settings → Workspace backend) to start working in one. ' +
+        // N36 slice 1: say the convergence out loud — this list and the sign-in
+        // screen's Workspace picker are now the same saved list, in both
+        // directions, and someone registering a credentialed database should
+        // know it becomes selectable at sign-in.
+        'This is the same saved list the sign-in screen’s <b>Workspace</b> picker offers and Settings → Workspace backend manages, so anything saved here can be signed into, and a workspace saved there can be assigned to a user here. ' +
+        // N36 slice 2 decision (1): Admin manages the browser's SAVED entries,
+        // not the ones packaged with the app — say that, rather than let the new
+        // heading imply a completeness the card does not have.
+        'The workspaces <em>packaged with this app</em> are offered at sign-in too, but are not managed here — they ship with the build.</p>' +
+      (rows ? '<div class="cx-list">' + rows + '</div>' : '<div class="cx-empty">No workspaces saved in this browser yet.</div>') +
+      '<div class="repo-io"><button type="button" class="btn primary" id="bkNewBtn">+ Add workspace</button></div>' +
     '</div>';
   }
   function wireBackendsCard(sec) {
@@ -9091,8 +9440,10 @@
         var list = getAdminBackends();
         var r = list.filter(function (x) { return x.id === id; })[0];
         if (!r) return;
-        if (!window.confirm('Remove backend "' + r.name + '"? This only forgets it here — it does not touch the database itself.')) return;
-        setAdminBackends(list.filter(function (x) { return x.id !== id; }));
+        // N36 slice 1: one list means one removal. Say where else it disappears
+        // from, because it is now also the sign-in screen's picker entry.
+        if (!window.confirm('Remove workspace "' + r.name + '"? It is forgotten here, in Settings → Workspace backend, and in the sign-in screen\'s Workspace picker — the database itself is untouched.')) return;
+        removeAdminBackend(id);
         toast("Removed " + r.name);
         renderAdmin();
       };
@@ -9104,8 +9455,7 @@
         if (!r || !src) return;
         btn.disabled = true; btn.textContent = "Testing…";
         src.test(r.cfg || {}).then(function (res) {
-          r.lastTest = { ok: !!res.ok, error: res.ok ? "" : (res.error || "failed"), at: Date.now() };
-          setAdminBackends(getAdminBackends().map(function (x) { return x.id === r.id ? r : x; }));
+          setAdminBackendTest(r.id, { ok: !!res.ok, error: res.ok ? "" : (res.error || "failed"), at: Date.now() });
           toast(res.ok ? "Connection OK" : "Test failed: " + (res.error || ""), !res.ok);
           renderAdmin();
         });
@@ -9123,10 +9473,10 @@
   // The registration wizard (add/edit only — no probe/classify, unlike
   // openBackendWizard's connect flow): pick an adapter from the same
   // remote-meta-capable set → name + credential fields with an inline Test →
-  // Save into the local admin backend list.
+  // Save into the one saved-workspace list.
   function openBackendConfigWizard(existing) {
     var presetSrc = existing ? Studio.sourceById(existing.adapter) : null;
-    modal(existing ? "Edit backend" : "Add backend", function (b) {
+    modal(existing ? "Edit workspace" : "Add workspace", function (b) {
       function step2(adapter) {
         b.innerHTML = "";
         var head = el("div", "cx-wiz-head");
@@ -9135,9 +9485,9 @@
         head.appendChild(ic); head.appendChild(ttl); b.appendChild(head);
         var form = el("div", "cx-wiz-form");
         var nameRow = el("label", "cx-field");
-        nameRow.innerHTML = '<span>Backend name</span>';
+        nameRow.innerHTML = '<span>Workspace name</span>';
         var nameInp = el("input"); nameInp.type = "text"; nameInp.value = existing ? existing.name : adapter.label;
-        nameInp.placeholder = "e.g. Prod Supabase";
+        nameInp.placeholder = "e.g. Acme (production)";
         nameRow.appendChild(nameInp); form.appendChild(nameRow);
         var inputs = {};
         (adapter.fields || []).forEach(function (f) {
@@ -9158,7 +9508,7 @@
         var result = el("div", "cx-test-result"); b.appendChild(result);
         var foot = el("div", "cx-wiz-foot");
         var testBtn = el("button", "btn"); testBtn.type = "button"; testBtn.textContent = "Test connection";
-        var saveBtn = el("button", "btn primary"); saveBtn.type = "button"; saveBtn.textContent = existing ? "Save changes" : "Add backend";
+        var saveBtn = el("button", "btn primary"); saveBtn.type = "button"; saveBtn.textContent = existing ? "Save changes" : "Add workspace";
         foot.appendChild(testBtn); foot.appendChild(saveBtn); b.appendChild(foot);
         function cfg() {
           var o = {};
@@ -9178,15 +9528,13 @@
         };
         saveBtn.onclick = function () {
           var name = nameInp.value.trim();
-          if (!name) { nameInp.focus(); result.className = "cx-test-result bad"; result.textContent = "Give the backend a name first."; return; }
+          if (!name) { nameInp.focus(); result.className = "cx-test-result bad"; result.textContent = "Give the workspace a name first."; return; }
           var row = existing || { id: Studio.Workspace.uid("bk") };
           row.name = name; row.adapter = adapter.id; row.cfg = cfg();
-          if (lastInlineTest) row.lastTest = lastInlineTest;
-          var list = getAdminBackends();
-          var replaced = false;
-          list = list.map(function (x) { if (x.id === row.id) { replaced = true; return row; } return x; });
-          if (!replaced) list.push(row);
-          setAdminBackends(list);
+          // N36 slice 1: save() replaces by id, so add and edit are the same call
+          // — the list plumbing this used to do is the store's job now.
+          saveAdminBackend(row);
+          if (lastInlineTest) setAdminBackendTest(row.id, lastInlineTest);
           toast(existing ? "Saved " + name : "Added " + name);
           document.querySelector(".modal-ov .x").click();
         };
@@ -9194,7 +9542,7 @@
       }
       if (presetSrc) { step2(presetSrc); return; }
       var intro = el("p", "cx-wiz-intro");
-      intro.textContent = "Pick a backend to register. You can register several and connect to whichever one you need later.";
+      intro.textContent = "Pick the kind of database this workspace lives in. You can save several and connect to whichever one you need later.";
       b.appendChild(intro);
       var grid = el("div", "cx-src-grid");
       Studio.remoteMetaSources().forEach(function (src) {
@@ -9379,10 +9727,9 @@
       ic: function () { return S.theme === "dark" ? "moon" : "sun"; },
       on: function () { return S.theme === "dark"; },
       set: function () { setTheme(S.theme === "dark" ? "light" : "dark"); } },
-    { grp: "Mode", id: "samples", t: "Sample content", d: "Show the built-in demo suite — sample dashboards, demo packs and the New ▾ starter sets, all running on the internal demo database. Turn off to start from an empty workspace; nothing is deleted, flip it back anytime.",
-      ic: function () { return "layers"; },
-      on: function () { return showSamples(); },
-      set: function () { setShowSamples(!showSamples()); toast(showSamples() ? "Sample content shown" : "Sample content hidden — flip this back anytime"); } },
+    // N32: the "Sample content" switch that used to sit here is retired — the Sample packs
+    // card below is the one surface that governs sample content, and it always did the
+    // finer-grained version of the same job (see catalogSamplesInstalled()).
     { grp: "Mode", id: "simple", t: "Simple mode", d: "Hide advanced inspector sections and narrow the chart gallery to the most common types.",
       ic: function () { return "layers"; },
       on: function () { return !!S.simpleMode; },
@@ -9908,15 +10255,13 @@
         '</div>' +
       '</div>' +
       (Object.keys(Studio.DEMO_PACKS || {}).length ?
-        // KEVIN-LIVE (2026-07-30): this card used to be gated on showSamples() —
-        // with Sample content toggled off, the packs' ONLY install/remove surface
-        // vanished with it ("i cant see the sample packs… being able to be
-        // activated"). The card now always shows; when sample content is hidden
-        // it says so, and Install turns it back on (installing a pack means you
-        // want to see it).
+        // KEVIN-LIVE (2026-07-30): this card used to be gated on showSamples() — with
+        // Sample content toggled off, the packs' ONLY install/remove surface vanished with
+        // it ("i cant see the sample packs… being able to be activated"). N32 retired that
+        // mask outright, so the card is simply always here: it is now the ONE place sample
+        // content is turned on and off, one pack at a time.
         '<div class="settings-card"><h2>Sample packs</h2>' +
           '<p class="ws-card-intro">Ready-made demo content you can install or remove. A pack can add dashboards, datasets, connections and jobs — with synthetic (made-up) or public-domain sample data, never your real data. Each card says which. Remove takes back exactly what Install added.</p>' +
-          (!showSamples() ? '<p class="ws-card-intro set-packs-hidden-note">Sample content is currently hidden (the toggle above) — installed packs aren’t shown anywhere. Installing a pack turns sample content back on.</p>' : "") +
           Object.keys(Studio.DEMO_PACKS).map(function (id) {
             var p = Studio.DEMO_PACKS[id], on = Studio.demoPackInstalled(id);
             return '<div class="set-row"><span class="set-row-ic" data-ic="globe"></span>' +
@@ -10017,9 +10362,7 @@
     $$("[data-demopack]", sec).forEach(function (btn) {
       btn.onclick = function () {
         var id = btn.getAttribute("data-demopack");
-        // Installing a pack while sample content is hidden means you want to SEE
-        // it — flip the toggle back on first, so the install lands somewhere visible.
-        if (!Studio.demoPackInstalled(id) && !showSamples()) setShowSamples(true);
+        // N32: no global mask left to un-hide first — installing a pack is the whole act.
         toggleDemoPack(id, Studio.DEMO_PACKS[id]);
       };
     });
@@ -10055,8 +10398,8 @@
     var adminBackendsByRow = getAdminBackends();
     var rows = users.map(function (u) {
       var lastAdmin = u.role === "admin" && adminCount <= 1;
-      // LF42 slice 2: name the backend this account is assigned to, if any
-      // (mirrors the "N users" badge the Backends card shows per row).
+      // LF42 slice 2: name the workspace this account is assigned to, if any
+      // (mirrors the "N users" badge the Workspaces card shows per row).
       var assignedBk = u.provisioning && u.provisioning.backendId &&
         adminBackendsByRow.filter(function (r) { return r.id === u.provisioning.backendId; })[0];
       return '<div class="cx-row" data-usr-id="' + esc(u.u) + '">' +
@@ -10460,18 +10803,21 @@
       ddBtnRow.appendChild(ddCopyBtn); ddBtnRow.appendChild(ddClearBtn);
       ddRow.appendChild(ddBtnRow); ddRow.appendChild(ddStatus);
       form.appendChild(ddRow);
-      // LF42 slice 2: assign a specific registered backend (from the Backends
-      // card) to this user. Recorded on their provisioning blob the same way as
-      // theme/pack, but — unlike theme/pack — NOT auto-applied at first sign-in:
-      // connecting to a backend can adopt/overwrite a whole workspace, which
-      // isn't safe to do silently. This is metadata a later slice (consolidated
-      // config UI / server selection) can act on. Only shown once the admin has
-      // registered at least one backend (no empty facet, same convention as the
+      // LF42 slice 2: assign a specific saved workspace (from the Workspaces
+      // card) to this user, recorded on their provisioning blob the same way as
+      // theme/pack. #103 AUTO-BACKEND made it REAL — applyAssignedBackend()
+      // connects it at sign-in, silently on a fresh device and behind the
+      // "Welcome!" dialog on one that already carries work. Only shown once at
+      // least one workspace is saved (no empty facet, same convention as the
       // folder/tag chip filters elsewhere).
+      // N36 slice 2: the hint below used to end "Recorded for reference —
+      // connecting a device to it is still a manual step", which was true of
+      // LF42 and false since #103; Help had already said the opposite. Renaming
+      // the noun without fixing that would have shipped a tidier lie.
       var bSel = null;
       var adminBackends = getAdminBackends();
       if (adminBackends.length) {
-        var bRow = el("label", "cx-field"); bRow.innerHTML = "<span>Assigned backend</span>";
+        var bRow = el("label", "cx-field"); bRow.innerHTML = "<span>Assigned workspace</span>";
         bSel = el("select"); bSel.id = "usrEditBackend";
         var bNone = el("option"); bNone.value = ""; bNone.textContent = "Don't set — leave as-is";
         bSel.appendChild(bNone);
@@ -10481,7 +10827,7 @@
         });
         if (existing && existing.provisioning && existing.provisioning.backendId) bSel.value = existing.provisioning.backendId;
         bRow.appendChild(bSel);
-        var bHint = el("small", "cx-hint"); bHint.textContent = "Which registered backend (Admin → Backends) this account belongs to. Recorded for reference — connecting a device to it is still a manual step.";
+        var bHint = el("small", "cx-hint"); bHint.textContent = "Which saved workspace (Admin → Workspaces) this account belongs to. Its connection details travel with the account and are connected at sign-in — silently on a brand-new device, and after a confirmation on one that already holds work.";
         bRow.appendChild(bHint);
         form.appendChild(bRow);
       }
@@ -10732,7 +11078,10 @@
   // and the VB draft map (can grow large; still browser-local).
   var ROAM_LS_KEYS = [
     "studio-simple-mode", "studio-restore-unsaved", "studio-panels-default",
-    "studio-show-samples", "studio-lib-samples-open",
+    // N32: "studio-show-samples" left this list with the pref it named — roaming a key
+    // nothing reads would carry a dead preference between devices forever. It stays on
+    // CLEAR_DATA_KEYS below, which is about sweeping what is already on disk.
+    "studio-lib-samples-open",
     "studio-lw", "studio-rw",
     "studio-bd-lw", "studio-bd-collapse", "studio-bd-preview-size",
     "studio-dash-view", "studio-repo-view"
@@ -11655,6 +12004,8 @@
     // passphrase is cached in sessionStorage instead; the localStorage key stays on this list
     // so any pre-AUD-03 copy still on disk is swept too (the handler also clears the session
     // copy directly).
+    // ("studio-show-samples" is RETIRED as of N32 — nothing reads or writes it any more, but
+    // it stays on this list so a copy left on disk by an older build is still swept.)
     "studio-show-samples", "studio-lib-samples-open", "studio-dash-view", "studio-dsx-view",
     "studio-conn-view", "studio-jobs-view",
     // LF51 (d) extended to Repository, the last of the four workspace catalogs to gain the
@@ -11712,16 +12063,22 @@
 
   // New ▾ menu: blank, duplicate, then auto-build starters. Auto-build now
   // draws from BOTH planes — your workspace datasets first, then the sample
-  // query sets (only while samples are shown) — and stays usable at scale:
+  // query sets (only while the pack that owns them is installed) — and stays usable at scale:
   // beyond a handful of entries it gets a type-to-filter box instead of an
   // endless list (there could be thousands of datasets eventually).
   function buildNewMenu(filterText) {
     var nm = $("#menuNew"); if (!nm) return;
+    // (window.__studioBuildNewMenu below is the test hook — N32 covers the starter sets.)
     var flt = (filterText || "").toLowerCase();
     var dsSets = Studio.Workspace.all("datasets").filter(function (d) { return (d.columns || []).length >= 2; })
       .sort(function (a, b) { return (b.updatedAt || 0) - (a.updatedAt || 0); })
       .map(function (d) { return { kind: "dataset", key: d.id, label: d.name }; });
-    var stemSets = !showSamples() ? [] : Object.keys(S.catalog).filter(function (st) {
+    // N32/SAMPLE-DATA-1: the starter sets come from the raw demo-DB catalog tables, which
+    // belong to the pack that declares `catalogSamples` — so they appear only while that
+    // pack is installed, the same rule Explore's picker and the View Builder outline already
+    // followed. Before N32 this was the one catalog surface still riding the global mask,
+    // which is why an uninstalled pack could still fill New ▾ with sample sets.
+    var stemSets = !catalogSamplesInstalled() ? [] : Object.keys(S.catalog).filter(function (st) {
       return (S.catalog[st].dataAccesses || []).some(function (d) { return (d.columns || []).length >= 2; });
     }).sort().map(function (st) { return { kind: "stem", key: st, label: st }; });
     // AUD-06 slice 6: the shared matcher, same as every other filter box.
@@ -11762,6 +12119,7 @@
       });
     }
   }
+  window.__studioBuildNewMenu = buildNewMenu; // test hook (N32)
   // LF47 slice C: "Duplicate" moved out of the New ▾ menu into its own topbar ops
   // button (#btnDupDash, alongside Undo/Redo/Open/Save/Save-as/Export) — same clone
   // logic as before, just its own dedicated affordance instead of a New-menu entry.
