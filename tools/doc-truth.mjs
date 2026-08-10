@@ -7628,6 +7628,154 @@ if (kitLive) {
   }
 }
 
+/* ── Check 69 — Home's OWN page vs the chapter that introduces it ─────────────
+   N7, and the altitude move check 67 made for the tour chooser: eight checks read things a
+   reader reaches THROUGH Home, and nothing had ever read the page Home renders first.
+
+   The chapter opened its list at the fourth thing on the screen. `renderHome()` paints a
+   "Welcome back" hero, then a grid of quick-start cards, then a rotating tip, then (once the
+   workspace has workbooks) a chip strip — and only then the content sections the chapter
+   described. All EIGHT cards were undocumented here: four of them are named in passing in other
+   chapters (Quick import in Getting started, Sample dashboards in the packs chapter, Take the
+   tour in Admin, New Quick View in the builder chapter) and four — New View, New dashboard, New
+   connection, New dataset — appeared nowhere as a Home affordance at all. The card grid is the
+   only thing a first-time reader sees above the fold, so the page documenting Home began below it.
+
+   Three more drifts, all in the same direction — the reader is told less than the page shows:
+   · the reorderable-section list published the labels as **Featured, Pinned, Favorites,
+     Examples, Dashboards**, and two of those are not what the headings say: the sections render
+     **Pinned Views** and **Favorite datasets & connections**. A reader scanning headings for
+     "Favorites" finds nothing;
+   · the **Dashboards** section draws TWO nested strips, **Pinned** and **Recent dashboards**, and
+     only the second was named — even though the chapter's own "Clear recents" bullet points at
+     that heading. So pinned dashboards (`loadPins()`, the ★ on a dashboard card) were invisible
+     on the page, while pinned VIEWS had a section of their own three bullets above — the exact
+     pair a reader confuses;
+   · the workbook chip strip was absent, and a section that silently hides itself when empty was
+     never stated as doing so.
+
+   Sources of truth, all inside `renderHome()` so there is no second copy to keep in sync: the
+   `cards` array literal (its `t:` titles are the words on the buttons), the
+   `currentUserCanDevelop()` filter's own act list, `HOME_SECTION_LABELS`, the `home-sub-nested`
+   headings in the `dashboards:` section body, and `wbChipDefs`' two fixed chips. Five rules:
+   (a) the card list names every card the grid renders, and no card it does not (both directions,
+       inside its own anchor, so the viewer paragraph's repeats below cannot satisfy it);
+   (b) the viewer-role paragraph names exactly the cards the filter removes — a card that stops
+       being builder-only leaves this rule with it;
+   (c) the reorderable-section list is the rendered LABEL set, verbatim, both directions;
+   (d) the Dashboards section's nested strips are both named;
+   (e) the workbook strip's two fixed chips are named. */
+{
+  const homeSrc = read("app/studio.js");
+  const cardsAt = homeSrc.indexOf("var cards = [");
+  const cardsBlock = cardsAt < 0 ? "" : homeSrc.slice(cardsAt, homeSrc.indexOf("var meName = currentUserName();", cardsAt));
+  const homeCards = [...cardsBlock.matchAll(/\{ act: "(\w+)", ic: "[\w-]+", t: "([^"]+)", d: "([^"]+)" \}/g)]
+    .map((m) => ({ act: m[1], title: m[2] }));
+  // The acts Home withholds from a viewer-role account, read from the filter that withholds
+  // them rather than from a list beside it (check 18's idiom: one source, no twin to drift).
+  const viewerHiddenActs = ((cardsBlock.match(/\[((?:\s*"\w+",?)+)\]\.indexOf\(c\.act\) < 0/) || [, ""])[1]
+    .match(/"(\w+)"/g) || []).map((s) => s.slice(1, -1));
+  const viewerHidden = homeCards.filter((c) => viewerHiddenActs.includes(c.act)).map((c) => c.title);
+
+  const homeSectionLabels = [...((homeSrc.match(/var HOME_SECTION_LABELS = \{([\s\S]*?)\};/) || [, ""])[1])
+    .matchAll(/(?:"[\w-]+"|\w+):\s*"([^"]+)"/g)].map((m) => m[1]);
+
+  // The two strips the Dashboards section really draws — scoped to that section's own body, so
+  // the Examples section's per-pack headings (same class, an attribute in between) stay out.
+  const dashAt = homeSrc.indexOf("dashboards: function () {");
+  const dashBody = dashAt < 0 ? "" : braceBlockAt(homeSrc, homeSrc.indexOf("{", dashAt + 20));
+  const dashStrips = [...dashBody.matchAll(/home-sub home-sub-nested">([^'<]+)/g)].map((m) => m[1].trim());
+
+  // The workbook strip's two FIXED chips. The chips in between carry the reader's own
+  // workbook names, so these are the only two a document can be held to.
+  const wbChips = [(homeSrc.match(/var wbChipDefs = \[\{ id: "", name: "(\w+)"/) || [, ""])[1],
+    (homeSrc.match(/\{ id: "__unfiled", name: "(\w+)"/) || [, ""])[1]].filter(Boolean);
+
+  const deHome = (s) => s.replace(/&amp;/g, "&").replace(/&nbsp;/g, " ").replace(/\s+/g, " ").trim();
+  // The anchor is named with its own container tag so a list closes on </ul> and not on the
+  // first </li> inside it; the enumerations that sit mid-sentence get a <span> of their own
+  // (check 68's idiom) so the prose around them cannot satisfy or fail a rule.
+  const homeAnchor = (id, container) => {
+    const block = (help.match(new RegExp(`<${container} id="${id}">([\\s\\S]*?)</${container}>`)) || [, null])[1];
+    return block === null ? null : [...block.matchAll(/<strong>([\s\S]*?)<\/strong>/g)].map((m) => deHome(m[1]));
+  };
+  const cardsSaid = homeAnchor("home-quick-cards", "ul");
+  const viewerSaid = homeAnchor("home-viewer-cards", "span");
+  const sectionsSaid = homeAnchor("home-sections", "li");
+  const stripsSaid = homeAnchor("home-dashboards-strips", "span");
+  const chipsSaid = homeAnchor("home-workbook-chips", "li");
+
+  const homePremise = ok(`app/studio.js: Home's own page parsed for check 69 ` +
+    `(${homeCards.length} quick-start card(s), ${viewerHidden.length} hidden from a viewer, ` +
+    `${homeSectionLabels.length} content section(s), ${dashStrips.length} strip(s) in Dashboards, ` +
+    `workbook chips: ${wbChips.join(" + ") || "(none)"})`,
+    homeCards.length >= 6 && viewerHiddenActs.length >= 1 &&
+      viewerHiddenActs.every((a) => homeCards.some((c) => c.act === a)) &&
+      homeSectionLabels.length >= 4 && dashStrips.length >= 2 && wbChips.length === 2 &&
+      cardsSaid && viewerSaid && sectionsSaid && stripsSaid && chipsSaid,
+    `cards: ${homeCards.map((c) => `${c.title} (${c.act})`).join(" · ") || "(unparsed)"}\n      ` +
+    `viewer-hidden acts: ${viewerHiddenActs.join(", ") || "(unparsed)"}` +
+    `${viewerHiddenActs.filter((a) => !homeCards.some((c) => c.act === a)).length
+      ? ` — unknown to the card grid: ${viewerHiddenActs.filter((a) => !homeCards.some((c) => c.act === a)).join(", ")}` : ""}\n      ` +
+    `HOME_SECTION_LABELS: ${homeSectionLabels.join(" · ") || "(unparsed)"}\n      ` +
+    `Dashboards strips: ${dashStrips.join(" · ") || "(unparsed)"}\n      ` +
+    `docs/index.html anchors — cards: ${cardsSaid ? "ok" : "MISSING"}, viewer: ${viewerSaid ? "ok" : "MISSING"}, ` +
+    `sections: ${sectionsSaid ? "ok" : "MISSING"}, strips: ${stripsSaid ? "ok" : "MISSING"}, ` +
+    `chips: ${chipsSaid ? "ok" : "MISSING"}`);
+
+  if (homePremise) {
+    const bothWays = (want, got) => ({
+      missing: want.filter((w) => !got.includes(w)),
+      stray: got.filter((g) => !want.includes(g)),
+    });
+
+    // (a) every card on the grid, and nothing else. The stray half matters as much as the
+    // missing one: "Sample dashboards" is conditional already, and a retired card would
+    // otherwise sit in the list forever sending readers to a button that is not there.
+    const cardTitles = homeCards.map((c) => c.title);
+    const cardD = bothWays(cardTitles, cardsSaid);
+    ok(`docs/index.html: #home-quick-cards names the ${cardTitles.length} quick-start card(s) Home renders, and no others`,
+      !cardD.missing.length && !cardD.stray.length,
+      `on the grid, not documented: ${cardD.missing.join(", ") || "(none)"}\n      ` +
+      `documented, not on the grid: ${cardD.stray.join(", ") || "(none)"}\n      ` +
+      "these are the words on the buttons — the card grid is the whole above-the-fold of Home");
+
+    // (b) the four the builder gate removes. Named, not counted: a reader who cannot see a
+    // card needs to know which ones are missing and why, not how many.
+    const viewerD = bothWays(viewerHidden, viewerSaid);
+    ok(`docs/index.html: #home-viewer-cards names exactly the ${viewerHidden.length} card(s) Home hides from a viewer-role account`,
+      !viewerD.missing.length && !viewerD.stray.length,
+      `hidden by the filter, not named: ${viewerD.missing.join(", ") || "(none)"}\n      ` +
+      `named as hidden, still offered: ${viewerD.stray.join(", ") || "(none)"}`);
+
+    // (c) the section labels, verbatim — the drift was two paraphrases ("Pinned", "Favorites")
+    // for headings that print something else, which is the one thing a reader scans for.
+    const secD = bothWays(homeSectionLabels, sectionsSaid);
+    ok(`docs/index.html: #home-sections names the ${homeSectionLabels.length} section heading(s) Home renders, verbatim`,
+      !secD.missing.length && !secD.stray.length,
+      `rendered as a heading, not named: ${secD.missing.join(", ") || "(none)"}\n      ` +
+      `named, not a heading Home renders: ${secD.stray.join(", ") || "(none)"}\n      ` +
+      "paraphrasing a heading is the expensive kind of near-miss — the reader scans for the word");
+
+    // (d) both strips inside Dashboards. The chapter already pointed at "Recent dashboards"
+    // from its Clear-recents bullet; "Pinned" is the one that was invisible.
+    const stripD = bothWays(dashStrips, stripsSaid);
+    ok(`docs/index.html: #home-dashboards-strips names both strip(s) the Dashboards section draws (${dashStrips.join(", ")})`,
+      !stripD.missing.length && !stripD.stray.length,
+      `drawn, not named: ${stripD.missing.join(", ") || "(none)"}\n      ` +
+      `named, not drawn: ${stripD.stray.join(", ") || "(none)"}\n      ` +
+      "pinned dashboards and Pinned Views are different sections — leaving one unnamed is why they get confused");
+
+    // (e) the workbook strip's two fixed chips (the per-workbook chips in between are the
+    // reader's own names, so only the fixed pair can be held).
+    const chipD = bothWays(wbChips, chipsSaid);
+    ok(`docs/index.html: #home-workbook-chips names the ${wbChips.length} fixed chip(s) Home's workbook strip renders`,
+      !chipD.missing.length && !chipD.stray.length,
+      `rendered by wbChipDefs, not named: ${chipD.missing.join(", ") || "(none)"}\n      ` +
+      `named as a fixed chip, not rendered: ${chipD.stray.join(", ") || "(none)"}`);
+  }
+}
+
 console.log(failed ? `\n✗ doc-truth: ${failed} claim(s) have drifted from the source of truth`
   : "\n✅ doc-truth: every published claim matches the source it describes");
 process.exit(failed ? 1 : 0);

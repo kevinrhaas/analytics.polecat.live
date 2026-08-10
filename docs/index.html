@@ -558,7 +558,34 @@
 <!-- ── Home ───────────────────────────────────────────────────── -->
 <section id="home">
   <h2>Home — instant analytics</h2>
-  <p><strong>Home</strong> greets you with your content, live:</p>
+  <p><strong>Home</strong> is where the app opens. The top of the page is a row of quick-start
+  cards — one per way to begin — and everything below them is your own content, live.</p>
+
+  <h4>The quick-start cards</h4>
+  <p>Under the “Welcome back” greeting Home lays out a card per starting point. Clicking one takes
+  you straight there; nothing is created until you save.</p>
+  <ul id="home-quick-cards">
+    <li><strong>New View</strong> — pivot and chart with shelves in the View Builder.</li>
+    <li><strong>New Quick View</strong> — the fast one-chart builder (Quick Views).</li>
+    <li><strong>New dashboard</strong> — a blank canvas in the Dashboard Builder.</li>
+    <li><strong>New connection</strong> — connect to your own data.</li>
+    <li><strong>New dataset</strong> — build a dataset on a connection you already have.</li>
+    <li><strong>Quick import</strong> — drop a CSV, JSON or Excel file and get a dashboard
+      immediately (see “Quick import” above).</li>
+    <li><strong>Sample dashboards</strong> — curated dashboards from your installed sample packs.
+      This card appears only while an installed pack actually contributes examples, so a workspace
+      with every pack removed does not advertise a section with nothing in it.</li>
+    <li><strong>Take the tour</strong> — replay the guided walkthrough of the builder.</li>
+  </ul>
+  <p>A <strong>viewer</strong>-role account sees only the cards it can act on:
+  <span id="home-viewer-cards"><strong>New dashboard</strong>, <strong>Quick import</strong>,
+  <strong>Sample dashboards</strong> and <strong>Take the tour</strong></span> all route into the
+  builder, which viewers never enter, so Home leaves them out rather than offering a dead click.</p>
+  <p>A rotating <strong>tip</strong> sits under the cards; the › button on it steps to the next one.</p>
+
+  <h4>Your content, below</h4>
+  <p>Each content section is <em>hidden while it is empty</em> — except <strong>Dashboards</strong>,
+  which always renders, so a brand-new workspace still has somewhere to land:</p>
   <ul>
     <li><strong>Featured dashboards</strong> — click the small house button on any dashboard card
       to feature it. Featured dashboards render on Home as real, scaled-down live previews (the
@@ -574,8 +601,20 @@
       cards cost nothing. The full-page
       <strong>viewer</strong> is the one place that follows <em>your</em> theme instead — see
       "Open in viewer" below.</li>
-    <li>Each Home section (Featured, Pinned, Favorites, Examples, Dashboards) has a ▲▼ control in
-      its heading — reorder them to taste; the order sticks between visits.</li>
+    <li id="home-sections">Each Home section — <strong>Featured</strong>,
+      <strong>Pinned Views</strong>, <strong>Favorite datasets &amp; connections</strong>,
+      <strong>Examples</strong> and <strong>Dashboards</strong> — has a ▲▼ control in its heading;
+      reorder them to taste and the order sticks between visits. Moving a section swaps it with its
+      nearest section that is actually on screen, so an empty one never blocks the move.</li>
+    <li>The <strong>Dashboards</strong> section holds your own dashboards in two strips:
+      <span id="home-dashboards-strips"><strong>Pinned</strong> — the ones you pinned from a
+      dashboard card, which is a different thing from the Pinned Views section above — and
+      <strong>Recent dashboards</strong></span>, the ones you opened or edited most recently.</li>
+    <li id="home-workbook-chips">Once you have workbooks (Repository → Workbooks) a chip strip
+      appears above the sections and narrows the Dashboards section to one of them:
+      <strong>All</strong>, a chip per workbook, and <strong>Unfiled</strong> for everything not in
+      one, each with its own count. It filters the view only — filing a dashboard into a workbook
+      stays Repository's job.</li>
     <li><strong>Examples</strong> shows sample dashboards from the packs you actually have
       installed (Settings → Sample packs) — removing a pack removes its cards. With more than
       one pack installed the cards group under a heading per pack, each with its own
