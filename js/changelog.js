@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 962,
+    title: 'A sample pack’s description is three sentences again, not a paragraph',
+    ts: '2026-08-10T06:23:36.000Z',
+    items: [
+      '<b>Conservation Insight</b> and <b>Market Coverage</b> had grown card descriptions that read like inventories — Market Coverage\'s was a single 100-word sentence listing every column of both Census datasets. Both are now three sentences: what the pack is for, what it seeds, and where the data comes from.',
+      'Nothing that was true stopped being said. Every count is still there — the dashboards, the pinned Views, the datasets, the connections and the prep job — and so is the promise that matters before you click Install: the data ships inside the app, so there are no credentials to enter.',
+      'The full contents of a pack still live in <b>Help → Sample packs</b>, which is where the six dashboard titles and the Census column lists went. The card is the place you decide; Help is the place you read.',
+    ],
+  },
+  {
     v: 961,
     title: 'Admin called it a “backend”, everywhere else it was a workspace — now it is a workspace',
     ts: '2026-08-10T06:00:30.000Z',

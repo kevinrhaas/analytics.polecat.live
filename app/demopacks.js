@@ -71,11 +71,17 @@
       name: "Conservation Insight — cover crop & tillage adoption",
       // PACK-BLURB (Kevin, 2026-07-31): "keep it concise" — half the words, same
       // counts (the #116 suite check keeps it count-led + embedded-data honest).
+      // N40 (Kevin, 2026-08-09): "those descriptions should be 2-3 sentences at most."
+      // The blurb had become the tagline again plus a list of all six dashboard titles;
+      // the titles live in Help's Sample packs section, which is where a reader who
+      // wants the full inventory goes. What stays here is what a reader needs to decide
+      // whether to click Install: the counts (doc-truth check 35 rule (a) requires every
+      // seeded KIND be named), and the data-honesty line.
       tagline: "6 dashboards · 4 Views · 8 datasets over 2 connections · rollup job — synthetic data, embedded: no credentials to enter",
-      blurb: "6 dashboards — county, watershed (HUC8), and CRD maps, the OpTIS trends and provider " +
-        "ensemble references, and the Conservation System Metrics wheel — 4 practice Views pinned " +
-        "to Home, 8 datasets over 2 demo connections, and a county→state rollup job. All data is " +
-        "synthetic and embedded, so both connections arrive ready to read: no credentials to enter.",
+      blurb: "6 dashboards mapping cover-crop and tillage adoption from county to watershed " +
+        "scale, plus 4 practice Views pinned to Home. They run on 8 datasets over 2 demo " +
+        "connections and a county→state rollup job. All of it is synthetic and embedded, so " +
+        "both connections arrive ready to read: no credentials to enter.",
       seeds: { connections: 2, datasets: 8, jobs: 1, analyses: 4, dashboards: 6 },
       source: { kind: "synthetic", label: "synthetic — generated in the app, not real observations" },
       demoLogin: true,
@@ -102,14 +108,15 @@
       folder: "Market Coverage",
       name: "Market Coverage — where a category is under-served",
       tagline: "3 dashboards · 4 Views pinned to Home · 2 Census datasets on 1 connection · 1,813 counties · a saturation-index join job — real public data, embedded",
-      blurb: "3 dashboards — the county restaurant-whitespace maps, the demographics behind them, " +
-        "and the shortlist of counties with the income but not the restaurants — with 4 Views " +
-        "pinned to Home (supply, demand, the two together, and the shortlist itself), over 2 US Census " +
-        "datasets covering 1,813 counties: who lives there (population, households, median age, " +
-        "median household income, education) and the businesses already trading there (all " +
-        "industries, restaurants and bars, grocers), plus the prep job that joins them into a " +
-        "per-10,000-residents saturation index — all on 1 embedded connection. The data is real " +
-        "and ships inside the app: no credentials to enter.",
+      // N40: was one 100-word sentence that re-listed the tagline's counts and then
+      // inventoried both datasets' columns. The columns are Help's job; the card's job is
+      // what you get and where the data came from.
+      blurb: "3 dashboards on where restaurants are under-supplied — the county whitespace maps, " +
+        "the demographics behind them, and a shortlist of counties with the income but not the " +
+        "restaurants — plus 4 Views pinned to Home. They read 2 US Census datasets covering " +
+        "1,813 counties on 1 connection, joined by a prep job into a per-10,000-residents " +
+        "saturation index. The data is real and embedded, and ships inside the app: no " +
+        "credentials to enter.",
       source: {
         kind: "public",
         name: "US Census Bureau — County Business Patterns and American Community Survey",
