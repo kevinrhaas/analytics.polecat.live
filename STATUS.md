@@ -135,6 +135,63 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N7 — the NAME on a Help chart card vs the name the picker prints (v974, NO sw bump,
+  2026-08-10, steward; dev branch; est 1pt, took 1 — ON estimate):** 🔁 N7 was again the only
+  takeable item in ▶ NOW (N31, N44, N41, N25 all ⛔ on Kevin; SP-1 ⏳ on `hold` PR #689), and
+  grooming pass 5 had drained the queue, so there was nothing to groom either. The v973 slice
+  named no successor — its own closing note parked its one find as *not* N7's (app copy in a
+  precached file, plus a product call about the word "panel") — so this pass picked its own
+  target: the **Chart types** chapter, the largest surface on the page and, it turned out, a
+  half-held one.
+  - **Check 2 is the oldest check in `tools/doc-truth.mjs` and it holds the chapter's KEYS**
+    — every registry type has a `ct-<type>` card, no card invents a type. Nothing had ever held
+    the **name printed on the card**, and **seven of the fifty-four had drifted**:
+    `parallelCoords` was written up as *"Parallel coordinates"* where the picker prints
+    **"Parallel coords"**, `combo` as *"Bar + line (combo)"* vs **"Bar + line"**, `lollipop`,
+    `dumbbell` and `bump` had all lost the word **chart**, `marimekko` was *"Marimekko / Mekko"*
+    vs **"Marimekko"**, and `ridgeline` was *"Ridgeline / joy plot"* vs **"Ridgeline plot"**.
+  - **Not a synonyms quibble, because the app wires the two together three ways.** Every
+    gallery card carries an **ⓘ** link to `docs/index.html#ct-<type>` titled `"Docs: " + c.label`
+    (`app/studio.js`), so a reader clicked *"Docs: Parallel coords"* and landed on a card headed
+    *"Parallel coordinates"*. The gallery's search box matches `label + desc` through
+    `Studio.catalogSearch`. And the Views catalog's chart-type filter pills print the same label
+    (`vwChartLabel`, `app/views.js:45`). **Help even says so itself**, in the facets chapter —
+    the pills print *"the chart's own name from the gallery"*, with *"Line / area"* as its own
+    example, which IS the registry label. The sentence was true of the app and false of this
+    page for seven types; neither section was wrong alone.
+  - **Measured by PROBE, not by reading.** Each published name, fed to `Studio.catalogSearch`
+    against that chart's own label + desc: **five of the seven found nothing** — *"Parallel
+    coordinates"*, *"Bar + line (combo)"*, *"Bump / ranking"*, *"Marimekko / Mekko"* and
+    *"Ridgeline / joy plot"*, plus the *"joy plot"* alias on its own. The chapter's own
+    instruction is to select the type in the inspector, where that box is the way in.
+  - **The fix keeps the synonyms, in the place that can carry them.** All seven titles are now
+    the picker's label verbatim; *Mekko*, *joy plot*, *combo* and *parallel-coordinates plot*
+    moved into the card descriptions, which are Help's prose rather than a name the app has to
+    match. The intro gained the promise the rules hold: the titles are the picker's own names,
+    the ⓘ link opens by them, the filter pill carries them, and one can be typed straight into
+    *Search chart types…*.
+  - **Doc-truth check 62** — the check-38→40 idiom (a picker's roster holds the page that
+    documents it) with check 61's probe on top. Premise + four rules: card title = registry
+    label; the negative half (no card wears another type's name — a swap satisfies coverage and
+    is exactly what a names rule exists to catch); the probe, run on the title AND on each
+    `/`-separated alternative in it; and the intro's promise. **ADOPTED, NOT RIVALLED:** check 50
+    already holds every card to its GROUP in both directions and check 45(d) already holds the
+    facets chapter's volunteered labels and reads the kpi exception out of `vwChartLabel`, so
+    two draft rules were deleted rather than shipped beside them. `ct-kpi` needs no carve-out —
+    rule (a) walks the registry and never reaches it.
+  - **All measured failing.** The title rule, the probe and the intro rule on the **real
+    pre-fix tree**; the negative half on a mutated tree (`ct-lollipop` retitled *"Dumbbell
+    chart"* — it fires while the title rule fires too, which is the point); the code-side
+    direction on a mutated tree (the picker relabels *Waffle chart* → *Waffle grid*, and the
+    title rule and the probe both redden — as does `SPEC.md`'s own existing label check, which
+    is the neighbouring derivation doing its job); and the premise on a mutated tree (the
+    gallery stops printing `c.label` into `.lb`). The probe's standing job beyond aliases is the
+    kit direction — a card whose title is exactly the label passes it by construction, so it
+    earns its keep on the `/` alternatives and on a search-kit regression.
+  - **Verified:** `node tools/validate.mjs` (215 files parse clean), `node
+    tools/changelog-check.js` (951 entries, top v974, manager-parse OK), `node
+    tools/doc-truth.mjs` (all checks green, 62 now among them) and `NODE_PATH=$(npm root -g)
+    node tools/dev-smoke.mjs` — the repo's whole DEV GATE, in the foreground.
 - **N7 — the command palette Help describes vs the one the app ships (v973, NO sw bump,
   2026-08-10, steward; dev branch; est 1pt, took 1 — ON estimate):** 🔁 N7 was again the only
   takeable item in ▶ NOW (N31, N44, N41, N25 all ⛔ on Kevin; SP-1 ⏳ on `hold` PR #689), and
@@ -16358,6 +16415,35 @@
     CURRENT: the **Voice command mode** paragraph below it (the mic only renders when
     `SpeechRecognition` exists, which `voiceSupported()` still gates), and the top-bar
     **Search…** pill the section names, which `app/index.html:113` still prints.
+  * *The NAME on a Help chart card vs the name the picker prints — v974, NO sw bump
+    (2026-08-10 — see DONE).* No candidate was standing again (v973's own note parked its find
+    as not-N7's), so this pass took the **Chart types** chapter — the page's largest surface,
+    and a half-held one. **Check 2, the oldest check in the file, holds the chapter's KEYS**
+    (every registry type has a `ct-` card, no card invents a type) and nothing had ever held the
+    **name on the card**: seven of the fifty-four had drifted — *"Parallel coordinates"* vs the
+    picker's **"Parallel coords"**, *"Bar + line (combo)"* vs **"Bar + line"**, *"Lollipop"* /
+    *"Dumbbell"* / *"Bump / ranking"* all missing the word **chart**, *"Marimekko / Mekko"* vs
+    **"Marimekko"**, *"Ridgeline / joy plot"* vs **"Ridgeline plot"**.
+    **The app wires the two together three ways, which is why it is drift and not editorial:**
+    every gallery card's **ⓘ** link opens `docs/index.html#ct-<type>` titled `"Docs: " + c.label`,
+    so a reader clicked one name and landed on another; the gallery's search box matches
+    `label + desc`; and the Views filter pills print the same label (`vwChartLabel`). Help's own
+    facets chapter already said the pills print *"the chart's own name from the gallery"* — true
+    of the app, false of this page for seven types. **Measured by PROBE:** five of the seven
+    names found **nothing** through `Studio.catalogSearch`, plus the *"joy plot"* alias.
+    All seven titles are now the picker's label verbatim, with the synonyms moved into the card
+    descriptions, and the intro states the promise. Doc-truth **check 62**, premise + four rules;
+    two more were DELETED rather than shipped because check 50 (group filing) and check 45(d)
+    (the pill sentence's labels + the kpi exception) already hold them.
+    **Measured in the same pass and NOT taken, so the next run does not re-derive it:** the
+    picker's own search cannot find a chart by a name it does not print — *joy plot*, *Mekko*
+    and *combo* are all real names for charts the app ships, and typing any of them into
+    *Search chart types…* returns nothing. Widening the registry's `desc` strings (the other
+    half of the haystack) would fix it in the app rather than in the docs, but `app/model.js` is
+    precached — an `sw.js` CACHE bump, issue #631's territory — and *which* synonyms belong in
+    the product's own copy is a product call, not a derivation. Also measured and found CURRENT:
+    the chapter's group `<h3>`s (check 50 holds all 54 cards to the picker's tabs, both
+    directions) and the `<div class="chart-group"></div>` stub every card carries.
 
 > **📋 RECORDED FOR KEVIN, NOT PROMOTED — grooming pass 4, 2026-08-10.** This sits BELOW the queue
 > on purpose: `docs/BACKLOG.md` says the loop never promotes into ▶ NOW on its own, and pass 2's

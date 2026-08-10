@@ -6,6 +6,18 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 974,
+    title: 'The Help page now calls every chart by the name the picker prints',
+    kind: 'fix',
+    ts: '2026-08-10T17:24:29.000Z',
+    items: [
+      'Every card in the chart-type gallery carries a small <b>ⓘ</b> link that opens the Help page at that chart\'s own entry. For seven of the fifty-four types, you clicked a card called one thing and landed on a card called another: <b>Parallel coords</b> was written up as "Parallel coordinates", <b>Bar + line</b> as "Bar + line (combo)", <b>Lollipop chart</b>, <b>Dumbbell chart</b> and <b>Bump chart</b> all lost the word "chart", <b>Marimekko</b> was "Marimekko / Mekko", and <b>Ridgeline plot</b> was "Ridgeline / joy plot". All seven now read exactly as the picker does.',
+      'That mattered most in the gallery\'s own search box, which matches a chart\'s name and description. Five of those seven names found <b>nothing</b> when typed in — so the Help page was handing you words the app could not look up. The alternative names worth knowing have moved into the descriptions instead, where they still tell you a Marimekko is a Mekko and a ridgeline is a joy plot.',
+      'The chapter now says outright what those titles are: the name the picker prints, the name the ⓘ link opens, and the name a View\'s chart-type filter pill carries — one name for one chart, wherever you meet it.',
+      'A new check runs before anything merges and holds all of it against the chart registry itself: every card\'s title, the other direction too (no card may wear a different chart\'s name), and — by running the app\'s own search over each published title — whether typing it really does find that chart.',
+    ],
+  },
+  {
     v: 973,
     title: 'Help now describes the command palette the app actually ships',
     kind: 'fix',
