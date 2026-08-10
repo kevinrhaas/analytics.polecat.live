@@ -6,6 +6,17 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 982,
+    title: 'Help told you to press a key combination the builder has never had',
+    kind: 'fix',
+    ts: '2026-08-10T20:41:49.000Z',
+    items: [
+      'The <b>Undo / Redo</b> section said to press <b>Shift Z</b> to redo. Nothing happens: every letter shortcut in the builder is read inside a block that ignores the key unless <b>Ctrl</b> or <b>⌘</b> is held, so a bare Shift+Z has never reached anything. The redo chords are <b>Ctrl/⌘ Shift Z</b> and <b>Ctrl/⌘ Y</b> — the Windows alias for the same action — and the section names both now.',
+      'The Keyboard shortcuts table further down the page was corrected a day earlier and this paragraph, 1,500 lines above it, kept the wrong chord alive — so the chapter about redoing was the one place you could not learn how to redo.',
+      'A new doc-truth check reads every key combination Help prints <i>outside</i> that table and holds it to the app\'s own "?" panel and to the keydown handler behind it: a letter chord written without Ctrl/⌘, a chord the app does not have, and an undo/redo chord the chapter fails to name now each fail the dev gate. The table and the prose are checked by different rules against the same source, so a fix in one can no longer leave the other behind.',
+    ],
+  },
+  {
     v: 981,
     title: 'The Help page started describing Home at the fourth thing on the screen',
     kind: 'fix',

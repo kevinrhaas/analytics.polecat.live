@@ -7776,6 +7776,144 @@ if (kitLive) {
   }
 }
 
+/* ── Check 70 — the keyboard chords Help prints OUTSIDE its shortcuts table ────
+   N7, and check 36's move one ALTITUDE up rather than one document over. Check 36 holds
+   Help's <table class="kbd-table"> to the app's "?" panel and to the keydown block behind it,
+   and its own header says so: "Scoped to the TABLE, not the whole section". Nothing had ever
+   read a chord Help prints anywhere ELSE on the page — and the page prints nineteen of them
+   outside that table, 1,500 lines above it.
+
+   Measured 2026-08-10, before the fix. The Undo / Redo chapter published the exact chord
+   check 36 had just deleted from the table:
+   · **`Shift Z` to redo — a chord the builder has never had.** Same defect, same page, same
+     week: v923 fixed the table's Redo row and the prose keeps the corpse alive. The handler is
+     one block opening `if (!(e.metaKey || e.ctrlKey)) return;`, so bare Shift+Z reaches
+     nothing. Rule (b) is that early return stated at page altitude — check 36's rule (c) with
+     the table cut out instead of cut to.
+   · **And the chapter named ONE of the three chords its own two buttons fire.** The undo/redo
+     branches implement `Ctrl/⌘+Z`, `Ctrl/⌘+Shift+Z` and `Ctrl/⌘+Y`; the chapter had undo, a
+     chord that does not exist, and no mention of either real redo — so a reader who wanted to
+     redo could not get there from the chapter about redoing. The Windows alias `Ctrl/⌘+Y` was
+     added to the table by v923 and to the panel by the same slice; this is the third document.
+
+   The chain is transitive on purpose: rule (c) holds the prose to the "?" panel, and check 36
+   already holds that panel to the handler — so a retired chord has to be deleted in one place,
+   not three. Rule (d) reads the handler directly instead, because it needs each branch's own
+   ACTION (which chords are redo) and not just the chord inventory.
+
+   Two premises and three rules:
+   (a) — the premises, split in two on purpose: the page-wide parse gates (b)/(c), the anchor
+       parse gates (d). A single premise would have let the missing anchor SILENCE the rule the
+       real drift was failing, which is the pre-fix tree this check was written against;
+   (b) no letter chord without Ctrl/⌘ anywhere in the prose (this is what `Shift Z` failed);
+   (c) every Ctrl/⌘ letter chord the prose prints is one the "?" panel publishes — the
+       negative half, so a retired chord cannot outlive its removal in a paragraph;
+   (d) the Undo / Redo chapter names exactly the chords the handler's `undoAct()`/`redoAct()`
+       branches fire, both directions.
+
+   A FOURTH rule was written and then deleted, which is worth recording so nobody writes it
+   again: this chapter's phone route ("⋯ More → Undo" / "→ Redo") is ALREADY held — check 21
+   resolves every ⋯ More route Help names against #menuMore's markup, page-wide, and its
+   mutation fails right beside this check's. Check 13's header says docs/index.html is out of
+   ITS scope, which reads like a gap and is not one: check 21 covers the page. Adopting the
+   existing check beats minting a rival for it (N44 slice 1's lesson, one tool over). */
+{
+  // Help minus the table check 36 owns — every rule below reads the remainder, so the two
+  // checks partition the page rather than overlapping on it.
+  const helpProse = help.replace(/<table class="kbd-table">[\s\S]*?<\/table>/, " ");
+  // Two spellings the page uses that `chordsOf` (check 36's parser, written for the table's
+  // own "Ctrl / ⌘  +  Shift+Z" style) would otherwise read as gestures and skip: the prose
+  // writes "⌘K" closed up and "Ctrl-K" hyphenated. Normalised HERE rather than in chordsOf,
+  // so check 36's cells keep parsing exactly as they did. How a chord is SPELLED is editorial
+  // and stays unheld; what it resolves to is not.
+  const openUp = (cell) => cell.replace(/(⌘|Ctrl|Shift|Alt)(?=[A-Za-z])/g, "$1 ").replace(/-(?=[A-Za-z])/g, " ");
+  const proseCells = [...helpProse.matchAll(/<kbd>([^<]+)<\/kbd>/g)].map((m) => openUp(m[1].trim()));
+
+  // The undo/redo branches of the SAME keydown block check 36 reads, but kept per-action:
+  // each `else if` is one branch, each `||` disjunct one chord, and the call inside the branch
+  // body says what that chord does. That is what lets rule (d) ask for completeness — "name
+  // every chord that redoes" — rather than only "invent none".
+  const chordsByAction = (() => {
+    const src = read("app/studio.js");
+    const at = src.indexOf("if (!(e.metaKey || e.ctrlKey)) return;");
+    if (at < 0) throw new Error("doc-truth: the Ctrl/⌘ keydown block not found in app/studio.js");
+    let depth = 1, i = at;
+    for (; i < src.length; i++) {
+      if (src[i] === "{") depth++;
+      else if (src[i] === "}" && --depth === 0) break;
+    }
+    const out = new Map();
+    for (const branch of src.slice(at, i).split(/\belse if\b|\bif\b/).slice(1)) {
+      const act = (branch.match(/\b(\w+Act)\(\)/) || [, null])[1];
+      if (!act) continue;
+      for (const disjunct of (branch.split("{")[0] || "").split("||")) {
+        const letter = disjunct.match(/k === "([a-z])"/);
+        if (!letter) continue;
+        const shift = /(?<!!)e\.shiftKey/.test(disjunct);
+        if (!out.has(act)) out.set(act, new Set());
+        out.get(act).add(canon([...(shift ? ["mod", "shift"] : ["mod"]), letter[1]]));
+      }
+    }
+    return out;
+  })();
+  const historyChords = new Set([...(chordsByAction.get("undoAct") || []), ...(chordsByAction.get("redoAct") || [])]);
+
+  const undoBlock = (helpProse.match(/<h3 id="undo-redo">[\s\S]*?<\/p>/) || [, null])[0] || null;
+  const undoCells = undoBlock ? [...undoBlock.matchAll(/<kbd>([^<]+)<\/kbd>/g)].map((m) => openUp(m[1].trim())) : [];
+
+  // Two premises, not one, and the split is deliberate: rules (b)/(c) read the whole page and
+  // must keep running even when the anchor rules (d)/(e) cannot — the pre-fix tree had no
+  // #undo-redo anchor at all (it is part of this slice), and a single premise would have made
+  // the missing anchor SILENCE the page-wide rule the drift was failing.
+  const chordPremise = ok(`docs/index.html + app/studio.js: the prose chords parsed for check 70 ` +
+    `(${proseCells.length} <kbd> outside the table, history chords: ${prettyList(historyChords)})`,
+    proseCells.length > 5 && panelChords.size > 0 &&
+      (chordsByAction.get("undoAct") || new Set()).size > 0 && (chordsByAction.get("redoAct") || new Set()).size > 1,
+    `undoAct: ${prettyList(chordsByAction.get("undoAct") || [])} · ` +
+    `redoAct: ${prettyList(chordsByAction.get("redoAct") || [])}\n      ` +
+    "an empty parse would pass every rule below while measuring nothing — check 36's premise, one altitude up");
+  const anchorPremise = ok(`docs/index.html: the #undo-redo chapter parsed for check 70 (${undoCells.length} <kbd>)`,
+    !!undoBlock && undoCells.length > 0,
+    `#undo-redo: ${undoBlock ? "found" : "MISSING"} — rules (d) and (e) read that anchor, and a ` +
+    "chapter that loses it would otherwise pass both by naming nothing");
+
+  if (chordPremise) {
+    const proseChords = chordSet(proseCells);
+
+    // (b) the early return, at page altitude. `Shift Z` lived here for months precisely because
+    // check 36 stops at the table's edge.
+    const proseModless = [...proseChords].filter((c) => c.split("+").some((t) => LETTER.test(t)) && !c.split("+").includes("mod"));
+    ok("docs/index.html: every letter chord its PROSE documents names Ctrl/⌘, not just Shift",
+      !proseModless.length,
+      `documented without a modifier: ${prettyList(proseModless)}\n      ` +
+      "app/studio.js's chord handler opens with `if (!(e.metaKey || e.ctrlKey)) return;` — a bare " +
+      "letter reaches nothing, and check 36 only ever read the shortcuts table");
+
+    // (c) the negative half, against the panel check 36 holds to the handler.
+    const proseInvented = [...proseChords].filter((c) => c.includes("mod") && c.split("+").some((t) => LETTER.test(t)) && !panelChords.has(c));
+    ok("docs/index.html: its prose documents no Ctrl/⌘ chord the app's \"?\" panel does not publish",
+      !proseInvented.length,
+      `in Help's prose, not in the app's panel: ${prettyList(proseInvented)}\n      ` +
+      "a chord named in a paragraph is as real to a reader as one in the table, and outlives its " +
+      "removal just as long");
+
+  }
+
+  if (anchorPremise) {
+    // (d) completeness, both directions — the chapter ABOUT undo and redo is the one place a
+    // reader is entitled to the whole set.
+    const undoChords = chordSet(undoCells);
+    const undoMissing = [...historyChords].filter((c) => !undoChords.has(c));
+    const undoStray = [...undoChords].filter((c) => !historyChords.has(c));
+    ok(`docs/index.html: #undo-redo names the ${historyChords.size} chord(s) the builder's undo/redo really fire (${prettyList(historyChords)})`,
+      !undoMissing.length && !undoStray.length,
+      `fired by undoAct()/redoAct(), not named: ${prettyList(undoMissing)}\n      ` +
+      `named here, fired by neither: ${prettyList(undoStray)}\n      ` +
+      "the chapter about redoing is where a reader looks for the chord that redoes");
+
+  }
+}
+
 console.log(failed ? `\n✗ doc-truth: ${failed} claim(s) have drifted from the source of truth`
   : "\n✅ doc-truth: every published claim matches the source it describes");
 process.exit(failed ? 1 : 0);
