@@ -135,6 +135,51 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N7 — the authoring controls Simple mode hides vs the controls it really hides (v972, NO sw
+  bump, 2026-08-10, steward; dev branch; est 1pt, took 1 — ON estimate):** 🔁 N7 was the only
+  takeable item in ▶ NOW — N31, N44, N41 and N25 are all ⛔ on Kevin, SP-1 is ⏳ on `hold` PR
+  #689, and grooming pass 5 (the commit directly below this one) had just declined to open a
+  fifth batch proposal on top of the unanswered #623, so there was nothing to groom either.
+  The slice is the candidate **check 59's own closing note** named, and it earned the slice
+  rather than a rider: the sentence was not stale, it was **wrong three times over, and one of
+  the three ran the opposite way to the other two.**
+  - **What Help published:** *"The **Data** panel is read-only browse + drag: its **＋ New ▾**
+    button, the add control on **My queries** and the per-query actions are all hidden, as are
+    the **Edit data source** jump link in a panel's Data section and the per-dataset actions on
+    the **Repository** page."* One sentence, four controls named, five hidden.
+  - **(1) The add button was documented on the wrong group.** `.mine-add` is built by
+    `buildMyDataSources()`, whose header prints **This dashboard’s datasets**. **My queries** is
+    a different group (`buildLibrary()`'s `.lib-samples`) with its own, different per-card
+    actions — both are real, both have an actions row, so the claim read as plausible while
+    sending a reader to the wrong place to confirm what they had lost.
+  - **(2) "the per-query actions" was one phrase for two sets on two groups** — `.da-mine-acts`
+    (**Duplicate** / **Delete**) and `.da-acts` (**Edit data source** / **Delete data source**) —
+    naming neither the groups nor the four actions.
+  - **(3) The Repository clause was false in BOTH directions.** `.repo-ds-acts`, the selector it
+    was written about, is hidden by `app/studio.css:718` and rendered by **nothing** —
+    `.repo-ds-card` has no renderer anywhere in `app/`. Meanwhile the Repository page's real
+    per-row authoring controls (`repo-edit` = **Quick edit**, `repo-folder-add` =
+    **+ New folder**, the `dash-bulk-bar` Select bar) are hidden by no rule at all. A
+    Simple-mode reader was told catalog authoring was locked down while all of it stayed live.
+  - **Shipped:** the list now names all five live controls, each with the group header it sits
+    under, and a companion `<p id="simple-keeps">` states the other direction outright — Simple
+    mode is a quieter builder, not a read-only app.
+  - **Verified:** doc-truth **check 60** (six rules; the hand-written half is
+    selector → control name → group, everything else derived from the CSS, from the function
+    that builds each control, and from the `class="nm"` label that function or its caller
+    prints). **(d), (e), (f) and the premise measured failing on the real pre-fix tree**; (c) on
+    a mutated tree that re-publishes the Repository clause, because an absent list bolds nothing
+    to catch. Five code-side directions measured on mutated trees — a hide rule nothing claims,
+    a selector renamed out from under the table, a group header renamed in the app, a control
+    relabelled in **both** its `title` and its `aria-label` (renaming only one correctly changes
+    nothing), and Simple mode starting to hide **Quick edit**, which reddens (b) and (f)
+    together. Full dev gate green in the foreground: `tools/validate.mjs`,
+    `tools/changelog-check.js`, `tools/doc-truth.mjs`, `tools/dev-smoke.mjs`.
+  - **NO sw bump, correctly:** `docs/index.html` is not precached (`sw.js` says so at line 20)
+    and nothing else user-facing changed — so this slice does not enter issue #631's territory.
+  - **Est 1pt, took 1.** The deliberate non-take is recorded on the N7 bullet: deleting the dead
+    `.repo-ds-*` CSS is code hygiene in a precached file, and belongs to the next slice that
+    opens `app/studio.css` for a reason of its own.
 - **Grooming pass 5 — Kevin's whole promotion drained, and the queue is honestly empty (no
   version/sw bump; docs-only; 2026-08-10, steward; dev branch; est 1pt, took 1 — ON estimate):**
   the unit the SP-13 (c) run named, and `docs/BACKLOG.md`'s grooming trigger had fired on its
@@ -16161,15 +16206,62 @@
     `hasFeatured ? "home" : "explore"`, Quick Views said "Explore is the default", flat.
     Doc-truth check 59: eight rules, **7 of 8 measured failing on the real pre-fix tree** and all
     nine code-side directions on mutated trees, each failing its own rule and only its own.
-    **Measured in the same pass and NOT taken, so the next run does not re-derive it:** the
+    ~~**Measured in the same pass and NOT taken, so the next run does not re-derive it:** the
     authoring controls the mode hides are published now but held only by a reader — their source
     is five `body.simple-mode` selectors in `app/studio.css`, and mapping a selector to the name a
     reader knows the control by is a hand-written table, not a derivation. That is check 21's
-    idiom over a different set, and **it is the named candidate for the next N7 slice**. Also
+    idiom over a different set, and **it is the named candidate for the next N7 slice**.~~
+    ✓ **SHIPPED v972, NO sw bump (2026-08-10 — see the v972 line below and DONE), and "held only
+    by a reader" was generous: the one sentence was wrong three times.** Also
     measured and **NOT N7's** (it is code, not copy): `app/studio.js`'s "Flip on Simple mode in
     Settings" tip names one of the four routes, in a precached file — a `sw.js` CACHE bump
     (issue #631) for a tip, so it belongs to whichever slice next touches that file for a real
     reason. The two v922 candidates are still open and still Kevin's calls.
+  * *The authoring controls Simple mode hides vs the controls it really hides — v972, NO sw
+    bump (2026-08-10 — see DONE).* The candidate check 59's own closing note named, and the
+    reason it was worth a slice rather than a rider is that the sentence was not stale — it was
+    **wrong three times, in one sentence, and one of the three ran the opposite way to the other
+    two.** Help said: *"The **Data** panel is read-only browse + drag: its **＋ New ▾** button,
+    the add control on **My queries** and the per-query actions are all hidden, as are the
+    **Edit data source** jump link in a panel's Data section and the per-dataset actions on the
+    **Repository** page."*
+    **(1) The add button was on the wrong group.** `.mine-add` is built by
+    `buildMyDataSources()`, whose header prints **This dashboard’s datasets** — not **My
+    queries**, which is a different group (`buildLibrary()`'s `.lib-samples`) with its own,
+    different per-card actions. Both groups are real and both have an actions row, so the claim
+    read as plausible while sending a reader to the wrong place to confirm what they had lost.
+    **(2) "the per-query actions" was one phrase for two different sets on two different
+    groups** — `.da-mine-acts` (**Duplicate** / **Delete**) and `.da-acts` (**Edit data
+    source** / **Delete data source**) — naming neither the groups nor the four actions.
+    **(3) The Repository clause is false in BOTH directions, and that is the find.**
+    `.repo-ds-acts`, the selector it was written about, is hidden by `app/studio.css:718` and
+    rendered by **nothing** — `.repo-ds-card` has no renderer anywhere in `app/`, so the rule is
+    dead CSS. Meanwhile the Repository page's REAL per-row authoring controls (`repo-edit` =
+    **Quick edit**, `repo-folder-add` = **+ New folder**, and the `dash-bulk-bar` Select bar) are
+    hidden by no rule at all. So a Simple-mode reader was told catalog authoring was locked down
+    while every one of those stayed live. Help now publishes the five live controls each with the
+    group header it sits under, and a companion sentence stating the other direction: Simple mode
+    is a quieter builder, not a read-only app.
+    Doc-truth **check 60** is check 21's idiom over this set — the hand-written half is
+    selector → control name → group; everything else is derived from the CSS, from the function
+    that builds each control, and from the `class="nm"` label that function (or its caller)
+    prints. Six rules; **(d), (e), (f) and the premise measured failing on the real pre-fix
+    tree** — the premise because the page had no such list to hold, which is also why (c) had to
+    be measured on a mutated tree (an absent list bolds nothing to catch). Every code-side
+    direction measured on mutated trees: a hide rule nothing claims, a selector renamed out from
+    under the table, a group header renamed in the app, a control relabelled in **both** its
+    `title` and its `aria-label` (renaming only one correctly changes nothing — the app still
+    prints the name), and Simple mode starting to hide **Quick edit**, which correctly reddens
+    (b) and (f) together.
+    **Measured in the same pass and NOT taken, so the next run does not re-derive it:** deleting
+    the dead `.repo-ds-acts` CSS (and the four `.repo-ds-*` rules above it, ~6 lines). It is code
+    hygiene, not copy, and `app/studio.css` is precached — a `sw.js` CACHE bump, issue #631's
+    territory, for dead CSS no user can see. Check 60 rule (b) keeps the entry visible as
+    `dead: true` rather than letting it rot unnamed, so it belongs to whichever slice next opens
+    that file for a reason of its own. Also measured and found CURRENT: `app/tutorial.js` and
+    `app/welcome.js` contain **zero** occurrences of "Simple mode", so neither tour publishes a
+    claim about what the mode hides and the usual check-16→17 move one document over has nothing
+    to correct — check 60 is scoped to Help for that reason, not by oversight. The two v922 candidates are still open and still Kevin's calls.
 
 > **📋 RECORDED FOR KEVIN, NOT PROMOTED — grooming pass 4, 2026-08-10.** This sits BELOW the queue
 > on purpose: `docs/BACKLOG.md` says the loop never promotes into ▶ NOW on its own, and pass 2's

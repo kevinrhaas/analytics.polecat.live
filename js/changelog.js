@@ -6,6 +6,18 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 972,
+    title: 'Help now describes the controls Simple mode really hides',
+    kind: 'fix',
+    ts: '2026-08-10T16:18:24.000Z',
+    items: [
+      'The Help page described everything <b>Simple mode</b> takes out of the builder\'s data authoring in a single sentence, and that sentence was wrong three times over. It now lists all <b>five</b> hidden controls, each with the group header you find it under: the Data panel\'s <b>＋ New ▾</b> button; the <b>Create a new data source</b> button and the per-card <b>Duplicate</b> and <b>Delete</b> actions on <b>This dashboard’s datasets</b>; the per-card <b>Edit data source</b> and <b>Delete data source</b> actions on <b>My queries</b>; and the <b>Edit data source</b> jump link in a panel\'s Data section.',
+      'The add button was documented on the wrong group. Help put it on <b>My queries</b> when it lives on <b>This dashboard’s datasets</b> — and because both groups are real, and both have their own per-card actions, the claim read as plausible while sending you to the wrong place to confirm what you had lost.',
+      'Help also told you Simple mode hides the <b>Repository</b> page\'s per-dataset actions. It does not: <b>Quick edit</b>, <b>+ New folder</b> and the Select bulk bar are all still there, and so is everything on Datasets, Connections, Jobs and Views. The page now says so outright — Simple mode is a quieter builder, not a read-only app.',
+      'All of it is now held by a check that runs before anything merges: which controls Simple mode hides, whether the app still renders each one, the group header each sits under, the number the page publishes, and the other direction too — if the catalog pages ever DO start hiding a control in Simple mode, the page has to say so.',
+    ],
+  },
+  {
     v: 971,
     title: 'Where America Moved pins its four Views, and brings its own guided tour',
     ts: '2026-08-10T15:23:12.000Z',
