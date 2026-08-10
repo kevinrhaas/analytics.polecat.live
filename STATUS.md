@@ -135,6 +135,63 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N7 — the roles the marketing page sells vs the roles the app has (v977, NO sw bump,
+  2026-08-10, steward; dev branch; est 1pt, took 1 — ON estimate):** 🔁 N7 was again the only
+  takeable item in ▶ NOW (N31, N44, N41 and N25 all ⛔ on Kevin; SP-1 ⏳ on `hold` PR #689), and
+  v976's closing note left no standing candidate — so this pass went one QUESTION over rather
+  than one document over: **checks 9–64 hold what the app can DO** (its charts, panes, menus,
+  packs, pickers, tables and prose) **and nothing held WHO can do it.** The first place that was
+  read is the first place it was wrong.
+  - **The marketing page had invented a role.** `index.html`'s "Bring your team" card sold
+    "admin, **editor** and viewer roles". `app/auth.js:277` is the source of truth —
+    `ROLES = ["admin", "developer", "viewer"]`, with `ROLE_LABELS` beside it — and **there has
+    never been an editor**. The rung the card dropped is the one that BUILDS: `canDevelop()`
+    (`auth.js:282`) admits `admin` and `developer`, and it is the only gate on the Dashboard
+    Builder. So the card omitted the role a prospect is most likely to want and offered, in its
+    place, a name that appears nowhere in the product.
+  - **It is not a label drift, because of where the card sits in the funnel.** The card is
+    upstream of **Admin → Add user**, whose own select reads *Admin — full access* /
+    *Developer — build &amp; edit dashboards* / *Viewer — browse &amp; explore*: a reader who
+    signed up on the strength of "editor" went looking for it in a list that has never had it.
+    The card now names all three in ladder order and says in one clause what each can do.
+  - **Audited and found CURRENT in the same pass, no change needed:** Help was right on both of
+    its role passages — the Admin bullet's ladder ("whether they're an admin, developer, or
+    viewer — each role a superset of the one below") and the Dashboard Builder's own visibility
+    sentence, which splits the roster exactly where `canDevelop()` splits it. `README.md`,
+    `SPEC.md`, `PUBLISH.md` and the six tours name no role at all. The two Help passages gained
+    `id="roles-ladder"` and `id="builder-access"` as the new check's anchors — the
+    `id="viewer-export"` / `id="filters-how"` idiom this page already uses.
+  - **Doc-truth check 65 — premise + four rules, all three derivations from one file.** `ROLES`
+    (the roster), `ROLE_LABELS` (its keys, so a set that stops matching its labels fails the
+    PREMISE rather than half a rule) and `canDevelop()`'s own body (the capability split as the
+    code enforces it, not as a comment describes it). The read-only set is derived as the
+    complement, so a fourth role classifies itself here instead of needing a second list.
+    (b) the marketing card offers exactly the roster, both directions in one rule because it is
+    one sentence; (c) Help's ladder, the same; (d) the builder's visibility, held role by role —
+    a role is documented on the granted side **iff** the gate admits it and on the read-only side
+    **iff** it does not; (e) the direction that costs a reader the most, run page-wide over
+    `index.html`, `docs/index.html` and `README.md` rather than on an anchor: **no document may
+    tell a read-only account it can build a dashboard.**
+  - **Every rule measured failing.** (b) on the REAL pre-fix wording, carried under the new
+    anchor because the anchor did not exist before this slice (check 63's idiom) — it reported
+    both halves at once: *sold by the card, not a role: editor · missing from the card:
+    developer*. (c), (d) and (e) on mutated trees (a ladder that drops the middle rung; a Help
+    sentence that grants the builder to a viewer; a sentence that says a viewer builds). And
+    every code-side direction: **a fourth role reddens (b), (c) and (d) simultaneously**;
+    `ROLE_LABELS` drifting off `ROLES` fails the premise; a gate opened to every role empties the
+    read-only set and fails the premise too (correctly — Help's viewer-route sentence would then
+    be a lie about nobody); and closing the gate on `developer` fails (d) alone, naming it.
+  - **Measured in the same pass and NOT taken, so the next run does not re-derive it.** Both are
+    in `app/studio.js`, which is precached — an `sw.js` CACHE bump is issue #631's territory —
+    so both belong to the next slice that has to bump anyway, the v927/v976 reasoning unchanged.
+    **(1) COPY, so N7's, and it is the same drift one surface over:** the Admin page's own hero
+    paragraph explains **two** of the three roles it offers — *"**Admin** has full access;
+    **viewer** can browse and explore but not edit"* — leaving the developer rung unexplained on
+    the one page where roles are actually assigned. **(2) NOT copy, so not N7's:**
+    `openUserEditor` hard-codes a THIRD role list with labels of its own instead of reading
+    `PolecatAuth.ROLES` / `ROLE_LABELS`, and `ROLE_LABELS` — exported for exactly this — has no
+    reader anywhere in `app/` (`grep -an "ROLE_LABELS" app/*.js` finds only `auth.js`). Check 65
+    holds the documents to the roster; nothing holds the app's second copy of it to the first.
 - **N7 — the honesty chapter vs the two registries it argues about (v976, NO sw bump, 2026-08-10,
   steward; dev branch; est 1pt, took 1 — ON estimate):** 🔁 N7 was again the only takeable item in
   ▶ NOW (N31, N44, N41 and N25 all ⛔ on Kevin; SP-1 ⏳ on `hold` PR #689), grooming pass 5 had
@@ -16587,6 +16644,31 @@
     than assumed. Also measured and found CURRENT: all ten pre-existing terms are words the app
     still says (`Turso` is still a shipped workspace backend), and every one is bolded elsewhere
     on the page — rule (g) passes on the pre-fix list, so nothing had gone dead.
+  * *The roles the marketing page sells vs the roles the app has — v977, NO sw bump (2026-08-10 —
+    see DONE).* No candidate was standing again, so this pass changed the QUESTION rather than the
+    document: checks 9–64 hold what the app can DO, and **nothing held WHO can do it.** The first
+    surface read was wrong — `index.html`'s "Bring your team" card sold **"admin, editor and viewer
+    roles"** where `app/auth.js` offers `["admin", "developer", "viewer"]` and has never had an
+    editor. The rung it dropped is the one that BUILDS (`canDevelop()` admits admin + developer and
+    is the only gate on the Dashboard Builder), and the card sits directly upstream of **Admin →
+    Add user**, whose select reads *Admin — full access / Developer — build &amp; edit dashboards /
+    Viewer — browse &amp; explore*. Doc-truth **check 65**, premise + four rules, from three
+    derivations in one file (`ROLES`, `ROLE_LABELS`'s keys, and `canDevelop()`'s own body — the
+    read-only set is their complement, so a fourth role classifies itself): the card and Help's
+    ladder each hold both directions, the builder's visibility is held role-by-role against the
+    gate, and rule (e) runs page-wide — no document may tell a read-only account it can build a
+    dashboard. (b) measured failing on the real pre-fix wording under the new anchor; the rest on
+    mutated trees, including a fourth role reddening (b), (c) and (d) at once.
+    **Audited and found CURRENT in the same pass, no change needed:** both of Help's role passages
+    (they gained `id="roles-ladder"` / `id="builder-access"` as anchors, nothing else), and
+    `README.md`, `SPEC.md`, `PUBLISH.md` and all six tours, which name no role at all.
+    **Measured in the same pass and NOT taken, so the next run does not re-derive it** — both in
+    the precached `app/studio.js`, so both belong to the next slice that has to bump anyway
+    (issue #631): the Admin page's **own** hero paragraph explains two of the three roles it
+    offers (*"**Admin** has full access; **viewer** can browse and explore but not edit"*) — the
+    same drift one surface over, and the surface where roles are assigned; and, **not N7's
+    because it is code**, `openUserEditor` hard-codes a third role list rather than reading
+    `PolecatAuth.ROLES` / `ROLE_LABELS`, which is exported and has no reader in `app/` at all.
   * *The honesty chapter vs the two registries it argues about — v976, NO sw bump (2026-08-10 —
     see DONE).* No candidate was standing again (v975's note parked its find as already correct),
     so this pass took **"Ensembles &amp; scientific honesty"** — the last `<h2>` nothing derived,

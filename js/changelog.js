@@ -6,6 +6,17 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 977,
+    title: 'The marketing page now sells the roles the app actually has',
+    kind: 'fix',
+    ts: '2026-08-10T18:31:26.000Z',
+    items: [
+      'The "Bring your team" card on polecat.live/analytics offered "admin, editor and viewer roles". There is no editor: the app\'s three roles are <b>admin</b>, <b>developer</b> and <b>viewer</b>, and the one it left out is the one that builds. Anyone who read the card and then went looking in Admin → Add user found a role list that did not match the page they signed up from.',
+      'The card now names all three, in the order the capability ladder runs, and says in one line what each can do — a viewer reads and explores, a developer builds, an admin also manages accounts.',
+      'A new doc-truth check reads the role list, its labels and the builder\'s own access gate straight out of the app and holds every document that names a role to them: the marketing card, the Help page\'s Admin ladder and its Dashboard Builder entry. It fails the dev gate on a role that is published but does not exist, a role the app offers and nobody documents, a role documented on the wrong side of the gate, and any page that tells a read-only account it can build a dashboard.',
+    ],
+  },
+  {
     v: 976,
     title: 'The ensembles chapter now admits the common estimate is a setting',
     kind: 'fix',

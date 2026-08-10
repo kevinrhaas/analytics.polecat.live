@@ -7065,6 +7065,125 @@ if (kitLive) {
   }
 }
 
+/* ── Check 65 — the ROLE VOCABULARY: the three roles the app really has, and every document
+   that names one. N7. Checks 9–64 hold what the app can DO — its charts, panes, menus, packs,
+   pickers and prose. Nothing held WHO can do it, and the marketing page had invented a role:
+   "admin, editor and viewer roles" on the "Bring your team" card, where `app/auth.js` offers
+   admin / developer / VIEWER and has never had an editor. Not a label drift — a reader who
+   signs up for the role that card sells cannot find it in Admin → Add user, because the middle
+   rung of the ladder is called something else.
+   Sources of truth, all three in `app/auth.js`: `ROLES` (the canonical set the UI offers),
+   `ROLE_LABELS` (its keys, so a set that stops matching its labels fails the premise rather
+   than half a rule), and `canDevelop()`'s own body — the capability split the app enforces, and
+   therefore the only honest basis for "who builds" and "who is read-only". The read-only set is
+   derived as its complement, so adding a fourth role reclassifies it here rather than needing a
+   second list. Rule (e) runs the direction that would cost a reader the most: no document may
+   promise the builder to a role the code will not let in.  */
+{
+  const authSrc = read("app/auth.js");
+  const litList = (re) => [...((authSrc.match(re) || [, ""])[1]).matchAll(/"([^"]+)"/g)].map((m) => m[1]);
+  const roles = litList(/var ROLES = \[([^\]]*)\]/);
+  const labelKeys = [...((authSrc.match(/var ROLE_LABELS = \{([^}]*)\}/) || [, ""])[1])
+    .matchAll(/([A-Za-z_]\w*)\s*:/g)].map((m) => m[1]);
+  // The capability ladder as the code enforces it, not as a comment describes it: canDevelop is
+  // the one gate on the Dashboard Builder, so the roles its body accepts ARE the builders.
+  const developRoles = litList(/function canDevelop\([^)]*\)\s*\{([^}]*)\}/);
+  const readRoles = roles.filter((r) => !developRoles.includes(r));
+  const names = (text, r) => new RegExp("\\b" + r + "\\b", "i").test(text);
+
+  // The marketing card, by its own idiom: "<list> roles".
+  const teamAt = marketing.indexOf('id="feat-team"');
+  const teamText = teamAt < 0 ? "" : htmlText(marketing.slice(teamAt, marketing.indexOf("</div>", teamAt)));
+  const teamEnum = (teamText.match(/([a-z]+(?:,\s+[a-z]+)*\s+and\s+[a-z]+)\s+roles\b/i) || [, ""])[1];
+  // Split on the separators, not on ", and" as a unit — the Oxford comma in Help's own list
+  // would otherwise leave "or viewer" as a token and read as a role the app does not have.
+  const teamRoles = teamEnum.split(/\s*(?:,|\band\b)\s*/).map((s) => s.trim()).filter(Boolean);
+
+  // Help's, by its own: "whether they're an <list>".
+  const ladderAt = help.indexOf('id="roles-ladder"');
+  const ladderText = ladderAt < 0 ? "" : htmlText(help.slice(ladderAt, help.indexOf(")", ladderAt)));
+  const ladderEnum = (ladderText.match(/whether they'?re an? ([a-z]+(?:,\s*[a-z]+)*,?\s+or\s+[a-z]+)/i) || [, ""])[1];
+  const ladderRoles = ladderEnum.split(/\s*(?:,|\bor\b)\s*/).map((s) => s.trim()).filter(Boolean);
+
+  // Help's builder-access parenthetical, split at its own em dash: who it is visible to, and
+  // who is sent to the read-only route instead.
+  const baAt = help.indexOf('id="builder-access"');
+  const baParen = baAt < 0 ? "" : (help.slice(baAt, help.indexOf("</li>", baAt)).match(/\(([\s\S]*?)\)/) || [, ""])[1];
+  const [grantSide, denySide] = baParen.split("—").map((s) => htmlText(s || ""));
+
+  // (a) the premise. Four rules dereference these three literals and three passages; a renamed
+  // anchor, a reworded enumeration or a role model that stops parsing must fail HERE rather
+  // than let a coverage rule pass over an empty string.
+  const rolePremise = ok(`app/auth.js: the role model parsed for check 65 ` +
+    `(${roles.join(" / ") || "(none)"} — builds: ${developRoles.join(" + ") || "(none)"}, ` +
+    `read-only: ${readRoles.join(" + ") || "(none)"})`,
+    roles.length >= 2 && labelKeys.length === roles.length && roles.every((r) => labelKeys.includes(r)) &&
+      developRoles.length >= 1 && developRoles.every((r) => roles.includes(r)) && readRoles.length >= 1 &&
+      !!teamRoles.length && !!ladderRoles.length && !!grantSide && !!denySide,
+    `ROLES: ${roles.join(", ") || "(missing)"} · ROLE_LABELS keys: ${labelKeys.join(", ") || "(missing)"}\n      ` +
+    `canDevelop accepts: ${developRoles.join(", ") || "(missing)"}\n      ` +
+    `index.html #feat-team enumeration: ${JSON.stringify(teamEnum)}\n      ` +
+    `docs/index.html #roles-ladder enumeration: ${JSON.stringify(ladderEnum)}\n      ` +
+    `docs/index.html #builder-access: granted ${JSON.stringify(grantSide || "")} · denied ${JSON.stringify(denySide || "")}`);
+
+  if (rolePremise) {
+    // (b) the marketing card, both directions in one rule because they are one sentence: it
+    // must offer every role the app has, and no role it does not. The second half is the one
+    // that was failing — "editor" read as a perfectly ordinary product noun for weeks.
+    const teamMissing = roles.filter((r) => !teamRoles.includes(r));
+    const teamInvented = teamRoles.filter((r) => !roles.includes(r));
+    ok(`index.html: the team card offers exactly the ${roles.length} roles the app has`,
+      !teamMissing.length && !teamInvented.length,
+      `offered by the app, missing from the card: ${teamMissing.join(", ") || "(none)"}\n      ` +
+      `sold by the card, not a role: ${teamInvented.join(", ") || "(none)"}\n      ` +
+      `the card enumerates: ${teamRoles.join(" · ") || "(nothing)"} · app/auth.js offers: ${roles.join(" · ")}`);
+
+    // (c) Help's ladder, same both directions. This is the sentence an admin reads before
+    // assigning a role, so an omission here is a role nobody knows they can grant.
+    const ladderMissing = roles.filter((r) => !ladderRoles.includes(r));
+    const ladderInvented = ladderRoles.filter((r) => !roles.includes(r));
+    ok(`docs/index.html: the Admin ladder names exactly the ${roles.length} roles the app has`,
+      !ladderMissing.length && !ladderInvented.length,
+      `offered by the app, missing from the ladder: ${ladderMissing.join(", ") || "(none)"}\n      ` +
+      `named in the ladder, not a role: ${ladderInvented.join(", ") || "(none)"}\n      ` +
+      `Help names: ${ladderRoles.join(" · ") || "(nothing)"}`);
+
+    // (d) the capability split, held role by role against canDevelop() itself: a role is named
+    // on the granted side if and only if the gate lets it in, and on the read-only side if and
+    // only if it does not. A fourth role, or a change to the gate, moves this rule with it.
+    const wrongSide = roles.filter((r) =>
+      names(grantSide, r) !== developRoles.includes(r) || names(denySide, r) !== readRoles.includes(r));
+    ok(`docs/index.html: the Dashboard Builder is documented as visible to exactly the role(s) canDevelop() admits (${developRoles.join(" + ")})`,
+      !wrongSide.length,
+      `documented on the wrong side of the gate: ${wrongSide.join(", ") || "(none)"}\n      ` +
+      `canDevelop() admits: ${developRoles.join(", ")} · read-only: ${readRoles.join(", ")}\n      ` +
+      `Help grants it to: ${JSON.stringify(grantSide)}\n      ` +
+      `Help sends to the viewer route: ${JSON.stringify(denySide)}`);
+
+    // (e) the negative half that costs the most if it is wrong, run page-wide rather than on an
+    // anchor: nowhere may a document say a read-only role builds or edits a dashboard. The verb
+    // set is the vocabulary these three documents actually use for authoring; the distance
+    // limits and the clause-ending characters keep it inside one clause, so "a viewer opens
+    // dashboards through the read-only viewer route" (Help, true) does not read as a promise.
+    const AUTHOR = "(?:builds?|edits?|authors?|creates?|designs?)";
+    const overpromised = [];
+    for (const [docName, text] of [
+      ["index.html", htmlText(marketing.slice(marketing.indexOf("<main>"), marketing.indexOf("</main>")))],
+      ["docs/index.html", htmlText(helpMain)],
+      ["README.md", readme]
+    ]) {
+      for (const r of readRoles) {
+        const m = text.match(new RegExp("\\b" + r + "s?\\b[^.;)]{0,40}?\\b" + AUTHOR + "\\b[^.;)]{0,30}?\\bdashboards?\\b", "i"));
+        if (m) overpromised.push(`${docName}: "${m[0].trim()}"`);
+      }
+    }
+    ok(`no document promises the builder to a read-only role (${readRoles.join(", ")})`,
+      !overpromised.length,
+      `${overpromised.join("\n      ") || "(none)"}\n      ` +
+      `canDevelop() is the gate, and it admits only: ${developRoles.join(", ")}`);
+  }
+}
+
 console.log(failed ? `\n✗ doc-truth: ${failed} claim(s) have drifted from the source of truth`
   : "\n✅ doc-truth: every published claim matches the source it describes");
 process.exit(failed ? 1 : 0);
