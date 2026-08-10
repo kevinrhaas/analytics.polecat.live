@@ -135,6 +135,47 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **SP-5 (c) — Campaign Finance pins its four Views and brings its own tour (v968, sw v558,
+  2026-08-10, steward; dev branch; est 1pt, took 1 — ON estimate, and SP-5 as a whole came in at
+  3 slices against its 3pt estimate):** the last slice of the second of Kevin's three money-flow
+  packs. It was the first ready item in ▶ NOW — N31/N44/N41/N25 are all ⛔ on Kevin and SP-1 is
+  ⏳ on the `hold`-labelled #689 — and it was ready because PR #751 had merged, so its ⏳ marker
+  had expired (`docs/BACKLOG.md`'s "re-check ⏳ markers whose PRs closed"); clearing that marker
+  is part of this PR.
+  - **Four pinned Views**, seeded from the same turn that writes the datasets and healed onto
+    existing installs by `Studio.ensureCampaignFinanceViews` (the SP-1/SP-6 shape, third time,
+    and the dataset lookup both heals need is now one `campaignFinanceDatasets()` instead of two
+    copies): the donor-state → committee **flow** as a real sankey at the dashboards' own $10M
+    readability floor; the **home-state share** for the 16 candidate committees whose seat is a
+    donor state; **giving by donor state** on the app's `state` scale; and **every state's giving
+    style** as a sortable table carrying both derived shares. Authored the way `bdSave` would —
+    `Studio.Build.compute` for the basis, `Studio.newPanel` over its columns — so a seeded View
+    and one saved by hand open in the same editor, and the rows a card draws come from
+    `runBlob` against the live dataset on every render rather than a stored copy.
+  - **The two things this pack's Views had to get right, and the checks that hold them there.**
+    Both flow Views read the pack's SECOND job output, never the 2,658-row join: the builder's
+    live run keeps 2,000 rows, so a View bound to the join would have lost the last twelve
+    committees — both Trump committees among them — silently, which is precisely the partisan
+    artifact slice (a) went out of its way to avoid. And both shares are **calc columns on the
+    View**, not extract columns, because "the derivation is visible" is the pack's argument: the
+    suite recomputes each one from the shipped CSV on all 67 rows and demands they agree.
+  - **The pack's own guided tour** (6 stops, pack-gated in the chooser exactly like Conservation
+    Insight's and Market Coverage's): the four Views on Home, the flow, the home-state share, and
+    the modelling decision the pack turns on — the kind of committee is a column, never a silent
+    filter. `docs/index.html`, the registry tagline and the blurb all name the Views and the tour.
+  - **Needed no builder work at all**, which is why a slice with a sankey hero was still 1pt:
+    SP-6 (c) had already made Sankey a View Builder chart type riding the heatmap's
+    [Rows, Columns, measure] basis, so the flow hero opened as a flow on the first try instead of
+    degrading to a table. That is the second pack to collect the same dividend.
+  - **Verified:** the full `tests/run.js` suite green in the foreground, with 5 new checks (View
+    shape + positional mappings + the trimmed-output rule, the live basis of all four blobs, the
+    boot heal's idempotence, the tour's registration and that every panel it spotlights is one
+    the pack really seeds) and the J6 tour-shape check widened from seven tours to eight. The SP-5
+    block now leaves the pack state as it found it, the way the SP-1 and SP-6 blocks do — a
+    pack-gated tour makes a pack left installed change the chooser counts J6-10 asserts later.
+  - **Unchanged and still Kevin's to rank:** slice (b)'s two findings — the View Builder's silent
+    2,000-row prefix, and `DashKit.heatmap`'s negative-width rects when narrow. Slice (c) neither
+    fixed nor worked around either; the first is simply now visible in one more place.
 - **SP-5 (b) — Campaign Finance gets its dashboards (v967, sw v557, 2026-08-10, steward; dev
   branch; est 1pt for this slice, took 1 — the pack is 2 of ~3 slices in, still on its 3pt
   estimate):** three dashboards over the FEC data slice (a) installed, seeded from the same turn
@@ -14625,12 +14666,25 @@
 > the 📦 SAMPLE-PACK PROGRAM reservoir before taking slice (b). SP-13 stays in the reservoir with
 > its ⏫ marker until SP-5 is done. **Grooming pass 4 note:** with N31/N41/N44/N25 all ⛔ and SP-1 ⏳, SP-5 is the
 > only ready non-recurring work in this queue — that is the honest state, not an oversight.
+>
+> **SP-5 IS COMPLETE (v966/v967/v968, 2026-08-10), so SP-13 is the ready one now** — and the
+> queue is at ZERO ready non-recurring items, which is `docs/BACKLOG.md`'s grooming trigger
+> ("fewer than 3 ready items") twice over. The slice-(c) run did NOT groom in the same PR on
+> purpose: grooming is its own docs-only PR by that same contract, and a `hold` batch proposal
+> is Kevin's to rank. **The next run's unit is either SP-13 (a) — promoted by Kevin himself in
+> the note above, so taking it is following this note rather than grazing the reservoir — or a
+> grooming pass; both are legitimate, and SP-13 is the one this run would take.**
 
-- ⏳ **PR #751** — **SP-5 ★★ [3pt est, 2 slices shipped] — Campaign Finance, the second of
-  Kevin's three money-flow packs.** *(Grammar line minted 2026-08-10 by the run that started it,
+- ~~**SP-5 ★★ [3pt est, 3 slices shipped — ON estimate] — Campaign Finance, the second of
+  Kevin's three money-flow packs.**~~ ✓ **COMPLETE — v966/v967/v968, all 2026-08-10, steward
+  (see DONE). SP-13 (Where America Moved) is now the ready one of Kevin's three; it sits in the
+  📦 SAMPLE-PACK PROGRAM reservoir with its ⏫ marker, and the promotion note above is its
+  authority to take.** *(⏳ marker cleared 2026-08-10 by the run that took slice (c): PR #751
+  had merged, so the claim had expired — `docs/BACKLOG.md` grooming rule "re-check ⏳ markers
+  whose PRs closed". Grammar line minted 2026-08-10 by the run that started it,
   the way SP-6's was — the promotion note above named the three packs and gave a line to none of
   them, so the queue had nothing to mark. The scope decisions in the 📦 SAMPLE-PACK PROGRAM
-  reservoir entry are binding and unchanged; read them before taking the next slice.)*
+  reservoir entry are binding and unchanged.)*
   ✓ **SLICE (a) IS SHIPPED — the data foundation: v966, sw v556 (2026-08-10, steward — see DONE).**
   The extract over the FEC's closed 2023-24 bulk files, seven committed tables (95.6KB of the
   150KB budget, $6.50B of itemized individual giving over 46.2M contributions), the pack's
@@ -14674,8 +14728,13 @@
   is pristine by invariant, so the clamp is a **toolkit slice (est 1pt)** in `app/studio-charts.js`
   or a vendored-toolkit update, not something to smuggle in on a pack. Until then a seeded
   dashboard cannot use a heatmap, which is why SP-5's cycle panel is a line.
-  **WHAT REMAINS — (c) the pinned Views + tour + docs.** Est 1pt, the same shape as SP-1 (c) and
-  SP-6 (c).
+  ✓ **SLICE (c) IS SHIPPED — the four pinned Views, the pack's own tour and the docs: v968,
+  sw v558 (2026-08-10, steward — see DONE).** Est 1pt, took 1 — and it needed no builder work at
+  all, because SP-6 (c) had already made Sankey a View Builder type; the flow hero opened as a
+  flow on the first try. **Nothing remains: SP-5 is complete.** The two findings above are
+  UNCHANGED and still Kevin's to rank — slice (c) neither fixed nor worked around either one, and
+  (1) is now visible in one more place, since the flow Views read the pack's trimmed second job
+  output for exactly the reason its dashboards do.
 
 - ⛔ **N44 ★★ [3pt est, 3 slices shipped — the estimate is spent] — SQL is edited in plain textareas
   app-wide.** **⛔ BLOCKED ON KEVIN, marked 2026-08-10 (steward), and it is the LAST half of the

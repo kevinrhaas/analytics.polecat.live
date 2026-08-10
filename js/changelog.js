@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 968,
+    title: 'Campaign Finance pins its four Views, and brings its own guided tour',
+    ts: '2026-08-10T12:37:27.000Z',
+    items: [
+      'The <b>Campaign Finance</b> pack now pins <b>four Views</b> to Home beside its three dashboards — the donor-state to committee flow as a real sankey, how much of each Senate campaign\'s itemized money came from the state they are running in, giving by donor state on the map, and every state with both derived shares as a sortable table. Already have the pack? They arrive on your next boot; nothing you have edited is touched.',
+      'These are ordinary View Builder Views, not read-only cards: the $10M floor on the flow is a filter chip you can drag off, and the two shares — gifts under $200, max-out gifts — are <b>calculated columns</b> whose formulas are right there on the shelf.',
+      'The pack also gained its <b>own guided tour</b>, alongside the ones Conservation Insight and Market Coverage carry. It walks the flow, the home-state share and the one modelling decision the pack turns on — the kind of committee is a column, never a silent filter. Find it in ⌘K → Interactive tutorial once the pack is installed.',
+    ],
+  },
+  {
     v: 967,
     title: 'Campaign Finance gets its dashboards — who funds whom, where the money comes from, and who gives it',
     ts: '2026-08-10T11:55:04.000Z',

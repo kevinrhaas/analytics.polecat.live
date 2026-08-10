@@ -190,7 +190,7 @@
     // Slice (a) was the data foundation: the connection, the seven committed tables, and the
     // job that turns one state's giving into a share of the committee that received it.
     // Slice (b) added the three dashboards that read them (the flow hero, donor geography,
-    // and who gives it). Slice (c) adds the pinned Views.
+    // and who gives it). Slice (c) added the four pinned Views and the pack's own tour.
     campaignfinance: {
       id: "campaignfinance",
       kind: "workspace",
@@ -201,10 +201,10 @@
       // check 35 rule (a) holds this string and the blurb to the installer separately, and
       // rule (b) holds every count in either one to a number the pack really produces. The
       // dashboard count arrived with slice (b), in the same PR as the dashboards.
-      tagline: "3 dashboards on 9 datasets and 1 connection · $6.5B of itemized individual giving in the 2023-24 cycle · 50 committees × 65 donor states · 200 occupations and 200 employers · 24 months · 2 prep jobs — real public data, embedded",
+      tagline: "3 dashboards · 4 Views pinned to Home · 9 datasets on 1 connection · $6.5B of itemized individual giving in the 2023-24 cycle · 50 committees × 65 donor states · 200 occupations and 200 employers · 24 months · 2 prep jobs — real public data, embedded",
       // Three sentences, which is N40's cap — the card is a decision surface and the
       // inventory belongs in Help. Count-led and says "embedded" for the suite's #116.
-      blurb: "3 dashboards over 9 datasets on 1 connection, built from the Federal Election " +
+      blurb: "3 dashboards and 4 pinned Views over 9 datasets on 1 connection, built from the Federal Election " +
         "Commission's own record of who gave money to whom in the 2023-24 election cycle — " +
         "$6.5 billion of itemized individual contributions, read by donor state, by recipient " +
         "committee, by occupation and employer, by month, and by the size of the cheque. Two prep jobs join each " +
@@ -2283,13 +2283,17 @@
 
     // SP-5 (b): the dashboards read the job's output and the extract tables together, so
     // they are seeded here — the moment those rows exist — rather than in install(), which
-    // runs a turn earlier with nothing to chart yet (the SP-1/SP-6 convention). The pinned
-    // Views are still slice (c).
-    seedCampaignFinanceDashboards(W, id, {
+    // runs a turn earlier with nothing to chart yet (the SP-1/SP-6 convention).
+    var seededDs = {
       states: statesDs, committees: committeesDs, occupations: occupationsDs,
       employers: employersDs, monthly: monthlyDs, bands: bandsDs,
       output: outputDs, charted: chartDs
-    }, new Date().toISOString());
+    };
+    seedCampaignFinanceDashboards(W, id, seededDs, new Date().toISOString());
+    // SP-5 (c): and the pinned Views, from the same turn and for the same reason — the
+    // rows they are computed over exist only now. Last, so the Views are the newest rows
+    // in the workspace and lead Home's pinned shelf.
+    seedCampaignFinanceViews(W, id, seededDs);
 
     return { states: statesDs, committees: committeesDs, flow: flowDs, occupations: occupationsDs,
              employers: employersDs, monthly: monthlyDs, bands: bandsDs,
@@ -2688,10 +2692,12 @@
   // them without a reinstall, and so does one where a dashboard was deleted. Returns false
   // when there is nothing to do, including the legitimate "data hasn't materialized yet"
   // case: the seed path above writes the dashboards itself the moment the datasets exist.
-  Studio.ensureCampaignFinanceDashboards = function () {
-    var id = "campaignfinance";
-    if (!Studio.demoPackInstalled(id)) return false;
-    var W = Studio.Workspace;
+  // The pack's tables as the seed path names them, found in a workspace rather than
+  // threaded through — the same lookup BOTH boot heals need, so it is written once
+  // (the SP-6 shape). Returns null unless every table the seeders read is present WITH
+  // content: a half-materialized pack has nothing honest to chart, and both callers
+  // treat that as "nothing to do" rather than an error.
+  function campaignFinanceDatasets(W, id) {
     var mine = W.all("datasets").filter(function (d) { return d.demoPackId === id && d.content; });
     function byFile(name) {
       return mine.filter(function (d) { return (d.fileName || "") === name; })[0];
@@ -2705,9 +2711,198 @@
       output: byFile("committee_donor_state_shares.csv"),
       charted: byFile("committee_donor_state_flows_charted.csv")
     };
-    if (!ds.states || !ds.occupations || !ds.employers || !ds.monthly || !ds.bands ||
-        !ds.output || !ds.charted) return false;
+    return (ds.states && ds.occupations && ds.employers && ds.monthly && ds.bands &&
+      ds.output && ds.charted) ? ds : null;
+  }
+
+  Studio.ensureCampaignFinanceDashboards = function () {
+    var id = "campaignfinance";
+    if (!Studio.demoPackInstalled(id)) return false;
+    var W = Studio.Workspace;
+    var ds = campaignFinanceDatasets(W, id);
+    if (!ds) return false;
     return seedCampaignFinanceDashboards(W, id, ds, new Date().toISOString()) > 0;
+  };
+
+  /* ---- SP-5 (c): the pack's four pinned Views ----------------------------------------
+     A dashboard is a finished argument; a View is the thing you open and change. SP-1
+     set the convention and SP-6 repeated it, and this pack follows it exactly: author
+     each View the way `bdSave` would — compute the basis with the pure
+     `Studio.Build.compute`, then `Studio.newPanel` over the resulting columns — so a
+     seeded View and one saved by hand in the View Builder are the same shape and open
+     in the same editor. Only the basis HEAD is read here; the rows a pinned card draws
+     come from `Studio.Build.runBlob` against the live dataset on every render (#118),
+     which is why every subset below is the View's OWN filter rather than a second,
+     hand-cut dataset — open it and the rule is right there on the shelf to move.
+
+     THE FOUR are the pack's question asked from its four sides, in the order Home
+     shows them:
+       1. WHO FUNDS WHOM  — the flow, donor state → recipient committee, as a sankey
+       2. HOW MUCH CAME FROM HOME — each Senate campaign's own-state share
+       3. WHERE IT COMES FROM — donor geography on the app's state scale
+       4. HOW IT ARRIVES  — every donor state with both derived shares as calc columns
+
+     Two things this pack's Views inherit from its dashboards rather than reinvent, and
+     both are the pack's argument rather than decoration. The flow Views read the
+     SECOND job's output (`charted`), never the first: the join is 2,658 rows and the
+     builder's live run keeps 2,000 of them, so a View bound to the join would lose the
+     last twelve committees — including both Trump committees — silently, which is the
+     partisan artifact slice (a) went out of its way to avoid. And the two shares on the
+     state table are CALC COLUMNS on the View, not extract columns: the extract ships
+     the dollar figures and deliberately not their ratios, so opening the View is how
+     you see the arithmetic.
+
+     One honest limit, stated rather than hidden: the measure column of a rolled-up
+     basis is named by the pivot ("SUM amount"), so that is what these Views' columns
+     are called. It is the same label the builder writes for a View you save yourself —
+     a seeded View that quietly used a prettier name would be the odd one out, and the
+     number underneath is the same either way. */
+  function campaignFinanceViewDefs(ds) {
+    return [
+      {
+        // The hero, and the flow the pack was extracted to draw. The floor is the
+        // dashboard's own CF_FLOW_FLOOR — a READABILITY floor, not a significance one
+        // (a sankey lays its nodes out with an 11px gap, so the limit is the node
+        // count), and here it is a filter chip one drag from gone.
+        key: "flow", dsId: ds.charted.id,
+        name: "Campaign Finance — donor state to recipient committee, flows of " +
+          cfMillions(CF_FLOW_FLOOR) + " or more",
+        chartType: "sankey",
+        shelfRows: [{ col: "state" }],
+        shelfCols: [{ col: "committee", agg: null }, { col: "amount", agg: "sum" }],
+        filters: [{ col: "amount", kind: "range", min: String(CF_FLOW_FLOOR), max: "" }],
+        opts: { srcCap: "Donor state", dstCap: "Recipient committee", fmt: "money", height: 520 }
+      },
+      {
+        // is_home_state is a 0/1 the extract denormalized into the flow table (the job
+        // engine derives arithmetic and cannot compare two strings), so "the state the
+        // candidate is running in" is an ordinary value filter — the builder's own `in`
+        // grammar. One row per committee survives it, so AVG is that committee's share.
+        key: "home_state", dsId: ds.charted.id,
+        name: "Campaign Finance — share of a candidate's itemized money that came from their own state",
+        chartType: "bars",
+        shelfRows: [],
+        shelfCols: [{ col: "committee", agg: null }, { col: "pct_of_committee", agg: "avg" }],
+        filters: [{ col: "is_home_state", kind: "in", values: ["1"] }],
+        opts: { horizontal: true, sortBars: true, showValues: true, fmt: "pct", height: 460 }
+      },
+      {
+        // The donor's own reported state, on the app's built-in state geometry. Sixteen
+        // of the rows have no geometry (the overseas military codes, the territories, a
+        // few Canadian provinces typed into the field, and ZZ) and they are left in on
+        // purpose: they colour nothing, and dropping them would change every total.
+        key: "states", dsId: ds.states.id,
+        name: "Campaign Finance — itemized individual giving by donor state",
+        chartType: "choropleth", mapScale: "state",
+        shelfRows: [],
+        shelfCols: [{ col: "state", agg: null }, { col: "amount", agg: "sum" }],
+        opts: { scale: "state", fmt: "money", agg: "sum", classes: 6, height: 320 }
+      },
+      {
+        // Every donor state rather than the map's top class — because the finding the
+        // map cannot show (a linear colour scale over a power law) is exactly the one a
+        // sortable table can. Both shares are calc columns for the reason above.
+        key: "how_it_arrives", dsId: ds.states.id,
+        name: "Campaign Finance — every donor state, by what it gave and how it arrived",
+        chartType: "table",
+        shelfRows: [],
+        shelfCols: ["state", "contributions", "amount", CF_SMALL_PCT_CALC.name, CF_MAXOUT_PCT_CALC.name]
+          .map(function (c) { return { col: c, agg: null }; }),
+        calcs: [CF_SMALL_PCT_CALC, CF_MAXOUT_PCT_CALC],
+        tableCols: [
+          { col: "state", label: "Donor state" },
+          { col: "contributions", label: "Contributions", num: true, fmt: "n" },
+          { col: "amount", label: "Itemized", num: true, fmt: "money" },
+          { col: CF_SMALL_PCT_CALC.name, label: "In gifts under $200", num: true, fmt: "pct" },
+          { col: CF_MAXOUT_PCT_CALC.name, label: "In max-out gifts", num: true, fmt: "pct" }
+        ],
+        opts: { pageSize: 12, freezeHeader: true, density: "comfortable" }
+      }
+    ];
+  }
+  // The pivot a given chart type's basis is actually computed from — chartBasis's own
+  // rule, mirrored here because the seed runs without a builder state to ask. Only the
+  // shapes this pack uses are covered, and the sankey one is the interesting case: its
+  // basis is the flat triple [source, target, measure], NOT a crosstab, so the Rows
+  // field is folded into the Columns pivot exactly the way app/build.js does it.
+  function campaignFinanceBasisShelf(def) {
+    if (def.chartType === "sankey") {
+      return [{ col: def.shelfRows[0].col, agg: null }].concat(def.shelfCols);
+    }
+    return def.shelfCols;
+  }
+  function campaignFinanceViewRow(def, table) {
+    var blob = {
+      dsKind: "ws", dsId: def.dsId, chartType: def.chartType,
+      shelfCols: Studio.clone(def.shelfCols), shelfRows: Studio.clone(def.shelfRows || []),
+      filters: Studio.clone(def.filters || []), calcs: Studio.clone(def.calcs || []),
+      shelfColor: [], paletteKey: "", mapScale: def.mapScale || ""
+    };
+    // Calc columns first — a shelf can name one, so the basis has to be computed over
+    // the EFFECTIVE columns (bdEff's rule), not the raw CSV's. Over the UNFILTERED rows
+    // on purpose, the same as SP-1 and SP-6: a filter changes which rows come back,
+    // never which columns do, and only the head is wanted here (the rows are runBlob's
+    // job).
+    var eff = Studio.applyCalcCols(table.columns, table.rows, (def.calcs || []).map(function (c) {
+      return { name: c.name, formula: c.formula, type: "Numeric" };
+    }));
+    var basis = Studio.Build.compute(eff.cols, eff.rows, campaignFinanceBasisShelf(def), []);
+    if (!basis || basis.head.length < 2) return null;
+    var da = { id: "cfv_" + def.key, name: def.name, kind: "sql", sql: "", query: "",
+      columns: basis.head.slice(), params: [], authored: true };
+    da.builder = Studio.clone(blob);
+    var p = Studio.newPanel(def.chartType, da);
+    if (def.chartType === "choropleth") {
+      // bdPanelFor's reason, verbatim: the measure column here is a synthesized "SUM
+      // amount" label and Studio.guessChoroplethCols can misjudge one, so the basis is
+      // mapped back POSITIONALLY the same way chartBasis built it — [id, value].
+      p.chart.map = { idCol: basis.head[0], valueCol: basis.head[1] };
+    }
+    // newPanel's table default marks every column after the first numeric and titleizes
+    // its label — right for an ad-hoc pivot, wrong for `state`. Declared columns win.
+    if (def.tableCols) p.chart.map.cols = Studio.clone(def.tableCols);
+    if (def.opts) Object.keys(def.opts).forEach(function (k) { p.chart.opts[k] = def.opts[k]; });
+    return {
+      name: def.name, folder: CF_FOLDER, demoPackId: "campaignfinance",
+      pinned: true, panelTitle: "", chartType: def.chartType, paletteKey: "",
+      da: da, builder: Studio.clone(blob), chart: p.chart
+    };
+  }
+  // Idempotent by View name, the convention every seeder in this file uses, so it is
+  // safe from the seed, from the boot heal, and in a workspace where someone deleted one.
+  function seedCampaignFinanceViews(W, id, ds) {
+    if (!ds) return 0;
+    var tables = {};
+    var have = {};
+    W.all("analyses").forEach(function (r) { if (r.demoPackId === id) have[r.name] = true; });
+    var added = 0;
+    // Seeded in REVERSE of the reading order above: Home sorts pinned Views newest-first,
+    // so the flow hero has to be the last row written to lead the shelf (the CONS-2/
+    // CONS-3 convention the dashboards are seeded by too).
+    campaignFinanceViewDefs(ds).slice().reverse().forEach(function (def) {
+      if (have[def.name]) return;
+      // Parsed once per dataset, not once per View — the four share two tables.
+      if (!tables[def.dsId]) {
+        var row = W.get("datasets", def.dsId);
+        tables[def.dsId] = parsePackCsv((row && row.content) || "");
+      }
+      var t = tables[def.dsId];
+      if (!t || !t.rows.length) return;
+      var view = campaignFinanceViewRow(def, t);
+      if (!view) return;
+      W.put("analyses", view);
+      added++;
+    });
+    return added;
+  }
+  // The boot heal, paired with ensureCampaignFinanceDashboards above and for the same
+  // reason: a workspace that installed the pack at slice (a) or (b) gets the Views
+  // without a reinstall. False when there is nothing to do.
+  Studio.ensureCampaignFinanceViews = function () {
+    var id = "campaignfinance";
+    if (!Studio.demoPackInstalled(id)) return false;
+    var W = Studio.Workspace;
+    return seedCampaignFinanceViews(W, id, campaignFinanceDatasets(W, id)) > 0;
   };
 
   // SP-0: registry-driven. This function knows about no pack in particular — an entry

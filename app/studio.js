@@ -1264,6 +1264,9 @@
     // Finance while it was slice (a) — the seven FEC extracts and the donor-share job,
     // no dashboards — gets the three on boot rather than at a reinstall.
     try { if (Studio.ensureCampaignFinanceDashboards) Studio.ensureCampaignFinanceDashboards(); } catch (e) {}
+    // SP-5(c) heal, one slice later and the same shape as SP-1's and SP-6's: an install
+    // that predates the pack's four pinned Views gets them on boot, not at a reinstall.
+    try { if (Studio.ensureCampaignFinanceViews) Studio.ensureCampaignFinanceViews(); } catch (e) {}
   }
   window.__studioReconcilePackDashboards = reconcilePackDashboards; // test hook
 

@@ -199,6 +199,19 @@
       if (row && window.__studioOpenRecent) window.__studioOpenRecent(row.id);
     } catch (e) {}
   }
+  // SP-5(c): the same by-spec-name lookup for Campaign Finance. This pack seeds three
+  // dashboards too and the tour walks the flow hero, which is the one the extract exists
+  // for (see demopacks.js CF_DASHBOARDS).
+  function openCampaignFinanceDashboard() {
+    try {
+      var ws = Studio.Workspace;
+      var row = ws && ws.all("dashboards").filter(function (r) {
+        return r.demoPackId === "campaignfinance" && (r.name === "campaignfinance-flow" ||
+          (r.spec && r.spec.name) === "campaignfinance-flow");
+      })[0];
+      if (row && window.__studioOpenRecent) window.__studioOpenRecent(row.id);
+    } catch (e) {}
+  }
 
   /* ---------- tour definitions ----------
      target: CSS selector (null → centered card, no spotlight)
@@ -668,6 +681,57 @@
           last: true
         }
       ]
+    },
+    campaignfinance: {
+      label: "Campaign Finance pack", ic: "swap", tint: "--dk",
+      blurb: "A guided look at the pack built from the FEC's own record of who funded federal politics — the flow, the shares, and the one modelling decision the whole thing turns on.",
+      steps: [
+        {
+          t: "Your Campaign Finance pack, guided",
+          h: "Installing it seeded a connection, seven tables extracted from the Federal Election Commission's 2023-24 bulk files, two prep jobs, three dashboards and four <b>Views</b> pinned to Home — <b>$6.5 billion</b> of itemized individual giving, embedded in the app rather than fetched. This short tour walks what they say.",
+          sub: "You can reopen this tour any time from ⌘K → Interactive tutorial.",
+          target: null,
+          before: function () { goSection("home"); }
+        },
+        {
+          t: "1 · Four Views, live on Home",
+          h: "The pack pins four <b>Views</b> — the donor-state to committee flow, each Senate campaign's own-state share, giving by donor state on the map, and every state with both derived shares as a table. Each is a live chart over the pack's own tables, not a thumbnail.",
+          sub: "Click a card to open it in the View Builder that made it — the shelves, the filters and the calculated columns are all still there to change.",
+          target: ".home-analyses",
+          pos: "bottom",
+          before: function () { goSection("home"); }
+        },
+        {
+          t: "2 · Where the money went",
+          h: "The hero: one ribbon per donor state → recipient committee pair, band width being the money. The <b>$10M floor</b> on it is about readability and nothing else — all 2,658 pairs at once is a hairball — and on the View it is a filter chip you can drag off.",
+          target: '[data-panel-id="pcf_flow"]',
+          pos: "top",
+          inPreview: true,
+          before: openCampaignFinanceDashboard
+        },
+        {
+          t: "3 · How much came from home",
+          h: "The question the flow table exists for: how much of a candidate's itemized money came from the state they are actually running in. The filter is a 0/1 flag the extract ships, because the job engine does arithmetic on numbers and cannot compare two strings.",
+          target: '[data-panel-id="pcf_home"]',
+          pos: "top",
+          inPreview: true
+        },
+        {
+          t: "4 · The decision the pack turns on",
+          h: "The <b>kind</b> of committee is a column here, never a silent filter. Restricting recipients to candidate committees looks like the obvious reading and draws a landslide that never happened — one side's money was itemized against the campaign, the other's ran through joint fundraising committees that transfer onward. Same money, different plumbing, so every panel draws all six kinds and labels them.",
+          sub: "Which also means adding a joint fundraiser's total to its participants' is double-counting. No panel does.",
+          target: '[data-panel-id="pcf_note"]',
+          pos: "top",
+          inPreview: true
+        },
+        {
+          t: "That's who funds federal politics",
+          h: "Two more dashboards sit in the <b>Campaign Finance</b> folder under Dashboards: <b>Where the Money Comes From</b> (donor geography on the state scale, with the small-gift and max-out shares as calculated columns) and <b>Who Gives It, and How</b> (occupation, employer, cheque size and the 24-month arc of a cycle).<br><br>And the finding worth leaving with: nine contributions in ten are under $200, and they are a fifth of the money.",
+          sub: "⌘K → Interactive tutorial brings you back here any time.",
+          target: null,
+          last: true
+        }
+      ]
     }
   };
   // LF40 (overview tour, pack-aware engine): mirrors welcome.js's computeSteps() — the
@@ -704,13 +768,14 @@
   function tourSteps(key) { return key === "overview" ? computeOverviewSteps() : TOURS[key].steps; }
   T.computeOverviewStepTitles = function () { return computeOverviewSteps().map(function (s) { return s.t; }); };
 
-  var TOUR_ORDER = ["overview", "quick", "build", "jobs", "connect", "conservation", "marketcoverage"];
+  var TOUR_ORDER = ["overview", "quick", "build", "jobs", "connect", "conservation", "marketcoverage", "campaignfinance"];
   // Some tours only make sense once a sample pack is installed — gate their
   // CHOOSER visibility here (openTour(key) still works directly regardless,
   // e.g. a future "take this pack's tour" link from Settings' pack card).
   var TOUR_GATES = {
     conservation: function () { return !!(window.Studio && Studio.demoPackInstalled && Studio.demoPackInstalled("conservation")); },
-    marketcoverage: function () { return !!(window.Studio && Studio.demoPackInstalled && Studio.demoPackInstalled("marketcoverage")); }
+    marketcoverage: function () { return !!(window.Studio && Studio.demoPackInstalled && Studio.demoPackInstalled("marketcoverage")); },
+    campaignfinance: function () { return !!(window.Studio && Studio.demoPackInstalled && Studio.demoPackInstalled("campaignfinance")); }
   };
   function visibleTourKeys() {
     return TOUR_ORDER.filter(function (k) { return !TOUR_GATES[k] || TOUR_GATES[k](); });
@@ -974,7 +1039,8 @@
     jobs: "Tour complete! Try a job on one of your own datasets.",
     connect: "Tour complete! Add a connection, or explore a sample dataset.",
     conservation: "Tour complete! Try a different Region scale on any map in the Dashboard Builder's Inspector.",
-    marketcoverage: "Tour complete! Open the shortlist View and move one of its two rules."
+    marketcoverage: "Tour complete! Open the shortlist View and move one of its two rules.",
+    campaignfinance: "Tour complete! Open the flow View and drag its $10M floor off the shelf."
   };
   function finish() {
     try {
