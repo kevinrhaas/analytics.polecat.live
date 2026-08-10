@@ -931,8 +931,13 @@
           // is handed exactly the incoming column names (read live, because editing
           // a step above changes them) and that one table. The hint below has always
           // described those columns; now you can type them.
+          // N44 slice 3: "t" carries those same columns, so "t." narrows to them —
+          // this is the surface where the app knows the table's shape exactly.
           if (Studio.SQLEdit) Studio.SQLEdit.attach(sqlBox, {
-            schema: function () { return { columns: colsBeforeStep(stepIdx), tables: ["t"] }; }
+            schema: function () {
+              var cols = colsBeforeStep(stepIdx);
+              return { columns: cols, tables: [{ name: "t", columns: cols }] };
+            }
           });
           var sqlHint = el("small", "cx-hint");
           sqlHint.textContent = "Runs against the pipeline's rows so far, in a DuckDB table named \"t\" (loaded on first use).";

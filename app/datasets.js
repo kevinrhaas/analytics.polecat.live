@@ -654,8 +654,12 @@
         if (!cols.length && Array.isArray(d.columns)) cols = d.columns.slice();
         return {
           columns: cols,
+          // N44 slice 3: each table keeps its own columns as well as contributing
+          // to the flat list, which is what lets "orders." (and "o." via the
+          // query's own FROM alias) narrow to that one table.
           tables: (schemaTables || []).map(function (t) {
-            return { name: t.schema && t.schema !== "public" ? t.schema + "." + t.name : t.name, schema: t.schema || "" };
+            return { name: t.schema && t.schema !== "public" ? t.schema + "." + t.name : t.name,
+              schema: t.schema || "", columns: t.columns || [] };
           }),
           params: (d.params || []).map(function (p) { return p.key; }).filter(Boolean)
         };

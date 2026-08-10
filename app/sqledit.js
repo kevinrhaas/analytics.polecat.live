@@ -24,6 +24,12 @@
         the caller declares, plus SQL keywords. Keyboard (↑↓ Enter Tab Esc,
         Ctrl-Space to summon) and tap both work; mobile is a release gate, so
         the popup is clamped inside the field and options are ≥36px.
+        Slice 3 added the QUALIFIED form: after a dot, `orders.` offers that
+        table's columns and nothing else, and `o.` does too because the editor
+        reads the query's own FROM/JOIN aliases. When the qualifier resolves to
+        nothing the popup stays SHUT rather than falling back to the flat list —
+        a menu of every column in the workspace under `whatever.` would be
+        answering a question we were not asked.
      3. CHECKING, SCOPED TO WHAT IS HONESTLY CHECKABLE — balanced quotes,
         comments and parentheses, and whether the statement opens with
         SELECT/WITH. This is the app's EXISTING check, not a new one:
@@ -39,6 +45,10 @@
      schema   — object or function → { columns: [...], tables: [...], params: [...] }
                 Called on every completion, so a caller can hand over columns it
                 only learns at Preview time. Entries are strings or {name,type}.
+                A TABLE entry may also carry `columns` (the listSchema() shape,
+                {name,type}) and `schema`; that is what qualified completion
+                resolves against, and a table without them simply offers nothing
+                after its dot instead of guessing.
      expectSelect — false to drop the "should begin with SELECT/WITH" note
                 (the Jobs step and gviz-style boxes are not plain SELECTs).
      declaredColumns — passed through to Studio.sqlLint's drift check, for a
@@ -129,21 +139,18 @@
   /* ── completion sources ────────────────────────────────────────────────── */
   function nameOf(x) { return typeof x === "string" ? x : (x && x.name) || ""; }
 
-  function candidates(schema, prefix) {
-    var seen = {}, out = [];
-    function push(name, kind, detail) {
-      name = nameOf(name);
-      if (!name) return;
-      var key = kind + " " + name.toLowerCase();
-      if (seen[key]) return;
-      seen[key] = 1;
-      out.push({ name: name, kind: kind, detail: detail || "" });
-    }
-    (schema.columns || []).forEach(function (c) { push(c, "column", (c && c.type) || ""); });
-    (schema.tables || []).forEach(function (t) { push(t, "table", (t && t.schema) || ""); });
-    (schema.params || []).forEach(function (p) { push(p, "param", ""); });
-    FUNCS.forEach(function (f) { push(f, "function", ""); });
-    KEYWORDS.forEach(function (k) { push(k, "keyword", ""); });
+  function tail(name) { return name.slice(name.lastIndexOf(".") + 1); }
+  function unquote(s) {
+    if (!s) return "";
+    if (s.charAt(0) === '"') return s.slice(1, -1).replace(/""/g, '"');
+    if (s.charAt(0) === "`") return s.slice(1, -1);
+    return s;
+  }
+
+  // Prefix first, then substring — but never a substring match on a KEYWORD,
+  // because "AS" inside "class" is noise rather than a suggestion. Shared by
+  // both completion modes, so the qualified list ranks exactly like the flat one.
+  function rank(out, prefix) {
     var p = prefix.toLowerCase();
     if (!p) return out.slice(0, 8);
     var starts = [], contains = [];
@@ -154,6 +161,116 @@
       else if (c.kind !== "keyword" && lc.indexOf(p) > 0) contains.push(c);
     });
     return starts.concat(contains).slice(0, 8);
+  }
+
+  // A small de-duplicating accumulator. The same name may legitimately arrive as
+  // both a column and a keyword; only a repeat WITHIN one kind is noise.
+  function collect() {
+    var seen = {}, out = [];
+    return {
+      list: out,
+      add: function (name, kind, detail) {
+        name = nameOf(name);
+        if (!name) return;
+        var key = kind + " " + name.toLowerCase();
+        if (seen[key]) return;
+        seen[key] = 1;
+        out.push({ name: name, kind: kind, detail: detail || "" });
+      }
+    };
+  }
+
+  function candidates(schema, prefix) {
+    var c = collect();
+    (schema.columns || []).forEach(function (x) { c.add(x, "column", (x && x.type) || ""); });
+    (schema.tables || []).forEach(function (t) { c.add(t, "table", (t && t.schema) || ""); });
+    (schema.params || []).forEach(function (p) { c.add(p, "param", ""); });
+    FUNCS.forEach(function (f) { c.add(f, "function", ""); });
+    KEYWORDS.forEach(function (k) { c.add(k, "keyword", ""); });
+    return rank(c.list, prefix);
+  }
+
+  /* qualified completion (slice 3) ------------------------------------------
+     "orders." should offer orders' columns, not the union of everything the
+     surface knows. Two lookups make that work, and both read only what is
+     already on screen:
+
+       1. the query's OWN FROM/JOIN clauses, so an ALIAS resolves — `FROM orders
+          o` teaches the editor that `o.` means orders, which is how anyone
+          actually writes a join. Comments and string literals are blanked first,
+          so the word "join" inside a literal never invents a table.
+       2. the caller's table list, matched on the full name and then on the last
+          segment, so `public.orders.` still finds the table the schema browser
+          reported as `orders` (both hosts drop a "public." prefix by convention).
+
+     Anything else — an unknown qualifier, or a known table whose columns the
+     caller could not supply — resolves to null and the popup stays SHUT. A menu
+     of every column in the workspace under `whatever.` would be answering a
+     question nobody asked. */
+
+  // Blank out the inside of comments and string literals, preserving length and
+  // line breaks, so the alias scan below sees only real SQL.
+  function stripNoise(src) {
+    var out = "", last = 0, m;
+    TOKEN.lastIndex = 0;
+    while ((m = TOKEN.exec(src)) !== null) {
+      out += src.slice(last, m.index);
+      last = TOKEN.lastIndex;
+      out += (m[1] || m[2]) ? m[0].replace(/[^\n]/g, " ") : m[0];
+    }
+    return out + src.slice(last);
+  }
+
+  // FROM/JOIN <name[.name…]> [AS] <alias>. A subquery ("FROM (SELECT …) x")
+  // simply does not match, which is the honest outcome — we cannot know its shape.
+  var IDENT = '("(?:""|[^"])*"|`[^`]*`|[A-Za-z_][\\w$]*)';
+  var FROMISH = new RegExp("\\b(?:from|join)\\s+" + IDENT + "((?:\\s*\\.\\s*" + IDENT + ")*)" +
+    "\\s*(?:(as)\\s+)?" + IDENT + "?", "gi");
+
+  function aliasMap(src) {
+    var map = {}, m, clean = stripNoise(src);
+    FROMISH.lastIndex = 0;
+    while ((m = FROMISH.exec(clean)) !== null) {
+      var table = unquote(m[1]) + (m[2] || "").replace(/\s+/g, "");
+      var alias = unquote(m[5] || "");
+      // "FROM orders WHERE …" — the word after the table is a keyword, not a name
+      if (alias && !m[4] && KW[alias.toUpperCase()]) alias = "";
+      if (alias) map[alias.toLowerCase()] = table;
+    }
+    return map;
+  }
+
+  function resolveQual(schema, src, qual) {
+    var tables = schema.tables || [];
+    var want = qual.toLowerCase();
+    var alias = aliasMap(src);
+    if (alias[want]) want = alias[want].toLowerCase();
+    var wantTail = tail(want), hit = null;
+    for (var i = 0; i < tables.length; i++) {
+      var n = nameOf(tables[i]).toLowerCase();
+      if (!n) continue;
+      if (n === want) { hit = tables[i]; break; }   // an exact name always wins
+      if (!hit && tail(n) === wantTail) hit = tables[i];
+    }
+    if (hit) {
+      var cols = hit.columns || [];
+      return cols.length ? { kind: "columns", table: nameOf(hit), list: cols } : null;
+    }
+    // a SCHEMA qualifier rather than a table: "public." → the tables inside it
+    var inSchema = tables.filter(function (t) {
+      return t && t.schema && String(t.schema).toLowerCase() === want;
+    });
+    return inSchema.length ? { kind: "tables", list: inSchema } : null;
+  }
+
+  function qualCandidates(res, prefix) {
+    var c = collect();
+    (res.list || []).forEach(function (x) {
+      // the qualifier is already typed, so only the unqualified half gets inserted
+      if (res.kind === "tables") c.add(tail(nameOf(x)), "table", (x && x.schema) || "");
+      else c.add(x, "column", (x && x.type) || res.table);
+    });
+    return rank(c.list, prefix);
   }
 
   /* ── attach ───────────────────────────────────────────────────────────────
@@ -253,6 +370,9 @@
       return s || {};
     }
 
+    // What the caret is completing: the word being typed, plus the QUALIFIER it
+    // hangs off ("orders." / "o." / "public.orders."), or null when the caret is
+    // somewhere completion has no business being.
     function prefixAt() {
       var head = ta.value.slice(0, ta.selectionStart);
       // never complete inside a string or a comment the caret is sitting in
@@ -261,7 +381,10 @@
       var quotes = (head.match(/'/g) || []).length;
       if (quotes % 2) return null;
       var m = head.match(/[A-Za-z_][\w$]*$/);
-      return m ? m[0] : "";
+      var prefix = m ? m[0] : "";
+      // "1." and "0.5" are numbers, not qualifiers — the leading letter rules them out
+      var q = head.slice(0, head.length - prefix.length).match(/([A-Za-z_][\w$]*(?:\.[A-Za-z_][\w$]*)*)\.$/);
+      return { prefix: prefix, qual: q ? q[1] : "" };
     }
 
     function closeAc() {
@@ -272,9 +395,17 @@
     }
 
     function openAc(force) {
-      var prefix = prefixAt();
-      if (prefix === null || (!force && prefix.length < 1)) return closeAc();
-      items = candidates(schemaNow(), prefix);
+      var at = prefixAt();
+      if (at === null) return closeAc();
+      if (at.qual) {
+        // A dot is an explicit request, so this opens on the empty prefix too —
+        // typing "o." should show o's columns before you have typed a letter.
+        var res = resolveQual(schemaNow(), ta.value, at.qual);
+        items = res ? qualCandidates(res, at.prefix) : [];
+      } else {
+        if (!force && at.prefix.length < 1) return closeAc();
+        items = candidates(schemaNow(), at.prefix);
+      }
       if (!items.length) return closeAc();
       ac.innerHTML = "";
       items.forEach(function (it, i) {
@@ -373,6 +504,9 @@
     attach: attach,
     lint: lint,
     highlight: highlight,
+    // slice 3: exposed so the alias reader can be checked as a pure function,
+    // without driving a popup through the DOM to find out what it resolved
+    aliases: aliasMap,
     KEYWORDS: KEYWORDS
   };
 })();

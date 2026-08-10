@@ -1846,8 +1846,14 @@
         dsbTables.slice(0, 40).forEach(function (t) {
           (t.columns || []).forEach(function (c) { if (cols.length < 400) cols.push(c); });
         });
+        // N44 slice 3: the table's OWN columns ride along, so "orders." resolves to
+        // orders rather than to the flattened union above. Only the browsed tables
+        // can carry them — the two engine-named tables added below are real names
+        // with no column list, and a table that cannot say what it holds correctly
+        // offers nothing after its dot instead of guessing.
         var tables = dsbTables.map(function (t) {
-          return { name: t.schema && t.schema !== "public" ? t.schema + "." + t.name : t.name, schema: t.schema || "" };
+          return { name: t.schema && t.schema !== "public" ? t.schema + "." + t.name : t.name,
+            schema: t.schema || "", columns: t.columns || [] };
         });
         function addTable(name) {
           if (!name) return;
