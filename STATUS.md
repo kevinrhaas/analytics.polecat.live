@@ -135,6 +135,57 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **SP-13 (a) — Where America Moved: the data foundation (v969, sw v559, 2026-08-10, steward;
+  dev branch; est 1pt, took 1 — ON estimate):** the first slice of the THIRD of Kevin's three
+  money-flow packs, and the one whose money angle is the part people do not expect. The IRS
+  matches each year's returns to the previous year's by taxpayer id, so it can publish not just
+  how many households left one county for another but the **aggregate income that left with
+  them** — which is what makes "who is winning population" and "are the leavers richer than the
+  stayers" the same chart. `tools/pack-extract/countymigration.mjs` reads the four 2022-2023 SOI
+  files (8.8MB of upstream CSV) and ships **134.1KB of the 150KB budget** in four committed
+  tables: every county's arrivals and departures (3,087 of them), the same for the 50 states and
+  DC **plus the households that stayed**, the six largest destinations out of each state (306
+  corridors), and the three largest county corridors out of each state (153). The pack seeds one
+  connection, six datasets and **two jobs** — a county-grain derive chain (net households, net
+  income, arrivers' average income against leavers') and a state-grain **join** that gives each
+  corridor the state it left, so a corridor reads as a share of that state's departures and its
+  movers' average income can be set against that state's stayers. Both outputs are
+  pre-materialized by running the jobs' OWN steps through the engine, so a Run rewrites them with
+  identical numbers (docs/PACKS.md). One suite check, holding all of it: the column sets exactly
+  (including the `_agi_k` thousands-of-dollars suffix), both jobs' arithmetic recomputed per row
+  on all 3,087 counties and all 306 corridors, the join's brought-across columns, the corridor
+  shares partitioning their origin state, both outputs reproduced byte-for-byte through the live
+  adapter+engine path, and Remove sweeping the async rows. Help, `THIRD-PARTY-NOTICES.md`,
+  `docs/PACKS.md`'s pack count and the sw precache list all move in the same PR.
+  **Four things the item did not anticipate, all found by measuring rather than assuming:**
+  (1) **The two grains do not add up, and that is the source's definition, not a bug.** A
+  county's total counts every US move INCLUDING moves within its own state; a state's total
+  counts only moves ACROSS state lines. Summing Texas's counties gives 119,377 arrivals against
+  the state row's 55,369. It is stated in the extract's notes, on the pack card, in Help, and
+  pinned as a suite assertion so a future extract cannot quietly "fix" it into a redefinition of
+  every number in the pack.
+  (2) **The stayers only exist at state grain.** The county files have no non-migrant row, so the
+  leavers-versus-stayers comparison the item leads with is a STATE reading; the county job answers
+  arrivers-versus-leavers instead, which is the same question one grain down and needs no extra
+  table. Both are in the pack; neither is guessed.
+  (3) **The item's "top-N pairs per state" is right and top-N nationally is wrong** — measured
+  both ways. A national top-300 cut is all Sun Belt and dropped **eight states out of the flow
+  table entirely**, so a reader in Wyoming found their state missing. Per-state keeps every one of
+  the 51 and still contains every corridor a national cut would have had.
+  (4) **The stated size risk did not bind; a different one did.** The full pair matrix is 54,000
+  county pairs, but the binding constraint was the county file itself: 3,087 counties × names ×
+  four measures is 117.6KB of the 150KB on its own, which is why people-counts live at state grain
+  and the pair tables are cut per state.
+  **And one finding that is NOT this pack's to fix, recorded for Kevin the way SP-5 (b)'s two
+  were:** the app's committed county atlas (`vendor/geo/counties-albers-10m.json`) **predates the
+  2022 boundary changes**, so 11 counties in this data have no shape to draw — Connecticut's nine
+  planning regions, which replaced its eight counties outright, plus Alaska's Chugach and Copper
+  River. The pack KEEPS them (dropping them would delete Connecticut's entire county coverage) and
+  the extract re-derives the exact list from the committed atlas on every run, so the gap is in
+  SOURCE.json rather than in a comment. The suite pins the eleven ids, so a NEW hole cannot hide
+  inside the old one. **The general fix is an atlas refresh** (`tools/build-geo.mjs` re-pulls
+  county geometry from TIGERweb) and it affects every county choropleth in the app, not just this
+  pack — est 1pt, and it is Kevin's to rank rather than a rider on a pack slice.
 - **SP-5 (c) — Campaign Finance pins its four Views and brings its own tour (v968, sw v558,
   2026-08-10, steward; dev branch; est 1pt, took 1 — ON estimate, and SP-5 as a whole came in at
   3 slices against its 3pt estimate):** the last slice of the second of Kevin's three money-flow
@@ -14674,6 +14725,53 @@
 > is Kevin's to rank. **The next run's unit is either SP-13 (a) — promoted by Kevin himself in
 > the note above, so taking it is following this note rather than grazing the reservoir — or a
 > grooming pass; both are legitimate, and SP-13 is the one this run would take.**
+>
+> **SP-13 IS STARTED — slice (a) shipped 2026-08-10 and it has its own grammar line in this
+> block now**, minted the way SP-6's and SP-5's were (the promotion note above named the three
+> packs and gave a grammar line to none of them, so the queue had nothing to mark). With that,
+> ALL THREE of the packs Kevin promoted on 2026-08-09 are either complete or under way, and the
+> grooming trigger above still stands for whichever run finishes SP-13: once (b) and (c) land,
+> this queue has no ready non-recurring work left at all and the next unit should be the
+> grooming pass + `hold` batch proposal, not a reservoir item taken directly.
+
+- ⏳ **PR #753** — **SP-13 ★ [3pt est, 1 slice shipped] — Where America Moved, the third and last of Kevin's
+  three money-flow packs.** IRS Statistics of Income county-to-county migration: for every county
+  pair, how many households moved, how many people, and **the aggregate income that moved with
+  them**. Public domain. Kevin promoted it here himself on 2026-08-09 (the note above is its
+  authority); the reservoir entry in 📦 SAMPLE-PACK PROGRAM carries the original spec and its ⏫
+  marker. Ships as ~3 PRs on the SP-0 convention SP-1, SP-6 and SP-5 all proved — (a) extract +
+  connection/datasets/jobs, (b) dashboards, (c) Views + tour + docs.
+  ✓ **SLICE (a) IS SHIPPED — the data foundation: v969, sw v559 (2026-08-10, steward — see
+  DONE).** The extract over the four 2022-2023 SOI files, four committed tables inside 134.1KB of
+  the 150KB budget (3,087 counties, 51 states with their stayers, 306 state corridors, 153 county
+  corridors), the pack's connection, its six datasets and the two jobs — the county derive chain
+  and the state join. Est 1pt, took 1.
+  **What slice (a) measured that changes how (b) and (c) must be built — read these before
+  starting either:**
+  **(1) THE TWO GRAINS DO NOT ADD UP,** by the source's own definition (county totals include
+  intra-state moves, state totals do not). Any dashboard that puts a county number and a state
+  number in the same KPI row is wrong; say which grain a panel is on, the way the extract's notes
+  and the Help entry do.
+  **(2) THE STAYERS ARE A STATE-GRAIN FACT.** "Are the leavers richer than the stayers" is
+  answerable on the state job's output and nowhere else; at county grain the honest form is
+  arrivers-versus-leavers, which the county job already carries as `income_gap_k`.
+  **(3) ELEVEN COUNTIES HAVE NO SHAPE TO DRAW,** and the hero of this pack is a county
+  choropleth, so (b) has to decide what the map does about them rather than discover it. See the
+  DONE entry: the app's committed county atlas predates the 2022 boundary changes, so all nine
+  Connecticut planning regions and Alaska's Chugach and Copper River are in the data and off the
+  map. The pack keeps them and the suite pins the ids. **The general fix — refreshing
+  `vendor/geo/counties-albers-10m.json` from TIGERweb via `tools/build-geo.mjs` — is a separate
+  ~1pt item affecting every county choropleth in the app, and it is Kevin's to rank.** Until it
+  lands, (b)'s map should state the gap on the dashboard rather than let Connecticut read as
+  no data. (Unrelated but in the same wiring: the file adapter types numeric-looking cells, so a
+  job's output carries `fips` as the NUMBER 1001, not `"01001"` — `geoNormalizeId` re-pads it on
+  the way to a shape, which is why SP-1's choropleth works and why the suite check re-pads before
+  comparing. Nothing to fix; just do not hand-compare a job's fips to a five-character id.)
+  **WHAT REMAINS:** (b) the dashboards — the county net-migration choropleth as the hero, the
+  corridor flow (the state job's output is sankey-shaped and already carries each corridor's share
+  of its origin state), and the income story (arrivers versus leavers, movers versus stayers); then
+  (c) the pinned Views, the pack's own tour and the Help/`docs` currency pass. Both slices follow
+  the boot-heal convention in `docs/PACKS.md` so a workspace that installed at (a) picks them up.
 
 - ~~**SP-5 ★★ [3pt est, 3 slices shipped — ON estimate] — Campaign Finance, the second of
   Kevin's three money-flow packs.**~~ ✓ **COMPLETE — v966/v967/v968, all 2026-08-10, steward

@@ -847,7 +847,7 @@
   sample content, never your real data — and <strong>Remove</strong> takes
   back exactly what Install added. Everything a pack adds is <strong>filed in the pack's own
   folder</strong> (Conservation Insight, Data Management, Market Coverage, Federal Contract
-  Awards, Campaign Finance) across every section, and its raw sample
+  Awards, Campaign Finance, Where America Moved) across every section, and its raw sample
   tables only appear in the dataset pickers while the pack is installed — an uninstalled pack leaves
   no trace. <strong>The packs are the only sample-content switch there is</strong> — Settings used to
   carry a separate "Sample content" mode toggle that hid everything at once, and it is gone: remove the
@@ -963,6 +963,30 @@
     names and no addresses are in the pack: every table is an aggregate, and the FEC's bulk file
     carries no street address in the first place. Every filter behind the numbers is written down
     in <code>tools/pack-extract/campaignfinance.mjs</code> and in the pack's
+    <code>SOURCE.json</code>.</li>
+    <li><strong>Where America Moved</strong> is the pack about migration, and about the money that
+    moves with it: the IRS Statistics of Income record of where American households moved between
+    filing years 2022 and 2023, embedded in the app rather than fetched. Because the IRS matches
+    each year's returns to the previous year's, it can publish something no single-county table
+    can — not just how many households left one county for another, but the aggregate income that
+    left with them. It seeds one <strong>connection</strong> over six <strong>datasets</strong> —
+    every county's arrivals and departures (3,087 of them), the same for the 50 states and DC plus
+    the households that <em>stayed</em>, the 300 largest state-to-state corridors, the biggest
+    county-to-county corridors out of each state, and the outputs of two prep <strong>jobs</strong>:
+    the first derives each county's net position in households and in dollars and sets the average
+    income of its arrivers against its leavers, and the second joins each corridor to the state it
+    left, so a corridor reads as a share of everyone who departed that state and its movers' average
+    income can be set against the people who stayed put.
+    <strong>Three things to read it with, all of them properties of the source rather than the
+    extract.</strong> First, the unit is a tax return, not a person: a "move" here is a household
+    that filed from a new address, and the pack counts US moves only, so a coastal county is not
+    credited with arrivals from abroad it has no measured departures to balance. Second, income is
+    <em>aggregate adjusted gross income in thousands of dollars</em>, exactly as published — every
+    column carrying it is named with a <code>_agi_k</code> suffix and nothing rescales it. Third,
+    the two grains deliberately do not add up: a county's total counts every US move including
+    moves within its own state, while a state's total counts only moves across state lines, so
+    summing a state's counties will not reproduce its state row. Every filter behind the numbers is
+    written down in <code>tools/pack-extract/countymigration.mjs</code> and in the pack's
     <code>SOURCE.json</code>.</li>
     <li><strong>Data Management &amp; Governance</strong> is the built-in generic showcase gallery
     (Data Governance, Data Platform Operations, Product Delivery, Finance, Marketing, Incident

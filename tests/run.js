@@ -6538,6 +6538,182 @@ function serve() {
     // asserts thousands of checks later.
     if (!cfDash.wasInstalled) await page.evaluate(function () { Studio.removeDemoPack("campaignfinance"); });
 
+    // ---- SP-13 (a): the fourth real-data pack, and the one whose numbers are a difference
+    // Same async path SP-1/SP-6/SP-5 (a) proved, so the shape matches them. What is
+    // different here — and what this block exists to guard — is that the pack's headline
+    // figures are all DIFFERENCES of two published numbers, which is the class of column
+    // that stays plausible after it goes wrong:
+    //
+    // 1. THE JOB'S ARITHMETIC IS RECOMPUTED PER ROW, not sampled. `net_returns` and
+    //    `income_gap_k` are checked against the two inputs on the row that produced them,
+    //    on all 3,087 counties — a sign flip or a swapped operand would still render a
+    //    map, in the wrong colours, and nothing else would notice.
+    // 2. THE JOIN BRINGS ACROSS WHAT THE CORRIDOR TABLE DOES NOT HAVE (SP-5's and SP-6's
+    //    property). state-flows.csv has `from_state` and no state totals at all, so
+    //    `out_returns` and `stay_agi_k` appearing in the output IS the evidence the key
+    //    resolved — and the corridor shares must sum to at most 100 per origin state,
+    //    because a state's corridors are a partition of the people who left it.
+    // 3. THE TWO GRAINS ARE ASSERTED NOT TO MATCH. The extract's own note says a county's
+    //    total counts moves within its own state and a state's does not; a future extract
+    //    that "fixed" that would silently redefine every number in the pack, so the
+    //    inequality is pinned rather than left as prose.
+    // 4. AND THE COUNTY IDS DRAW. Every FIPS is checked against the county geometry the
+    //    app would render the choropleth on, the way SP-1 checks its counties.
+    const cmA = await page.evaluate(async function () {
+      var W = Studio.Workspace, ID = "countymigration", was = Studio.demoPackInstalled(ID);
+      if (was) Studio.removeDemoPack(ID);
+      var out = { cleanBefore: W.all("datasets").filter(function (r) { return r.demoPackId === ID; }).length === 0 };
+      Studio.installDemoPack(ID);
+      out.afterInstallSync = {
+        connections: W.all("connections").filter(function (r) { return r.demoPackId === ID; }).length,
+        datasets: W.all("datasets").filter(function (r) { return r.demoPackId === ID; }).length
+      };
+      await Studio.ensurePackDataMaterialized(ID);
+      function rows(t) { return W.all(t).filter(function (r) { return r.demoPackId === ID; }); }
+      var dsets = rows("datasets"), jobs = rows("jobs");
+      out.counts = { connections: rows("connections").length, datasets: dsets.length, jobs: jobs.length };
+      out.allFoldered = rows("connections").concat(dsets, jobs).every(function (r) { return r.folder === "Where America Moved"; });
+      await Studio.ensurePackDataMaterialized(ID);
+      out.stillOne = rows("datasets").length === dsets.length && rows("jobs").length === jobs.length;
+
+      // The extract's promised shape, pinned exactly — the AGI columns carry the `_agi_k`
+      // suffix because the unit is thousands of dollars, and a rename that dropped it would
+      // leave every dollar figure in the pack a thousand times too small without an error.
+      var EXPECTED = {
+        "county-migration.csv": "fips,county,state,in_returns,in_agi_k,out_returns,out_agi_k",
+        "state-migration.csv": "state,state_name,in_returns,in_people,in_agi_k,out_returns,out_people,out_agi_k,stay_returns,stay_people,stay_agi_k",
+        "state-flows.csv": "from_state,to_state,returns,people,agi_k",
+        "county-pairs.csv": "from_fips,from_county,from_state,to_fips,to_county,to_state,returns,people,agi_k"
+      };
+      out.extractColumnsExact = Object.keys(EXPECTED).every(function (f) {
+        var d = dsets.filter(function (x) { return x.fileName === f; })[0];
+        return d && (d.columns || []).join(",") === EXPECTED[f] &&
+          (d.content || "").split("\n")[0] === EXPECTED[f];
+      });
+
+      // Two jobs: the county derives, and the state join. Selected by their own steps.
+      var joinJob = jobs.filter(function (j) { return (j.steps || []).some(function (st) { return st.op === "join"; }); })[0];
+      var countyJob = jobs.filter(function (j) { return j !== joinJob; })[0];
+      out.bothJobs = !!joinJob && !!countyJob;
+
+      async function live(job) {
+        var src = await Studio.fileSource.queryData({}, W.get("datasets", job.sourceDatasetId));
+        var ctx = { datasets: {} };
+        var js = (job.steps || []).filter(function (s) { return s.op === "join"; })[0];
+        if (js) {
+          var right = await Studio.fileSource.queryData({}, W.get("datasets", js.datasetId));
+          ctx.datasets[js.datasetId] = { columns: right.columns, rows: right.rows };
+        }
+        return Studio.runJobStepsAsync({ columns: src.columns, rows: src.rows }, job.steps, ctx);
+      }
+
+      // (1) the county job — the seeded output is a PROMISE about what a Run produces, so
+      //     reproduce the live path and hold it to the byte (the SP-1/SP-5/SP-6 rule).
+      var countyOutDs = dsets.filter(function (d) { return d.id === countyJob.outputDatasetId; })[0];
+      var cl = await live(countyJob);
+      out.countyRerunError = cl.error || "";
+      out.countyReproduces = !cl.error && Studio.rowsToCsv(cl.columns, cl.rows) === (countyOutDs || {}).content;
+      var ch = cl.columns || [], cr = cl.rows || [];
+      out.countyRows = cr.length;
+      var cAt = function (c) { return ch.indexOf(c); };
+      out.countyDerived = ["net_returns", "net_agi_k", "arrivers_avg_agi_k", "leavers_avg_agi_k", "income_gap_k"]
+        .every(function (c) { return cAt(c) >= 0; });
+      var iIn = cAt("in_returns"), iOut = cAt("out_returns"), iInA = cAt("in_agi_k"), iOutA = cAt("out_agi_k"),
+        iNet = cAt("net_returns"), iNetA = cAt("net_agi_k"), iArr = cAt("arrivers_avg_agi_k"),
+        iLea = cAt("leavers_avg_agi_k"), iGap = cAt("income_gap_k"), iFips = cAt("fips");
+      var mathOk = true, winners = 0, gapBothWays = { up: 0, down: 0 }, fipsList = [];
+      cr.forEach(function (r) {
+        var inN = Number(r[iIn]), outN = Number(r[iOut]), inA = Number(r[iInA]), outA = Number(r[iOutA]);
+        var arr = inA / inN, lea = outA / outN;
+        if (Number(r[iNet]) !== inN - outN) mathOk = false;
+        if (Number(r[iNetA]) !== inA - outA) mathOk = false;
+        if (Math.abs(Number(r[iArr]) - arr) > 1e-9 || Math.abs(Number(r[iLea]) - lea) > 1e-9) mathOk = false;
+        if (Math.abs(Number(r[iGap]) - (arr - lea)) > 1e-9) mathOk = false;
+        if (Number(r[iNet]) > 0) winners++;
+        if (Number(r[iGap]) > 0) gapBothWays.up++; else gapBothWays.down++;
+        // The file adapter TYPES numeric-looking cells (localfile.js typeCell), so a
+        // zero-padded FIPS comes back through a job as the number 1001. Re-pad before
+        // comparing, exactly as geoNormalizeId does before it looks up a shape — the point
+        // of docs/PACKS.md's warning, and the reason this is not the app's bug.
+        fipsList.push(("00000" + r[iFips]).slice(-5));
+      });
+      out.countyMathExact = mathOk;
+      out.countyWinners = winners;
+      out.gapBothWays = gapBothWays;
+
+      // (4) the county ids are checked against the geometry the choropleth would draw on —
+      //     and the ELEVEN the app cannot draw are pinned by name, not tolerated by count.
+      //     The atlas predates the 2022 boundary changes (Connecticut replaced its counties
+      //     with planning regions; Alaska split Chugach and Copper River out of Valdez-
+      //     Cordova), so those rows are real data with no shape. The extract keeps them and
+      //     says so; this pins the exact set, so a NEW hole cannot hide inside the old one.
+      var geo = await (await fetch("vendor/geo/counties-albers-10m.json")).json();
+      var drawable = {};
+      ((geo.objects.counties || {}).geometries || []).forEach(function (g) { drawable[("00000" + g.id).slice(-5)] = 1; });
+      out.geoCounties = Object.keys(drawable).length;
+      out.fipsUndrawable = fipsList.filter(function (f) { return !drawable[f]; }).sort().join(",");
+
+      // (2) the state job — the join, and the shares it makes possible
+      var stateOutDs = dsets.filter(function (d) { return d.id === joinJob.outputDatasetId; })[0];
+      var sl = await live(joinJob);
+      out.stateRerunError = sl.error || "";
+      out.stateReproduces = !sl.error && Studio.rowsToCsv(sl.columns, sl.rows) === (stateOutDs || {}).content;
+      var sh = sl.columns || [], sr = sl.rows || [];
+      out.stateRows = sr.length;
+      var sAt = function (c) { return sh.indexOf(c); };
+      // none of these three is in state-flows.csv — their presence IS the join
+      out.joined = sAt("out_returns") >= 0 && sAt("stay_agi_k") >= 0 && sAt("state_name") >= 0;
+      out.stateDerived = ["pct_of_state_departures", "movers_avg_agi_k", "stayers_avg_agi_k", "movers_vs_stayers_agi_k"]
+        .every(function (c) { return sAt(c) >= 0; });
+      var iFrom = sAt("from_state"), iRet = sAt("returns"), iOutR = sAt("out_returns"),
+        iPct = sAt("pct_of_state_departures"), iMov = sAt("movers_avg_agi_k"),
+        iStay = sAt("stayers_avg_agi_k"), iVs = sAt("movers_vs_stayers_agi_k"),
+        iAgi = sAt("agi_k"), iStayA = sAt("stay_agi_k"), iStayR = sAt("stay_returns");
+      var byState = {}, sMathOk = true;
+      sr.forEach(function (r) {
+        var ret = Number(r[iRet]), pct = Number(r[iPct]);
+        var mov = Number(r[iAgi]) / ret, stay = Number(r[iStayA]) / Number(r[iStayR]);
+        if (Math.abs(pct - ret / (Number(r[iOutR]) / 100)) > 1e-9) sMathOk = false;
+        if (Math.abs(Number(r[iMov]) - mov) > 1e-9 || Math.abs(Number(r[iStay]) - stay) > 1e-9) sMathOk = false;
+        if (Math.abs(Number(r[iVs]) - (mov - stay)) > 1e-9) sMathOk = false;
+        byState[r[iFrom]] = (byState[r[iFrom]] || 0) + pct;
+      });
+      out.stateMathExact = sMathOk;
+      out.originStates = Object.keys(byState).length;
+      // a state's corridors are a partition of the people who left it, so the kept ones sum
+      // to at most 100 — under it by exactly the corridors the extract's top-300 cut left out
+      out.sharesPartition = Object.keys(byState).every(function (s) { return byState[s] > 0 && byState[s] <= 100.000001; });
+
+      // (3) the two grains do not add up, and that is the source's definition
+      var cSum = 0;
+      cr.forEach(function (r) { if (String(r[cAt("state")]) === "TX") cSum += Number(r[iIn]); });
+      var stDs = dsets.filter(function (d) { return d.fileName === "state-migration.csv"; })[0];
+      var stRes = await Studio.fileSource.queryData({}, stDs);
+      var stTx = stRes.rows.filter(function (r) { return r[stRes.columns.indexOf("state")] === "TX"; })[0];
+      out.txCountySum = cSum;
+      out.txStateTotal = Number(stTx[stRes.columns.indexOf("in_returns")]);
+      out.grainsDiffer = cSum > out.txStateTotal;
+
+      Studio.removeDemoPack(ID);
+      out.removedClean = ["connections", "datasets", "jobs", "dashboards", "analyses"]
+        .every(function (t) { return rows(t).length === 0; }) && !Studio.demoPackInstalled(ID);
+      if (was) { Studio.installDemoPack(ID); await Studio.ensurePackDataMaterialized(ID); }
+      out.restored = Studio.demoPackInstalled(ID) === was;
+      return out;
+    });
+    ok("SP-13(a): the Where America Moved pack materializes its committed IRS CSV — install seeds the connection, the ensure-function adds all four extract datasets plus both prep jobs and their pre-materialized outputs, every table's columns are exactly the shape the extract promises (AGI keeps its _agi_k thousands-of-dollars suffix), the county job's five derives are exact arithmetic on all 3,087 counties with the income gap running both ways, every county FIPS but the eleven the app's pre-2022 atlas has no shape for resolves against the geometry the choropleth draws on (and those eleven are pinned by id, so a new hole cannot hide in the old one), the state job's join brought across the totals and stayers the corridor table does not carry, each corridor's share is real arithmetic that partitions its origin state's departures, the two grains are the different universes the source defines them as, re-running both jobs through the live adapter+engine path reproduces both outputs byte for byte, a second ensure changes nothing, and Remove sweeps the async rows too",
+      cmA.cleanBefore && cmA.afterInstallSync.connections === 1 && cmA.afterInstallSync.datasets === 0 &&
+      cmA.counts.connections === 1 && cmA.counts.datasets === 6 && cmA.counts.jobs === 2 &&
+      cmA.allFoldered && cmA.stillOne && cmA.extractColumnsExact && cmA.bothJobs &&
+      cmA.countyRows === 3087 && cmA.countyDerived && cmA.countyMathExact &&
+      cmA.countyWinners > 0 && cmA.countyWinners < cmA.countyRows &&
+      cmA.gapBothWays.up > 0 && cmA.gapBothWays.down > 0 &&
+      cmA.geoCounties > 3000 &&
+      cmA.fipsUndrawable === "02063,02066,09110,09120,09130,09140,09150,09160,09170,09180,09190" &&
+      cmA.stateRows === 306 && cmA.joined && cmA.stateDerived && cmA.stateMathExact &&
+      cmA.originStates === 51 && cmA.sharesPartition && cmA.grainsDiffer &&
+      cmA.countyReproduces && cmA.stateReproduces && cmA.removedClean && cmA.restored, JSON.stringify(cmA));
+
     // ---- SP-6 (b): the pack's three dashboards ---------------------------------
     // The slice's claim is not "three specs exist" — it is that the FLOW the pack was
     // extracted for is really drawn, from the pack's own rows, narrowed by rules a reader
