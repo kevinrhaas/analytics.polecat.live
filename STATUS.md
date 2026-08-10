@@ -14734,7 +14734,7 @@
 > this queue has no ready non-recurring work left at all and the next unit should be the
 > grooming pass + `hold` batch proposal, not a reservoir item taken directly.
 
-- ⏳ **SP-13 ★ [3pt est, 1 slice shipped] — Where America Moved, the third and last of Kevin's
+- ⏳ **PR #753** — **SP-13 ★ [3pt est, 1 slice shipped] — Where America Moved, the third and last of Kevin's
   three money-flow packs.** IRS Statistics of Income county-to-county migration: for every county
   pair, how many households moved, how many people, and **the aggregate income that moved with
   them**. Public domain. Kevin promoted it here himself on 2026-08-09 (the note above is its
