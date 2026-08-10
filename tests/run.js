@@ -46342,31 +46342,45 @@ function serve() {
     ok("N-AI: a finalized voice transcript ('go to settings') runs that command hands-free — palette closes + navigates",
       voiceFlow.paletteClosed && voiceFlow.navigatedToSettings, JSON.stringify(voiceFlow));
 
-    // ---- N-FUN slice 5: "Add panel: <chart type>" commands ----
-    console.log("\n• Track N follow-up: add-panel-of-type palette commands");
+    // ---- N-FUN slice 5: "Add View: <chart type>" commands ----
+    // N7 (2026-08-10): the prefix and its family tag were "Add panel" until the app's own word
+    // for a chart on a dashboard (LF52/LF57: a View) reached the palette too. The retired noun
+    // stays in each command's hidden synonyms, so the checks below assert BOTH — the new word
+    // on screen and the old word still finding the row.
+    console.log("\n• Track N follow-up: add-View-of-type palette commands");
     var cmdkAddPanel = await page.evaluate(async function () {
       var r = {};
       if (window.__studioShellSetSection) window.__studioShellSetSection("studio");
-      window.__studioLoad({ id: "cmdk-addpanel", title: "cmdk add-panel test", cda: { connection: "", dataAccesses: [] }, panels: [], kpis: [] });
+      window.__studioLoad({ id: "cmdk-addpanel", title: "cmdk add-View test", cda: { connection: "", dataAccesses: [] }, panels: [], kpis: [] });
       var P = window.StudioPalette;
       var rows = function () { return Array.prototype.slice.call(document.querySelectorAll("#cmdkList .cmdk-row")); };
       var labelOf = function (li) { return li.querySelector(".cmdk-lbl").textContent; };
+      var hintOf = function (li) { return li.querySelector(".cmdk-hint").textContent; };
 
-      // every registered chart type (bars/waterfall/etc) has its own "Add panel: <label>" command
+      // every registered chart type (bars/waterfall/etc) has its own "Add View: <label>" command
       P.open();
       var allLabels = rows().map(labelOf);
       var chartCount = Object.keys(window.Studio.CHARTS).length;
-      r.hasAllTypes = allLabels.filter(function (l) { return l.indexOf("Add panel: ") === 0; }).length === chartCount;
+      r.chartCount = chartCount;
+      r.hasAllTypes = allLabels.filter(function (l) { return l.indexOf("Add View: ") === 0; }).length === chartCount;
+      // N7: no row that ADDS one calls it a panel any more — label or family tag. Scoped to the
+      // Add commands the same way doc-truth 76 (a) is: "panel" is still the right word for a
+      // pane of the UI, so a blanket ban would be wrong the day one gets a command of its own.
+      var addRows = function () { return rows().filter(function (li) { return /^add\b/i.test(labelOf(li)); }); };
+      r.staleLabels = addRows().map(labelOf).filter(function (l) { return /\bpanels?\b/i.test(l); });
+      r.staleHints = addRows().map(hintOf).filter(function (h) { return /\bpanels?\b/i.test(h); });
+      r.addFamily = rows().filter(function (li) { return labelOf(li).indexOf("Add View: ") === 0; })
+        .map(hintOf).filter(function (h) { return h === "Add View"; }).length;
       document.getElementById("cmdkInput").dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
 
-      // running "Add panel: Waterfall" (not one of the default quick-add chip types) creates a
+      // running "Add View: Waterfall" (not one of the default quick-add chip types) creates a
       // brand-new panel bound to the first catalog DA, then switches it to that exact type.
       r.panelsBefore = window.__STUDIO_STATE.spec.panels.length;
       P.open();
       var input = document.getElementById("cmdkInput");
-      input.value = "add panel: waterfall";
+      input.value = "add view: waterfall";
       input.dispatchEvent(new Event("input", { bubbles: true }));
-      var row = rows().filter(function (li) { return labelOf(li) === "Add panel: Waterfall"; })[0];
+      var row = rows().filter(function (li) { return labelOf(li) === "Add View: Waterfall"; })[0];
       r.found = !!row;
       if (row) row.click();
       await new Promise(function (res) { setTimeout(res, 200); });
@@ -46374,13 +46388,29 @@ function serve() {
       var last = window.__STUDIO_STATE.spec.panels[window.__STUDIO_STATE.spec.panels.length - 1];
       r.newType = last && last.chart && last.chart.type;
       r.closedAfter = !document.getElementById("cmdkOverlay").classList.contains("open");
+
+      // N7: the rename costs no discoverability — the word the app used before LF52 is still a
+      // hidden synonym on both Add commands, so typing it finds every one of them.
+      P.open();
+      input = document.getElementById("cmdkInput");
+      input.value = "panel";
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      var oldWord = rows().map(labelOf);
+      r.oldWordFindsText = oldWord.indexOf("Add text / annotation View") >= 0;
+      r.oldWordFindsTypes = oldWord.filter(function (l) { return l.indexOf("Add View: ") === 0; }).length === chartCount;
+      document.getElementById("cmdkInput").dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
       return r;
     });
-    ok("Track N follow-up: every Studio.CHARTS type gets its own 'Add panel: <label>' command",
+    ok("Track N follow-up: every Studio.CHARTS type gets its own 'Add View: <label>' command",
       cmdkAddPanel.hasAllTypes, JSON.stringify(cmdkAddPanel));
-    ok("Track N follow-up: running 'Add panel: Waterfall' adds one panel and sets its type to waterfall",
+    ok("Track N follow-up: running 'Add View: Waterfall' adds one panel and sets its type to waterfall",
       cmdkAddPanel.found && cmdkAddPanel.panelsAfter === cmdkAddPanel.panelsBefore + 1 && cmdkAddPanel.newType === "waterfall" && cmdkAddPanel.closedAfter,
       JSON.stringify(cmdkAddPanel));
+    ok("N7: no ⌘K row printed — label or family tag — calls a View a panel, and the add-a-chart rows carry the 'Add View' tag",
+      !cmdkAddPanel.staleLabels.length && !cmdkAddPanel.staleHints.length && cmdkAddPanel.addFamily === cmdkAddPanel.chartCount,
+      JSON.stringify({ staleLabels: cmdkAddPanel.staleLabels, staleHints: cmdkAddPanel.staleHints, addFamily: cmdkAddPanel.addFamily, chartCount: cmdkAddPanel.chartCount }));
+    ok("N7: typing the pre-rename word ('panel') still finds both Add commands — the synonym survives the rename",
+      cmdkAddPanel.oldWordFindsText && cmdkAddPanel.oldWordFindsTypes, JSON.stringify(cmdkAddPanel));
 
     // Restore a real, fully-loaded spec + let the preview iframe settle before later tests
     // (several below assume a DashKit-ready iframe is present) — same pattern used throughout this file.
