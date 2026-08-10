@@ -235,9 +235,11 @@
     // returns to the previous year's, so it can publish not just how many households moved
     // between two counties but the AGGREGATE INCOME that moved with them. Committed as CSV
     // under data/packs/countymigration/ by tools/pack-extract/countymigration.mjs
-    // (docs/PACKS.md is the contract). Slice (a) is the data foundation: the connection,
+    // (docs/PACKS.md is the contract). Slice (a) was the data foundation: the connection,
     // the four committed tables, and the two jobs that turn them into net position and
-    // corridor share. See the SP-13 (a) block further down for the modelling notes.
+    // corridor share. Slice (b) added the three dashboards and the third job they read
+    // (the county trim), and slice (c) the four pinned Views and the pack's own tour.
+    // See the SP-13 (a) block further down for the modelling notes.
     countymigration: {
       id: "countymigration",
       kind: "workspace",
@@ -247,10 +249,10 @@
       // every KIND install seeds — connection, datasets, jobs, dashboards — because
       // doc-truth check 35 rule (a) holds this string and the blurb to the installer
       // separately, and rule (b) holds the dashboard count to what the file really names.
-      tagline: "3 dashboards over 7 datasets on 1 connection · 3,087 counties and 51 states · the 300 largest state-to-state corridors · 3 prep jobs · every US household move the IRS published for 2022-2023, and the income that moved with it — real public data, embedded",
+      tagline: "3 dashboards · 4 Views pinned to Home · 7 datasets on 1 connection · 3,087 counties and 51 states · the 300 largest state-to-state corridors · 3 prep jobs · every US household move the IRS published for 2022-2023, and the income that moved with it — real public data, embedded",
       // Three sentences, which is N40's cap — the card is a decision surface and the
       // inventory belongs in Help. Count-led and says "embedded" for the suite's #116.
-      blurb: "3 dashboards over 7 datasets on 1 connection, built from the IRS's own record of " +
+      blurb: "3 dashboards and 4 pinned Views over 7 datasets on 1 connection, built from the IRS's own record of " +
         "where American households moved between 2022 and 2023 — every county's arrivals and " +
         "departures, the 300 largest state-to-state corridors, the biggest county corridors out " +
         "of each state, and the aggregate income that travelled with all of them. Three prep " +
@@ -3170,10 +3172,15 @@
     // SP-13 (b): the dashboards read the jobs' outputs and the extract tables together, so
     // they are seeded here — the moment those rows exist — rather than in install(), which
     // runs a turn earlier with nothing to chart yet (the SP-1/SP-6/SP-5 convention).
-    seedCountyMigrationDashboards(W, id, {
+    var seededDs = {
       counties: countiesDs, states: statesDs, stateFlows: stateFlowsDs, countyPairs: countyPairsDs,
       countyOutput: countyOutDs, stateOutput: stateOutDs, mapped: mapOutDs
-    }, new Date().toISOString());
+    };
+    seedCountyMigrationDashboards(W, id, seededDs, new Date().toISOString());
+    // SP-13 (c): and the pinned Views, from the same turn and for the same reason — the
+    // rows they are computed over exist only now. Last, so the Views are the newest rows
+    // in the workspace and lead Home's pinned shelf.
+    seedCountyMigrationViews(W, id, seededDs);
 
     return { counties: countiesDs, states: statesDs, stateFlows: stateFlowsDs,
              countyPairs: countyPairsDs, countyOutput: countyOutDs, stateOutput: stateOutDs,
@@ -3631,6 +3638,193 @@
       steps: steps, folder: CM_FOLDER, demoPackId: id
     });
     return true;
+  };
+
+  /* ---- SP-13 (c): the pack's four pinned Views ---------------------------------------
+     A dashboard is a finished argument; a View is the thing you open and change. SP-1 set
+     the convention and SP-6 and SP-5 repeated it, and this pack follows it exactly: author
+     each View the way `bdSave` would — compute the basis with the pure `Studio.Build.compute`,
+     then `Studio.newPanel` over the resulting columns — so a seeded View and one saved by
+     hand in the View Builder are the same shape and open in the same editor. Only the basis
+     HEAD is read here; the rows a pinned card draws come from `Studio.Build.runBlob` against
+     the live dataset on every render (#118), which is why every subset below is the View's
+     OWN filter rather than a second, hand-cut dataset.
+
+     THE FOUR are the pack's two questions asked at both of its grains, in the order Home
+     shows them:
+       1. WHO IS WINNING HOUSEHOLDS — the county net-migration map          (COUNTY grain)
+       2. WHERE THEY WENT          — the state-to-state corridors, a sankey  (STATE grain)
+       3. DID THE MONEY MOVE       — net AGI by state, as a calc column      (STATE grain)
+       4. MOVERS AGAINST STAYERS   — every corridor, as a sortable table     (STATE grain)
+
+     THE THREE THINGS THESE VIEWS HAD TO GET RIGHT, all of them this pack's own and all
+     asserted by the suite rather than assumed:
+     * THE GRAIN IS IN THE NAME. County totals count every US move including moves inside a
+       state; state totals count only moves across a state line, by the source's own
+       definition. The two do not add up, so a reader meeting one of these cards on Home
+       without its dashboard still learns which universe it is in.
+     * THE COUNTY MAP READS THE TRIMMED JOB OUTPUT, never the 3,087-row county table. The
+       builder's live run keeps the first 2,000 rows BEFORE the View's own filters, so a
+       View bound to the raw table would draw Alabama through Ohio and stop — sixteen
+       states gone, while the card still looked like a map. Slice (b) made that a job with
+       a readable rule; this slice inherits it rather than re-inheriting the accident.
+     * THE MONEY IS A CALC COLUMN. `net_agi_k` is not in the extract — the IRS ships the
+       two directions and deliberately not their difference — so it is computed ON the
+       View, which means opening the card is how you see the arithmetic.
+
+     One honest limit, stated rather than hidden: the measure column of a rolled-up basis
+     is named by the pivot ("SUM net_returns"), so that is what these Views' columns are
+     called. It is the same label the builder writes for a View you save yourself. */
+  function countyMigrationViewDefs(ds) {
+    return [
+      {
+        // The hero, and the map the pack was extracted to draw. Diverging at zero for the
+        // dashboards' reason: the SIGN is the finding, so a county that gained households
+        // and one that lost them are not two shades of the same colour.
+        key: "counties", dsId: ds.mapped.id,
+        name: "Where America Moved — net household migration by county (county grain)",
+        chartType: "choropleth", mapScale: "county",
+        shelfRows: [],
+        shelfCols: [{ col: "fips", agg: null }, { col: "net_returns", agg: "sum" }],
+        opts: { scale: "county", fmt: "abbr", agg: "sum", classes: 6, height: 340,
+          divergeToken: "--warn", center: 0 }
+      },
+      {
+        // The corridors, as a flow. The floor is the dashboards' own CM_CORRIDOR_FLOOR — a
+        // READABILITY floor, not a significance one (a sankey lays its nodes out with an
+        // 11px gap, so the limit is the node count) — and here it is a filter chip one
+        // drag from gone.
+        key: "flow", dsId: ds.stateOutput.id,
+        name: "Where America Moved — state-to-state corridors of " + cmN(CM_CORRIDOR_FLOOR) +
+          " households or more (state grain)",
+        chartType: "sankey",
+        shelfRows: [{ col: "from_state" }],
+        shelfCols: [{ col: "to_state", agg: null }, { col: "returns", agg: "sum" }],
+        filters: [{ col: "returns", kind: "range", min: String(CM_CORRIDOR_FLOOR), max: "" }],
+        opts: { srcCap: "Left this state", dstCap: "Arrived in this state", fmt: "abbr", height: 520 }
+      },
+      {
+        // The money, on the app's built-in state geometry, and the value is this View's
+        // OWN calculated column — the extract ships in_agi_k and out_agi_k and not their
+        // difference, so the subtraction is on the shelf where a reader can change it.
+        key: "money", dsId: ds.states.id,
+        name: "Where America Moved — the income that changed state, as a calculated column (state grain)",
+        chartType: "choropleth", mapScale: "state",
+        shelfRows: [],
+        shelfCols: [{ col: "state", agg: null }, { col: CM_NET_AGI_CALC.name, agg: "sum" }],
+        calcs: [CM_NET_AGI_CALC],
+        opts: { scale: "state", fmt: "abbr", agg: "sum", classes: 6, height: 340,
+          divergeToken: "--warn", center: 0 }
+      },
+      {
+        // EVERY published corridor rather than the dashboard's top slice — because the
+        // comparison the pack is named for is a sort, not a picture, and 306 rows is well
+        // inside what a live run returns whole. All five measures come from the pack's
+        // state job: the share of the state left, the movers' average income, the stayers'
+        // average income, and the difference the pack's title asks about.
+        key: "movers", dsId: ds.stateOutput.id,
+        name: "Where America Moved — every corridor's movers against the stayers of the state they left (state grain)",
+        chartType: "table",
+        shelfRows: [],
+        shelfCols: ["from_state", "to_state", "returns", "pct_of_state_departures",
+          "movers_avg_agi_k", "stayers_avg_agi_k", "movers_vs_stayers_agi_k"]
+          .map(function (c) { return { col: c, agg: null }; }),
+        tableCols: [
+          { col: "from_state", label: "Left" },
+          { col: "to_state", label: "Arrived" },
+          { col: "returns", label: "Households", num: true, fmt: "abbr" },
+          { col: "pct_of_state_departures", label: "Share of that state's leavers", num: true, fmt: "pct" },
+          { col: "movers_avg_agi_k", label: "Movers' average AGI ($k)", num: true, fmt: "abbr" },
+          { col: "stayers_avg_agi_k", label: "Stayers' average AGI ($k)", num: true, fmt: "abbr" },
+          { col: "movers_vs_stayers_agi_k", label: "The gap ($k)", num: true, fmt: "abbr" }
+        ],
+        opts: { pageSize: 12, freezeHeader: true, density: "comfortable" }
+      }
+    ];
+  }
+  // The pivot a given chart type's basis is actually computed from — chartBasis's own rule,
+  // mirrored here because the seed runs without a builder state to ask. Only the shapes this
+  // pack uses are covered, and the sankey one is the interesting case: its basis is the flat
+  // triple [source, target, measure], NOT a crosstab, so the Rows field is folded into the
+  // Columns pivot exactly the way app/build.js does it (the SP-5 shape).
+  function countyMigrationBasisShelf(def) {
+    if (def.chartType === "sankey") {
+      return [{ col: def.shelfRows[0].col, agg: null }].concat(def.shelfCols);
+    }
+    return def.shelfCols;
+  }
+  function countyMigrationViewRow(def, table) {
+    var blob = {
+      dsKind: "ws", dsId: def.dsId, chartType: def.chartType,
+      shelfCols: Studio.clone(def.shelfCols), shelfRows: Studio.clone(def.shelfRows || []),
+      filters: Studio.clone(def.filters || []), calcs: Studio.clone(def.calcs || []),
+      shelfColor: [], paletteKey: "", mapScale: def.mapScale || ""
+    };
+    // Calc columns first — a shelf can name one, so the basis has to be computed over the
+    // EFFECTIVE columns (bdEff's rule), not the raw CSV's. Over the UNFILTERED rows on
+    // purpose, the same as SP-1, SP-6 and SP-5: a filter changes which rows come back,
+    // never which columns do, and only the head is wanted here (the rows are runBlob's job).
+    var eff = Studio.applyCalcCols(table.columns, table.rows, (def.calcs || []).map(function (c) {
+      return { name: c.name, formula: c.formula, type: "Numeric" };
+    }));
+    var basis = Studio.Build.compute(eff.cols, eff.rows, countyMigrationBasisShelf(def), []);
+    if (!basis || basis.head.length < 2) return null;
+    var da = { id: "cmv_" + def.key, name: def.name, kind: "sql", sql: "", query: "",
+      columns: basis.head.slice(), params: [], authored: true };
+    da.builder = Studio.clone(blob);
+    var p = Studio.newPanel(def.chartType, da);
+    if (def.chartType === "choropleth") {
+      // bdPanelFor's reason, verbatim: the measure column here is a synthesized "SUM
+      // net_returns" label and Studio.guessChoroplethCols can misjudge one, so the basis is
+      // mapped back POSITIONALLY the same way chartBasis built it — [id, value].
+      p.chart.map = { idCol: basis.head[0], valueCol: basis.head[1] };
+    }
+    // newPanel's table default marks every column after the first numeric and titleizes its
+    // label — right for an ad-hoc pivot, wrong for `to_state`. Declared columns win.
+    if (def.tableCols) p.chart.map.cols = Studio.clone(def.tableCols);
+    if (def.opts) Object.keys(def.opts).forEach(function (k) { p.chart.opts[k] = def.opts[k]; });
+    return {
+      name: def.name, folder: CM_FOLDER, demoPackId: "countymigration",
+      pinned: true, panelTitle: "", chartType: def.chartType, paletteKey: "",
+      da: da, builder: Studio.clone(blob), chart: p.chart
+    };
+  }
+  // Idempotent by View name, the convention every seeder in this file uses, so it is safe
+  // from the seed, from the boot heal, and in a workspace where someone deleted one.
+  function seedCountyMigrationViews(W, id, ds) {
+    if (!ds || !ds.mapped || !ds.states || !ds.stateOutput) return 0;
+    var tables = {};
+    var have = {};
+    W.all("analyses").forEach(function (r) { if (r.demoPackId === id) have[r.name] = true; });
+    var added = 0;
+    // Seeded in REVERSE of the reading order above: Home sorts pinned Views newest-first,
+    // so the county map has to be the last row written to lead the shelf (the CONS-2/CONS-3
+    // convention the dashboards are seeded by too).
+    countyMigrationViewDefs(ds).slice().reverse().forEach(function (def) {
+      if (have[def.name]) return;
+      // Parsed once per dataset, not once per View — the four read three tables between them.
+      if (!tables[def.dsId]) {
+        var row = W.get("datasets", def.dsId);
+        tables[def.dsId] = parsePackCsv((row && row.content) || "");
+      }
+      var t = tables[def.dsId];
+      if (!t || !t.rows.length) return;
+      var view = countyMigrationViewRow(def, t);
+      if (!view) return;
+      W.put("analyses", view);
+      added++;
+    });
+    return added;
+  }
+  // The boot heal, paired with the two above and third in their order for the same reason
+  // the dashboards are second: the county View reads the map job's output, so an install
+  // from slice (a) has to grow the job before it can grow the Views. False when there is
+  // nothing to do.
+  Studio.ensureCountyMigrationViews = function () {
+    var id = "countymigration";
+    if (!Studio.demoPackInstalled(id)) return false;
+    var W = Studio.Workspace;
+    return seedCountyMigrationViews(W, id, countyMigrationDatasets(W, id)) > 0;
   };
 
   // SP-0: registry-driven. This function knows about no pack in particular — an entry

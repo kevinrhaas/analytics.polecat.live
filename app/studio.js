@@ -1273,6 +1273,10 @@
     // SP-5(c) heal, one slice later and the same shape as SP-1's and SP-6's: an install
     // that predates the pack's four pinned Views gets them on boot, not at a reinstall.
     try { if (Studio.ensureCampaignFinanceViews) Studio.ensureCampaignFinanceViews(); } catch (e) {}
+    // SP-13(c) heal, and it is THIRD in this pack's chain for the same reason the
+    // dashboards are second: the county View reads the map job's output, so the job above
+    // has to have run before there is anything to pin.
+    try { if (Studio.ensureCountyMigrationViews) Studio.ensureCountyMigrationViews(); } catch (e) {}
   }
   window.__studioReconcilePackDashboards = reconcilePackDashboards; // test hook
 

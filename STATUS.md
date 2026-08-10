@@ -135,6 +135,41 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **SP-13 (c) — Where America Moved pins its four Views and brings its own tour (v971, sw v561,
+  2026-08-10, steward; dev branch; est 1pt, took 1 — ON estimate, and SP-13 closes ON its 3pt
+  estimate):** the pack's last slice, and the same shape SP-1 (c1), SP-6 (c) and SP-5 (c) all
+  shipped. Four builder-native Views, seeded from the same turn that writes the datasets and
+  healed onto an existing install by `Studio.ensureCountyMigrationViews`: net household
+  migration by county (the hero, diverging at zero), the state-to-state corridors as a real
+  sankey above the dashboards' own 12,000-household readability floor, the income that changed
+  state as a **calculated column on the View**, and every published corridor's movers against
+  the stayers of the state they left, as a sortable table. Plus the pack's own 6-stop guided
+  tour, pack-gated in the chooser the way the other three pack tours are.
+  **Three things this pack's Views had to get right, and all three are asserted rather than
+  assumed.** (1) **The county View reads the TRIMMED job output**, never the 3,087-row county
+  table: the builder's live run keeps the first 2,000 rows before the View's own filters, so a
+  View bound to the raw table would have drawn Alabama through Ohio and stopped — the same
+  silent artifact slice (b) built its third job to avoid, reproduced one surface over. The suite
+  pins that the raw table is over the cap, that the trimmed one is under it, and that a live run
+  returns the trimmed table WHOLE. (2) **Every View names its grain in its own title** — a card
+  on Home arrives without its dashboard's note, and county and state totals are different
+  universes by the source's own definition. (3) **The money is a calc column**, because the IRS
+  ships the income arriving and the income leaving and deliberately not their difference; the
+  suite recomputes `net_agi_k` from the two shipped figures on all 51 rows.
+  The boot heal is this pack's third and it declines while the map job's output is missing —
+  pinning nothing rather than a broken card — which the suite exercises in both orders.
+  **Verified:** the dev gate green in the foreground (`tools/validate.mjs`,
+  `tools/changelog-check.js`, `tools/doc-truth.mjs`, `tools/dev-smoke.mjs` at 390×780 and
+  desktop, zero pageerrors), and `tests/run.js` run live to **2,970 checks with zero assertion
+  failures**, including the four new SP-13(c) checks and the amended J6-5 tour shape. The run
+  was then cut off by this steward run's own 10-minute foreground ceiling while clicking in the
+  style-presets block near the end of the file — by the clock, not by a failure; the nightly
+  `promote-to-stage` sweep runs the whole suite before anything moves toward main.
+  **What this slice did NOT do, deliberately:** it neither fixed nor worked around the 2,000-row
+  live cap (still Kevin's to rank — disclose / raise / both, est 1pt for disclosure alone, and
+  this is now the THIRD pack to pay for its absence), and it did not refresh the county atlas
+  the eleven shapeless counties come from. Both remain exactly as slices (a) and (b) recorded
+  them.
 - **SP-13 (b) — Where America Moved gets its dashboards (v970, sw v560, 2026-08-10, steward;
   dev branch; est 1pt, took 1 — ON estimate):** three dashboards over the pack's committed IRS
   data, seeded from the same turn that writes the datasets and healed onto an existing install
@@ -14780,9 +14815,24 @@
 > grooming trigger above still stands for whichever run finishes SP-13: once (b) and (c) land,
 > this queue has no ready non-recurring work left at all and the next unit should be the
 > grooming pass + `hold` batch proposal, not a reservoir item taken directly.
+>
+> **THAT MOMENT HAS ARRIVED (2026-08-10). SP-13 (c) shipped, so all three promoted packs are
+> COMPLETE — SP-6 v963-965, SP-5 v966-968, SP-13 v969-971, nine slices against nine points.**
+> Every remaining item in this block is struck or ⛔ (N31, N44, N41, N25 blocked on Kevin;
+> SP-1 ⏳ on the `hold` PR #689), so the queue holds **zero ready non-recurring work** — the
+> grooming trigger twice over. **The next run's unit is the grooming pass**: archive the struck
+> carcasses to `docs/BACKLOG-ARCHIVE.md` and propose the next batch to Kevin on a `hold` PR.
+> The slice-(c) run did not groom in the same PR, on purpose and for the reason SP-5 (c) gave:
+> grooming is its own docs-only PR by `docs/BACKLOG.md`, and ranking a batch is Kevin's.
 
-- ⏳ **PR #754** — **SP-13 ★ [3pt est, 2 slices shipped] — Where America Moved, the third and last of Kevin's
-  three money-flow packs.** IRS Statistics of Income county-to-county migration: for every county
+- ~~**SP-13 ★ [3pt est, 3 slices shipped — ON estimate] — Where America Moved, the third and last
+  of Kevin's three money-flow packs.**~~ ✓ **COMPLETE — v969/v970/v971, all 2026-08-10, steward
+  (see DONE). With it, ALL THREE packs Kevin promoted on 2026-08-09 are shipped, and this queue
+  now has NO ready non-recurring work at all — the next unit is the grooming pass + `hold` batch
+  proposal `docs/BACKLOG.md` calls for, not a reservoir item taken directly.** *(⏳ marker
+  cleared 2026-08-10 by the run that took slice (c): PR #754 had merged, so the claim had
+  expired — the grooming rule "re-check ⏳ markers whose PRs closed".)*
+  IRS Statistics of Income county-to-county migration: for every county
   pair, how many households moved, how many people, and **the aggregate income that moved with
   them**. Public domain. Kevin promoted it here himself on 2026-08-09 (the note above is its
   authority); the reservoir entry in 📦 SAMPLE-PACK PROGRAM carries the original spec and its ⏫
@@ -14835,13 +14885,22 @@
   unchanged and still unranked:** (a) disclose it — a panel/View badge when a run was truncated;
   (b) raise the cap with a measured budget; (c) both. Est 1pt for (a) alone, and two packs have
   now paid for its absence.
-  **WHAT REMAINS:** (c) the pinned Views, the pack's own tour and the Help/`docs` currency pass —
-  the same shape SP-1 (c1), SP-6 (c) and SP-5 (c) all shipped, and it needs no builder work
-  (Sankey has been a View Builder chart type since SP-6). It follows the boot-heal convention in
-  `docs/PACKS.md` so a workspace that installed at (a) or (b) picks the Views up. Note for
-  whoever takes it: this pack's heal is a TWO-STEP one — `Studio.ensureCountyMigrationMapJob`
-  runs before `Studio.ensureCountyMigrationDashboards`, because the job's output is what every
-  county panel reads; a Views heal belongs after both.
+  ✓ **SLICE (c) IS SHIPPED — the four pinned Views, the pack's own tour and the docs: v971,
+  sw v561 (2026-08-10, steward — see DONE). Nothing remains: SP-13 is complete, ON its 3pt
+  estimate.** Est 1pt, took 1, and it needed no builder work at all — Sankey has been a View
+  Builder chart type since SP-6 (c), so the corridor flow opened as a flow on the first try;
+  that is the third pack to collect the same dividend. The heal chain the note below predicted
+  is exactly what shipped: `ensureCountyMigrationMapJob` → `ensureCountyMigrationDashboards` →
+  `ensureCountyMigrationViews`, and the Views heal declines outright while the map job's output
+  is missing rather than pinning a card with nothing to read.
+  **What slice (c) confirmed rather than discovered:** the 2,000-row live cap reaches the VIEWS
+  too, not just the dashboards — a pinned county View bound to the raw 3,087-row table would
+  draw Alabama through Ohio and stop, on Home, with no dashboard note anywhere near it. The
+  slice inherited slice (b)'s trimmed job output rather than re-inheriting the accident, and the
+  suite now pins the distinction from both ends. **The general fix is unchanged and still
+  Kevin's to rank** — (a) disclose a truncated run with a badge, (b) raise the cap with a
+  measured budget, (c) both; est 1pt for (a) alone, and **three packs have now paid for its
+  absence.**
 
 - ~~**SP-5 ★★ [3pt est, 3 slices shipped — ON estimate] — Campaign Finance, the second of
   Kevin's three money-flow packs.**~~ ✓ **COMPLETE — v966/v967/v968, all 2026-08-10, steward

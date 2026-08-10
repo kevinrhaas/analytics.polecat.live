@@ -212,6 +212,20 @@
       if (row && window.__studioOpenRecent) window.__studioOpenRecent(row.id);
     } catch (e) {}
   }
+  // SP-13(c): the same by-spec-name lookup for Where America Moved. Its hero is the county
+  // net-migration map — the one the extract exists to draw — and it is the pack's COUNTY
+  // grain dashboard, which is why the tour says so on every stop that stands in front of it
+  // (see demopacks.js CM_DASHBOARDS).
+  function openCountyMigrationDashboard() {
+    try {
+      var ws = Studio.Workspace;
+      var row = ws && ws.all("dashboards").filter(function (r) {
+        return r.demoPackId === "countymigration" && (r.name === "countymigration-counties" ||
+          (r.spec && r.spec.name) === "countymigration-counties");
+      })[0];
+      if (row && window.__studioOpenRecent) window.__studioOpenRecent(row.id);
+    } catch (e) {}
+  }
 
   /* ---------- tour definitions ----------
      target: CSS selector (null → centered card, no spotlight)
@@ -732,6 +746,59 @@
           last: true
         }
       ]
+    },
+    countymigration: {
+      label: "Where America Moved pack", ic: "globe", tint: "--good",
+      blurb: "A guided look at the pack built from the IRS's own record of where households moved — who is winning them, the money that moved too, and the one thing about this data you have to read it with.",
+      steps: [
+        {
+          t: "Your Where America Moved pack, guided",
+          h: "Installing it seeded a connection, four tables extracted from the IRS's 2022-2023 migration files, three prep <b>jobs</b>, three dashboards and four <b>Views</b> pinned to Home — every county's arrivals and departures, the largest state-to-state corridors, and the aggregate income that travelled with them, embedded in the app rather than fetched.",
+          sub: "You can reopen this tour any time from ⌘K → Interactive tutorial.",
+          target: null,
+          before: function () { goSection("home"); }
+        },
+        {
+          t: "1 · Four Views, live on Home",
+          h: "The pack pins four <b>Views</b> — net migration by county, the state-to-state corridors as a flow, the income that changed state, and every corridor's movers against the stayers they left behind. Each is a live chart over the pack's own tables, not a thumbnail.",
+          sub: "Click a card to open it in the View Builder that made it — the shelves, the filters and the calculated columns are all still there to change.",
+          target: ".home-analyses",
+          pos: "bottom",
+          before: function () { goSection("home"); }
+        },
+        {
+          t: "2 · Who is winning households",
+          h: "The hero, and the map the pack was extracted to draw: arrivals minus departures for every county, <b>diverging at zero</b> because the sign is the finding. A household here is a tax return filed from a new address, which is how the IRS can see a move at all.",
+          sub: "The map draws the counties where at least 1,000 households arrived or left — a rule the pack applies in the open, as a job you can read and change.",
+          target: '[data-panel-id="pcm_net"]',
+          pos: "top",
+          inPreview: true,
+          before: openCountyMigrationDashboard
+        },
+        {
+          t: "3 · And at what income",
+          h: "The same counties, coloured by what the arriving households earn minus what the leaving ones earn. Both sides are computed the same way — total AGI divided by households — so the gap is a difference of two like numbers rather than a ratio a county's size would dominate.",
+          sub: "Losing households while gaining income per household is a common pattern here, and it is the pack's whole argument for carrying the money as well as the count.",
+          target: '[data-panel-id="pcm_gap"]',
+          pos: "top",
+          inPreview: true
+        },
+        {
+          t: "4 · The two grains do not add up",
+          h: "The thing to read this pack with, and it is the source's own definition rather than a gap in the extract: a <b>county's</b> totals count every US move it saw, including moves from the next county over inside the same state. A <b>state's</b> totals count only moves that crossed a state line. Summing these counties and expecting the state pages to agree is the one mistake this data invites.",
+          sub: "So no panel in this pack ever adds a county number to a state number, and every note says which grain it is on.",
+          target: '[data-panel-id="pcm_note"]',
+          pos: "top",
+          inPreview: true
+        },
+        {
+          t: "That's where America moved",
+          h: "Two more dashboards sit in the <b>Where America Moved</b> folder under Dashboards, both at STATE grain: <b>The Corridors</b> (the state-to-state flow, and the destinations taking a sixth or more of a state's leavers) and <b>Did the Money Move With Them</b> (net income by state as a calculated column, and each corridor's households against the ones who stayed put).<br><br>And the comparison worth leaving with: the households that STAYED exist only at state grain, which is why \"are the leavers richer than the stayers\" can be asked of a state and not of a county.",
+          sub: "⌘K → Interactive tutorial brings you back here any time.",
+          target: null,
+          last: true
+        }
+      ]
     }
   };
   // LF40 (overview tour, pack-aware engine): mirrors welcome.js's computeSteps() — the
@@ -768,14 +835,15 @@
   function tourSteps(key) { return key === "overview" ? computeOverviewSteps() : TOURS[key].steps; }
   T.computeOverviewStepTitles = function () { return computeOverviewSteps().map(function (s) { return s.t; }); };
 
-  var TOUR_ORDER = ["overview", "quick", "build", "jobs", "connect", "conservation", "marketcoverage", "campaignfinance"];
+  var TOUR_ORDER = ["overview", "quick", "build", "jobs", "connect", "conservation", "marketcoverage", "campaignfinance", "countymigration"];
   // Some tours only make sense once a sample pack is installed — gate their
   // CHOOSER visibility here (openTour(key) still works directly regardless,
   // e.g. a future "take this pack's tour" link from Settings' pack card).
   var TOUR_GATES = {
     conservation: function () { return !!(window.Studio && Studio.demoPackInstalled && Studio.demoPackInstalled("conservation")); },
     marketcoverage: function () { return !!(window.Studio && Studio.demoPackInstalled && Studio.demoPackInstalled("marketcoverage")); },
-    campaignfinance: function () { return !!(window.Studio && Studio.demoPackInstalled && Studio.demoPackInstalled("campaignfinance")); }
+    campaignfinance: function () { return !!(window.Studio && Studio.demoPackInstalled && Studio.demoPackInstalled("campaignfinance")); },
+    countymigration: function () { return !!(window.Studio && Studio.demoPackInstalled && Studio.demoPackInstalled("countymigration")); }
   };
   function visibleTourKeys() {
     return TOUR_ORDER.filter(function (k) { return !TOUR_GATES[k] || TOUR_GATES[k](); });
@@ -1040,7 +1108,8 @@
     connect: "Tour complete! Add a connection, or explore a sample dataset.",
     conservation: "Tour complete! Try a different Region scale on any map in the Dashboard Builder's Inspector.",
     marketcoverage: "Tour complete! Open the shortlist View and move one of its two rules.",
-    campaignfinance: "Tour complete! Open the flow View and drag its $10M floor off the shelf."
+    campaignfinance: "Tour complete! Open the flow View and drag its $10M floor off the shelf.",
+    countymigration: "Tour complete! Open the corridors View and sort it by the gap between movers and stayers."
   };
   function finish() {
     try {
