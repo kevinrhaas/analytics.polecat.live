@@ -6,6 +6,18 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 975,
+    title: 'The Glossary now defines the words the app actually prints',
+    kind: 'fix',
+    ts: '2026-08-10T17:42:27.000Z',
+    items: [
+      'The Help page\'s glossary promises "every term, one line each" and was missing three the app puts on screen constantly. <b>Repository</b> — the page three other chapters send you to for filing — was never defined. Neither was <b>Folder</b>, even though every catalog, the Repository\'s own tree and its <b>+ New folder</b> button all print it. And of the three builders on the left rail, only <b>Quick Views</b> and the <b>View Builder</b> got a mention: the <b>Dashboard Builder</b>, where dashboards are actually made, was absent from the dictionary of the app it builds them in.',
+      'Two more words the page uses in its own chapter titles are now defined where you would look them up: <b>Data access</b> — the named query a View is really bound to, which is not quite the same thing as a Dataset — and <b>Ensemble</b>, the common-estimate rule behind the ensemble charts and the choropleth.',
+      'The chapter also now opens by saying what it covers and where the names come from, so you can trust that a word spelled one way here is spelled the same way on screen.',
+      'A new check runs before anything merges and keeps it that way: it reads the left rail\'s own section list, the five kinds of thing the Repository indexes, and the two buttons that create folders and workbooks, then fails if the glossary stops defining any of them — or if it starts defining a word the documentation never uses.',
+    ],
+  },
+  {
     v: 974,
     title: 'The Help page now calls every chart by the name the picker prints',
     kind: 'fix',

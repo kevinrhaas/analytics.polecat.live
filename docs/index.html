@@ -2835,14 +2835,22 @@
 <!-- ── Glossary (#23 — the overview tour's "words, one line each" lives here too) ── -->
 <section id="glossary">
   <h2>Glossary — every term, one line each</h2>
+  <p id="glossary-promise">These are the app's own words, not ours: every kind of thing you can
+  make (the five the <strong>Repository</strong> indexes), every place you make it (the three
+  builders on the rail's <strong>Build</strong> group), and the two ways they are filed. One line
+  each, spelled the way the screen spells it.</p>
   <ul>
     <li><strong>Adapter</strong> — the driver that speaks one backend's language (Postgres, Supabase, Snowflake, BigQuery, Google Sheets, CSV/JSON files…). You never pick one directly — choosing what to connect to picks it for you.</li>
     <li><strong>Connection</strong> — an adapter plus your credentials, pointing at one place data lives. Credentials stay in your browser by default.</li>
     <li><strong>Dataset</strong> — a named, reusable query on a connection; the building block every chart draws from.</li>
+    <li><strong>Data access (DA)</strong> — the named query a View is actually bound to, listed in the builder's Data panel; a dashboard can own one outright or borrow the workspace's Datasets and saved Views.</li>
     <li><strong>Job</strong> — a prep pipeline (rename, filter, aggregate, roll up) whose output lands back in Datasets as a new dataset.</li>
     <li><strong>View</strong> — one chart, KPI, map, or text block; the unit dashboards are made of. Built in Quick Views (fast) or the View Builder (shelves, pivots, calculations).</li>
-    <li><strong>Dashboard</strong> — Views arranged into a page you can feature on Home, share read-only, and export as a self-contained file.</li>
+    <li><strong>Ensemble</strong> — several sources estimating the same thing shown as one common estimate: the median of the providers left toggled on draws bold, and each provider stays visible as supporting evidence.</li>
+    <li><strong>Dashboard</strong> — Views arranged in the Dashboard Builder into a page you can feature on Home, share read-only, and export as a self-contained file.</li>
     <li><strong>Workbook</strong> — a named group of dashboards, used as a filter chip in the Dashboards section.</li>
+    <li><strong>Folder</strong> — a filing path any catalog row can be given — datasets, connections, jobs, dashboards, Views, and Workbooks too — so long lists group instead of sprawling.</li>
+    <li><strong>Repository</strong> — one searchable index over all five catalogs at once (Dashboards, Datasets, Connections, Views, Jobs), with the folder tree beside it and <strong>+ New folder</strong> to seed an empty one.</li>
     <li><strong>Filter</strong> — a dashboard-level control that narrows every View wired to it; "Since …" filters keep everything from the picked value onward.</li>
     <li><strong>Sample pack</strong> — installable demo content (datasets, Views, dashboards, a job) so you can explore before connecting anything. Install/remove from Settings.</li>
     <li><strong>Workspace backend</strong> — where the whole workspace syncs (Supabase, Turso…), so it follows you between devices; Local keeps everything in this browser.</li>

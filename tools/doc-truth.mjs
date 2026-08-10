@@ -6776,6 +6776,171 @@ if (kitLive) {
   }
 }
 
+/* ── Check 63 — the Glossary: "every term, one line each", held to the app's own nouns.
+   The page's dictionary chapter was the last one nothing derived, and its title makes the
+   strongest promise on the site. Measured: it defined ten terms and OMITTED three the app
+   renders as first-class — **Repository** (a Workspace-group rail section, and the page every
+   other chapter sends you to for folders), **Dashboard Builder** (the only one of the rail's
+   three builders the chapter never named, while Quick Views and the View Builder both got a
+   clause), and **Folder** (the noun the ORGANIZE program turns on, printed by every catalog,
+   by the Repository's own tree, and by the `+ New folder` button). Two more were added in the
+   same pass on the page's own evidence rather than a rule — **Data access** and **Ensemble**,
+   each of which owns a Help `<h2>` and a bolded defining sentence there, so the chapter was
+   sending readers to words its dictionary did not carry.
+   The sources of truth are all in `app/`: the rail's own IA comment groups its sections into
+   Workspace ("the things you HAVE") and Build ("the places you MAKE them"), so the group
+   labels and the `aria-label`s beneath them are parsed straight out of `app/index.html`;
+   `REPO_TYPES` in `app/studio.js` is EVALUATED (a plain literal) for the five object kinds;
+   and the two organizer nouns are read off the creation buttons that print them. Rule (g)
+   closes the loop in the other direction — a term defined here has to be one the page itself
+   spends elsewhere, so the dictionary cannot grow words the documentation never uses. */
+{
+  const railSrc = read("app/index.html");
+  const studioSrc = read("app/studio.js");
+
+  // ── the rail, by group. Walk the markup once: a group label opens a group, every
+  // rail-item button after it belongs to that group until the next label.
+  const railGroups = (() => {
+    const out = new Map();
+    let cur = null;
+    const re = /<div class="rail-group-lbl[^"]*"[^>]*>([^<]+)<\/div>|<button[^>]*\bdata-sec="[a-z]+"[^>]*\baria-label="([^"]+)"/g;
+    for (const m of railSrc.matchAll(re)) {
+      if (m[1] != null) { cur = htmlText(m[1]); if (!out.has(cur)) out.set(cur, []); }
+      else if (cur) out.get(cur).push(m[2]);
+    }
+    return out;
+  })();
+  const workspaceSecs = railGroups.get("Workspace") || [];
+  const buildSecs = railGroups.get("Build") || [];
+
+  // ── the five workspace object kinds. A plain literal, so evaluate it rather than regex it.
+  const repoTypes = (() => {
+    const at = studioSrc.indexOf("var REPO_TYPES = [");
+    if (at < 0) return null;
+    try {
+      const arr = new Function("return " + searchBlockAt(studioSrc, studioSrc.indexOf("[", at), "[", "]") + ";")();
+      return Array.isArray(arr) && arr.every((t) => t && typeof t.singular === "string" &&
+        typeof t.label === "string") ? arr : null;
+    } catch { return null; }
+  })();
+
+  // ── the two organizers, read off the buttons that mint them: "+ Workbook" and
+  //    "+ New folder". The noun is what survives stripping the "+ New " / "+ " prefix.
+  const btnNoun = (id) => {
+    const m = studioSrc.match(new RegExp('id="' + id + '"[^>]*>\\s*\\+\\s*(?:New\\s+)?([A-Za-z ]+?)\\s*<'));
+    return m ? m[1].trim() : "";
+  };
+  const organizers = [btnNoun("wbAddBtn"), btnNoun("repoNewFolderBtn")].filter(Boolean);
+
+  // ── the chapter itself.
+  const glosAt = help.indexOf('<section id="glossary">');
+  const glosHtml = glosAt < 0 ? "" : help.slice(glosAt, help.indexOf("</section>", glosAt) + 10);
+  const glosItems = [...glosHtml.matchAll(/<li>([\s\S]*?)<\/li>/g)].map((m) => m[1]);
+  // The TERM is the first <strong> of the line; the rest is its one-line definition. A body
+  // may bold a cross-reference (Repository's "+ New folder" does) — only the head is the term.
+  const glosEntries = glosItems.map((li) => {
+    const m = li.match(/^\s*<strong>([\s\S]*?)<\/strong>\s*—\s*([\s\S]+)$/);
+    return m ? { term: htmlText(m[1]), def: htmlText(m[2]), raw: li } : null;
+  });
+  const glosTerms = glosEntries.filter(Boolean).map((e) => e.term);
+  // The naming rules read the ENTRY LIST only, never the promise paragraph above it — the
+  // paragraph names Repository and Build to state the contract, and letting that count would
+  // make rules (c)/(d) satisfiable by the sentence that announces them.
+  const glosText = htmlText(glosItems.join(" "));
+  const promiseAt = glosHtml.indexOf('<p id="glossary-promise">');
+  const promise = promiseAt < 0 ? "" : htmlText(glosHtml.slice(promiseAt, glosHtml.indexOf("</p>", promiseAt)));
+
+  // A term "names" a thing when the chapter's prose contains it, singular or plural.
+  const glosNames = (s) => {
+    const forms = [s, s.replace(/ies$/, "y"), s.replace(/s$/, ""), s + "s"];
+    return forms.some((f) => f && new RegExp("\\b" + f.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\b", "i").test(glosText));
+  };
+  const hasEntry = (s) => glosTerms.some((t) => {
+    const head = t.replace(/\s*\([^)]*\)\s*$/, "");   // "Data access (DA)" → "Data access"
+    return head.toLowerCase() === s.toLowerCase() || head.toLowerCase() === s.toLowerCase() + "s" ||
+      head.toLowerCase() + "s" === s.toLowerCase();
+  });
+
+  // (a) the premise. Six rules read these; a chapter that stops parsing, a rail whose groups
+  // lose their labels, or a registry that stops evaluating must fail HERE rather than let the
+  // rules below pass over nothing. It also holds the title's OTHER half — "one line each"
+  // means one <li> per term, so a nested list inside an entry is itself the failure.
+  const nested = glosItems.filter((li) => /<ul|<ol|<br/i.test(li));
+  const unparsed = glosEntries.map((e, i) => (e ? null : i)).filter((i) => i !== null);
+  const glosPremise = ok(`docs/index.html: the Glossary parsed for check 63 ` +
+    `(${glosTerms.length} term(s), ${workspaceSecs.length} Workspace + ${buildSecs.length} Build rail section(s), ` +
+    `${repoTypes ? repoTypes.length : 0} object kind(s), ${organizers.length} organizer(s))`,
+    glosTerms.length >= 10 && !unparsed.length && !nested.length && !!promise &&
+      workspaceSecs.length >= 5 && buildSecs.length >= 3 && !!repoTypes && repoTypes.length >= 5 &&
+      organizers.length === 2,
+    `entries that are not "<strong>Term</strong> — one line": ${unparsed.length ? unparsed.join(", ") : "(none)"}\n      ` +
+    `entries carrying a nested list or <br>: ${nested.length}\n      ` +
+    `Workspace group: ${workspaceSecs.join(" · ") || "(none)"}\n      ` +
+    `Build group: ${buildSecs.join(" · ") || "(none)"}\n      ` +
+    `REPO_TYPES evaluated: ${!!repoTypes} · organizers: ${organizers.join(" / ") || "(none)"}\n      ` +
+    `#glossary-promise present: ${!!promise}`);
+
+  if (glosPremise) {
+    // (b) every kind of thing the workspace stores gets its OWN entry — the five REPO_TYPES
+    // singulars. These are the nouns the whole app is made of; a dictionary that misses one
+    // is not a dictionary.
+    const kindsMissing = repoTypes.map((t) => t.singular).filter((s) => !hasEntry(s));
+    ok(`docs/index.html: the Glossary defines all ${repoTypes.length} workspace object kinds by their own name`,
+      !kindsMissing.length,
+      `undefined: ${kindsMissing.join(", ") || "(none)"}\n      ` +
+      `REPO_TYPES prints: ${repoTypes.map((t) => t.singular).join(" · ")}\n      ` +
+      `the Glossary defines: ${glosTerms.join(" · ")}`);
+
+    // (c) the rail's Workspace group — "the things you HAVE", per the rail's own IA comment.
+    // Repository was the miss: the section every other chapter routes folder work through.
+    const wsMissing = workspaceSecs.filter((s) => !glosNames(s));
+    ok(`docs/index.html: the Glossary names every Workspace section on the rail (${workspaceSecs.length})`,
+      !wsMissing.length,
+      `unnamed: ${wsMissing.join(", ") || "(none)"}\n      ` +
+      `the rail's Workspace group: ${workspaceSecs.join(" · ")}\n      ` +
+      "Repository went unnamed while three other chapters sent the reader to it by name");
+
+    // (d) the rail's Build group — "the places you MAKE them". The chapter gave Quick Views
+    // and the View Builder a clause each and left the Dashboard Builder out of its own app.
+    const buildMissing = buildSecs.filter((s) => !glosNames(s));
+    ok(`docs/index.html: the Glossary names all ${buildSecs.length} builders on the rail`,
+      !buildMissing.length,
+      `unnamed: ${buildMissing.join(", ") || "(none)"}\n      ` +
+      `the rail's Build group: ${buildSecs.join(" · ")}`);
+
+    // (e) the two organizers, each with its own entry — read off the buttons that create them,
+    // so renaming "+ New folder" in the app moves this rule with it.
+    const orgMissing = organizers.filter((n) => !hasEntry(n));
+    ok(`docs/index.html: the Glossary defines both filing nouns the app's own buttons print (${organizers.join(", ")})`,
+      !orgMissing.length,
+      `undefined: ${orgMissing.join(", ") || "(none)"}\n      ` +
+      "Folder is the noun the ORGANIZE program turns on — every catalog prints it and the dictionary did not");
+
+    // (f) and the promise is stated, so (b)-(e) are something a reader can rely on rather than
+    // a private convention — the check-62 move, one chapter over.
+    ok("docs/index.html: the Glossary states what it covers and that the names are the app's own",
+      /Repository/.test(promise) && /Build/.test(promise) && /filed/i.test(promise) &&
+        /one line each/i.test(promise + " " + glosText),
+      `promise: ${promise.slice(0, 200) || "(no #glossary-promise paragraph)"}`);
+
+    // (g) the other direction: a term defined here must be one the page itself spends. A
+    // dictionary is only useful for the words its own document uses, and this is what would
+    // catch a retired noun lingering after a rename (the "analysis"→View sweep's shape).
+    const restOfPage = help.slice(0, glosAt) + help.slice(glosAt + glosHtml.length);
+    const restBold = new Set([...restOfPage.matchAll(/<strong>([\s\S]*?)<\/strong>/g)]
+      .map((m) => htmlText(m[1]).toLowerCase()));
+    const unspent = glosTerms.filter((t) => {
+      const head = t.replace(/\s*\([^)]*\)\s*$/, "").toLowerCase();
+      return ![head, head + "s", head.replace(/s$/, "")].some((f) =>
+        restBold.has(f) || new RegExp("<strong>[^<]*\\b" + f.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\b", "i").test(restOfPage));
+    });
+    ok(`docs/index.html: every Glossary term is a word the rest of the page actually bolds (${glosTerms.length} checked)`,
+      !unspent.length,
+      `defined but never used elsewhere on the page: ${unspent.join(", ") || "(none)"}\n      ` +
+      "a glossary entry for a word the docs never say is a rename that only half landed");
+  }
+}
+
 console.log(failed ? `\n✗ doc-truth: ${failed} claim(s) have drifted from the source of truth`
   : "\n✅ doc-truth: every published claim matches the source it describes");
 process.exit(failed ? 1 : 0);
