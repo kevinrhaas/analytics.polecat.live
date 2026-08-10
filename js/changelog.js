@@ -6,6 +6,17 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 963,
+    title: 'A new sample pack: where federal contract money actually goes',
+    ts: '2026-08-10T07:05:11.000Z',
+    items: [
+      '<b>Federal Contract Awards</b> is a new sample pack in <b>Settings → Sample packs</b>, and the second built on real public data. It carries USASpending.gov\'s record of federal contracts obligated in fiscal year 2025 — the 25 largest awarding agencies, 99.97% of the year\'s contract dollars — embedded in the app rather than fetched, so installing it needs no credentials and no network.',
+      'Four tables answer the question from four directions: what each agency spent, what it bought by <b>NAICS industry</b>, who it paid, and which <b>congressional district</b> the work was performed in. The agency→industry and agency→vendor tables are true flows — the shape sankey and marimekko charts want, and the first real data in the app to have it.',
+      'The pack ships a prep <b>job</b>, not a pre-joined table. The industry and vendor tables carry an agency code and nothing else; the job brings across the agency\'s name and its total, and derives each vendor\'s <b>share of the agency that paid it</b> — so “Lockheed took $14B from DOD” becomes “Lockheed took 3% of everything DOD bought”. It also carries each agency\'s small-business share, counted across every vendor rather than just the ones in the list.',
+      '<b>The filters are written down rather than implied.</b> Contracts only (no grants, loans or direct payments), one closed fiscal year, the top 25 agencies and the top 12 industries and vendors within each, and the territories’ at-large delegations left out of the district map because the map has no geometry to draw them on. All of it is in the pack\'s <b>SOURCE.json</b> and its extract script, and the source, licence and retrieval date are on the pack card.',
+    ],
+  },
+  {
     v: 962,
     title: 'A sample pack’s description is three sentences again, not a paragraph',
     ts: '2026-08-10T06:23:36.000Z',

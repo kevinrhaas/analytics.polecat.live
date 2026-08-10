@@ -30,6 +30,7 @@ and are not redistributed.)*
 | US Census Bureau TIGERweb (119th Congressional Districts, `Legislative/MapServer`) | `vendor/geo/us-cd-albers.json` — nationwide congressional districts (all 50 states + DC), generalized + reprojected by `tools/build-geo.mjs` | US government work, public domain |
 | US Census Bureau TIGERweb (2020 ZIP Code Tabulation Areas, `tigerWMS_Current/MapServer` layer 2) | `vendor/geo/us-zcta-albers.json` — nationwide 5-digit ZCTAs (all 50 states + DC), generalized + reprojected by `tools/build-geo.mjs` | US government work, public domain |
 | US Census Bureau — County Business Patterns and American Community Survey | `data/packs/marketcoverage/county-establishments.csv` and `county-demographics.csv` — 1,813 counties, extracted by `tools/pack-extract/marketcoverage.mjs`; the data behind the Market Coverage sample pack | US government work, public domain |
+| USASpending.gov — federal contract awards, FY2025 (Treasury Bureau of the Fiscal Service, API v2) | `data/packs/contractawards/agency-totals.csv`, `agency-industry.csv`, `agency-vendor.csv` and `district-awards.csv` — FY2025 federal contract obligations for the 25 largest awarding agencies, extracted by `tools/pack-extract/contractawards.mjs`; the data behind the Federal Contract Awards sample pack | US government work, public domain |
 
 ### Sample-pack data
 
@@ -40,8 +41,9 @@ the same PR that adds it — a `licensed` one because the licence demands it (`t
 fails the dev gate without it), a `public` one because a public-domain source still deserves the
 credit this document exists to give. `tools/doc-truth.mjs` check 47 holds both.
 
-*Of the three shipped packs, one ships outside data: **Market Coverage** (`marketcoverage`)
-commits the US Census extract credited in the table above. **Conservation Insight** and **Data
+*Of the four shipped packs, two ship outside data: **Market Coverage** (`marketcoverage`)
+commits the US Census extract and **Federal Contract Awards** (`contractawards`) the
+USASpending.gov extract, both credited in the table above. **Conservation Insight** and **Data
 Management & Governance** are entirely synthetic — generated in JS at install time, as their own
 copy says — so they need no credit.*
 

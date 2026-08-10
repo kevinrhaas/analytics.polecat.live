@@ -135,6 +135,65 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **SP-6 slice (a) — Federal Contract Awards: the data foundation, and the program's first real
+  flow (v963, sw v553, 2026-08-10, steward; dev branch; est 3pt, 1 of 3 slices spent — ON
+  estimate):** the first ready item in ▶ NOW. N31 and N44 are ⛔ on Kevin; N35/N37/N34/N33a/N33b/
+  N32/N42/N43a/N43b/N36/N40 are struck; N41 is a Kevin decision the loop may not take; N25's
+  remainder is blocked on a `polecat_stage` database that does not exist; SP-1 is ⏳ on the
+  `hold`-labelled PR #689. That leaves Kevin's 2026-08-09 promotion, which named **SP-6 first**.
+  **What shipped.** `tools/pack-extract/contractawards.mjs` (the provenance record) and four
+  committed CSVs under `data/packs/contractawards/` — 49.6KB of the 150KB budget — plus the
+  registry entry, the pack's connection, five datasets and the job that derives the shares.
+  * **agency-totals.csv** — the 25 largest awarding agencies, **99.97% of FY2025's $778.4B of
+    contract obligations**, each with its small-business figure.
+  * **agency-industry.csv / agency-vendor.csv** — 300 rows each: the top 12 NAICS industries and
+    the top 12 recipients *per agency*. These are the FLOW, and no pack before this one had one.
+  * **district-awards.csv** — 436 congressional districts by place of performance, keyed on the
+    4-character id the app's `cd` choropleth already uses. First real data for that scale.
+  **The join is the pack, which is why the extract deliberately ships less.** The two flow tables
+  carry the agency CODE and not its name: the readable name and the agency's own total live in
+  agency-totals, and the JOB is what brings them across — and in doing so turns "Lockheed took
+  $34B from DOD" into "Lockheed took 6.9% of everything DOD bought". Denormalizing the name into
+  both flow tables would have made the join decorative and cost 18KB to do it. The small-business
+  share rides the same join, and is counted by re-running the agency query under USASpending's
+  `small_business` filter rather than by summing the top-12 vendor rows, which would have
+  under-counted every agency.
+  **Provenance, including where it differs from SP-1's.** SP-1 reads frozen bulk FILES, so a
+  re-run is byte-identical forever. This reads a LIVE API over a CLOSED fiscal year: every knob is
+  a pinned constant, so the same request always asks the same question, but agencies file
+  corrections and those move the cents. That is written into the script header and is the reason
+  `retrieved` matters here more than it did there — saying "re-runnable" without the caveat would
+  have been the dishonest kind of provenance. Every filter is stated in `SOURCE.json`: contracts
+  only (types A/B/C/D — no grants, loans or direct payments), one closed fiscal year, the top 25
+  agencies, the top 12 rows each, and the territories' at-large delegations dropped from the
+  district table because the map has no geometry for them (0.6% of the year, stated rather than
+  silently missing — the SP-1 rule).
+  **The check found a real defect on its first run, in itself.** The suite check originally read
+  the job's output by splitting the CSV text on commas, and real vendor names contain commas
+  ("ATLANTIC DIVING SUPPLY, INC."), so it mis-parsed exactly the rows a share check cares about
+  and reported an agency capturing more than 100% of itself. The data was sane; the reader was
+  not. It now asserts on the LIVE re-run's typed rows and holds the seeded bytes separately, to
+  the byte, via `rerunReproduces` — parse once, properly, then compare the serialization. Worth
+  recording because it is the same trap `typePackCell` exists for one function over.
+  **The district check earned its keep too:** rather than a regex on the id format, it fetches
+  `vendor/geo/us-cd-albers.json` and asserts all 436 ids resolve against the geometry the app
+  would draw them on — which is what makes the territory drop provably right rather than merely
+  argued.
+  **Bookkeeping in the same PR:** `sw.js` precaches all four CSVs and bumps v552→v553 (docs/PACKS.md
+  rule 1's offline half); `THIRD-PARTY-NOTICES.md` credits USASpending by the exact `source.name`
+  doc-truth check 47(d) matches on, and its "of the three shipped packs" sentence is now four;
+  `docs/PACKS.md`'s synthetic-count sentence moved with it (check 48(a)); Help's *Sample packs*
+  section gained the pack's own entry, naming every kind it seeds and claiming no dashboard count,
+  because slice (a) seeds none.
+  **Verified:** `node tools/validate.mjs` (4 packs declare a source, 2 extract scripts registered,
+  every pack inside the 150KB budget), `node tools/changelog-check.js`, `node tools/doc-truth.mjs`
+  (all of checks 34/35/47/48 re-read the new registry entry, the new notices row and the new Help
+  item), and `NODE_PATH=$(npm root -g) node tools/dev-smoke.mjs` at 390×780 + desktop with zero
+  pageerrors — the four commands `ci.yml` runs, which is the gate this merge answers to. The full
+  `tests/run.js` suite was also run: **3,285 checks passed with zero failures, including the new
+  SP-6(a) check**, and the run was cut off in its last section by this runner's hard 10-minute
+  per-command limit rather than by anything red. The complete suite is tonight's
+  `promote-to-stage` job, which budgets 45 minutes for it.
 - **N40 — a pack card's description is three sentences again, not an inventory (v962, sw v552,
   2026-08-10, steward; dev branch; est 1pt, took 1 — ON estimate):** the first ready item in ▶ NOW
   (N31 and N44 are ⛔ on Kevin; N35/N37/N34/N33a/N33b/N32/N42/N43a/N43b/N36 are struck, and SP-1 is
@@ -14362,6 +14421,37 @@
 >
 > Not promoted, deliberately: SP-12 (Neighborhood Change) and SP-14/SP-15 stay in the reservoir
 > for the next batch — Kevin asked for the money ones, and three 3pt packs is already ~9 PRs.
+>
+> **SP-6 now has its own item line, immediately below** — the promotion note named the three packs
+> but minted no grammar line for any of them, so the queue had nothing to mark when work started.
+> SP-5 and SP-13 still live in the reservoir with their ⏫ markers; give each a line here when its
+> first slice starts, the way this one did.
+
+- **SP-6 ★★ [3pt est, 1 slice shipped] — "Federal Contract Awards" — where federal contract money
+  goes (Kevin, promoted 2026-08-09: *"some where the money is going"*).** ✓ **SLICE (a) IS SHIPPED —
+  the data foundation: v963, sw v553 (2026-08-10, steward — see DONE).** The extract script, four
+  committed USASpending.gov datasets (FY2025 contracts: 25 agencies, 600 agency→industry and
+  agency→vendor flow rows, 436 congressional districts — 49.6KB of the 150KB budget), the pack's
+  connection, and the job that turns a vendor's raw obligations into a share of the agency that
+  paid it. The pack is the program's first source of a genuine origin→destination table, which is
+  what the sankey/marimekko story needs and what every pack before it had to fake.
+  **What remains, in order:**
+  **(b) the dashboards (≈3)** — the hero is the money flow itself (agency → industry, agency →
+  vendor) which is the pack's whole reason for existing; beside it the small-business share by
+  agency (the one number in the pack that is a policy question, and it is already a column), and
+  the congressional-district choropleth, which is the app's `cd` scale getting real data for the
+  first time. The district ids are already proven to draw — the suite check asserts every one of
+  the 436 resolves against `vendor/geo/us-cd-albers.json`.
+  **(c) the pinned Views** — authored the SP-1 way (`Studio.Build.compute` → `Studio.newPanel`),
+  seeded from the same `seed(csv)` call, each paired with an ensure-function so a workspace that
+  installed slice (a) picks them up at boot with no reinstall.
+  **One thing (b) has to decide rather than inherit:** the app has no sankey today, so the hero is
+  either a marimekko/stacked treatment of the same flow or it is a new chart type in
+  `app/studio-charts.js` — which is a bigger slice than (b) and would want its own. Measure before
+  choosing; do not let a chart-type build ride in on a pack slice.
+  **And a note (b) must not lose:** the two flow tables carry the agency CODE only. Anything that
+  wants the readable agency name reads the JOB'S OUTPUT, not the raw vendor table — that is the
+  point of the join, and a panel bound to the wrong dataset will silently show codes.
 
 - ~~**N34 ★★ [1pt] — dragging the View Builder canvas taller does not make the chart taller; it
   just adds empty space below it.**~~ ✓ **SHIPPED v947, sw v538 (2026-08-09, steward — see DONE).**
@@ -16092,7 +16182,7 @@
 >   belongs in **SP-16**, where the rows are constructed and the addresses are fabricated — and
 >   it is the better demo anyway, since it can plant the messy cases (apartment lines,
 >   non-standard formats, missing components) on purpose instead of by luck.
-> - **SP-6 [3pt] — Federal Contract Awards.** ⏫ **PROMOTED to ▶ NOW 2026-08-09 (Kevin) — work it there, not from here.** Who wins federal work, by agency, vendor, NAICS
+> - **SP-6 [3pt] — Federal Contract Awards.** ⏫ **PROMOTED to ▶ NOW 2026-08-09 (Kevin), and STARTED: slice (a) shipped 2026-08-10 — it has a real item line in ▶ NOW now; work it there, not from here.** Who wins federal work, by agency, vendor, NAICS
 >   and district; small-business share. *USASpending.gov, public domain.*
 > - **SP-7 [3pt] — Food Safety Inspections.** A multi-site operations scorecard: violation rates
 >   by chain and neighbourhood, repeat offenders, inspector variance. *City of Chicago open data

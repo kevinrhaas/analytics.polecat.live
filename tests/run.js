@@ -5819,6 +5819,119 @@ function serve() {
       mc.joined && mc.derived && mc.rateIsANumber && mc.rateChecks && mc.nullFreeSample &&
       mc.rerunReproduces && mc.removedClean && mc.restored, JSON.stringify(mc));
 
+    // ---- SP-6 (a): the second real-data pack, and the first carrying a FLOW ------
+    // Same async path SP-1 (a) proved, so the shape of this block deliberately matches
+    // it — but the thing being asserted is different. SP-1's join brings two Census
+    // programs together on a shared key present in both files. SP-6's join brings across
+    // columns the source table DOES NOT HAVE: the extract left the agency NAME and the
+    // agency TOTAL out of the vendor table on purpose, so a mis-keyed join here does not
+    // merely produce nulls, it produces a dataset with no readable agency in it at all.
+    //
+    // Everything numeric is asserted on the LIVE re-run's typed rows rather than on the
+    // seeded CSV text, and that is not a convenience: real vendor names contain commas
+    // ("ATLANTIC DIVING SUPPLY, INC."), so a naive split of the output is off by one on
+    // exactly the rows a share check cares about. The seeded bytes are still held — to
+    // the byte — by rerunReproduces, which is the honest way round: parse once, properly,
+    // and compare the serialization.
+    //
+    // The two share columns get BOUNDS as well as arithmetic, because a percentage is the
+    // kind of number that stays plausible while being wrong: an agency's kept top-12
+    // vendors cannot together capture more than 100% of what that agency obligated, and a
+    // small-business share cannot exceed it either. Both would survive "finite and positive".
+    const fca = await page.evaluate(async function () {
+      var W = Studio.Workspace, ID = "contractawards", was = Studio.demoPackInstalled(ID);
+      if (was) Studio.removeDemoPack(ID);
+      var out = { cleanBefore: W.all("datasets").filter(function (r) { return r.demoPackId === ID; }).length === 0 };
+      Studio.installDemoPack(ID);
+      out.afterInstallSync = {
+        connections: W.all("connections").filter(function (r) { return r.demoPackId === ID; }).length,
+        datasets: W.all("datasets").filter(function (r) { return r.demoPackId === ID; }).length
+      };
+      await Studio.ensurePackDataMaterialized(ID);
+      function rows(t) { return W.all(t).filter(function (r) { return r.demoPackId === ID; }); }
+      var dsets = rows("datasets"), jobs = rows("jobs");
+      out.counts = { connections: rows("connections").length, datasets: dsets.length, jobs: jobs.length };
+      out.allFoldered = rows("connections").concat(dsets, jobs).every(function (r) { return r.folder === "Federal Contract Awards"; });
+      await Studio.ensurePackDataMaterialized(ID);
+      out.stillOne = rows("datasets").length === dsets.length && rows("jobs").length === jobs.length;
+
+      var job = jobs[0];
+      var outputDs = dsets.filter(function (d) { return d.id === job.outputDatasetId; })[0];
+      out.hasOutput = !!outputDs && (outputDs.tags || []).indexOf("job-output") >= 0;
+
+      // The seeded output is a PROMISE about what a Run will produce. Reproduce the live
+      // path — the file adapter parses the pack's own datasets out of the workspace, the
+      // async engine runs the job's own steps over them — and hold the promise to the byte.
+      var srcRes = await Studio.fileSource.queryData({}, W.get("datasets", job.sourceDatasetId));
+      var joinStep = (job.steps || []).filter(function (s) { return s.op === "join"; })[0];
+      var rightRes = await Studio.fileSource.queryData({}, W.get("datasets", joinStep.datasetId));
+      var ctx = { datasets: {} };
+      ctx.datasets[joinStep.datasetId] = { columns: rightRes.columns, rows: rightRes.rows };
+      var live = await Studio.runJobStepsAsync({ columns: srcRes.columns, rows: srcRes.rows }, job.steps, ctx);
+      out.rerunError = live.error || "";
+      out.rerunReproduces = !live.error && Studio.rowsToCsv(live.columns, live.rows) === (outputDs || {}).content;
+
+      var head = live.columns || [], rws = live.rows || [];
+      out.outputCols = head.join(",");
+      out.outputRows = rws.length;
+      var at = function (c) { return head.indexOf(c); };
+      // the join matched: the vendor table carries neither the agency's name nor its
+      // total, so both columns being present IS the evidence the key resolved
+      out.joined = at("agency") >= 0 && at("total_obligations") >= 0 && at("vendor") >= 0;
+      out.derived = ["one_pct_of_agency", "pct_of_agency", "agency_small_business_pct"]
+        .every(function (c) { return at(c) >= 0; });
+      var iCode = at("agency_code"), iName = at("agency"), iOb = at("obligations"),
+        iTot = at("total_obligations"), iPct = at("pct_of_agency"), iSb = at("agency_small_business_pct");
+      var first = rws[0] || [];
+      var pct = Number(first[iPct]);
+      out.pctIsANumber = isFinite(pct) && pct > 0;
+      out.pctChecks = Math.abs(pct - (Number(first[iOb]) / (Number(first[iTot]) / 100))) < 1e-9;
+      var byAgency = {}, sane = true, nullFree = true;
+      rws.forEach(function (r) {
+        var p = Number(r[iPct]), sb = Number(r[iSb]);
+        if (r[iName] === "" || r[iName] == null || r[iPct] === "" || r[iPct] == null) nullFree = false;
+        if (!isFinite(p) || !isFinite(sb) || sb < 0 || sb > 100) sane = false;
+        byAgency[r[iCode]] = (byAgency[r[iCode]] || 0) + p;
+      });
+      out.nullFree = nullFree;
+      out.sharesSane = sane;
+      out.agencies = Object.keys(byAgency).length;
+      out.worstAgencyShare = Math.max.apply(null, Object.keys(byAgency).map(function (a) { return byAgency[a]; }));
+      out.noAgencyOver100 = out.worstAgencyShare <= 100.000001;
+
+      // The district table exists to be drawn. So it is checked against the geometry the
+      // app would draw it on, not against a regex: every id, zero-padded the way
+      // geoNormalizeId("cd", …) pads it, has to be a district in vendor/geo/us-cd-albers.json.
+      // (The file adapter types "0101" to the number 101 — the same leading-zero coercion
+      // SP-1 documents for county FIPS — which is exactly why the padding is part of the rule.)
+      var districtsDs = dsets.filter(function (d) { return (d.fileName || "").indexOf("district") >= 0; })[0];
+      var dRes = await Studio.fileSource.queryData({}, districtsDs);
+      var iDid = dRes.columns.indexOf("district_id");
+      var geo = await (await fetch("vendor/geo/us-cd-albers.json")).json();
+      var drawable = {};
+      ((geo.objects.cd || {}).geometries || []).forEach(function (g) { drawable[String(g.id)] = 1; });
+      out.districtRows = dRes.rows.length;
+      out.geoDistricts = Object.keys(drawable).length;
+      out.districtsAllDrawable = dRes.rows.length > 0 && dRes.rows.every(function (r) {
+        return drawable[("0000" + r[iDid]).slice(-4)] === 1;
+      });
+
+      Studio.removeDemoPack(ID);
+      out.removedClean = ["connections", "datasets", "jobs", "dashboards", "analyses"]
+        .every(function (t) { return rows(t).length === 0; }) && !Studio.demoPackInstalled(ID);
+      if (was) { Studio.installDemoPack(ID); await Studio.ensurePackDataMaterialized(ID); }
+      out.restored = Studio.demoPackInstalled(ID) === was;
+      return out;
+    });
+    ok("SP-6(a): the Federal Contract Awards pack materializes its committed USASpending CSV — install seeds the connection, the ensure-function adds all four extract datasets plus the share job and its pre-materialized output, the agency-code join brought across the name and total the vendor table does not carry, every vendor share is real arithmetic within bounds (no agency's kept vendors exceed 100% of it), every district id draws on the app's own congressional-district geometry, re-running the job through the live adapter+engine path reproduces the output byte for byte, a second ensure changes nothing, and Remove sweeps the async rows too",
+      fca.cleanBefore && fca.afterInstallSync.connections === 1 && fca.afterInstallSync.datasets === 0 &&
+      fca.counts.connections === 1 && fca.counts.datasets === 5 && fca.counts.jobs === 1 &&
+      fca.allFoldered && fca.stillOne && fca.hasOutput && fca.outputRows === 300 &&
+      fca.joined && fca.derived && fca.pctIsANumber && fca.pctChecks && fca.nullFree &&
+      fca.sharesSane && fca.agencies === 25 && fca.noAgencyOver100 &&
+      fca.districtRows === 436 && fca.districtsAllDrawable &&
+      fca.rerunReproduces && fca.removedClean && fca.restored, JSON.stringify(fca));
+
     // ---- SP-1 (b): the pack's three dashboards ---------------------------------
     // The claim this slice makes is not "three specs exist" — it is that what a reader
     // sees is the pack's OWN Census rows, narrowed by filters they can open and move.
