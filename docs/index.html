@@ -375,7 +375,7 @@
   </ul>
   <p>Collapse the rail to icons-only with the toggle at its bottom. Your browser's
   <strong>Back</strong>/<strong>Forward</strong> buttons step through sections instead of leaving the
-  app — Back closes an open editor, panel zoom, or slideshow first.</p>
+  app — Back closes an open editor, a zoomed View, or slideshow first.</p>
 
   <h4>Two rail items worth calling out</h4>
   <ul>
@@ -648,7 +648,7 @@
   asks the file itself to adapt (see "Appearance" below). The builder's live preview also keeps
   showing the authored Appearance, so you can see what you're making.</p>
   <p id="filters-how"><strong>How dashboard filters find their data:</strong> a filter applies to a
-  panel when the panel's dataset either declares the filter as a query parameter (live SQL engines
+  View when that View's dataset either declares the filter as a query parameter (live SQL engines
   substitute it server-side) or simply has a column with the same name — the rows are then
   filtered to the picked value. A filter named <em>Since …</em> keeps everything from the picked
   value onward (so "Since year 2020" shows 2020 to today, not just 2020). This works the same on
@@ -707,8 +707,8 @@
     <li><strong>Views are reusable.</strong> Saved Views appear in the left list here, in
     the builder's Data panel under <strong>Views</strong> (click <em>+ Add to dashboard</em> or drag
     one onto the canvas), and — when pinned with the ★ — as cards on <strong>Home</strong>.</li>
-    <li><strong>Adding a result to a dashboard is unambiguous.</strong> The result panel's
-    <strong>+ New dashboard</strong> button drops your chart into a brand-new dashboard;
+    <li><strong>Adding a result to a dashboard is unambiguous.</strong> The <strong>Result</strong>
+    step's <strong>+ New dashboard</strong> button drops your chart into a brand-new dashboard;
     <strong>Existing dashboard…</strong> opens a picker of your saved dashboards and adds it to
     whichever one you choose. Either way it's saved as a View first if you haven't already.</li>
     <li><strong>Self-contained.</strong> A View embeds its data access, so it keeps working
@@ -722,7 +722,7 @@
     Interactive GL — pan &amp; zoom at any polygon count), and <strong>Reference series</strong> on
     an Ensemble chart (a series drawn for context that never joins the estimate).</span> Each is
     saved with the View. Every <em>other</em> option a chart type has — a GL map's zoom/pan cluster
-    and which corner it docks in, colour classes, value formats, panel height — lives in the
+    and which corner it docks in, colour classes, value formats, a View's height — lives in the
     <strong>Dashboard Builder</strong>'s inspector, so save the View here and open it there when
     you want to tune it.</li>
     <li><strong>Workspace datasets run live</strong> for the table preview and the chart; if a
@@ -763,7 +763,7 @@
   <figure class="fig-slot has-img"><img src="img/viewbuilder.png" alt="The View Builder: dataset outline on the left, fields on the Columns and Rows shelves, the live result in the middle" loading="lazy"/><figcaption>The View Builder</figcaption></figure>
   <p><strong>Views</strong> (left rail, Build group) is Quick Views' power-user sibling: a visual
   pivot/crosstab query builder.</p>
-  <h4>The dataset navigator (left panel)</h4>
+  <h4>The dataset navigator (left pane)</h4>
   <ul>
     <li>Workspace datasets group into their <strong>folders</strong> (nested via "/", each branch
       collapsible, sorted alphabetically); sample data groups by set and collapses once you have
@@ -785,8 +785,8 @@
   which groups by that field instead of summing it; id-like numeric columns (ending in
   <code>_fips</code>, <code>_id</code>, or plain <code>id</code>) default to Category the first
   time you drop them, rather than SUM.</p>
-  <p>When you save, the <strong>Panel title</strong> field names the panel that holds the View on
-  dashboards — it defaults to (and keeps tracking) the View's name until you set your own.</p>
+  <p>When you save, the <strong>Panel title</strong> field names the View where it sits on a
+  dashboard — it defaults to (and keeps tracking) the View's name until you set your own.</p>
   <p>Drop a field on the <strong>Rows</strong> shelf (or use a chip's ⇄ button) and the table
   pivots into a <strong>crosstab</strong>:</p>
   <ul>
@@ -817,7 +817,7 @@
   Heatmap draws as a colour matrix, drawn as flows instead. Filter the measure to keep it readable: a
   diagram with a few dozen ribbons is a picture, one with several hundred is a hairball.</p>
   <p>The chart canvas <strong>fills to the bottom of the screen</strong> by default (like the
-  dataset panel next to it) and is resizable: drag the slim bar under it to make it taller or
+  datasets pane next to it) and is resizable: drag the slim bar under it to make it taller or
   shorter, or the bar on its right edge to make it narrower or wider. The size you set sticks
   across visits; <strong>double-click</strong> a bar to snap that direction back to automatic
   (fill to the bottom / full width). On a phone the canvas just fills the width — no drag bars.</p>
@@ -826,12 +826,12 @@
   the bar, not on every pixel of the drag. The canvas is a <em>preview viewport</em>, though, not
   part of the View: it is one setting for this browser, shared by every View you open here, so
   <strong>saving a View keeps that View's own height</strong> and never picks up the size you last
-  dragged. To change the height a View is stored and exported at, set it where every panel's
+  dragged. To change the height a View is stored and exported at, set it where every View's
   height lives — <strong>Height (px)</strong> in the dashboard builder's Inspector, or by dragging
-  the panel's bottom edge there.</p>
-  <p>The <strong>Datasets panel</strong> resizes the same way: drag its right edge anywhere from
+  the View's bottom edge there.</p>
+  <p>The <strong>Datasets</strong> pane resizes the same way: drag its right edge anywhere from
   200 to 480px when long dataset names get cut off — the width sticks across visits. The chevron
-  in its header collapses the whole panel to a slim vertical strip (more room for the canvas);
+  in its header collapses the whole pane to a slim vertical strip (more room for the canvas);
   click the strip to bring it back.</p>
   <p><strong>Drop a file to start instantly.</strong> Drag a CSV, TSV, JSON, or Excel (.xlsx) file anywhere onto
   the View Builder: it becomes a real dataset (it appears in your Datasets list like any other)
@@ -842,11 +842,11 @@
   <p><strong>Switching datasets never loses your work.</strong> Each dataset keeps its own
   work-in-progress draft: click another dataset and your shelves, filters, calculations, and
   chart pick are stashed; click back and they return exactly as you left them (drafts survive a
-  reload too). Datasets carrying a draft show a small dot in the panel, so you can build on
+  reload too). Datasets carrying a draft show a small dot in the pane, so you can build on
   several and walk through them one by one. The <strong>Clear canvas</strong> button at the right
   end of the chart strip resets just the current dataset to a clean slate.</p>
   <p><strong>KPI</strong> is the odd one out: no dimension at all, just one rolled-up headline number
-  (Save adds it to a dashboard's KPI row, not its panel grid). Put any field on a shelf — a measure
+  (Save adds it to a dashboard's KPI row, not its View grid). Put any field on a shelf — a measure
   aggregates across every row, or a plain field falls back to COUNT — and it collapses the whole
   filtered result down to a single value, the same grand-total rollup the Table chart type would show
   with nothing on Rows and one measure on Columns.</p>
@@ -861,7 +861,7 @@
   <p><strong>Quadrant</strong> takes the same two measures and splits the plot into four labelled
   zones, colouring each point by the zone it lands in — the "where does this one sit?" read that a
   plain scatter leaves to the eye. It splits at the midpoints here; the thresholds and the four
-  zone labels are edited on the dashboard panel (Inspector), and a View that already has its own
+  zone labels are edited on the <strong>Dashboard</strong> panel (Inspector), and a View that already has its own
   keeps them when you open and update it from the builder.</p>
   <p><strong>Map</strong> draws a US choropleth from your <em>geographic</em> field (region ids —
   FIPS county code, state FIPS or postal code, USDA district, watershed/HUC8, congressional
@@ -870,7 +870,7 @@
   itself from that field's name and values (a <code>state_fips</code> column opens as States, a
   <code>huc8</code> column as Watersheds) — the <strong>Auto</strong> entry in the Region-scale
   control next to the chart types shows what it inferred, and picking a scale there overrides it.
-  Renderer and styling still live on the saved View's panel like any other map. Put a field on the
+  Renderer and styling still live on the saved View itself like any other map. Put a field on the
   <strong>Color</strong> shelf and the map switches to per-region <strong>series</strong> instead: a
   long table of region × series × value that plugs straight into the Studio ensemble channel, so an
   Ensemble chart's provider toggles elsewhere on the same dashboard re-color it live.</p>
@@ -1208,9 +1208,9 @@
   themed to whichever Studio look you're using.</p>
 
   <p id="whats-new"><strong>What's new:</strong> the <strong>What's new</strong> button in the top bar — present
-  on every section, not just in the builder — opens the full release feed in a right-hand panel: every version,
+  on every section, not just in the builder — opens the full release feed in a right-hand pane: every version,
   newest first, with live search (matches highlighted) and Central-time stamps. A small dot on the button means
-  there are releases you haven't seen yet; opening the panel clears it. Click the button again, the ✕, Escape, or
+  there are releases you haven't seen yet; opening the pane clears it. Click the button again, the ✕, Escape, or
   the backdrop to close it. On a phone the top bar gives that icon's room to the section name, so the route there
   is <strong>⋯ More → What's new</strong> — see <a href="#phone-more">On a phone, the toolbar lives in ⋯ More</a>.</p>
 
@@ -1644,14 +1644,14 @@
   <h2>Data sources &amp; data accesses</h2>
   <p>Every chart View is bound to a <strong>data access (DA)</strong> — a named query. The Data panel (left pane) lists everything you can build from, in four groups: <strong>This dashboard's datasets</strong> (the queries the spec owns), <strong>Datasets</strong> (the workspace's shared catalog), <strong>Views</strong> (your saved charts), and — in Advanced mode, once you've authored one — <strong>My queries</strong> at the bottom. (The old "Samples" group of built-in demo queries is gone: sample content comes only via sample packs now, installed from Settings, so there's one source of truth.)</p>
   <p>The <strong>This dashboard's datasets</strong> group collapses by default once it gets long (more than
-  six cards), so the panel leads with an overview instead of a wall of cards — click a
+  six cards), so the pane leads with an overview instead of a wall of cards — click a
   group's header to expand or collapse it any time, and your choice is remembered from then on. Each group
   also carries its own small glyph next to its name (a cube for this dashboard's own datasets, a database for
   the shared workspace catalog, a trend line for saved Views, and a code
-  bracket for your own authored queries), so the panel is scannable by "what kind of thing is this" at a glance.</p>
+  bracket for your own authored queries), so the pane is scannable by "what kind of thing is this" at a glance.</p>
   <p><strong>Select a View on the canvas and the Data panel shows you which dataset it reads from</strong> — that
   dataset's card is ringed in the list, and the same happens when you select a KPI. If the card's group is
-  collapsed, or it's scrolled out of sight, the panel opens the group and brings the card into view; select a
+  collapsed, or it's scrolled out of sight, the pane opens the group and brings the card into view; select a
   View with no query bound to it (an annotation, say) and nothing is highlighted at all.</p>
 
   <h3>Using catalog queries</h3>
@@ -1659,8 +1659,8 @@
     <li>Drag any DA card onto the canvas to create a chart View pre-bound to that query.</li>
     <li>Or select an existing View and use the <strong>Query</strong> picker in the inspector to switch its DA.</li>
     <li>The <strong>Query preview</strong> section in the View inspector shows the SQL snippet, column headers, and 3 sample rows so you can verify the binding without leaving the builder. If that sample has any blank/missing values, a column that's the same value on every row, or duplicate rows, a small note appears right below the table calling it out — a quick data-quality check before you build a chart on top of it.</li>
-    <li>When that View reads a <strong>workspace dataset</strong>, the same section carries an <strong>Edit this query</strong> link. It opens the ordinary dataset editor on top of the dashboard — change the SQL, hit <strong>Preview</strong> to see the rows it returns now, and save. Your dashboard is still there behind it, with the same View selected, and the panel repaints against the query you just saved. A View that carries its own inline rows (a sample-pack View, or a dashboard-only query) has no dataset to open, so it shows no link. If the new query stops returning a column a shelf was using, saving says so by name rather than leaving you with an empty axis.</li>
-    <li>Because that editor is now one click from a canvas, it warns you before a save that could break something you can't see. If you change what a dataset <strong>runs</strong> — its query, the connection behind it, a parameter default, the file it reads — on a dataset that dashboards are bound to, and you haven't pressed <strong>Preview</strong> on what you're about to save, a note appears above the buttons: why it's unproven (never run here, or the last Preview failed and what it said) and what it would reach, counted and named — "3 panels in 2 dashboards read this dataset — …". The dashboard you have open counts too, even if you've never saved it. <strong>Preview, then save</strong> runs the query and, if rows come back, completes the save in the same tap; <strong>Save anyway</strong> goes ahead regardless (there are good reasons to save a query you can't run right now); <strong>Keep editing</strong> puts you back in the query box. Saves that can't break anything are never questioned — renaming, refiling, retagging or re-describing a dataset, a save you've already previewed, and any dataset no dashboard reads yet.</li>
+    <li>When that View reads a <strong>workspace dataset</strong>, the same section carries an <strong>Edit this query</strong> link. It opens the ordinary dataset editor on top of the dashboard — change the SQL, hit <strong>Preview</strong> to see the rows it returns now, and save. Your dashboard is still there behind it, with the same View selected, and the pane repaints against the query you just saved. A View that carries its own inline rows (a sample-pack View, or a dashboard-only query) has no dataset to open, so it shows no link. If the new query stops returning a column a shelf was using, saving says so by name rather than leaving you with an empty axis.</li>
+    <li>Because that editor is now one click from a canvas, it warns you before a save that could break something you can't see. If you change what a dataset <strong>runs</strong> — its query, the connection behind it, a parameter default, the file it reads — on a dataset that dashboards are bound to, and you haven't pressed <strong>Preview</strong> on what you're about to save, a note appears above the buttons: why it's unproven (never run here, or the last Preview failed and what it said) and what it would reach, counted and named — <code>3 panels in 2 dashboards read this dataset — …</code>. The dashboard you have open counts too, even if you've never saved it. <strong>Preview, then save</strong> runs the query and, if rows come back, completes the save in the same tap; <strong>Save anyway</strong> goes ahead regardless (there are good reasons to save a query you can't run right now); <strong>Keep editing</strong> puts you back in the query box. Saves that can't break anything are never questioned — renaming, refiling, retagging or re-describing a dataset, a save you've already previewed, and any dataset no dashboard reads yet.</li>
     <li>For any chart bound to a single value column, an <strong>Insight</strong> section appears right below it with a short, plain-English narration of the View's own sample data — overall trend direction, the single biggest point-to-point move, any outlier more than 2 standard deviations from the mean, and (when the data supports it) a repeating pattern detected via autocorrelation on the trend-removed series, e.g. "It also shows a repeating pattern roughly every 4 points." A <strong>Scatter / bubble</strong> View gets a different read instead: the Pearson correlation between its bound X and Y columns (strength + direction, e.g. "a strong positive correlation"). It's computed entirely client-side (pure JS math, no API key, no network call) and updates automatically as you change the query or column mapping. When the narration flags an outlier or a biggest single move, an <strong>Add callout at "…"</strong> button appears below it — one click drops the View's Callout arrow overlay (see below) right on that point instead of eyeballing the x%/y% sliders yourself.</li>
   </ul>
 
@@ -1836,7 +1836,7 @@
     <li><strong>Generic SQL/HTTP doesn't show the button</strong> — it's an arbitrary JSON API
       with no reliable catalog to introspect.</li>
   </ul>
-  <p>The same panel is one click away while <strong>building a dataset</strong>, not just when editing the connection: the Dataset editor's "Browse schema" button (shown for the same set of connections, once one is picked) opens the identical table/column tree — but here every table and column is clickable. Picking a table fills the <strong>Table</strong> field on a PostgreSQL/PostgREST-shaped dataset; picking a table or column drops its name straight into the <strong>SQL</strong> query at the cursor for every other kind. No more copying names back and forth from a separate tab.</p>
+  <p>The same schema browser is one click away while <strong>building a dataset</strong>, not just when editing the connection: the Dataset editor's "Browse schema" button (shown for the same set of connections, once one is picked) opens the identical table/column tree — but here every table and column is clickable. Picking a table fills the <strong>Table</strong> field on a PostgreSQL/PostgREST-shaped dataset; picking a table or column drops its name straight into the <strong>SQL</strong> query at the cursor for every other kind. No more copying names back and forth from a separate tab.</p>
   <p>Studio's own <strong>New data source</strong> builder (the query editor behind the Data panel's ＋ New ▾ → Dashboard-only query…) has the same button under its Query field for the credentialed kinds — Snowflake, Databricks, BigQuery, DuckDB (remote file) and SQLite (remote .sqlite). Fill in the credentials (or the file URL), click <strong>Browse schema</strong>, and click any table or column to insert its name into the SQL at the cursor. The built-in sample-engine SQL kind and the Generic SQL/HTTP kind have no catalog to introspect, so they don't show the button.</p>
   <p>The same builder also runs a <strong>live sanity check</strong> over the SQL as you type: an unclosed string literal or quoted identifier, unbalanced parentheses, a statement that doesn't start with SELECT/WITH, or a declared column chip the query never mentions each surface a small warning on the line under the query field (and clear the moment you fix them). It's a lightweight shape check across all the supported engines, not a full SQL parser — the <strong>Preview</strong> and <strong>Test connection</strong> buttons remain the way to prove a query actually runs.</p>
 
@@ -2012,14 +2012,14 @@
   its name.</p>
   <p><strong>…and every other search box too.</strong> The same rules run behind every search field in
   the app, not just the catalog pages: the builder's Data panel (all three of its groups —
-  <strong>Datasets</strong>, <strong>Views</strong> and <strong>My queries</strong>), the panel
-  inspector's search, the chart-type gallery, the command palette (<kbd>⌘K</kbd>), the What's-new
+  <strong>Datasets</strong>, <strong>Views</strong> and <strong>My queries</strong>), the
+  Inspector's search, the chart-type gallery, the command palette (<kbd>⌘K</kbd>), the What's-new
   feed, the folder picker, the Quick Views pane, the View Builder's datasets pane and its value filter,
   the auto-build set list, the <strong>Open a dashboard</strong> picker and the "add to dashboard"
   picker that shares its list, and a connection's schema browser. Words in any order, quotes for an
   exact phrase, case-insensitive — wherever you type. The command palette layers its own ranking on top
   (a command whose name <em>starts</em> with what you typed comes first), and the What's-new feed
-  highlights each word it matched. Two boxes work differently, both deliberately: a table panel's own
+  highlights each word it matched. Two boxes work differently, both deliberately: a table View's own
   <strong>Filter rows</strong> box matches one literal string across the row's cells — so
   <code>crops 2024</code> finds a row only where those two words sit side by side — because that table
   travels inside every exported dashboard and carries its own self-contained rules rather than the
@@ -2165,7 +2165,7 @@
       Builder–made View shows best-effort in Quick Views with a dismissible notice (its shelves,
       filters, and calculated columns stay editable only in the View Builder), and a Quick View's
       settings are mapped onto the View Builder shelves as a starting point. The same pair of
-      targets appears on Home's pinned-View cards and in Repository's quick-edit panel.</li>
+      targets appears on Home's pinned-View cards and in Repository's <strong>Quick edit</strong> dialog.</li>
     <li><strong>Chart settings the View Builder can't edit are carried, not dropped.</strong> A
       View may be authored with per-chart options the View Builder has no control for — a
       a map's colour-class count, a table's page size, a quadrant's thresholds and zone labels
@@ -2669,7 +2669,7 @@
   (color theme + light/dark) is saved on your own account and applies wherever you sign in. The
   two local demo accounts stay browser-local, since they have no backend identity. Your wider
   personal setup roams as well: Simple mode, the restore-unsaved-work opt-in, the builder's
-  panels-open preference, sample visibility, panel and pane sizes (Studio's side panels, the
+  side-panels preference, sample visibility, pane sizes (Studio's side panels, the
   View Builder's datasets pane and chart canvas), and your tile/list layout picks for Dashboards
   and the Repository — all saved on your own account row and applied when you sign in
   elsewhere.</p>
@@ -2894,7 +2894,7 @@
       <tr><td><kbd>Ctrl Y</kbd> / <kbd>⌘ Y</kbd></td><td>Redo — the Windows alias, same action</td></tr>
       <tr><td><kbd>Ctrl S</kbd> / <kbd>⌘ S</kbd></td><td>Save to your Dashboards catalog</td></tr>
       <tr><td><kbd>Ctrl D</kbd> / <kbd>⌘ D</kbd></td><td>Duplicate the selected View or KPI</td></tr>
-      <tr><td><kbd>Ctrl F</kbd> / <kbd>⌘ F</kbd></td><td>Focus the builder's Data panel search — on a phone this opens the panel's drawer first</td></tr>
+      <tr><td><kbd>Ctrl F</kbd> / <kbd>⌘ F</kbd></td><td>Focus the builder's Data panel search — on a phone this opens that pane's drawer first</td></tr>
       <tr><td><kbd>/</kbd></td><td>Focus the chart-type gallery's search box (<em>View selected</em>, gallery on screen)</td></tr>
       <tr><td><kbd>↑</kbd> / <kbd>↓</kbd></td><td>Reorder the selected View up / down</td></tr>
       <tr><td><kbd>Shift ←</kbd> / <kbd>Shift →</kbd></td><td>Resize selected View span narrower / wider</td></tr>
@@ -2904,11 +2904,11 @@
       <tr><td><kbd>?</kbd></td><td>Open / close the keyboard shortcuts reference modal</td></tr>
     </tbody>
   </table>
-  <p>The in-app panel closes with two things that aren't keys, so they have no row above: <strong>double-click a View's title</strong> on the canvas to rename it inline, and the <strong>↗</strong> button on a View zooms it to full screen (<kbd>Escape</kbd> closes it again).</p>
+  <p>The in-app shortcuts panel closes with two things that aren't keys, so they have no row above: <strong>double-click a View's title</strong> on the canvas to rename it inline, and the <strong>↗</strong> button on a View zooms it to full screen (<kbd>Escape</kbd> closes it again).</p>
 
   <h3>Reading a dashboard without a mouse</h3>
   <p>In the <strong>Viewer</strong> and in any dashboard you've exported as a self-contained file, KPI tiles are buttons: <kbd>Tab</kbd> moves through them, a focus ring shows which one you're on, and <kbd>↵</kbd> or <kbd>Space</kbd> opens that tile's detail — the same drawer of underlying records a click gives you. Inside the drawer, <kbd>Escape</kbd> closes it.</p>
-  <p>The same is true of the <strong>chart marks</strong> that do something when clicked — the bars of a bar chart, the slices of a donut, the tiles of a treemap, wherever that panel has a detail drawer or a click-through set up. <kbd>Tab</kbd> stops on each one and <kbd>↵</kbd> or <kbd>Space</kbd> activates it. Because a bar or a slice has no text of its own, each one announces itself as its label and value — "Snowflake: $84.2K" — so a screen reader reads the same fact the hover tooltip shows. Marks that aren't clickable stay out of the way entirely. On the Studio canvas, clicking a mark still selects the panel for editing, so the builder's keyboard behaviour is unchanged.</p>
+  <p>The same is true of the <strong>chart marks</strong> that do something when clicked — the bars of a bar chart, the slices of a donut, the tiles of a treemap, wherever that View has a detail drawer or a click-through set up. <kbd>Tab</kbd> stops on each one and <kbd>↵</kbd> or <kbd>Space</kbd> activates it. Because a bar or a slice has no text of its own, each one announces itself as its label and value — "Snowflake: $84.2K" — so a screen reader reads the same fact the hover tooltip shows. Marks that aren't clickable stay out of the way entirely. On the Studio canvas, clicking a mark still selects the View for editing, so the builder's keyboard behaviour is unchanged.</p>
   <p><strong>The tooltip opens on focus, too.</strong> Tabbing onto a mark pops the same tooltip card hovering it with a mouse would — the exact figure, the percentage, the share of the total — anchored to the mark itself rather than to a cursor that isn't there. It disappears when you tab away, and <kbd>Escape</kbd> dismisses it on the spot without losing your place, so a card sitting over the next bar is never in your way. Reaching a mark with the mouse is unchanged: the tooltip keeps following the pointer.</p>
   <p><strong>Table rows</strong> that open a detail drawer work the same way from the keyboard — <kbd>Tab</kbd> stops on each clickable row, <kbd>↵</kbd> or <kbd>Space</kbd> opens the drawer — with one deliberate difference: a row is <em>not</em> turned into a button. Doing that would stop it being a row, and a screen reader would lose the table itself (which column you're in, which header a cell belongs to). So the row keeps its table semantics, announces that it opens a dialog, and reads out its own cells rather than a summary. Sorting, filtering and paging redraw the table, and every new page behaves the same; a table with no detail drawer bound keeps its rows out of the tab order.</p>
 
@@ -2973,7 +2973,7 @@
   <p>What it takes away:</p>
   <ul>
     <li>15 chart types shown in the gallery (the most universally understood).</li>
-    <li id="adv-sections">Every advanced section of the panel inspector is hidden — all fifteen
+    <li id="adv-sections">Every advanced section of the View inspector is hidden — all fifteen
       advanced inspector sections, in the order the inspector builds them:
       <strong>Drill-through</strong>, <strong>Detail drawer</strong>,
       <strong>Cross-filter</strong>, <strong>Target line</strong>,
@@ -2985,7 +2985,7 @@
       <strong>Output options</strong>. Nothing is lost — a dashboard that already uses one keeps
       it, and switching back to Advanced mode shows the section again with its settings intact.</li>
     <li id="simple-hides">The <strong>Data</strong> panel becomes read-only browse + drag, and so
-      does the one link the panel inspector offers out of it. Five authoring controls are hidden,
+      does the one link the View inspector offers out of it. Five authoring controls are hidden,
       all of them in the Dashboard Builder:
       <ul>
         <li>the <strong>Data</strong> panel header's <strong>＋ New ▾</strong> button;</li>
@@ -2995,7 +2995,7 @@
           <strong>Duplicate</strong> and <strong>Delete</strong> actions;</li>
         <li>the <strong>My queries</strong> group's per-card <strong>Edit data source</strong>
           and <strong>Delete data source</strong> actions;</li>
-        <li>and the <strong>Edit data source</strong> jump link in a panel's
+        <li>and the <strong>Edit data source</strong> jump link in a View's
           <strong>Data</strong> section.</li>
       </ul></li>
   </ul>
@@ -3009,8 +3009,8 @@
     <li>A <strong>Simple mode is active</strong> note at the top of the dashboard inspector,
       with a <strong>Switch to Advanced mode</strong> button — the one-click way back.</li>
     <li>A guided <strong>Getting started</strong> checklist while the dashboard is still empty,
-      and a <strong>What's next?</strong> card once the first panel or KPI is on the canvas.</li>
-    <li>Guided column setup in a panel's <strong>Data</strong> section (every chart type except
+      and a <strong>What's next?</strong> card once the first View or KPI is on the canvas.</li>
+    <li>Guided column setup in a View's <strong>Data</strong> section (every chart type except
       Rich text): a nudge when no dataset is bound yet, a warning when the query has no columns,
       and — when the slots are simply empty — an <strong>Auto-pick columns</strong> button that
       assigns them by name.</li>
@@ -3021,7 +3021,7 @@
     <li>All 54 chart types + specialist annotation and interaction tools.</li>
     <li>Full data-source authoring: author SQL (sample engine) and direct-connector data accesses; create compound joins and unions; manage workspace connections and datasets; configure output options.</li>
     <li id="adv-mode-sections">All fifteen advanced inspector sections listed above are on the
-      panel inspector, none of them hidden.</li>
+      View inspector, none of them hidden.</li>
   </ul>
 
   <h3 id="settings-cards">The Settings page — every card on it</h3>
