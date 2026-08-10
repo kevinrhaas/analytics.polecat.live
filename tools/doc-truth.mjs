@@ -7184,6 +7184,179 @@ if (kitLive) {
   }
 }
 
+/* ── Check 66 — the Admin user editor's PROVISIONING controls vs the copy that documents
+   them. N7, and the `ⓘ Tour` class check 41 (g) deleted from README and check 44 (f) from
+   PUBLISH.md: Help documented a control the app no longer has. `openUserEditor` used to carry
+   an "Install the Conservation Insight sample pack on first sign-in" CHECKBOX; SP-0 replaced it
+   with a `Sample pack (installed at first sign-in)` SELECT built from `Studio.DEMO_PACKS`, so an
+   admin can assign ANY registered pack. Help still described the checkbox — and named the one
+   pack it used to mean — which both sends a reader looking for a control that is not there and
+   hides every other pack the build ships. The same passage enumerates what the "Copy my current
+   Dashboard defaults" button captures, and `snapshotDashboardDefaults()` returns one more field
+   than it lists.
+   Sources of truth, all derived, none new: `openUserEditor`'s own brace-matched body in
+   app/studio.js (each control's element kind, its label, and the text of the option that means
+   "skip this"), `packRegistry` (check 34's reading of the pack registry), and the KEYS
+   `snapshotDashboardDefaults()` returns in app/defaults.js. Rule (b) is the one that was
+   failing twice: a select is not a checkbox, and a control offering the whole registry must not
+   be published as installing one named pack. Rule (d)'s vocabulary is keyed by the RETURNED KEY,
+   so a tenth captured field falls out of the table and fails the premise loudly rather than
+   passing green while the copy omits it.
+   The provisioning inventory is the controls whose own label says "first sign-in", plus the two
+   the save handler writes onto the account without that phrasing — `usrEditForceTour` and
+   `usrEditBackend`, looked up by id, so renaming either fails the premise rather than a rule. */
+{
+  const editorAt = studioSrc.indexOf("function openUserEditor(");
+  const editorBody = editorAt < 0 ? "" : braceBlockAt(studioSrc, studioSrc.indexOf("{", editorAt));
+  const straight = (s) => (s || "").replace(/[’‘]/g, "'").replace(/[“”]/g, '"');
+
+  // Every `<span>…</span>` field label in the editor, in source order, so a control's own label
+  // is the nearest one above its `.id = "usrEdit…"` assignment.
+  const fieldLabels = [...editorBody.matchAll(/innerHTML = "<span>([^<]*)<\/span>"/g)]
+    .map((m) => ({ label: straight(m[1]), at: m.index }));
+  const controls = new Map();
+  for (const m of editorBody.matchAll(/(\w+)\.id = "(usrEdit\w+)"/g)) {
+    const above = fieldLabels.filter((f) => f.at < m.index).pop();
+    controls.set(m[2], { varName: m[1], label: above ? above.label : "", at: m.index });
+  }
+  // A button names itself in its own textContent; a checkbox names itself in the text node its
+  // label appends beside it. Both are read off the control, so a rename moves the rule with it.
+  for (const m of editorBody.matchAll(/(\w+)\.id = "(usrEdit\w+)";[\s\S]{0,80}?\1\.textContent = "([^"]+)"/g))
+    if (controls.has(m[2])) controls.get(m[2]).label = straight(m[3]);
+
+  // The element each control IS, and — for the selects — the text of the option whose value is
+  // "", i.e. the choice that means "skip this part". That option is what the copy has to quote
+  // when it tells a reader how to leave a default unset.
+  for (const [, c] of controls) {
+    c.kind = (editorBody.match(new RegExp(`\\b${c.varName} = el\\("(\\w+)"`)) || [, ""])[1];
+    if (c.kind === "input")
+      c.kind = (editorBody.match(new RegExp(`\\b${c.varName}\\.type = "(\\w+)"`)) || [, "text"])[1];
+    if (c.kind === "checkbox") {
+      const lab = (editorBody.match(new RegExp(`(\\w+)\\.appendChild\\(${c.varName}\\)`)) || [, ""])[1];
+      const txt = lab && editorBody.match(new RegExp(`${lab}\\.appendChild\\(document\\.createTextNode\\("([^"]*)"\\)\\)`));
+      if (txt) c.label = straight(txt[1]).trim();
+    }
+    const none = editorBody.match(new RegExp(
+      `(\\w+)\\.value = ""; \\1\\.textContent = "([^"]+)";[\\s\\S]{0,120}?${c.varName}\\.appendChild\\(\\1\\)`));
+    // The clause before the em dash — "Don't set", "Don't install one" — is the part a sentence
+    // can quote naturally; holding the whole label would make the copy read like a screenshot.
+    c.skipOption = none ? straight(none[2]).split("—")[0].trim() : "";
+  }
+  const packCtl = controls.get("usrEditPack") || {};
+  const themeCtl = controls.get("usrEditTheme") || {};
+  // The premise for rule (b): the pack picker's options ARE the registry, so `packRegistry` is
+  // the right roster to hold the copy to.
+  const packFromRegistry = /Object\.keys\(Studio\.DEMO_PACKS[^)]*\)\.forEach/.test(editorBody);
+  const packShortNames = packRegistry.map((p) => {
+    const at = registryBlock.indexOf(`\n    ${p.id}: {`);
+    const body = at < 0 ? "" : braceBlockAt(registryBlock, registryBlock.indexOf("{", at));
+    return { id: p.id, short: ((body.match(/name:\s*"([^"]+)"/) || [, ""])[1]).split("—")[0].trim() };
+  }).filter((p) => p.short);
+
+  // What the "Copy my current Dashboard defaults" button really captures.
+  const ddSrc = read("app/defaults.js");
+  const ddAt = ddSrc.indexOf("function snapshotDashboardDefaults(");
+  const ddKeys = ddAt < 0 ? [] : [...braceBlockAt(ddSrc, ddSrc.indexOf("{", ddSrc.indexOf("return", ddAt)))
+    .matchAll(/(\w+):\s*default\w+\(\)/g)].map((m) => m[1]);
+  const DD_NOUN = {
+    subtitle: "subtitle", accentColor: "accent color", logo: "header logo", headerBg: "header background",
+    titleSize: "title size", subtitleStyle: "subtitle style", dashboardTheme: "dashboard theme",
+    cardSkin: "card style", quickModeCreativity: "Quick-import creativity"
+  };
+
+  const adminAt = help.indexOf('<section id="admin-docs"');
+  const adminText = adminAt < 0 ? "" : straight(htmlText(help.slice(adminAt, help.indexOf("</section>", adminAt))));
+  const provAt = help.indexOf('id="prov-defaults"');
+  const provText = provAt < 0 ? "" : straight(htmlText(help.slice(provAt, help.indexOf("<h3", provAt + 10))));
+  // WHICH controls are provisioning controls is derived from the save handler, not from a list
+  // kept here: the operands of `opts.provisioning = (…)` and `opts.forceTour = …`, resolved one
+  // hop back to the element each reads (`X.value` / `X.checked`, or the button whose onclick
+  // assigns it). A control that stops being written onto the account drops out of the rule with
+  // it, and a new one joins it the day it is wired.
+  const savedFrom = new Set();
+  for (const m of editorBody.matchAll(/opts\.(?:provisioning|forceTour)\s*=\s*\(?([^;{?]*)/g))
+    for (const n of m[1].matchAll(/\b([A-Za-z_]\w*)\b/g)) savedFrom.add(n[1]);
+  const controlVars = new Set([...controls.values()].map((c) => c.varName));
+  for (const name of [...savedFrom]) {
+    if (controlVars.has(name)) continue;
+    // The whole initializer, not just its head — `provBackend` is read out of a ternary, and a
+    // control reached that way is no less written onto the account than one read directly.
+    for (const m of editorBody.matchAll(new RegExp(`\\b${name}\\s*=\\s*([^;]*);`, "g")))
+      for (const v of m[1].matchAll(/\b(\w+)\.(?:value|checked)\b/g)) savedFrom.add(v[1]);
+    for (const m of editorBody.matchAll(new RegExp(`(\\w+)\\.onclick = function \\(\\) \\{\\s*${name}\\s*=`, "g")))
+      savedFrom.add(m[1]);
+  }
+  const provisioningIds = [...controls.keys()].filter((id) => savedFrom.has(controls.get(id).varName));
+
+  // (a) the premise. Four rules dereference this parse, the pack roster and the snapshot's keys;
+  // a renamed control, a retired anchor or a newly captured default must fail HERE rather than
+  // let a coverage rule pass over an empty string.
+  const provPremise = ok(`app/studio.js: the user editor's provisioning controls parsed for check 66 ` +
+    `(${provisioningIds.map((id) => `${id}=${controls.get(id).kind}`).join(" · ") || "(none)"}; ` +
+    `pack picker offers ${packShortNames.length} registered pack(s); snapshot captures ${ddKeys.length} field(s))`,
+    !!editorBody && provisioningIds.length >= 4 && !!packCtl.kind && !!themeCtl.kind &&
+      !!packCtl.skipOption && !!themeCtl.skipOption && packFromRegistry &&
+      packShortNames.length >= 2 && ddKeys.length >= 2 && ddKeys.every((k) => DD_NOUN[k]) &&
+      !!adminText && !!provText && provisioningIds.every((id) => controls.get(id).label),
+    `controls: ${[...controls.keys()].join(", ") || "(none)"}\n      ` +
+    `pack picker: kind=${packCtl.kind || "(unparsed)"} skip=${JSON.stringify(packCtl.skipOption || "")} ` +
+    `from-registry=${packFromRegistry}\n      ` +
+    `theme picker: kind=${themeCtl.kind || "(unparsed)"} skip=${JSON.stringify(themeCtl.skipOption || "")}\n      ` +
+    `snapshotDashboardDefaults keys: ${ddKeys.join(", ") || "(none)"}` +
+    (ddKeys.filter((k) => !DD_NOUN[k]).length
+      ? ` — no noun registered for: ${ddKeys.filter((k) => !DD_NOUN[k]).join(", ")}` : "") + `\n      ` +
+    `docs/index.html #prov-defaults: ${provText ? provText.slice(0, 80) + "…" : "(anchor missing)"}`);
+
+  if (provPremise) {
+    // (b) the control is documented as the control it IS. Both halves were failing: the copy
+    // called a <select> a checkbox, and named ONE registry pack as the thing it installs — the
+    // reading a reader takes away is "this account can be given Conservation Insight", when the
+    // form offers every pack the build registers. Naming none (deferring to the pack chapter) or
+    // all of them is fine; naming exactly one is the drift.
+    const calledCheckbox = packCtl.kind === "select" &&
+      (provText.match(/\b(checkbox|check(?:ed)? this box|the pack box|unchecked|tick(?:ed)?)\b/i) || [])[0];
+    const namedPacks = packShortNames.filter((p) => provText.includes(p.short));
+    ok(`docs/index.html: the sample-pack provisioning control is documented as the ${packCtl.kind} over the registry that it is`,
+      !calledCheckbox && namedPacks.length !== 1,
+      `the form renders <${packCtl.kind}> "${packCtl.label}", populated from Studio.DEMO_PACKS\n      ` +
+      `checkbox-shaped wording in the copy: ${calledCheckbox ? JSON.stringify(calledCheckbox) : "(none)"}\n      ` +
+      `packs named in the copy: ${namedPacks.map((p) => p.short).join(", ") || "(none)"} ` +
+      `— the registry offers ${packShortNames.length}: ${packShortNames.map((p) => p.short).join(", ")}`);
+
+    // (c) the two "leave it unset" choices are quoted from the controls themselves, so the
+    // sentence telling an admin how to skip a default points at a label the form really prints.
+    const unquoted = [themeCtl, packCtl].filter((c) => !provText.includes(c.skipOption));
+    ok(`docs/index.html: the copy quotes each provisioning picker's own "skip this" option (${
+      [themeCtl, packCtl].map((c) => JSON.stringify(c.skipOption)).join(" / ")})`,
+      !unquoted.length,
+      `not quoted: ${unquoted.map((c) => `${c.label} → ${JSON.stringify(c.skipOption)}`).join(" · ") || "(none)"}`);
+
+    // (d) the enumeration of what the snapshot captures, both directions. The vocabulary is keyed
+    // by the returned key, so a field added to snapshotDashboardDefaults() fails the premise
+    // above until it has a noun, and then fails here until the copy prints it.
+    const ddMissing = ddKeys.filter((k) => !new RegExp(DD_NOUN[k].replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i").test(provText));
+    const ddStray = Object.keys(DD_NOUN).filter((k) => !ddKeys.includes(k) &&
+      new RegExp(DD_NOUN[k].replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i").test(provText));
+    ok(`docs/index.html: the Dashboard-defaults snapshot is published as all ${ddKeys.length} field(s) it captures`,
+      !ddMissing.length && !ddStray.length,
+      `captured by snapshotDashboardDefaults(), missing from the copy: ${
+        ddMissing.map((k) => `${k} (“${DD_NOUN[k]}”)`).join(", ") || "(none)"}\n      ` +
+      `published by the copy, not captured: ${ddStray.map((k) => DD_NOUN[k]).join(", ") || "(none)"}`);
+
+    // (e) coverage, over the whole Admin chapter rather than the one anchor — the assigned
+    // workspace and the one-shot tour are documented in their own sections. Each control is
+    // matched on the distinguishing words of its OWN label, so a rename moves the rule with it.
+    const uncovered = provisioningIds.filter((id) => {
+      const words = controls.get(id).label.replace(/\(.*$/, "").trim();
+      return !adminText.toLowerCase().includes(words.toLowerCase());
+    });
+    ok(`docs/index.html: the Admin chapter names every provisioning control the user editor renders (${provisioningIds.length})`,
+      !uncovered.length,
+      `rendered by openUserEditor, named nowhere in the chapter: ${
+        uncovered.map((id) => `${id} (“${controls.get(id).label}”)`).join(" · ") || "(none)"}`);
+  }
+}
+
 console.log(failed ? `\n✗ doc-truth: ${failed} claim(s) have drifted from the source of truth`
   : "\n✅ doc-truth: every published claim matches the source it describes");
 process.exit(failed ? 1 : 0);

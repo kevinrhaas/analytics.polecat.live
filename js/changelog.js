@@ -6,6 +6,18 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 978,
+    title: 'Help documented a sample-pack checkbox the Admin form stopped having',
+    kind: 'fix',
+    ts: '2026-08-10T18:49:32.000Z',
+    items: [
+      'The Help page told admins that <b>Add user</b> carried an "Install the Conservation Insight sample pack on first sign-in" <b>checkbox</b>. That checkbox is gone: the form has offered a <b>Sample pack</b> picker listing every pack the build ships for a while now, so an admin reading Help went looking for a control that is not there — and never learned that any of the other five packs can be assigned to a new account.',
+      'The section now describes the picker, links to the sample-pack chapter rather than singling one out, and quotes the two "leave it unset" choices the form really prints ("Don\'t set" and "Don\'t install one") instead of telling you to leave a box unchecked.',
+      '"Copy my current Dashboard defaults" was under-reported too: it lists the eight fields on the Settings card, and the snapshot carries a ninth — your stored <b>Quick-import creativity</b> level, whose Settings row is deliberately hidden today. It travels onto the new account either way, so the page now says so rather than leaving it invisible in both places.',
+      'A new doc-truth check derives the provisioning controls from the save handler that writes them onto an account — so a control that is renamed, retired or newly wired moves the rule with it — and holds the copy to the element each one really is, its own empty-choice label, and every field the defaults snapshot captures.',
+    ],
+  },
+  {
     v: 977,
     title: 'The marketing page now sells the roles the app actually has',
     kind: 'fix',
