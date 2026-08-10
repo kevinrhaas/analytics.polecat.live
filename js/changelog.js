@@ -6,6 +6,20 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 956,
+    title: 'The View Builder can switch the trend line on and off — and it can hold a Quadrant',
+    kind: 'feature',
+    ts: '2026-08-10T01:54:46.000Z',
+    items: [
+      'A scatter can carry a least-squares <b>trend line</b>, and until now the View Builder had no switch for it: a View authored with one kept it, because the builder carries settings it cannot edit, but you could not turn it on for a View that lacked it or off for one that had it without going to the dashboard panel.',
+      'Pick <b>Scatter</b> and a <b>Trend line</b> checkbox now sits in the chart strip beside the Region-scale control, ticked or not according to the View you opened. It is the statistical fit — the regression line through your points — and it saves with the View like any other setting.',
+      '<b>Quadrant</b> joins the chart strip too, one button along from Scatter. It takes the same two measures and splits the plot into four labelled zones, colouring each point by the zone it lands in — the “where does this one sit?” read a plain scatter leaves to the eye.',
+      'That also closes the builder’s last genuinely lossy type. A quadrant View used to open here as a table, because the builder had no such chart to offer, and its thresholds and zone labels were held back rather than pasted onto a table where they would have meant nothing. Now the type survives the trip and the thresholds and labels ride back in with it, unchanged.',
+      'The zones themselves are still edited on the dashboard panel, and the strip says so instead of letting the midpoint defaults look chosen.',
+      'Three checks hold it: that Quadrant is in the strip and enabled on the same shelves a scatter needs, that unticking the trend line really stores it off and draws no line when reopened, and that a quadrant View opens as a quadrant with its thresholds written back byte-identically.',
+    ],
+  },
+  {
     v: 955,
     title: 'Fix a View’s SQL from the dashboard you are building, not from the other side of the app',
     kind: 'feature',

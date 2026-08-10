@@ -100,6 +100,8 @@
     paletteKey: "",           // VB-3: Studio.PALETTE_PRESETS key ("" = default) for the live preview
     chartType: "table",      // slice 2: table | bars | line | donut | heatmap
     mapScale: "",            // VB-10: the Map's Region scale — "" = auto (inferred from the geo field)
+    trend: false,            // N33b: the Scatter's regression line — a builder control now, not
+                             // an opt the builder could only carry blindly past itself
     analysisId: null, name: "", folder: "",
     panelTitle: "",          // VB-7: the panel header's own title — "" tracks the View name
     notice: "",              // VB-5: dismissible cross-editor banner text ("" = hidden)
@@ -113,7 +115,7 @@
     BD.shelfColor = []; BD.paletteKey = "";
     BD._eff = null;
     BD.chartType = "table";
-    BD.mapScale = "";
+    BD.mapScale = ""; BD.trend = false;
     BD.analysisId = null; BD.name = ""; BD.folder = "";
     BD.panelTitle = "";
     BD.notice = "";
@@ -131,7 +133,7 @@
   // the chart strip) resets ONLY the current dataset's draft.
   var BD_DRAFT_KEY = "studio-bd-drafts", BD_DRAFT_MAX = 20;
   var BD_DRAFT_FIELDS = ["shelfCols", "shelfRows", "filters", "calcs", "shelfColor",
-    "paletteKey", "chartType", "mapScale", "analysisId", "name", "folder", "panelTitle"];
+    "paletteKey", "chartType", "mapScale", "trend", "analysisId", "name", "folder", "panelTitle"];
   var _drafts = null, _draftTimer = null;
   function bdDrafts() {
     if (_drafts) return _drafts;
@@ -167,7 +169,7 @@
   function bdClearCanvas() {
     if (!BD.dsId) return;
     BD.shelfCols = []; BD.shelfRows = []; BD.filters = []; BD.calcs = []; BD.shelfColor = [];
-    BD.paletteKey = ""; BD.chartType = "table"; BD.mapScale = ""; BD._eff = null;
+    BD.paletteKey = ""; BD.chartType = "table"; BD.mapScale = ""; BD.trend = false; BD._eff = null;
     BD.analysisId = null; BD.name = ""; BD.folder = ""; BD.panelTitle = "";
     BD.carried = null; BD.notice = ""; // N33: a cleared canvas carries nothing
     delete bdDrafts()[BD.dsKind + BD_SEP + BD.dsId];
@@ -470,6 +472,7 @@
     BD.filters = draft.filters || []; BD.calcs = draft.calcs || [];
     BD.shelfColor = draft.shelfColor || []; BD.paletteKey = draft.paletteKey || "";
     BD.chartType = draft.chartType || "table"; BD.mapScale = draft.mapScale || "";
+    BD.trend = !!draft.trend; // N33b
     BD.analysisId = draft.analysisId || null; BD.name = draft.name || "";
     BD.folder = draft.folder || ""; BD.panelTitle = draft.panelTitle || "";
     // N33: the carried opts belong to the View that was open, not to the canvas.
@@ -1016,6 +1019,16 @@
     { t: "heatmap", label: "Heatmap" },
     { t: "choropleth", label: "Map" },
     { t: "scatter", label: "Scatter" },
+    // N33b: Quadrant rides scatter's basis EXACTLY — Studio.newPanel maps
+    // cols[0..2] to labelCol/xCol/yCol for both types (model.js), so the only
+    // difference is the renderer and the four labelled zones it draws. Before
+    // this it was the builder's one genuinely LOSSY type: a pack-authored
+    // quadrant View wasn't in this row, so it opened as a table (no entry in
+    // FOREIGN_TYPE_FALLBACK) and N33's carry-through deliberately withheld its
+    // thresholds from that table. Now the type survives, so the thresholds ride
+    // back in with it. Their EDITORS still live in the dashboard panel
+    // inspector — the strip note below says so rather than implying it.
+    { t: "quadrant", label: "Quadrant" },
     { t: "kpi", label: "KPI" },
   ];
   // The chart types that share Line's [labelCol, series] basis shape and its
@@ -1078,7 +1091,7 @@
       if (!st.shelfRows[0] || !bdColsDim(st)) return "Needs a field on Rows and a plain field on Columns";
       return "";
     }
-    if (type === "scatter") {
+    if (type === "scatter" || type === "quadrant") {
       if (!bdFirstDim(st)) return "Needs at least one non-aggregated field on a shelf";
       if (bdMeasures(st).length < 2) return "Needs two measures (aggregated fields)";
       return "";
@@ -1109,11 +1122,13 @@
       if (series) return series;
     }
     var dim = bdFirstDim(st);
-    if (type === "scatter") {
+    if (type === "scatter" || type === "quadrant") {
       // Two measures, one point per dimension value — the same [dim, m1, m2]
       // shape Studio.newPanel's scatter mapping expects positionally (cols[0]
       // = labelCol, cols[1] = xCol, cols[2] = yCol), so no bdPanelFor wiring
       // is needed beyond the default Studio.newPanel(type, da) call below.
+      // N33b: quadrant's own mapping (model.js) is the identical positional
+      // triple, so it shares this basis rather than growing a parallel one.
       var ms2 = bdMeasures(st).slice(0, 2);
       return compute(bdEff(st).cols, rows, [{ col: dim.col, agg: null }].concat(ms2), [], limit);
     }
@@ -1226,7 +1241,11 @@
   // the whole opts bag is what keeps this honest: newPanel stamps every key,
   // so a blind copy would report a scatter's untouched `xLabel: ""` as an
   // authored setting and the notice would cry wolf on every View.
-  var BD_BUILDER_OWNED_OPTS = { scale: 1 }; // VB-10: the Region scale IS a builder control
+  // N33b: `trend` joins `scale` here — the builder now has a real toggle for the
+  // scatter's regression line, so it is EDITED, not carried. (bdLoad/bdLoadForeign
+  // read the authored value into BD.trend and bdPanelFor stamps it back, so the
+  // round-trip is still lossless; it just runs through a control the reader can see.)
+  var BD_BUILDER_OWNED_OPTS = { scale: 1, trend: 1 };
   // Carried, but never NAMED in the notice: the builder doesn't claim to edit a
   // stored height, and the drag-resize canvas is a viewport that says so itself
   // (N34). Carrying it is still right — it stops Update from flattening an
@@ -1323,6 +1342,11 @@
       // "county", which silently no-data'd any state-FIPS/HUC8/district id column.
       if (p.chart.opts && "scale" in p.chart.opts) p.chart.opts.scale = bdMapScale();
     }
+    // N33b: the scatter's trend line is a builder control, so stamp the state
+    // the toggle holds — same shape as the choropleth's `scale` above, and for
+    // the same reason (a builder-owned opt must not fall back to newPanel's
+    // default just because this builder never wrote it).
+    if (type === "scatter" && p.chart.opts && "trend" in p.chart.opts) p.chart.opts.trend = !!BD.trend;
     // N33: last, so the author's own settings win over newPanel's defaults —
     // and after the choropleth branch, whose `scale` is builder-owned and so is
     // never in the carried set to begin with.
@@ -1850,6 +1874,29 @@
             : "") +
           "</label>";
       }
+      // N33b (Kevin, 2026-08-09: "I think there is a trend line on the view but I
+      // can't see it turn it on/off in the View Builder yet, maybe I should?").
+      // Same slot as the Region scale, same reason: an opt that changes the picture
+      // deserves a visible control, not a value the builder silently carries.
+      // WHICH trend, deliberately: this is the STATISTICAL one — scatter's own
+      // least-squares fit (`trend`, drawn as the dashed line.trend-line in
+      // studio-charts.js), maths the app already has. The REFERENCE-line reading of
+      // the same ask is the Quadrant's threshold crosshair, which is a different
+      // chart type with a different meaning — so it is offered as a type, one button
+      // over, rather than blurred into this toggle. A checkbox, not a hover control:
+      // it has to be tappable at 390×780.
+      if (BD.chartType === "scatter" && BD.run) {
+        strip.innerHTML += '<label class="bd-opt-tog" title="Draw a least-squares regression line through the points">' +
+          '<input type="checkbox" id="bdTrend"' + (BD.trend ? " checked" : "") + "/>" +
+          "<span>Trend line</span></label>";
+      }
+      // The quadrant's zones ARE the analysis, and this builder doesn't edit them
+      // yet — say so where the type is chosen instead of letting the defaults look
+      // authored. A View opened here keeps its own thresholds and labels (they ride
+      // the N33 carry-through, and the notice names them).
+      if (BD.chartType === "quadrant" && BD.run) {
+        strip.innerHTML += '<small class="bd-map-hint bd-ct-note">splits at the midpoints — thresholds and zone labels are edited on the dashboard panel</small>';
+      }
     }
 
     // CENTER — status + result (both computed over the FILTERED source rows)
@@ -2040,6 +2087,10 @@
     if (mapScaleSel) {
       mapScaleSel.onchange = function () { BD.mapScale = mapScaleSel.value; render(); }; // VB-10
     }
+    var trendTog = $("#bdTrend", sec);
+    if (trendTog) {
+      trendTog.onchange = function () { BD.trend = !!trendTog.checked; render(); }; // N33b
+    }
     var clearBtn = $("#bdClearCanvas", sec);
     if (clearBtn) clearBtn.onclick = function () { bdClearCanvas(); }; // VB-14
     $$("[data-bd-flt-edit]", sec).forEach(function (btn) {
@@ -2152,7 +2203,8 @@
             shelfCols: Studio.clone(BD.shelfCols), shelfRows: Studio.clone(BD.shelfRows),
             filters: Studio.clone(BD.filters), calcs: Studio.clone(BD.calcs),
             shelfColor: Studio.clone(BD.shelfColor), paletteKey: BD.paletteKey || "",
-            mapScale: BD.mapScale || "" // VB-10: "" = auto (re-inferred from the geo field)
+            mapScale: BD.mapScale || "", // VB-10: "" = auto (re-inferred from the geo field)
+            trend: !!BD.trend // N33b: the scatter's regression line, as the toggle left it
           }
         };
         // #118 (live re-run): the da carries the builder blob too — the da is what
@@ -2266,6 +2318,9 @@
       // VB-10: a Quick Views map's Region scale survives the trip — carry it in as the
       // explicit pick (auto-inference might disagree with what the user chose there).
       if (BD.chartType === "choropleth" && a.chart && a.chart.opts && a.chart.opts.scale) BD.mapScale = a.chart.opts.scale;
+      // N33b: likewise the scatter's trend line — an authored one arrives ON, and the
+      // toggle shows it, instead of the reader having to trust an invisible carry.
+      if (BD.chartType === "scatter" && a.chart && a.chart.opts) BD.trend = !!a.chart.opts.trend;
       var typeNote = supported ? "" :
         " Its chart type (" + ((Studio.CHARTS[t] || {}).label || t) + ") isn’t in the View Builder yet, so it opens as " +
         (FOREIGN_TYPE_FALLBACK[t] ? "the nearest type" : "a table") + ".";
@@ -2301,6 +2356,11 @@
       BD.paletteKey = b.paletteKey || "";
       BD.chartType = b.chartType || "table";
       BD.mapScale = b.mapScale || ""; // VB-10
+      // N33b: the blob carries the toggle from now on; a View saved BEFORE this
+      // slice has no `trend` in its blob, so fall back to the authored chart —
+      // which is where N33's carry-through had been keeping it alive.
+      BD.trend = b.trend != null ? !!b.trend
+        : !!(a.chart && a.chart.opts && a.chart.opts.trend);
       // N33: the authored chart settings this builder has no editor for, taken
       // off the saved chart itself (the blob has never carried opts, and now
       // doesn't need to — see bdCarryFrom).
