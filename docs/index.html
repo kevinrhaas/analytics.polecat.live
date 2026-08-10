@@ -3050,14 +3050,27 @@
   </ul>
   <p>Branding is saved with the <strong>workspace</strong> — on a connected workspace it syncs to the backend and applies for everyone who signs in, on every device (a custom logo shows on the sign-in screen too). <strong>Export settings</strong> also carries a copy along. This only affects the app's own chrome — it's independent of any exported dashboard's branding.</p>
 
-  <h3>Sending feedback (and what gets recorded)</h3>
+  <h3 id="feedback">Sending feedback (and what gets recorded)</h3>
   <p>The speech-bubble button in the top bar (next to What's-next) opens a tiny dialog — on a
   phone the top bar keeps only its essentials, so you'll find <strong>Send feedback</strong> in
-  the <strong>⋯</strong> menu instead, right below What's new. Either way: pick
-  <strong>Bug</strong>, <strong>Feature</strong>, <strong>Comment</strong>, or
-  <strong>Question</strong>, optionally say more, and hit Send. Your account name, the section
-  you were on, the open dashboard (if any), and the app version are captured automatically, so
-  a one-word report still tells the team exactly where you were. Reports go to an admin-only
+  the <strong>⋯</strong> menu instead, right below What's new. Either way: pick a kind
+  <span id="feedback-kinds">— <strong>Bug</strong>, <strong>Feature</strong>,
+  <strong>Comment</strong> or <strong>Question</strong> —</span> optionally say more, and hit
+  Send.</p>
+  <p id="feedback-context">Alongside what you typed, the report carries a small block of
+  context, captured automatically so that a one-word report still tells the team exactly where
+  you were. This is the whole of it:
+  <strong data-fb-field="username">your account name</strong> and
+  <strong data-fb-field="gotrue_id">your sign-in id</strong> (both empty if you aren't signed
+  in), <strong data-fb-field="section">the section you were on</strong>,
+  <strong data-fb-field="dashboard">the open dashboard's id</strong> plus
+  <strong data-fb-field="dashboardTitle">its title</strong> (only when one is open),
+  <strong data-fb-field="route">the route in your address bar</strong>,
+  <strong data-fb-field="version">the app version</strong>,
+  <strong data-fb-field="viewport">your window size</strong>, and
+  <strong data-fb-field="ua">your browser's user-agent string</strong>. Nothing else travels
+  with it — not the contents of the page you were on, and none of your workspace data.</p>
+  <p>Reports go to an admin-only
   log in the workspace backend; on a local-only workspace they wait on your device and send
   once a backend is connected. Separately, the backend keeps a concise activity trail —
   sign-ins/outs, dashboard opens, exports, and one time-on-page event per visit — also

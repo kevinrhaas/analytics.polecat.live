@@ -135,6 +135,52 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N7 — what a feedback report CARRIES vs the chapter that promises to say (v984, NO sw bump,
+  2026-08-10, steward; dev branch; est 1pt, took 1 — ON estimate):** 🔁 N7 was again the only
+  takeable item in ▶ NOW (N31, N44, N41 and N25 all ⛔ on Kevin; SP-1 ⏳ on `hold` PR #689), and
+  v983 parked its own find as code rather than copy. Every check in this family so far has asked
+  whether Help names the CONTROLS the app renders; this pass asked the same question of the DATA
+  the app sends, which is the same question with a privacy answer instead of a navigation one —
+  and went to the one chapter whose own title makes the promise: *Sending feedback (and what
+  gets recorded)*.
+  **Measured: the chapter named four of the nine fields a report carries.**
+  `Studio.Activity.feedback` (`app/activity.js:136`) sends `gotrue_id` and `username` beside the
+  typed kind/message, plus a `context` block built by `ctx()` — `section`, `dashboard`,
+  `dashboardTitle`, `route`, `version`, `viewport` and a 160-char `ua`. Help published *"your
+  account name, the section you were on, the open dashboard (if any), and the app version"*, so
+  the sign-in id, the dashboard's title, the route, the window size and the **browser's
+  user-agent string** went unpublished.
+  **The paragraph BELOW it is what turned an omission into a denial.** The anonymous-trail
+  paragraph is the one place the page discusses route/referrer/viewport/IP/UA, and it is scoped
+  to `polecat_activity` rows — so a reader comparing the two chapters would fairly conclude a
+  feedback report is the smaller payload. It is the larger one. New `#feedback-context`
+  paragraph: all nine fields, each in its own phrase, closing on what does NOT travel with a
+  report (the contents of the page, any workspace data), and the pick-a-kind list moved into its
+  own `#feedback-kinds` span.
+  **Doc-truth check 72**, one premise + three rules, both lists derived rather than transcribed:
+  the captured set is the `send("polecat_feedback", { … })` row literal MINUS the fields built
+  from `feedback()`'s own parameters (so what the reader typed is never counted as captured
+  context), with its `context:` pair expanded into `ctx()`'s keys — the initializer's plus every
+  `c.<key> =` the body adds. (a) `#feedback-context` marks every captured field with
+  `data-fb-field`, both directions; (b) each mark carries real prose, not the key echoed back —
+  (a) is satisfiable mechanically and a reader learns nothing from `ua`; (c) the kinds both ways
+  in their own span (check 71 (c)'s idiom), because the picker is the one sentence a fifth kind
+  falsifies without touching another word on the page. **Rules (a) and (c) both fail on the real
+  pre-fix tree**, and five more directions were measured on mutated trees (a new `ctx()` key, a
+  field dropped from the chapter, a field tagged with its own key as prose, a fifth dialog kind,
+  a kind renamed) — each failing its own rule and only its own, with the premise catching a
+  broken parse while the rules stay silent.
+  **Deliberately NOT held:** `ctx(extra)`'s caller-supplied `extra`. The one caller
+  (`openFeedbackModal`, `studio.js:10628`) passes none, so there is nothing static to derive and
+  a rule over an empty parameter would measure nothing — recorded in the check's own header so
+  the next run does not re-derive it.
+  **Docs-only, so NO `sw.js` CACHE bump** — `docs/index.html` is runtime-cached, not precached
+  (`sw.js:20` says so outright), same reasoning as every N7 slice since v915, and it keeps this
+  PR clear of open issue #631 (a CACHE bump deterministically reddens the N2 slice-4 checks).
+  **Verified in the foreground:** the full dev gate — `tools/validate.mjs`,
+  `tools/changelog-check.js`, `tools/doc-truth.mjs` (72 checks, all green) and
+  `tools/dev-smoke.mjs` at 390×780 + desktop with zero pageerrors.
+  Files: docs/index.html, tools/doc-truth.mjs, js/changelog.js, js/changelog-head.js, STATUS.md.
 - **N7 — the viewer's own top bar vs the chapter that documents it (v983, NO sw bump,
   2026-08-10, steward; dev branch; est 1pt, took 1 — ON estimate):** 🔁 N7 was again the only
   takeable item in ▶ NOW (N31, N44, N41 and N25 all ⛔ on Kevin; SP-1 ⏳ on `hold` PR #689) and
@@ -17194,6 +17240,25 @@
     date from the reader's LOCAL calendar while the filter engine documents and implements UTC on
     both sides, so `{{today}}` and a date filter can disagree by a day near midnight outside UTC.
     The two v922 candidates are still open and still Kevin's calls.
+  * *What a feedback report CARRIES vs the chapter that promises to say — v984, NO sw bump
+    (2026-08-10 — see DONE).* v983 parked its find as code, so this pass changed the QUESTION
+    rather than the document: every check in the family asks whether Help names the controls the
+    app renders; this one asks whether it names the DATA the app sends. It went to the chapter
+    whose own title makes the promise — *Sending feedback (and what gets recorded)* — and
+    **it named four of the nine fields a report carries.** `Studio.Activity.feedback` sends
+    `gotrue_id` + `username` beside the typed kind/message, plus `ctx()`'s `section`,
+    `dashboard`, `dashboardTitle`, `route`, `version`, `viewport` and a 160-char `ua`; Help
+    published the account name, the section, the open dashboard and the app version. **The
+    paragraph below it made that an active denial** — it publishes route/referrer/viewport/IP/UA
+    for the ANONYMOUS trail, so the shorter list above read as a promise that a feedback report
+    collects less. Doc-truth **check 72**, premise + three rules, the captured set derived from
+    the row literal minus the fields built from `feedback()`'s own parameters, with `context:`
+    expanded into `ctx()`'s keys. Seven failure modes measured, each failing its own rule and
+    only its own.
+    **Measured in the same pass and NOT taken, so the next run does not re-derive it:**
+    `ctx(extra)`'s caller-supplied `extra` is unheld on purpose — the one caller passes none, so
+    there is nothing static to derive. The two v922 candidates are still open and still Kevin's
+    calls.
 
 > **📋 RECORDED FOR KEVIN, NOT PROMOTED — grooming pass 4, 2026-08-10.** This sits BELOW the queue
 > on purpose: `docs/BACKLOG.md` says the loop never promotes into ▶ NOW on its own, and pass 2's
