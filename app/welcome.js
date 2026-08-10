@@ -9,8 +9,8 @@
    name when one is set, a "Take a quick tour" hero CTA (into the existing
    step carousel below) alongside "Take the guided tour" (the spotlight
    walkthrough) as a second option on the same menu, a few icon quick-actions
-   that jump straight into a section, and a note that Settings → Tour always
-   comes back here. The step carousel's own content/behavior is unchanged;
+   that jump straight into a section, and a note that the Settings page's
+   Presentation card always comes back here. The step carousel's own content/behavior is unchanged;
    its first step can now also go "Back" past index 0 into the hero. */
 (function () {
   "use strict";
@@ -226,7 +226,7 @@
       '<div class="sw-qa-row">' + QUICK_ACTIONS.map(function (qa) {
         return '<button class="sw-qa" data-act="qa" data-qa="' + qa.qa + '"><span class="sw-qa-ic" data-ic="' + qa.ic + '"></span>' + qa.t + "</button>";
       }).join("") + "</div>" +
-      '<p class="sw-hero-note">You can always come back to the tours later via <b>Settings → Tour</b>.</p></div>' +
+      '<p class="sw-hero-note">You can always come back to the tours later via <b>Settings → Presentation</b>, whose <b>Welcome tour</b> row carries a <b>Take the tour</b> button.</p></div>' +
       '<div class="sw-ft"><button class="sw-skip b">Skip the tour — I just want to explore</button><span class="sp"></span>' +
       '<button class="b pri" data-act="guidedtour2">Take the guided tour</button></div>';
     ov.querySelector(".sw-ic").appendChild(Studio.icon("sparkle", 26));

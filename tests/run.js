@@ -50113,6 +50113,110 @@ function serve() {
       hrErrors.length === 0, hrErrors.slice(0, 3).join(" | "));
     await hrCtx.close();
 
+    // ── N7: Settings → App → Hard reset — the remedy both documents promised, walked ────────
+    // The read-only schema banner and Help have offered "Settings → hard reset" since N16 and
+    // it resolved to NOTHING; doc-truth check 74 now holds the routes app/ prints, and this is
+    // the live half — the control is really there at both gate widths, and it really does what
+    // the copy says. The behavioural claim is the one that matters and it cuts both ways:
+    // it must CLEAR the offline copy (workers + caches) and it must LEAVE STORAGE ALONE, since
+    // the whole reason it is not ⋯ More → Clear local data is that a stale worker is not a
+    // reason to wipe someone's workspace.
+    //
+    // Its own context on purpose: unregistering the service worker and dropping every cache is
+    // exactly the sort of thing that must not reach the page the rest of the suite is using.
+    console.log("\n• N7: Settings → App → Hard reset (390×780 → 1280×900)");
+    const hrsCtx = await browser.newContext({
+      storageState: await page.context().storageState(), viewport: { width: 390, height: 780 } });
+    const hrsPage = await hrsCtx.newPage();
+    const hrsErrors = [];
+    hrsPage.on("pageerror", (e) => { hrsErrors.push(e.message); errors.push("N7 hard-reset page: " + e.message); });
+    await hrsPage.addInitScript(() => { try { sessionStorage.setItem("studio-gate-ok", "1"); } catch (e) {} });
+    await hrsPage.goto(`http://localhost:${PORT}/app/`, { waitUntil: "networkidle" });
+    await hrsPage.waitForTimeout(400);
+    await hrsPage.evaluate(function () {
+      var b = document.querySelector('#railNav .rail-item[data-sec="settings"]');
+      if (b) b.click();
+    });
+    await hrsPage.waitForTimeout(400);
+    const hrsCard = await hrsPage.evaluate(function () {
+      var W = window.innerWidth;
+      var cards = [].slice.call(document.querySelectorAll("#secSettings .settings-card"));
+      var card = cards.filter(function (c) {
+        var h = c.querySelector("h2"); return h && h.textContent.trim() === "App";
+      })[0];
+      var btn = document.getElementById("setHardResetBtn");
+      var r = btn && btn.getBoundingClientRect();
+      var row = btn && btn.closest(".set-row");
+      return {
+        cardPresent: !!card,
+        cardIsLast: !!card && cards.indexOf(card) === cards.length - 1,
+        btnInCard: !!card && !!btn && card.contains(btn),
+        label: btn ? btn.textContent.trim() : null,
+        heading: row ? (row.querySelector("b") || {}).textContent : null,
+        blurb: row ? (row.querySelector("small") || {}).textContent || "" : "",
+        icon: !!(row && row.querySelector(".set-row-ic svg")),
+        onscreen: !!r && r.width > 0 && r.height > 0 && r.left >= 0 && r.right <= W + 1,
+        wired: !!btn && typeof btn.onclick === "function",
+        fn: typeof (window.Studio && Studio.hardResetApp),
+      };
+    });
+    ok("N7: Settings renders an App card whose Hard reset row is on screen and wired at 390×780",
+      hrsCard.cardPresent && hrsCard.btnInCard && hrsCard.label === "Hard reset" &&
+      hrsCard.heading === "Hard reset" && hrsCard.icon && hrsCard.onscreen && hrsCard.wired &&
+      hrsCard.fn === "function",
+      JSON.stringify(hrsCard));
+    // The blurb is what stops a reader confusing this with Clear local data — it has to say
+    // both halves out loud, and the negative half is the one that keeps it honest.
+    ok("N7: the Hard reset row says what it clears AND what it leaves alone",
+      /offline copy/i.test(hrsCard.blurb) && /service worker/i.test(hrsCard.blurb) &&
+      /not touched|untouched/i.test(hrsCard.blurb) && /workspace/i.test(hrsCard.blurb),
+      JSON.stringify(hrsCard.blurb));
+
+    // The behaviour, against real seeded state: a cache bucket of our own plus whatever the
+    // app's own service worker registered, and storage on both sides that must survive.
+    const hrsRun = await hrsPage.evaluate(async function () {
+      localStorage.setItem("n7-hard-reset-probe", "keep me");
+      sessionStorage.setItem("n7-hard-reset-probe", "keep me too");
+      var seededKeys = Object.keys(localStorage).length;
+      await caches.open("n7-probe-cache").then(function (c) { return c.put("/n7-probe", new Response("x")); });
+      var before = {
+        caches: (await caches.keys()).length,
+        workers: (await navigator.serviceWorker.getRegistrations()).length,
+      };
+      var res = await Studio.hardResetApp();
+      return {
+        before: before,
+        reported: res,
+        cachesAfter: (await caches.keys()).length,
+        workersAfter: (await navigator.serviceWorker.getRegistrations()).length,
+        local: localStorage.getItem("n7-hard-reset-probe"),
+        session: sessionStorage.getItem("n7-hard-reset-probe"),
+        keysAfter: Object.keys(localStorage).length,
+        seededKeys: seededKeys,
+      };
+    });
+    ok("N7: hardResetApp clears every Cache Storage bucket and unregisters every service worker",
+      hrsRun.before.caches >= 1 && hrsRun.cachesAfter === 0 && hrsRun.workersAfter === 0 &&
+      hrsRun.reported.caches === hrsRun.before.caches && hrsRun.reported.workers === hrsRun.before.workers,
+      JSON.stringify(hrsRun));
+    ok("N7: and it touches NO storage — the distinction from ⋯ More → Clear local data",
+      hrsRun.local === "keep me" && hrsRun.session === "keep me too" &&
+      hrsRun.keysAfter === hrsRun.seededKeys,
+      JSON.stringify({ local: hrsRun.local, session: hrsRun.session, keysAfter: hrsRun.keysAfter, seededKeys: hrsRun.seededKeys }));
+
+    // Desktop: same card, same control — this is a remedy, not a phone affordance.
+    await hrsPage.setViewportSize({ width: 1280, height: 900 });
+    await hrsPage.waitForTimeout(300);
+    const hrsDesk = await hrsPage.evaluate(function () {
+      var btn = document.getElementById("setHardResetBtn");
+      var r = btn && btn.getBoundingClientRect();
+      return { shown: !!r && r.width > 0 && r.height > 0, label: btn ? btn.textContent.trim() : null };
+    });
+    ok("N7: the Hard reset control is there at 1280×900 too", hrsDesk.shown && hrsDesk.label === "Hard reset",
+      JSON.stringify(hrsDesk));
+    ok("N7: the hard-reset walk raised zero pageerrors", hrsErrors.length === 0, hrsErrors.slice(0, 3).join(" | "));
+    await hrsCtx.close();
+
     // N27: the live-posture verify classifies its own answers, and that classifier gets a
     // vote on whether production is safe to ship to (promote-to-prod runs it BEFORE the
     // merge). It needs no browser and no database — `--self-test` drives it over a stubbed

@@ -135,6 +135,62 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N7 — `Settings → hard reset` was a remedy the app told you to use and did not have (v986,
+  sw v562, 2026-08-10, steward; dev branch; est 1pt, took 1 — ON estimate):** 🔁 N7 was again the
+  only takeable item in ▶ NOW (N31, N44, N41 and N25 all ⛔ on Kevin; SP-1 ⏳ on `hold` PR #689),
+  and this time a candidate WAS standing: v985's own pass measured it and left it, because it is
+  the one N7 candidate that is code as well as copy.
+  **The measurement, restated because it is the whole case for building rather than deleting.**
+  `renderVersionBanner()` (`app/studio.js`) tells a reader whose workspace is newer than their app
+  to reload, and *"if it keeps coming back, use **Settings → hard reset** to clear a stuck offline
+  copy of the app."* `docs/index.html`'s read-only paragraph printed the same route. **There was no
+  such control anywhere in `app/`.** The nearest thing was ⋯ More → **Clear local data**, which
+  wipes the workspace — so the app's only advice for a stale service worker, followed to its
+  nearest match, destroys the user's work. The two honest fixes were "build it" or "stop promising
+  it", and the note left the choice to whoever took it. **Built**, because the failure mode is real
+  and had no other answer, and because the control is small, non-destructive and exactly what the
+  sentence already describes.
+  **What shipped.** A ninth Settings card, **App**, whose one row is **Hard reset**:
+  `Studio.hardResetApp()` unregisters every service-worker registration for the scope and deletes
+  every Cache Storage bucket, then the button toasts what it cleared and reloads. It reads and
+  writes **no storage at all** — that is the entire distinction from Clear local data, it is stated
+  in the confirm, in the row's own blurb and in the function's header, and the suite asserts it
+  against real seeded `localStorage`/`sessionStorage` keys rather than trusting any of them. Both
+  copy sites now say **Settings → App → Hard reset**; Help's installable-app tip gained the
+  Clear-local-data contrast (*"reach for the hard reset first"*), and `#settings-card-list` gained
+  the card, so check 73 (a) held the addition without an edit to the rule.
+  **Two more dead routes fell out of the new check, and both were the same defect one document
+  over.** `app/welcome.js`'s hero note still closed on **`Settings → Tour`** — the exact route
+  v985 had just deleted from Help, still printed by the app, which is precisely what check 73's
+  header warned would happen when only one side is fixed; and a sync-failure toast said *"see
+  Settings → workspace backend"*, lower-casing a card the page prints as **Workspace backend**.
+  **Doc-truth check 74** — the routes the APP prints, check 73's move one document over. Premise +
+  four rules, all derived: cards from `renderSettings()`'s emission order (check 73's own parse),
+  controls from the labels the page prints (`<b>…</b>` rows and `>…</button>` texts across
+  `renderSettings()`, `accountCardHtml()` and `renderWorkspaceBackendCard()`), routes out of quoted
+  string literals in the app's chrome. Segments are matched against that vocabulary longest-first
+  with a word-boundary test rather than split on punctuation — these routes are printed
+  mid-sentence (*"…and Settings → Workspace backend manages, so…"*), so nothing in the text says
+  where a segment ends but the page's own labels do, and `App` can never be read out of
+  `Appearance`. (a) the head is a card that exists, casing included; (b) a deep route ends on a
+  control the page really prints; (c) a deep route the app prints is printed by Help too — a bare
+  card name is a pointer, but naming a button is an instruction, and the instruction is what goes
+  stale; (d) the scoping guard — `app/sources/**` is skipped because adapter credential hints
+  describe the REMOTE product's console (Supabase's `Settings → API`, Databricks' `Settings →
+  Developer`), and rule (d) fails the day an adapter starts naming OUR page, so the exclusion can
+  never quietly hide a real route. **Check 73 (d) was widened in the same pass** and its carve-out
+  deleted: it now reads every bolded route regardless of case, because the one lower-case route
+  that forced the carve-out is the one this slice fixed.
+  **Verified.** The full dev gate green in the foreground — `tools/validate.mjs` (215 files),
+  `tools/changelog-check.js` (963 entries, top v986, manager-parse OK), `tools/doc-truth.mjs`
+  (every claim), `tools/dev-smoke.mjs` (marketing + app + docs, desktop and 390px, zero
+  pageerrors). Six new suite checks at **390×780 and 1280×900** — the card and its wired control on
+  screen at both, the blurb stating both halves, the behaviour against a real seeded cache bucket
+  (cleared) and real seeded storage (intact), and zero pageerrors across the walk. **Nine failure
+  modes measured, each failing its own rule:** all four new doc-truth rules and the widened 73 (d)
+  on mutated trees, plus the two suite claims — a `hardResetApp` that also calls
+  `localStorage.clear()` fails the storage rule and nothing else, and a deleted **App** card fails
+  the card rule and nothing else.
 - **N7 — the SETTINGS page's own cards vs the section that documents them (v985, NO sw bump,
   2026-08-10, steward; dev branch; est 1pt, took 1 — ON estimate):** 🔁 N7 was again the only
   takeable item in ▶ NOW (N31, N44, N41 and N25 all ⛔ on Kevin; SP-1 ⏳ on `hold` PR #689), and
@@ -17336,10 +17392,27 @@
     stale service worker should be told to press. Check 73 (d) deliberately holds only routes whose
     first segment is a card NAME (upper-case), and its header records why: this one names an
     ACTION, both surfaces print it, and fixing Help alone would leave the app contradicting the
-    page. **It is the candidate for the next N7 slice** — but it is a code-and-copy slice that
+    page. ~~**It is the candidate for the next N7 slice** — but it is a code-and-copy slice that
     bumps the `sw.js` CACHE, and whichever run takes it should decide whether the honest fix is a
-    real control or copy that stops promising one. The two v922 candidates are still open and
-    still Kevin's calls.
+    real control or copy that stops promising one.~~ ✓ **SHIPPED v986, sw v562 (2026-08-10 — see
+    DONE).** The choice the note left open went to **build it**: the failure mode is real and its
+    only near-match, ⋯ More → Clear local data, wipes the workspace. `Settings → App → Hard reset`
+    now exists (`Studio.hardResetApp` — workers and caches only, storage untouched, asserted
+    against real seeded keys), both surfaces name it, and doc-truth **check 74** reads the routes
+    the APP prints so the next dead one fails the build instead of waiting for a copy audit. It
+    found two more on its first run, both the same defect one document over: `app/welcome.js`
+    still printed **`Settings → Tour`**, the exact route v985 had just deleted from Help, and a
+    sync toast lower-cased **Workspace backend**. Check 73 (d)'s upper-case carve-out is gone with
+    it. The two v922 candidates are still open and still Kevin's calls.
+  * **Measured in the v986 pass and NOT taken, so the next run does not re-derive it — and it is
+    the named candidate for the next N7 slice.** `app/palette.js` reaches **Clear local data…**
+    (⌘K → "Clear local data…", which clicks `#moreClearData`) and does NOT reach the hard reset —
+    so the destructive remedy is one keystroke away and the non-destructive one it should be tried
+    before is not in the palette at all. Pure derivation, no product call: check 13 already
+    resolves "⌘K → X" against `app/palette.js`'s command labels, so a `Hard reset…` command that
+    navigates to Settings and clicks `#setHardResetBtn` is the same wiring the Clear-local-data
+    entry already uses, and the pairing could be held by a rule rather than remembered. It is a
+    code slice with an `sw.js` bump, which is why v986 did not widen into it.
 
 > **📋 RECORDED FOR KEVIN, NOT PROMOTED — grooming pass 4, 2026-08-10.** This sits BELOW the queue
 > on purpose: `docs/BACKLOG.md` says the loop never promotes into ▶ NOW on its own, and pass 2's

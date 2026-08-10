@@ -8241,16 +8241,20 @@ if (kitLive) {
        another product's (measured — nine `<strong>` ours, one `<em>` for Databricks'
        `Settings → Developer → Access tokens`), so the markup already draws the line.
 
-   Two things deliberately NOT held, so the next run does not re-derive them:
-   · a route whose first segment is lower-case names an ACTION rather than a card, and there is
-     exactly one — **`Settings → hard reset`**, which resolves to NOTHING: no such control exists
-     anywhere in `app/`. It is left alone here because the same route is printed by the app
-     itself (the read-only schema banner in `app/studio.js`), so fixing the copy on one side only
-     would make the two disagree — it is a code-and-copy question, and a candidate for a run that
-     is willing to bump the `sw.js` CACHE.
-   · the Admin page's three settings-shaped cards (Section access, Workspaces, Branding) — the
-     paragraph naming them is prose about where they are NOT, and check 66 already holds the one
-     with controls in it. */
+   **(d) was WIDENED on 2026-08-10 (N7), and the carve-out it used to carry is gone.** It held
+   only routes whose first segment was upper-case, because there was exactly one lower-case
+   one — `Settings → hard reset` — and it resolved to NOTHING: no such control existed anywhere
+   in `app/`, while the app's own read-only schema banner printed the same dead route, so
+   correcting Help alone would have made the two documents disagree. That slice shipped: the
+   control now exists (`Settings → App → Hard reset`, `Studio.hardResetApp`), both surfaces name
+   it, and the rule reads every bolded route regardless of case. Casing is part of the claim now —
+   a route that lower-cases a card name sends the reader hunting for a heading the page does not
+   print. **The app's own side of that agreement is check 74**, which reads the routes `app/`
+   prints and is the one that would notice the next dead one.
+
+   One thing deliberately NOT held, so the next run does not re-derive it: the Admin page's three
+   settings-shaped cards (Section access, Workspaces, Branding) — the paragraph naming them is
+   prose about where they are NOT, and check 66 already holds the one with controls in it. */
 {
   const braced = (src, from) => {
     const open = src.indexOf("{", from);
@@ -8344,7 +8348,7 @@ if (kitLive) {
     const routes = [...help.matchAll(/<strong>Settings\s*→\s*([\s\S]*?)<\/strong>/g)]
       .map((m) => m[1].replace(/<[^>]+>/g, " ").replace(/&amp;/g, "&").replace(/\s+/g, " ").trim())
       .map((r) => ({ route: r, head: r.split("→")[0].trim() }));
-    const held = routes.filter((r) => /^[A-Z]/.test(r.head));
+    const held = routes;
     const unresolved = [...new Set(held.filter((r) => !cards.includes(r.head)).map((r) => r.route))];
     ok(`docs/index.html: all ${held.length} bolded "Settings → …" route(s) reach a card that exists`,
       !unresolved.length,
@@ -8352,6 +8356,196 @@ if (kitLive) {
       `the cards on the page: ${cards.join(", ")}\n      ` +
       "a route naming a card the page does not render sends the reader looking for it — this is " +
       "check 13's rule for \"⋯ More → X\", one menu over");
+  }
+}
+
+/* ── 74. the `Settings → …` routes the APP itself prints ─────────────────────────────────────
+   N7, and check 73's own move one document over — the check-16→17 idiom the track keeps using,
+   except this time the two documents are Help and the APP, and the app was the one that had
+   never been read. Check 73 (d) holds the routes `docs/index.html` bolds; nothing had ever held
+   the routes `app/` prints into a banner, a toast, a hint or a tour card, even though those are
+   the ones a reader follows WHILE the problem is on screen.
+
+   Measured 2026-08-10, before the fix — three drifts, and the worst of them was the reason this
+   check exists:
+   · **`Settings → hard reset` resolved to NOTHING.** The read-only schema banner
+     (`renderVersionBanner`) offered it as the remedy for a stuck offline copy, Help offered the
+     same route, and no such control existed anywhere in `app/`. The nearest thing was
+     ⋯ More → **Clear local data**, which wipes the workspace — emphatically not what someone
+     with a stale service worker should be told to press. Fixed by building the control
+     (`Studio.hardResetApp`, the **App** card's **Hard reset** row), not by deleting the promise:
+     the failure mode is real and it had no other answer.
+   · **`Settings → Tour` in `app/welcome.js`** — the SAME dead route check 73 (d) had just
+     deleted from Help, still printed by the welcome hero's own closing note. There is no Tour
+     card; the tour is a row in **Presentation**. This is exactly the case check 73's header
+     warned about: fixing one document leaves the other contradicting it.
+   · **`see Settings → workspace backend`** in a sync-failure toast — the card is **Workspace
+     backend**, and a lower-cased card name sends a reader hunting for a heading the page does
+     not print.
+
+   Sources of truth, all derived: the cards come from `renderSettings()`'s emission order exactly
+   as check 73 parses them, and the CONTROLS come from the labels the page prints — the `<b>…</b>`
+   row headings and `>…</button>` texts inside `renderSettings()` plus the two renderers it
+   delegates to (`accountCardHtml()`, `renderWorkspaceBackendCard()`). Three rules:
+   (a) every route's first segment is a card the page renders, case included;
+   (b) a route that goes DEEPER than the card names a control the page really prints — a card
+       name alone is a pointer, but `→ Hard reset` is an instruction, and an instruction that
+       names a button nobody can find is the defect this whole check is about;
+   (c) the agreement half: a deep route the app prints must be printed by Help too, verbatim.
+       One-segment routes are exempt on purpose — the app points at a card in half a dozen
+       toasts and Help is under no obligation to bold each one — but a remedy detailed enough to
+       name a button is a claim two documents now make together, and check 73 (d) holds Help's
+       end of it.
+
+   Scoping, and why it is not an exemption list: the scan reads the app's own chrome —
+   `app/*.js` + `app/*.html` — and NOT `app/sources/**`. The adapter layer's credential hints
+   describe the REMOTE product's console (Supabase's `Settings → API → Project URL`, Databricks'
+   `Settings → Developer → Access tokens`), which is the same distinction Help draws by
+   italicising a foreign route and bolding its own. A fourth rule guards the scoping itself: if
+   an adapter ever starts pointing at OUR Settings page, the exclusion has stopped being safe and
+   this check says so rather than going quietly blind.
+
+   Routes are read out of QUOTED STRING LITERALS, so a `//` or block comment discussing a route
+   is not held. That is a deliberate limit, not an oversight: a comment cannot send a reader
+   anywhere. A route quoted inside a comment WILL be read (the scan is textual) and must resolve
+   — which is harmless, since a comment naming a real route is true. */
+{
+  const braced = (src, from) => {
+    const open = src.indexOf("{", from);
+    if (open < 0) return "";
+    let depth = 0;
+    for (let i = open; i < src.length; i++) {
+      if (src[i] === "{") depth++;
+      else if (src[i] === "}" && --depth === 0) return src.slice(open, i + 1);
+    }
+    return "";
+  };
+
+  // The cards, parsed exactly as check 73 parses them (same four arms, same order).
+  const togStart = studioJs.indexOf("var SETTINGS_TOGGLES = [");
+  const togSrc = togStart < 0 ? "" : studioJs.slice(togStart, studioJs.indexOf("\n  ];", togStart));
+  const groups = [...new Set([...togSrc.matchAll(/\{\s*grp:\s*"([^"]+)"/g)].map((m) => m[1]))];
+  const accountName = (studioJs.match(/id="accountCard"><h2>([^<]+)<\/h2>/) || [, ""])[1];
+  const backendName = (studioJs.match(/card\.innerHTML = '<h2>([^<]+)<\/h2>/) || [, ""])[1];
+  const settingsBody = braced(studioJs, studioJs.indexOf("function renderSettings()"));
+  const found = [];
+  const at = (re, names) => {
+    for (const m of settingsBody.matchAll(re)) found.push({ i: m.index, names: names(m) });
+  };
+  at(/accountCardHtml\(\)/g, () => [accountName]);
+  at(/class="settings-card" id="wsBackendCard"/g, () => [backendName]);
+  at(/class="settings-card"><h2>'\s*\+\s*esc\(g\)/g, () => groups);
+  at(/class="settings-card"><h2>([^<'+]+)<\/h2>/g, (m) => [m[1].replace(/&amp;/g, "&").trim()]);
+  const cards = found.sort((a, b) => a.i - b.i).flatMap((f) => f.names).filter(Boolean);
+
+  // The controls: every label the Settings page PRINTS, from the three renderers that build it.
+  // `<b>…</b>` is the row heading idiom and `>…</button>` the button one; interpolated labels
+  // (a pack's own name, a preset's) fall out on their own because they carry a `+`.
+  const controlSrc = settingsBody +
+    braced(studioJs, studioJs.indexOf("function accountCardHtml()")) +
+    braced(studioJs, studioJs.indexOf("function renderWorkspaceBackendCard()"));
+  const controls = new Set([
+    ...[...controlSrc.matchAll(/<b>([^<'"+]{2,60})<\/b>/g)].map((m) => m[1]),
+    ...[...controlSrc.matchAll(/>([^<>'"+]{2,60})<\/button>/g)].map((m) => m[1]),
+    ...[...togSrc.matchAll(/\bt:\s*"([^"]+)"/g)].map((m) => m[1]),
+  ].map((s) => s.replace(/&amp;/g, "&").replace(/\s+/g, " ").trim()).filter(Boolean));
+
+  // The routes, read out of quoted string literals in the app's own chrome.
+  const ROUTE = /(["'])((?:[^\\\n]|\\.)*?Settings\s*→(?:[^\\\n]|\\.)*?)\1/g;
+  const chrome = fs.readdirSync(path.join(ROOT, "app"), { withFileTypes: true })
+    .filter((e) => e.isFile() && /\.(js|html)$/.test(e.name)).map((e) => "app/" + e.name).sort();
+  const adapters = fs.readdirSync(path.join(ROOT, "app/sources"), { withFileTypes: true })
+    .filter((e) => e.isFile() && e.name.endsWith(".js")).map((e) => "app/sources/" + e.name).sort();
+  // A route's segments are matched against the app's OWN vocabulary rather than guessed at with
+  // punctuation: these routes are printed mid-sentence ("…and Settings → Workspace backend
+  // manages, so…"), so nothing in the text says where the segment stops — but the page's own
+  // card and control labels do. Longest match first, and the character after it must not be a
+  // word character, so `App` can never be read out of `Appearance`.
+  const longest = (text, vocab) => {
+    for (const v of vocab) {
+      if (text.startsWith(v) && !/\w/.test(text.charAt(v.length))) return v;
+    }
+    return null;
+  };
+  const byLength = (set) => [...set].sort((a, b) => b.length - a.length);
+  const cardVocab = byLength(new Set(cards)), ctlVocab = byLength(controls);
+  const routesIn = (files) => {
+    const out = [];
+    for (const f of files) {
+      const src = read(f);
+      for (const m of src.matchAll(ROUTE)) {
+        const lit = m[2].replace(/<[^>]*>/g, "|").replace(/\\'/g, "'").replace(/&amp;/g, "&");
+        for (const hit of lit.matchAll(/Settings\s*→\s*/g)) {
+          const tail = lit.slice(hit.index + hit[0].length);
+          const head = longest(tail, cardVocab);
+          const r = { file: f, head, parts: [], tail: tail.slice(0, 60) };
+          if (!head) { out.push(r); continue; }
+          r.parts.push(head);
+          const after = tail.slice(head.length).replace(/^[\s|]*/, "");
+          if (after.startsWith("→")) {
+            const rest = after.slice(1).replace(/^[\s|]*/, "");
+            const leaf = longest(rest, ctlVocab);
+            r.parts.push(leaf || rest.slice(0, 40).trim());
+            r.leafOk = !!leaf;
+            r.tail = rest.slice(0, 60);
+          }
+          out.push(r);
+        }
+      }
+    }
+    return out;
+  };
+  const appRoutes = routesIn(chrome);
+
+  const premise = ok(`app/: the Settings routes the app prints, parsed for check 74 ` +
+    `(${appRoutes.length} route(s) across ${chrome.length} chrome file(s); ` +
+    `${cards.length} card(s), ${controls.size} control label(s))`,
+    cards.length >= 7 && controls.size >= 15 && appRoutes.length >= 5 &&
+      controls.has("Hard reset") && cards.includes("App"),
+    `routes: ${appRoutes.map((r) => r.parts.join(" → ")).join(" · ") || "(none)"}\n      ` +
+    `cards: ${cards.join(", ") || "(unparsed)"}\n      ` +
+    "an empty parse would let all three rules below pass while measuring nothing");
+
+  if (premise) {
+    // (a) the card the route opens on.
+    const badHead = [...new Set(appRoutes.filter((r) => !r.head)
+      .map((r) => `"Settings → ${r.tail.trim()}…" (${r.file})`))];
+    ok(`app/: all ${appRoutes.length} "Settings → …" route(s) the app prints open on a card that exists`,
+      !badHead.length,
+      `routes that resolve to nothing: ${badHead.join(" · ")}\n      ` +
+      `the cards renderSettings() emits: ${cards.join(", ")}\n      ` +
+      "casing is part of the claim — the page prints its headings, and a lower-cased one sends " +
+      "the reader looking for a heading that is not there");
+
+    // (b) the control at the end of a deep route.
+    const deep = appRoutes.filter((r) => r.parts.length > 1);
+    const badLeaf = [...new Set(deep.filter((r) => !r.leafOk)
+      .map((r) => `${r.parts[0]} → "${r.tail.trim()}…" (${r.file})`))];
+    ok(`app/: all ${deep.length} deep route(s) end on a control the Settings page really prints`,
+      !badLeaf.length,
+      `leaves that name no control: ${badLeaf.join(" · ")}\n      ` +
+      `the labels the page prints: ${[...controls].sort().join(", ")}\n      ` +
+      "this is the rule that would have caught Settings → hard reset the day it was written");
+
+    // (c) and Help says the same thing.
+    const helpText = help.replace(/<[^>]*>/g, "").replace(/&amp;/g, "&").replace(/\s+/g, " ");
+    const missingFromHelp = [...new Set(deep
+      .filter((r) => !helpText.includes("Settings → " + r.parts.join(" → ")))
+      .map((r) => `${r.parts.join(" → ")} (${r.file})`))];
+    ok(`app/ + docs/index.html: every deep route the app prints is printed by Help too`,
+      !missingFromHelp.length,
+      `the app sends people somewhere Help never mentions: ${missingFromHelp.join(" · ")}\n      ` +
+      "a remedy detailed enough to name a button is a claim both documents make, and the two " +
+      "drifting apart is how Settings → hard reset survived in two places at once");
+
+    // (d) the scoping guard: adapters describe OTHER products' consoles, never ours.
+    const ourInAdapters = [...new Set(routesIn(adapters).filter((r) => r.head)
+      .map((r) => `${r.parts.join(" → ")} (${r.file})`))];
+    ok(`app/sources/: the adapter layer still names only other products' Settings pages (${adapters.length} adapter(s) scanned)`,
+      !ourInAdapters.length,
+      `adapters now pointing at OUR Settings page: ${ourInAdapters.join(" · ")}\n      ` +
+      "rules (a)-(c) skip app/sources/ because its credential hints describe the remote " +
+      "product's console — the moment that stops being true the exclusion is hiding real routes");
   }
 }
 
