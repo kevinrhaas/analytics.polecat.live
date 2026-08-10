@@ -6,6 +6,19 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 961,
+    title: 'Admin called it a “backend”, everywhere else it was a workspace — now it is a workspace',
+    ts: '2026-08-10T06:00:30.000Z',
+    items: [
+      'Admin\'s <b>Backends</b> card is <b>Workspaces</b>. It is the same card doing the same job — save a database under a name, Test it, Connect to it, assign it to a user — but it now uses the word the sign-in screen, Settings and the rest of the app have always used for that thing. The last release made the two lists one; this one gives the one list one name.',
+      'The rename goes all the way through, not just the heading: <b>+ Add workspace</b>, the <b>Add workspace</b> / <b>Edit workspace</b> form and its <b>Workspace name</b> field, the remove confirmation, the empty state, and the user form\'s <b>Assigned workspace</b> picker.',
+      '<b>“Backend” still means something, so it stays where it earns its keep.</b> Settings\' card and the rail still read <em>Workspace backend — Local (this browser)</em>: that names where your workspace is stored right now, which is a state, not an entry in a list. Renaming it too would have produced “workspace workspace”.',
+      '<b>A workspace you started but never finished now says so.</b> Save one with no address and the row carries a <b>not configured</b> badge — it is kept and still editable, but the sign-in picker cannot offer it, and a list that claims to be the sign-in list should say which of its rows will not appear there.',
+      '<b>The card is honest about what it does not hold.</b> It manages the workspaces saved in this browser; the ones packaged with the app are offered at sign-in too and are not managed here — and it now says that rather than leaving you to infer it from a heading.',
+      'One stale sentence went with it: the assigned-workspace hint still said the connection was “recorded for reference” and had to be made by hand. That stopped being true when assignments started connecting at sign-in, and Help had been saying the opposite ever since.',
+    ],
+  },
+  {
     v: 960,
     title: 'SQL completion narrows to the table after a dot — and it knows your aliases',
     kind: 'feature',

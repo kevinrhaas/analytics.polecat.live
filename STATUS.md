@@ -135,6 +135,64 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N36 slice 2 — the rename: Admin's "Backends" card is "Workspaces", and "backend" now names only
+  a state (v961, sw v551, 2026-08-10, steward; dev branch; est 2pt, 2 slices spent — ON estimate):**
+  the first ready item in ▶ NOW (N31 and N44 are both ⛔ on Kevin; N35/N37/N34/N33a/N33b/N32/N42/
+  N43a/N43b are struck). Kevin, 2026-08-09: *"I wonder if in Admin you should be referring to this
+  as workspace not backend also."* Slice 1 said a pure rename would make it worse — two lists both
+  labelled "Workspaces" — and converged the stores first. There is one list now, so this is the
+  half that was waiting on it.
+  **What the rename covers**, i.e. every place the noun meant *a saved, credentialed destination*:
+  the card heading and its intro, the empty state, **+ Add workspace**, the **Add workspace** /
+  **Edit workspace** wizard and its **Workspace name** field (its placeholder stopped suggesting
+  "Prod Supabase" — an adapter-shaped name is the exact input `applyAssignedBackend`'s KEVIN-COPY
+  guard exists to work around), the "Give the workspace a name first" validation, the remove
+  confirmation, the Settings Switch picker's intro, and the user editor's **Assigned workspace**
+  picker.
+  **What deliberately did NOT change, and this is the point of the item's last paragraph:**
+  Settings' card and the rail still say **Workspace backend — Local (this browser)**, and the
+  Switch/Connect buttons keep the word, because that names a STATE — where this workspace's catalog
+  lives right now — not an entry in a list. The item's own warning was "workspace workspace"; a
+  suite check now holds both ends (the card is `Workspaces` with no stray row-noun `backend` in its
+  text, AND Settings' card is still `Workspace backend`), so neither half can drift back.
+  **No identifier moved.** `provisioning.backendId` is persisted on every account, and
+  `studio-admin-backends*` are real keys on real browsers; `getAdminBackends`/`__studioAdminBackends`
+  are the suite's own hooks. Renaming any of them to improve a label would be a data migration for a
+  word — same call LF53 made about `Studio.exportCDF`.
+  **The two decisions slice 1 left for this slice, decided rather than inherited:**
+  (1) **Admin still lists the browser's SAVED entries only, not `packaged()`.** Edit, Remove and the
+  per-row test record are meaningless or actively wrong on a shipped entry — writing to one mints a
+  local override that shadows the packaged original, which is precisely why slice 1 kept `lastTest`
+  out of the entry. But the new heading would otherwise imply a completeness the card does not have,
+  so the intro now names the packaged workspaces and says they are not managed here. Naming them was
+  what the rename owed them; listing them was not.
+  (2) **Settings' manager panel still renders `list()` (valid only)** — offering an addressless entry
+  as somewhere to sign in is exactly what `valid()` prevents. The honest half belongs on the Admin
+  card instead: a storable-but-not-valid row now carries a **not configured** badge, with the reason
+  in its tooltip. A list that claims to be the sign-in list has to say which of its rows the sign-in
+  screen will not show; slice 1 made that state reachable (the Add wizard requires only a name), and
+  until now it was invisible.
+  **One stale sentence went with the noun.** The assigned-workspace hint read *"Recorded for
+  reference — connecting a device to it is still a manual step."* True of LF42, false since #103
+  AUTO-BACKEND made the assignment connect at sign-in — and Help had been saying the opposite for a
+  week. It now describes what actually happens (silently on a fresh device, after a confirmation on
+  one that already holds work), and the code comment above it that produced the stale copy was
+  corrected too. Renaming the noun on top of that sentence would have shipped a tidier lie.
+  **Verified:** seven new/reworked checks in the suite (the LF42/N36 block's existing assertions
+  re-pointed at the new copy, plus five N36-slice-2 checks: card + no-stray-noun, the not-configured
+  badge vs what `STUDIO_WS_STORE.list()` offers, the wizard's three labels, the user-editor label and
+  its de-staled hint, the state-keeps-its-word pair). Dev gate green in full: `tools/validate.mjs`
+  (212 files), `tools/changelog-check.js`, `tools/doc-truth.mjs`, `tools/dev-smoke.mjs` desktop +
+  390×780, zero pageerrors. The N36 block itself was ALSO run standalone at BOTH viewports
+  (1200×900 and 390×780) before the suite run — 14/14 green, zero pageerrors — because the full
+  48k-line suite does not finish inside this runner's 10-minute per-command cap and a rename check
+  that only ever ran on desktop would miss exactly the class of defect the mobile gate exists for.
+  **Also in this PR, because the dev gate was already red on `dev` without it:** `tools/doc-truth.mjs`
+  failed on CLAUDE.md's "~60K LOC" against a measured 66,857 (AUD-11's class of drift, on the one
+  claim the tool checks numerically). One word, one line, so the gate this PR has to pass is
+  passable.
+  **N36 is now complete** (est 2pt, took 2 — the split slice 1 proposed was the right one; the
+  rename was genuinely unsafe before the convergence and genuinely small after it).
 - **N44 slice 3 — completion narrows to the table after a dot, and reads the query's own aliases
   (v960, sw v550, 2026-08-10, steward; dev branch; est 3pt, 3 slices spent — ON estimate):** the
   first ready item in ▶ NOW (N31 is still ⛔ on Kevin; everything above N44 is struck). Slices 1–2
@@ -14520,9 +14578,22 @@
   **Ship it as ONE component adopted everywhere**, not per-surface variants; the nine sites above
   are the acceptance list, and mobile keyboards must still work at 390×780.
 
-- **N36 ★ [2pt est, 1 slice shipped] — Admin says "Backends" for the same thing the rest of the
-  app calls a workspace — and keeps a SECOND, separate list of them.** ✓ **SLICE 1 IS SHIPPED —
-  the convergence: v952, sw v543 (2026-08-09, steward — see DONE).** There is ONE list now
+- ~~**N36 ★ [2pt est, 2 slices shipped — the estimate is spent] — Admin says "Backends" for the same
+  thing the rest of the app calls a workspace — and keeps a SECOND, separate list of them.**~~
+  ✓ **COMPLETE — SLICE 2 SHIPPED v961, sw v551 (2026-08-10, steward — see DONE).** The card is
+  **Workspaces**, and so is every noun on it that means a saved, credentialed destination (wizard,
+  name field, remove confirmation, empty state, the user form's **Assigned workspace** picker, the
+  Switch picker's copy). "Backend" survives only where the item said it should — Settings' card and
+  the rail still read *Workspace backend — Local (this browser)*, because that names a STATE — and a
+  suite check holds both ends so neither can drift back. No identifier moved
+  (`provisioning.backendId` is persisted user data). Both decisions slice 1 deferred were made, not
+  inherited: Admin still lists SAVED entries only (editing or removing a packaged entry would mint a
+  local override that shadows the shipped one) but now NAMES the packaged ones in its intro; and
+  Settings' panel still offers `valid()` rows only, with the honest half — a **not configured** badge
+  — put on the Admin row instead. One stale sentence went with the rename: the assignment hint's
+  *"connecting a device to it is still a manual step"* has been false since #103.
+  *(Slice-1 text kept until the next grooming pass archives it.)* ✓ **SLICE 1 — the convergence:
+  v952, sw v543 (2026-08-09, steward — see DONE).** There is ONE list now
   (`STUDIO_WS_STORE`); Admin's card is a view over it; the legacy `studio-admin-backends` rows
   migrated additively with nothing dropped (including Firebase entries, which have no `cfg.url`
   and which the workspace store's old validity rule would have deleted). Both surfaces are still
@@ -14567,8 +14638,12 @@
   data pack, it is the strongest first impression, and it is one folder), and leave Conservation
   opt-in. But this is Kevin's call, not a default to assume.
 
-- **N36 ★ [2pt] — Admin says "Backends" for the same thing the rest of the app calls a
-  workspace — and keeps a SECOND, separate list of them.** Kevin, 2026-08-09, on the Admin card:
+- ~~**N36 ★ [2pt] — Admin says "Backends" for the same thing the rest of the app calls a
+  workspace — and keeps a SECOND, separate list of them.**~~ ✓ **SHIPPED — this is the ORIGINAL
+  text of the item struck above, separated from it by N40/N41 at some earlier edit rather than
+  minted twice (one ID, one item; `docs/BACKLOG.md` says an ID is never reused, and this is not a
+  reuse). Both slices are done — see the struck entry above and DONE. The next grooming pass
+  archives the two together.** Kevin, 2026-08-09, on the Admin card:
   *"I wonder if in Admin you should be referring to this as workspace not backend also."*
   **He is right about the word, and the word is the smaller half of it.** Measured:
   - Admin → **Backends** (`backendsCardHtml`, `app/studio.js:9045-9071`) keeps its rows in
