@@ -135,6 +135,46 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N42 — the Data pane follows the canvas selection: pick a View, its dataset rings
+  (v953, no sw bump, 2026-08-09, steward; dev branch; est 1pt, took 1):** the first ready item in
+  ▶ NOW (N31 is ⛔ on Kevin; N35/N37/N34/N33a/N32 are struck). Kevin's report — *"if you select a
+  panel you should see the dataset selected/highlighted on the left for the panel… so you can
+  [tell] which one from the list"* — was exactly right about the mechanism: the ring already
+  existed and only ever asked one question.
+  - **What was actually one condition short.** The item cites `buildWorkspaceDatasets`; measured,
+    the line lives in `myDACard()` (`app/studio.js`), the card for the dashboard's own data
+    accesses — `S.selection.kind === "da" && S.selection.id === da.id`. Selecting a View sets
+    `{kind:"panel", id}` and a KPI sets `{kind:"kpi", index}`, neither of which that test can
+    ever match, so the pane stayed dark for the selection a user actually makes while building.
+  - **One answer, used from both ends.** `selectedDaId()` resolves the current selection to a
+    data access — `da` directly, `panel` via `chart.da`, `kpi` via `k.da`, everything else to
+    null — and BOTH the build-time class and the live repaint call it, so a card rebuilt
+    mid-session cannot disagree with one already on screen. `selectedWsDatasetId()` follows the
+    `datasetId` link `dsToDA` leaves behind, so the shared **Datasets** group answers the same
+    question rather than staying dark beside the dashboard's own copy of the same dataset.
+  - **Why not `buildLibrary()`, which the item suggested.** It rebuilds the whole pane — scroll
+    position, search box, every group's open state — and selection changes on every click in the
+    canvas. `highlightLibrarySelection()` walks the cards already rendered instead (found by new
+    `data-da-id` / `data-ws-ds` attributes) and toggles the one class.
+  - **Both "details" from the item, deliberately.** A View with no bound dataset (annotation, or
+    an unbound chart) rings NOTHING rather than falling back to the first card. And because a
+    highlight you cannot see is only half an answer, `revealLibCard()` opens the ancestor group
+    **without persisting it** — this is a peek driven by the canvas, not the user's own collapse
+    choice, so their layout returns on the next rebuild — and scrolls only when the card is
+    genuinely out of view, so clicking from View to View never yanks the pane about.
+  - **Verified.** Dev gate green in the foreground on the finished tree: `tools/validate.mjs`,
+    `tools/changelog-check.js`, `tools/doc-truth.mjs`, `tools/dev-smoke.mjs` (marketing + app +
+    docs, desktop + 390px, zero pageerrors). Six new suite checks, all green, and they drive the
+    **real user path** — clicking a row in the dashboard inspector's Panels/KPI-tiles lists runs
+    the same `select()` the canvas and the preview iframe call, and Escape (Studio's own
+    shortcut) is what clears it: the ring lands on the View's own dataset, MOVES rather than
+    accumulates on the next click, answers for a KPI, rings nothing for an unbound View, opens a
+    collapsed group far enough for the card to have a box on screen, and clears on deselect.
+  - **`sw.js` deliberately NOT bumped**, following #630's precedent that issue #631 endorses: the
+    precache LIST is unchanged (`app/studio.js`, `js/changelog.js` and `docs/index.html`'s
+    runtime-cached page are all already accounted for) and the fetch handler is network-first,
+    which is `sw.js`'s own stated rule for when a bump is required. Files: app/studio.js,
+    tests/run.js, js/changelog.js (+head), docs/index.html, STATUS.md.
 - **N36 slice 1 — Admin's backend list and the sign-in screen's workspace list are ONE store
   (v952, sw v543, 2026-08-09, steward; dev branch; est 2pt for the whole item, slice 1 took 1):**
   the convergence Kevin decided (*"converge on the workspace store so it's better, yes? that's
@@ -13986,8 +14026,11 @@
   goes; if they are just the packs by another name, they go with it. Also decide what happens
   to a workspace where someone had it OFF: uninstalling their packs on their behalf would be a
   data surprise, so prefer leaving pack state alone and simply removing the global mask.
-- **N42 ★ [1pt] — select a panel in the dashboard builder and its dataset is not highlighted in
-  the Data pane on the left.** Kevin, 2026-08-09, in the builder with a panel selected: *"if you
+- ~~**N42 ★ [1pt] — select a panel in the dashboard builder and its dataset is not highlighted in
+  the Data pane on the left.**~~ ✓ **SHIPPED v953, no sw bump (2026-08-09, steward — see DONE).**
+  Both of the item's "two details" shipped as written, and the fix reaches one surface the item
+  did not name: a KPI names its dataset the same way, so it rings the same card.
+  *(Original text kept until the next grooming pass archives it.)* Kevin, 2026-08-09, in the builder with a panel selected: *"if you
   select a panel you should see the dataset selected/highlighted on the left for the panel… so
   you can [tell] which one from the list."*
   **The mechanism already exists and is one condition short.** `buildWorkspaceDatasets`

@@ -6,6 +6,19 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 953,
+    title: 'Pick a View in the builder and its dataset lights up in the Data panel',
+    kind: 'polish',
+    ts: '2026-08-09T23:41:25.000Z',
+    items: [
+      'The dashboard builder never told you where a View got its data. The Data panel on the left already ringed a dataset card when you clicked the card itself — but selecting the View on the canvas, which is what you actually do while building, left the whole list dark. On a dashboard with half a dozen queries behind similarly-named charts, the only way to answer "which one is this?" was to open the Inspector and read the name.',
+      'Now selecting a View rings the dataset it reads from, and selecting a KPI does the same. It is the same ring the panel has always used for a dataset you clicked directly, so there is no new visual language to learn — the highlight simply follows the canvas as you click from View to View.',
+      'A highlight you cannot see would only be half an answer, so if the card sits in a collapsed group the panel opens it, and if it is scrolled out of sight the panel scrolls it into view — but only when it genuinely is out of view, so clicking around a dashboard never yanks the list about. Your own collapse choices come back the next time the panel rebuilds.',
+      'A View with no query behind it — an annotation, or a chart you have not bound yet — highlights nothing at all rather than pointing at the first card in the list.',
+      'Six checks hold it: that a selected View rings exactly its own dataset, that the ring moves with the selection instead of accumulating, that a KPI answers the same way, that an unbound View rings nothing, that a collapsed group opens far enough for the card to be visible, and that deselecting clears the ring.',
+    ],
+  },
+  {
     v: 952,
     title: 'Registered backends and saved workspaces are one list, not two',
     kind: 'fix',
