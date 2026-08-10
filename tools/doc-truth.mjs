@@ -7914,6 +7914,147 @@ if (kitLive) {
   }
 }
 
+/* ── 71. the VIEWER's own top bar vs the chapter that documents it ───────────────────────
+   N7, and the CHROME of the app's second page. Checks 16–21 hold the builder's chrome, 49 the
+   app bar, 69 Home — every one of them inside app/index.html. `app/viewer.html` is a second,
+   standalone document, and the one thing ever read from it was the export MENU (check 37, whose
+   rule (c) holds this chapter's format list in the missing direction). The BAR around that menu
+   — its buttons, its badge, and what a phone does to both — answered to nothing.
+
+   Measured 2026-08-10, before the fix:
+   · **Help named an "Edit in Studio" button. The bar renders "Edit in Dashboard Builder".**
+     Not a paraphrase — the label was RENAMED in a67d30c ("LIVE-a slice 2: sweep remaining
+     Explore/Studio strings to Quick Views/Dashboard Builder"), which swept the app and left
+     the Help page behind. The sentence had been written with the button itself, in d73dc81
+     (LF23 slice 2), and was true the day it landed. Its two neighbours, **Save a copy** and
+     **Export**, are still right, which is exactly what makes a stale third one expensive: the
+     reader has no reason to doubt the list.
+   · **The chapter documented the bar in the desktop's terms only.** `app/studio.css`'s
+     `@media(max-width:640px)` block drops the "Viewer — read-only" badge outright and hides
+     every `.viewer-btn-txt` label plus the export caret, so on a phone the three actions are
+     icons alone and the badge that tells you the page is read-only is gone. Help has a whole
+     `#phone-more` chapter for the BUILDER's toolbar (check 21) and gave the viewer nothing —
+     and the viewer is the route a reader is most likely to open on a phone, because it is the
+     one you send someone in a link.
+
+   Sources of truth, all app-side: `app/viewer.html`'s `#viewerBar` — the labelled controls it
+   REVEALS (`hidden` in the markup, un-hidden by viewer.js once the dashboard loads), the badge's
+   own text, and the export menu's `data-exp` items — plus the phone band read off
+   `app/studio.css`'s own media query rather than a number kept here. Four rules:
+   (a) the actions list names every revealed control, by the label the bar prints, and no other
+       — the FIRST <strong> in each <li> is the control that bullet documents, so the role words
+       later in a bullet cannot satisfy or fail it (check 68/69's scoping idiom);
+   (b) the phone paragraph names the real band, the badge the band drops, and every action whose
+       label it hides;
+   (c) the export menu's items, both directions, inside their own span — check 37 (c) already
+       asks that none go UNNAMED; this adds the negative half (the check-24→28 move, one
+       direction over) in a span of its own, so the paragraph's own bolded "Export" and the
+       prose around it can neither satisfy nor fail it;
+   (d) the "no ⋯ menu here" claim answers to viewer.html — the day the viewer grows one, the
+       sentence sending readers to the builder's must go with it. */
+{
+  const viewerHtml = read("app/viewer.html");
+  const barAt = viewerHtml.indexOf('<div id="viewerBar">');
+  const bar = barAt < 0 ? "" : viewerHtml.slice(barAt, viewerHtml.indexOf('<div id="viewerStage">', barAt));
+
+  // The bar's own controls. A control is an ACTION here if the markup ships it `hidden` —
+  // viewer.js reveals it once the dashboard (and, for Edit, the account's role) checks out.
+  // That is the structural difference between the three actions and the always-there back
+  // link, so the split is derived rather than a list kept beside them.
+  const barControls = [...bar.matchAll(/<(?:button|a) id="(viewer\w+)"([^>]*)>[\s\S]*?<span class="viewer-btn-txt">([^<]+)<\/span>/g)]
+    .map((m) => ({ id: m[1], revealed: /\shidden\b/.test(m[2]), label: m[3].trim() }));
+  const barActions = barControls.filter((c) => c.revealed).map((c) => c.label);
+  const barBadge = ((bar.match(/<span class="viewer-badge">([^<]+)<\/span>/) || [, ""])[1]).trim();
+  const exportItems = [...bar.matchAll(/data-exp="\w+"><span data-ic="[\w-]+"><\/span>([^<]+)</g)]
+    .map((m) => m[1].trim());
+
+  // The phone band the viewer bar really collapses at, found by the rule that drops the badge
+  // rather than by matching a width — so a re-banded stylesheet re-bands the check with it.
+  const viewerPhone = (() => {
+    const css = read("app/studio.css");
+    const at = /@media\s*([^{]*)\{/g;
+    let m;
+    while ((m = at.exec(css))) {
+      let depth = 1, i = at.lastIndex;
+      for (; i < css.length && depth; i++) { if (css[i] === "{") depth++; else if (css[i] === "}") depth--; }
+      const block = css.slice(at.lastIndex, i - 1).replace(/\/\*[\s\S]*?\*\//g, "");
+      if (!/\.viewer-badge\s*\{[^}]*display\s*:\s*none/.test(block)) continue;
+      const hides = [...block.matchAll(/([^{}]+)\{([^{}]*)\}/g)]
+        .filter((r) => /display\s*:\s*none/.test(r[2]))
+        .flatMap((r) => r[1].split(",").map((s) => s.trim()));
+      return { band: (m[1].match(/max-width:\s*(\d+)px/) || [, null])[1], hides };
+    }
+    return null;
+  })();
+
+  const deV = (s) => s.replace(/&amp;/g, "&").replace(/&nbsp;/g, " ").replace(/\s+/g, " ").trim();
+  const blockById = (id, tag) => (help.match(new RegExp(`<${tag} id="${id}"[^>]*>([\\s\\S]*?)</${tag}>`)) || [, null])[1];
+
+  // The premise reads the APP only. The three anchors below are part of this slice, and gating
+  // on them would have let the pre-fix page pass in silence (check 70's split, same reason).
+  const viewerPremise = ok(`app/viewer.html + app/studio.css: the viewer's top bar parsed for check 71 ` +
+    `(actions: ${barActions.join(" · ") || "(none)"}; badge: ${JSON.stringify(barBadge)}; ` +
+    `${exportItems.length} export format(s); phone band: ${viewerPhone ? viewerPhone.band + "px" : "(unparsed)"})`,
+    barActions.length >= 3 && !!barBadge && exportItems.length >= 3 &&
+      !!viewerPhone && !!viewerPhone.band && viewerPhone.hides.includes(".viewer-btn-txt"),
+    `controls: ${barControls.map((c) => `${c.label} (#${c.id}${c.revealed ? ", revealed" : ""})`).join(" · ") || "(unparsed)"}\n      ` +
+    `export menu: ${exportItems.join(" · ") || "(unparsed)"}\n      ` +
+    `phone block hides: ${viewerPhone ? viewerPhone.hides.join(" · ") : "(no @media drops .viewer-badge)"}`);
+
+  if (viewerPremise) {
+    // (a) the actions list — the drift was here, and in both directions at once.
+    const actsBlock = blockById("viewer-bar-actions", "ul");
+    const actsSaid = actsBlock === null ? null
+      : [...actsBlock.matchAll(/<li>([\s\S]*?)<\/li>/g)]
+        .map((m) => (m[1].match(/<strong>([\s\S]*?)<\/strong>/) || [, ""])[1])
+        .map(deV).filter(Boolean);
+    ok(`docs/index.html: #viewer-bar-actions names the ${barActions.length} action(s) the viewer's bar renders, by their own labels`,
+      !!actsSaid && !barActions.filter((a) => !actsSaid.includes(a)).length &&
+        !actsSaid.filter((a) => !barActions.includes(a)).length,
+      actsSaid === null ? "docs/index.html has no <ul id=\"viewer-bar-actions\"> — the viewer's bar is documented nowhere a check can read"
+        : `on the bar, not documented: ${barActions.filter((a) => !actsSaid.includes(a)).join(", ") || "(none)"}\n      ` +
+          `documented, not on the bar: ${actsSaid.filter((a) => !barActions.includes(a)).join(", ") || "(none)"}\n      ` +
+          "these are the words printed on the buttons — a renamed one outlives its rename in a reader's head");
+
+    // (b) the phone half. Every action carries a .viewer-btn-txt, so the band that hides that
+    // class hides all three labels; the badge goes entirely.
+    const phoneBlock = blockById("viewer-bar-phone", "p");
+    const phoneTxt = phoneBlock === null ? null : deV(phoneBlock.replace(/<[^>]+>/g, " "));
+    const phoneMissing = phoneTxt === null ? [] : [
+      ...(phoneTxt.includes(viewerPhone.band + "px") ? [] : [`the band (${viewerPhone.band}px)`]),
+      ...(phoneTxt.includes(barBadge) ? [] : [`the badge it drops (${barBadge})`]),
+      ...barActions.filter((a) => !phoneTxt.includes(a)).map((a) => `the label it hides (${a})`),
+    ];
+    ok(`docs/index.html: #viewer-bar-phone states what the ${viewerPhone.band}px band does to the viewer's bar`,
+      phoneTxt !== null && !phoneMissing.length,
+      phoneTxt === null ? "docs/index.html has no <p id=\"viewer-bar-phone\"> — the chapter documents the bar in the desktop's terms only, "
+        + `while app/studio.css drops ${viewerPhone.hides.join(" + ")} below the band`
+        : `not stated: ${phoneMissing.join("; ")}\n      ` +
+          "the viewer is the route you send someone in a link, so it is the one most often opened on a phone");
+
+    // (c) the formats, both directions, in their own span.
+    const fmtBlock = blockById("viewer-export-formats", "span");
+    const fmtSaid = fmtBlock === null ? null
+      : [...fmtBlock.matchAll(/<strong>([\s\S]*?)<\/strong>/g)].map((m) => deV(m[1]));
+    ok(`docs/index.html: #viewer-export-formats names the ${exportItems.length} format(s) the viewer's Export menu offers, and no others`,
+      !!fmtSaid && !exportItems.filter((f) => !fmtSaid.includes(f)).length &&
+        !fmtSaid.filter((f) => !exportItems.includes(f)).length,
+      fmtSaid === null ? "docs/index.html has no <span id=\"viewer-export-formats\">"
+        : `in the menu, not named: ${exportItems.filter((f) => !fmtSaid.includes(f)).join(", ") || "(none)"}\n      ` +
+          `named, not in the menu: ${fmtSaid.filter((f) => !exportItems.includes(f)).join(", ") || "(none)"}\n      ` +
+          "the builder's own Export menu is check 37's — this is the shorter list the viewer really has, " +
+          "and the stray half is the direction check 37 (c) leaves open");
+
+    // (d) the negative half of (b): the sentence that sends a phone reader to the BUILDER's
+    // ⋯ More is only safe while this page has no ⋯ of its own.
+    const viewerHasMore = /id="menuMore"|⋯/.test(bar);
+    ok("app/viewer.html: the viewer's bar still has no ⋯ More menu, as #viewer-bar-phone tells readers",
+      !viewerHasMore,
+      "the bar grew a ⋯ menu — #viewer-bar-phone's \"the viewer has no ⋯ menu at all\" is now wrong, " +
+      "and check 21's route rules apply to this page too");
+  }
+}
+
 console.log(failed ? `\n✗ doc-truth: ${failed} claim(s) have drifted from the source of truth`
   : "\n✅ doc-truth: every published claim matches the source it describes");
 process.exit(failed ? 1 : 0);

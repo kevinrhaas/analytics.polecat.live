@@ -135,6 +135,57 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N7 — the viewer's own top bar vs the chapter that documents it (v983, NO sw bump,
+  2026-08-10, steward; dev branch; est 1pt, took 1 — ON estimate):** 🔁 N7 was again the only
+  takeable item in ▶ NOW (N31, N44, N41 and N25 all ⛔ on Kevin; SP-1 ⏳ on `hold` PR #689) and
+  v982 left no candidate standing, so this pass went looking for a SURFACE the family had never
+  read rather than another chapter of the one it had. It found a whole page: every chrome check
+  in this family — 16–21 (the builder), 49 (the app bar), 69 (Home) — lives inside
+  `app/index.html`, and `app/viewer.html` is a second standalone document with its own top bar.
+  The only thing ever read from it was the export MENU (check 37).
+  **Measured: Help named an `Edit in Studio` button; the bar renders `Edit in Dashboard
+  Builder`.** Not a paraphrase — `git log -S` dates the rename to **a67d30c** *("LIVE-a slice 2:
+  sweep remaining Explore/Studio strings to Quick Views/Dashboard Builder")*, which swept the app
+  and left the Help page behind; the sentence itself was written with the button in **d73dc81**
+  (LF23 slice 2) and was true the day it landed. Its two neighbours, **Save a copy** and
+  **Export**, are still correct, which is what makes a stale third one expensive — nothing in the
+  list looks wrong. The page's only other `Edit in Studio` hits are CODE COMMENTS
+  (`app/studio.js:566`, `app/viewer.js:71`, `app/studio.css`'s LF23 block); they are precached
+  files, so per the standing convention they belong to whichever slice next opens them for a real
+  reason, not to a docs pass.
+  **The second half, and the reason it earned a chapter rather than a one-word fix:** the
+  chapter documented the bar in the DESKTOP's terms only. `app/studio.css`'s
+  `@media(max-width:640px)` block drops the `Viewer — read-only` badge outright and hides every
+  `.viewer-btn-txt` label plus the export caret, so on a phone the three actions are icons alone
+  and the badge that tells you the page is read-only is gone. Help has a whole `#phone-more`
+  chapter for the BUILDER's toolbar (check 21) and gave the viewer nothing — and the viewer is
+  the route most likely to be opened on a phone, because it is the one you send someone in a
+  link. New `#viewer-bar` chapter: the bar left to right (back link, title, badge, the three
+  actions in the order it prints them), then `#viewer-bar-phone` for the band, including that
+  the viewer has no ⋯ menu at all so a reader is not sent hunting for the builder's.
+  **Doc-truth check 71**, one premise (app-side only — gating it on the new anchors would have
+  let the pre-fix page pass in silence, check 70's split for the same reason) + four rules:
+  (a) the actions list names every control the bar REVEALS — `hidden` in the markup, un-hidden by
+  viewer.js — by the label it prints, both directions, reading the FIRST `<strong>` in each
+  `<li>` so the role words later in a bullet can neither satisfy nor fail it; (b) the phone
+  paragraph names the real band, the badge it drops and every label it hides, with the band read
+  off the media query that drops the badge rather than typed into the check; (c) the export
+  formats both ways in a span of their own — check 37 (c) already asks that none go UNNAMED, so
+  this is the negative half, the check-24→28 move one direction over; (d) the "no ⋯ menu here"
+  claim answers to `viewer.html`. **3 of 4 rules fail on the real pre-fix tree**, and seven
+  code-side directions were measured on mutated trees (the label renamed on either side, the
+  band re-banded 640→600, the badge text changed, a fourth export format, a ⋯ menu added to the
+  bar, and a format the menu does not have) — each failing its own rule and only its own.
+  **Measured in the same pass and NOT taken, so the next run does not re-derive it:** the Jobs
+  chapter was audited against `Studio.JOB_STEP_KINDS`, `Studio.JOB_AGG_FNS`, `Studio.filterOps`'
+  operator list and its 15 relative RANGES, and the dynamic-token chapter against
+  `WS.dynamicParam` + `DATE_TOKENS` — **all CURRENT, nothing to fix**, which is why this slice
+  went to the viewer instead. One thing that surfaced there is code, not copy, so it is NOT N7's:
+  `WS.dynamicParam` builds every date from the reader's LOCAL calendar (`getFullYear`/`getMonth`)
+  while the filter engine two files over documents and implements UTC on both sides
+  (`app/model.js`'s AUD-06 slice 4 block) — so `{{today}}` and a date filter can disagree by a
+  day near midnight for a reader outside UTC. Real, small, and a behaviour decision rather than a
+  wording one.
 - **N7 — the keyboard chords Help prints OUTSIDE its shortcuts table (v982, NO sw bump,
   2026-08-10, steward; dev branch; est 1pt, took 1 — ON estimate):** 🔁 N7 was again the only
   takeable item in ▶ NOW (N31, N44, N41 and N25 all ⛔ on Kevin; SP-1 ⏳ on `hold` PR #689), and
@@ -17118,6 +17169,31 @@
     spells the palette chord three ways (`⌘K`, `Ctrl-K`, `Ctrl K`), all resolving to the same real
     chord — house style, not drift, and the loop does not make editorial calls for Kevin. The two
     v922 candidates are still open and still Kevin's calls.
+  * *The viewer's own top bar vs the chapter that documents it — v983, NO sw bump (2026-08-10 —
+    see DONE).* No candidate was standing again, so this pass went looking for a SURFACE the
+    family had never read rather than another chapter of the one it had — and found a whole page.
+    Every chrome check here (16–21 the builder, 49 the app bar, 69 Home) reads `app/index.html`;
+    `app/viewer.html` is a second standalone document and the only thing ever read from it was
+    its export MENU (check 37). **Help named an `Edit in Studio` button and the bar renders
+    `Edit in Dashboard Builder`** — renamed in **a67d30c** (LIVE-a slice 2's Explore/Studio
+    sweep), which swept the app and left this page behind, while its two neighbours **Save a
+    copy** and **Export** stayed correct, so nothing in the list looked wrong. **And the chapter
+    was desktop-only:** at ≤640px `app/studio.css` drops the `Viewer — read-only` badge and hides
+    every `.viewer-btn-txt`, so the three actions are icons alone on the route people are most
+    likely to open on a phone. New `#viewer-bar` + `#viewer-bar-phone` chapters. Doc-truth
+    **check 71**: one app-side premise + four rules (the revealed controls both ways by the
+    label they print; the band/badge/labels the phone drops, with the band read off the media
+    query itself; the export formats' NEGATIVE half, which check 37 (c) leaves open; and the
+    "no ⋯ menu here" claim held to `viewer.html`). 3 of 4 rules failed on the real pre-fix tree;
+    seven code-side directions measured on mutated trees.
+    **Measured in the same pass and NOT taken, so the next run does not re-derive them:** the
+    Jobs chapter (all nine `JOB_STEP_KINDS`, all five `JOB_AGG_FNS`, all nine `filterOps` and all
+    15 relative RANGES) and the dynamic-token chapter (`WS.dynamicParam` + `DATE_TOKENS`) were
+    both audited and are **CURRENT** — which is why this slice went to the viewer. The one thing
+    that surfaced there is **code, not copy, so it is not N7's**: `WS.dynamicParam` builds every
+    date from the reader's LOCAL calendar while the filter engine documents and implements UTC on
+    both sides, so `{{today}}` and a date filter can disagree by a day near midnight outside UTC.
+    The two v922 candidates are still open and still Kevin's calls.
 
 > **📋 RECORDED FOR KEVIN, NOT PROMOTED — grooming pass 4, 2026-08-10.** This sits BELOW the queue
 > on purpose: `docs/BACKLOG.md` says the loop never promotes into ▶ NOW on its own, and pass 2's

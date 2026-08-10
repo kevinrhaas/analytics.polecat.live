@@ -6,6 +6,18 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 983,
+    title: 'Help sent you looking for a viewer button that was renamed months ago',
+    kind: 'fix',
+    ts: '2026-08-10T21:10:35.000Z',
+    items: [
+      'The read-only dashboard viewer\'s purple button is <b>Edit in Dashboard Builder</b>. Help called it <b>Edit in Studio</b> — the name it had until the app-wide Explore/Studio rename swept every screen and missed this page. Its two neighbours, <b>Save a copy</b> and <b>Export</b>, were right, which is what made the third one expensive: nothing in the list looked wrong.',
+      'The viewer\'s top bar now has a chapter of its own, so all of it is documented rather than the two buttons that happened to get a sentence: the back link, the dashboard title, the <b>Viewer — read-only</b> badge, and the three actions in the order the bar prints them.',
+      'It also says what a phone does to that bar. At 640px and narrower the badge is dropped and every button loses its text, so the three actions are icons alone — each keeping its name as a tooltip and a screen-reader label. The viewer has no <b>⋯ More</b> menu; that is the builder\'s toolbar, and the page now says so instead of leaving a reader to hunt for one.',
+      'A new doc-truth check reads the viewer page\'s own bar — the controls it reveals, the badge text, the export menu, and the phone band read off the stylesheet rather than typed here — and holds the chapter to all of it in both directions. A renamed button, a re-banded breakpoint, a dropped badge or an invented export format now fails the dev gate.',
+    ],
+  },
+  {
     v: 982,
     title: 'Help told you to press a key combination the builder has never had',
     kind: 'fix',

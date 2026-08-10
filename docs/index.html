@@ -652,15 +652,31 @@
     <li>A private dashboard's viewer link only works for its owner (or an admin).</li>
     <li>A <strong>viewer</strong>-role account clicking any dashboard lands here directly — the
       builder isn't open to them at all.</li>
+  </ul>
+  <h4 id="viewer-bar">The viewer's top bar</h4>
+  <p>Left to right it carries a back link to <strong>Analytics</strong>, the dashboard's title, a
+  <strong>Viewer — read-only</strong> badge that says plainly what this page is, and these
+  actions:</p>
+  <ul id="viewer-bar-actions">
     <li><strong>Save a copy</strong> (offered to everyone, viewers included) forks the dashboard
       into a brand-new one you own, without touching the original.</li>
-    <li>A <strong>developer</strong> or <strong>admin</strong> also gets an <strong>Edit in
-      Studio</strong> button that jumps straight into the builder on that exact dashboard.</li>
+    <li><strong>Export</strong> (also offered to everyone) downloads what you are looking at — the
+      three formats are below.</li>
+    <li><strong>Edit in Dashboard Builder</strong> — a <strong>developer</strong> or
+      <strong>admin</strong> also gets this button, which jumps straight into the builder on that
+      exact dashboard. A viewer-role account never sees it.</li>
   </ul>
-  <p id="viewer-export">The viewer's top bar also has an <strong>Export</strong> button (available
-  to everyone) offering three of the formats Studio does: <strong>Dashboard (.html)</strong> — a
+  <p id="viewer-bar-phone"><strong>On a phone the bar goes icon-only.</strong> At
+  <strong>640px</strong> and narrower the bar has no room for all of that, so the
+  <strong>Viewer — read-only</strong> badge is dropped and every button loses its text label —
+  Save a copy, Export and Edit in Dashboard Builder become their icons alone, each keeping its
+  name as its tooltip and its screen-reader label. Nothing moves into <strong>⋯ More</strong>
+  here: that is the builder's toolbar (<a href="#phone-more">the toolbar lives in ⋯ More</a>),
+  and the viewer has no ⋯ menu at all.</p>
+  <p id="viewer-export">That <strong>Export</strong> button offers three of the formats Studio
+  does: <span id="viewer-export-formats"><strong>Dashboard (.html)</strong> — a
   self-contained file you can drop on any static host or open offline — <strong>PDF (print)</strong>,
-  and the <strong>editable spec (.json)</strong>. The office formats and the bundle are the
+  and the <strong>Editable spec (.json)</strong></span>. The office formats and the bundle are the
   builder's Export ▾ menu only (see "Exporting" below). A sample or demo dashboard exports with its data baked in,
   so the download is complete on its own; a dashboard backed by a real data source keeps querying
   that source live, in the viewer and in the exported file alike.</p>
