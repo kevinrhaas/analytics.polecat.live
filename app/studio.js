@@ -7492,7 +7492,17 @@
     isDatasetVisibleToMe: function (r) { return isDatasetVisibleToMe(r); },
     makeViewsStore: function (settingsKey) { return makeViewsStore(settingsKey); },
     makePinToggle: function (table, rerender) { return makePinToggle(table, rerender); },
-    runDataset: function (d, extraParams) { return runDataset(d, extraParams); }
+    runDataset: function (d, extraParams) { return runDataset(d, extraParams); },
+    // N43b — the dashboard open in the builder right now, for the save guard's
+    // blast-radius count. It may never have been saved (N43a made this editor
+    // reachable from a live canvas), so the workspace scan alone would miss the
+    // one dashboard the person is actually looking at. Its `id` is the same id
+    // its saved row carries (saveDashboardEntry writes entry.id = S.spec.id), so
+    // dsxBindings dedupes an open-and-saved dashboard to one.
+    openSpecBindings: function () {
+      if (!S.spec || !S.spec.cda) return null;
+      return { spec: S.spec, id: S.spec.id || "", name: S.spec.title || S.spec.name || "the dashboard you have open" };
+    }
   }));
 
   /* ---------- Jobs (Viridis V8: data-management-lite) — moved to app/jobs.js

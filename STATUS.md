@@ -135,6 +135,64 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N43b — a save that could break a dashboard says so before it lands, and proves itself in one
+  tap (v957, sw v547, 2026-08-10, steward; dev branch; est 1pt, took 1):** the first ready item
+  in ▶ NOW (N31 is ⛔ on Kevin; N35/N37/N34/N33a/N33b/N32/N42/N43a are struck). The item posed a
+  genuine either/or and required a deliberate answer.
+  - **The decision: (a), warn-and-confirm — and the reason is N43a, not caution.** Before N43a
+    this editor was reached from the Datasets catalog, where going there was itself a statement
+    of intent. N43a put it one click from a canvas, so the person rewriting a query now routinely
+    has no idea what *else* reads it. This is the one moment the app knows both facts at once —
+    *this was never proven to run* and *four panels depend on it* — and staying silent there is
+    the failure Kevin's report is about. Option (b) alone ("let the panel surface it later") is
+    the right answer for a dashboard you open next week and the wrong one for the dashboard open
+    behind the modal.
+  - **It is a warning, not a block, and that is the other half of the decision.** There are honest
+    reasons to save SQL you cannot run right now — credentials on another machine, a warehouse
+    that is down — and this app is local-first with the user as the authority. **Save anyway** is
+    a real override, not a dare. What the guard refuses to be is *silent*; it does not refuse to
+    get out of the way.
+  - **It fires only when all three are true**, which is what keeps it from becoming a nag: the
+    definition CHANGED, something is bound to it, and what is being saved was never proven.
+    `dsxDefFingerprint` is the first of those and is deliberately narrow — the query, the
+    connection it runs against, parameter defaults, a PostgREST table, a file's identity — so
+    renaming, refiling, retagging or re-describing a dataset passes straight through untouched.
+    "Proven" means a *successful Preview of exactly this definition*: edit the SQL after a green
+    Preview and the proof lapses with it.
+  - **The loop the item called cheap-once-settled, shipped in the same slice.** **Preview, then
+    save** runs the query and, on rows, completes the save the user already asked for — one tap,
+    not "close this and press the other button". On failure it stays put with the error in front
+    of you. That is the item's "Run live could re-run straight from the editor's rows" reading of
+    the loop, done at the moment it is actually wanted.
+  - **The blast radius counts the dashboard you have open, even unsaved.** `dsxBindings` scans
+    panels (`chart.da`) and KPIs (`k.da`) across every saved dashboard AND the live builder spec
+    through a new `openSpecBindings` dep, deduped by spec id so an open-and-saved dashboard is
+    one dashboard. Without the open spec the guard would have been blind in exactly the case
+    N43a created — measured: the suite's own N43 dashboard is never saved, and the guard sees it
+    only that way.
+  - **A mobile defect caught by measuring rather than assuming.** The editor is a tall scrolling
+    form and the guard sits at its foot: probed at 390×780 it rendered **entirely below the
+    fold**, so pressing Save looked like pressing nothing — a warning you cannot see is the same
+    as no warning. It now scrolls itself into view, takes focus and carries `role="alert"` (the
+    same problem in screen-reader form), with three full-width ≥38px targets. Two suite checks
+    hold the property by geometry — in-view, focused, and each action hit-testing to itself —
+    not by the CSS existing.
+  - **Verified.** The whole dev gate green in the foreground on the finished tree —
+    `tools/validate.mjs`, `tools/changelog-check.js`, `tools/doc-truth.mjs`, `tools/dev-smoke.mjs`
+    (390×780 and desktop) — plus the N43 suite block run standalone against the suite's own
+    server, boot and zero-pageerror rules at **both 1500×1040 and 390×780: 31 passed / 0 failed,
+    zero pageerrors**, which is all 18 new N43b checks and the 12 pre-existing N43a ones still
+    green beside them. **Said plainly: the FULL `tests/run.js` was not run end to end in this
+    slice** — it exceeds the 10-minute foreground command budget this loop runs under, and the
+    full suite is the STAGE gate (`promote-to-stage.yml`), not the dev gate. Merging to dev is
+    exactly what schedules it.
+  - **One existing check changed WITH the contract rather than being relaxed.** N43a's
+    end-to-end save was, by construction, precisely this slice's warning case — a changed,
+    never-previewed query on a dataset a live panel is bound to. It now asserts the guard appears
+    AND that nothing has been written yet, then overrides it and re-asserts every original
+    outcome unchanged. Strictly stronger than the old "click Save, expect it saved".
+  - **Help** (`docs/index.html`, "Using catalog queries") gained the warning, what each of its
+    three actions does, and the list of saves that are never questioned.
 - **N33b — the View Builder edits the trend line, and holds a Quadrant (v956, sw v546,
   2026-08-10, steward; dev branch; est 1pt, took 1):** the first ready item in ▶ NOW — N31 is ⛔
   on Kevin, and N33b sits above N43b as the remaining half of the split N33a left behind. It had
@@ -14207,7 +14265,16 @@
   on save, through `dsToDA` itself so the two cannot drift, while `da.id`/`da.name` stay put so
   nothing on the canvas is renamed or unbound. Stale cached rows are dropped, and a column the new
   query no longer returns is named in the toast.
-- **N43b ★ [1pt] — what remains: the loop, and what "test" means for a bound dataset.** N43a
+- ~~**N43b ★ [1pt] — what remains: the loop, and what "test" means for a bound dataset.**~~
+  ✓ **SHIPPED v957, sw v547 (2026-08-10, steward — see DONE).** The item's own either/or was
+  answered rather than dodged: **(a), warn-and-confirm** — and its "cheap once (a) or (b) is
+  settled" follow-on shipped in the same slice as **Preview, then save**, one tap that runs the
+  query and completes the save. What the item measured as "let the panel surface it after the
+  fact" is deliberately NOT what shipped, and the DONE entry says why. One part of (b) remains
+  worth its own item if Kevin wants it: a panel whose bound dataset last failed still says
+  nothing at rest — the DA records `lastRun`, and no surface reads it. That is a badge on the
+  panel, not this loop, so it is left unminted rather than smuggled in here.
+  *(Original text kept until the next grooming pass archives it.)* N43a
   gives you the editor and its Preview; what it does NOT do is answer the item's harder half —
   *"a failed edit must not leave the panel pointing at a broken query."* Today a save is a save:
   the editor's **Preview** is advisory, and nothing stops you saving SQL you never ran (or ran and

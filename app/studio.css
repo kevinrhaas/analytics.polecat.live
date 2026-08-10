@@ -2822,6 +2822,18 @@ body.simple-mode .da-acts{display:none!important}
 .dsx-preview th{text-align:left;color:var(--muted);font-weight:700;text-transform:uppercase;font-size:var(--fs-11);
   letter-spacing:.04em;padding:var(--sp-6) var(--sp-10);border-bottom:1px solid var(--line)}
 .dsx-preview td{padding:var(--sp-6) var(--sp-10);border-bottom:1px solid var(--line-2);color:var(--ink);font-family:var(--mono);font-size:var(--fs-12)}
+/* N43b — the save guard: a save that changed the query, on a dataset dashboards
+   are bound to, that was never proven to run. A warn strip above the footer, not
+   a modal over a modal (this editor already opens over a dashboard). The actions
+   wrap and stay full-width targets at 390×780 — a phone is a release gate. */
+.dsx-save-guard{margin-top:10px;scroll-margin-bottom:12px;outline:none;padding:var(--sp-10);border:1px solid var(--warn);border-radius:10px;
+  background:color-mix(in srgb,var(--warn) 10%,transparent);display:flex;flex-direction:column;gap:8px}
+.dsx-guard-head{display:flex;align-items:flex-start;gap:6px;color:var(--ink);font-weight:700;font-size:var(--fs-13)}
+.dsx-guard-head svg{flex:none;margin-top:2px;color:var(--warn)}
+.dsx-guard-who{color:var(--muted);font-size:var(--fs-12)}
+.dsx-guard-acts{display:flex;flex-wrap:wrap;gap:8px}
+.dsx-guard-acts .btn{min-height:38px}
+@media (max-width:520px){.dsx-guard-acts .btn{flex:1 1 100%}}
 
 /* ── Jobs section (jobs-*, Viridis V8) — a rename/cast/derive/filter/aggregate
    pipeline over one dataset; shares the cx-*/dsx-* list and wizard anatomy ── */
