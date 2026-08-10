@@ -7357,6 +7357,133 @@ if (kitLive) {
   }
 }
 
+/* ── Check 67 — the guided-tour CHOOSER vs the tours it really offers ────────
+   N7. Checks 12/13/14/19/20/22/23/24 all read INSIDE the tours — their steps, their spotlight
+   targets, their nouns. Nothing had ever read the LIST: the chooser is built from TOUR_ORDER,
+   its pack rows are gated by TOUR_GATES, and Help's account of it was written when there were
+   four general topics and one pack tour.
+   There are five general topics and FOUR pack tours now. Help's "Your first sign-in" bullet
+   listed four lowercase paraphrases — and one of them, "prepping and connecting your data",
+   silently merged the two separate walks `jobs` ("Prep data (Jobs)") and `connect`
+   ("Connections & Datasets") into a single phrase, so a reader counted four rows and the picker
+   drew five. The pack half said "plus one for your installed sample pack", singular, of a
+   chooser that adds a row per installed pack and of two engines (welcome.js's carousel and the
+   overview tour) that each splice one step PER pack.
+   The same drift reached the Sample packs chapter from the other end: Campaign Finance and
+   Where America Moved each say "The pack also carries its own guided tour", the idiom rules
+   (c)/(d) below read — and Conservation Insight and Market Coverage, which have had tours for
+   just as long, said nothing, while Federal Contract Awards and Data Management (which have
+   none) correctly said nothing either. So the page's silence meant two different things.
+   Sources of truth, all in app/tutorial.js: `TOUR_ORDER` (the chooser's own order),
+   `TOUR_GATES` (which keys are pack rows, and which pack each one really asks about), and each
+   entry's own `label:` — the string the picker prints. The premise holds the join the copy
+   depends on: a gate must ask about the pack whose key it is, and that pack must be one
+   `packRegistry` knows, or (c)/(d) would be attaching sentences to the wrong entry.
+   Rule (a) runs both directions inside `#tour-topics` — a retired tour still listed fails just
+   as loudly as a new one missing — and it reads the picker's label VERBATIM, so renaming a tour
+   moves the rule with it rather than leaving a plausible paraphrase behind. */
+{
+  const tourOrder = ((tutorialSrc.match(/var TOUR_ORDER = \[([^\]]*)\]/) || [, ""])[1]
+    .match(/"([^"]+)"/g) || []).map((s) => s.slice(1, -1));
+
+  // Which keys are PACK rows, and which pack id each gate really asks about — read from the
+  // gate's own body, not from the key, because the whole point of (c)/(d) is the join.
+  const gatesAt = tutorialSrc.indexOf("var TOUR_GATES = {");
+  const gatesBody = gatesAt < 0 ? "" : braceBlockAt(tutorialSrc, tutorialSrc.indexOf("{", gatesAt));
+  const gates = new Map();
+  for (const m of gatesBody.matchAll(/\n {4}(\w+): function[\s\S]*?demoPackInstalled\("([^"]+)"\)/g))
+    gates.set(m[1], m[2]);
+
+  // The label the chooser PRINTS for a tour — the first `label:` inside that entry's own block.
+  const tourLabel = (key) => {
+    const at = tutorialSrc.indexOf(`\n    ${key}: {`);
+    if (at < 0) return "";
+    const body = braceBlockAt(tutorialSrc, tutorialSrc.indexOf("{", at));
+    return (body.match(/label: "((?:[^"\\]|\\.)*)"/) || [, ""])[1];
+  };
+  const generalKeys = tourOrder.filter((k) => !gates.has(k));
+  const generalLabels = generalKeys.map(tourLabel);
+
+  const ents = (s) => s.replace(/&amp;/g, "&").replace(/&nbsp;/g, " ").replace(/\s+/g, " ").trim();
+  const topicsSpan = (help.match(/<span id="tour-topics">([\s\S]*?)<\/span>/) || [, ""])[1];
+  const topicNames = [...topicsSpan.matchAll(/<strong>([\s\S]*?)<\/strong>/g)].map((m) => ents(m[1]));
+  const countWord = (help.match(/picker of (\S+) topics/) || [, ""])[1] || "";
+  const claimedCount = asNumber(countWord);
+
+  const packIds = new Set(packRegistry.map((p) => p.id));
+  const tourClaim = /carries its own guided tour/i;
+
+  // (a) the premise. Everything below dereferences this parse; a renamed tour, a gate that
+  // stops naming its own pack, or a lost anchor must fail HERE rather than let a coverage
+  // rule pass over an empty string.
+  const tourPremise = ok(`app/tutorial.js: the tour chooser parsed for check 67 ` +
+    `(${tourOrder.length} tour(s): ${generalLabels.join(" · ") || "(none)"}; ` +
+    `${gates.size} gated on a pack: ${[...gates.keys()].join(", ") || "(none)"})`,
+    tourOrder.length >= 5 && generalKeys.length >= 2 && generalLabels.every(Boolean) &&
+      gates.size >= 1 && [...gates.keys()].every((k) => tourOrder.includes(k)) &&
+      [...gates.entries()].every(([k, id]) => k === id && packIds.has(id)) &&
+      !!topicsSpan && topicNames.length > 0 && claimedCount !== undefined,
+    `TOUR_ORDER: ${tourOrder.join(", ") || "(unparsed)"}\n      ` +
+    `gates (tour key → pack it asks about): ${[...gates.entries()].map(([k, id]) => `${k}→${id}`).join(", ") || "(none)"}\n      ` +
+    `registered packs: ${[...packIds].join(", ")}\n      ` +
+    `docs/index.html #tour-topics: ${topicsSpan ? topicNames.join(" | ") : "(anchor missing)"}\n      ` +
+    `"picker of N topics": ${JSON.stringify(countWord)}\n      ` +
+    "a gate keyed on one tour but asking about another pack would attach rules (c)/(d)'s " +
+    "sentence to the wrong entry, so it fails the premise rather than a rule");
+
+  if (tourPremise) {
+    // (b) every general topic is listed, and nothing else is. Both directions, because a
+    // chooser row nobody documented and a documented row the chooser dropped are the same
+    // defect seen from either end.
+    const topicMissing = generalLabels.filter((l) => !topicNames.includes(l));
+    const topicStray = topicNames.filter((t) => !generalLabels.includes(t));
+    ok(`docs/index.html: #tour-topics lists the picker's ${generalLabels.length} general topics verbatim`,
+      !topicMissing.length && !topicStray.length,
+      `offered by the chooser, not listed: ${topicMissing.join(", ") || "(none)"}\n      ` +
+      `listed, not offered: ${topicStray.join(", ") || "(none)"}\n      ` +
+      "the label is what the reader clicks — a paraphrase (\"prepping and connecting your data\" " +
+      "for two separate walks) reads fine and cannot be found in the picker");
+
+    // (c) the count beside the list. Its own claim, so a topic added to the chooser and to the
+    // list while the sentence still says "four" fails here rather than passing on (b) alone.
+    ok(`docs/index.html: "a picker of ${countWord} topics" is the ${generalLabels.length} the chooser draws`,
+      claimedCount === generalLabels.length,
+      `TOUR_ORDER has ${tourOrder.length} tour(s), ${gates.size} of them gated on an installed ` +
+      `pack, leaving ${generalLabels.length} always-visible topic(s); the copy says ${countWord}`);
+
+    // (d) a pack WITH a tour says so, in the idiom the page already uses. The gate is what
+    // puts the row in front of the reader, so the gate is what the sentence answers to.
+    const tourGaps = [];
+    for (const p of packRegistry) {
+      const item = itemFor(p)[0] && itemProse(itemFor(p)[0]);
+      if (!item) continue;                       // check 34 (a) owns "every pack has an entry"
+      if (gates.has(p.id) && !tourClaim.test(item))
+        tourGaps.push(`"${p.folder}" has a tour in the chooser, but its Help entry never says so`);
+    }
+    ok(`docs/index.html: every pack whose tour the chooser offers says so in its Help entry (${[...gates.keys()].join(", ")})`,
+      !tourGaps.length,
+      `${tourGaps.join("\n      ")}\n      ` +
+      "two of the four said it and two did not, so the page's silence meant both \"no tour\" and " +
+      "\"nobody wrote the sentence\" — which is no signal at all");
+
+    // (e) the negative half: a pack with no tour must not be sold one. Federal Contract Awards
+    // and Data Management are the live proof this rule can pass honestly.
+    const tourStray = [];
+    for (const p of packRegistry) {
+      const item = itemFor(p)[0] && itemProse(itemFor(p)[0]);
+      if (!item) continue;
+      if (!gates.has(p.id) && tourClaim.test(item))
+        tourStray.push(`"${p.folder}" claims its own guided tour, but no TOUR_GATES entry offers one`);
+    }
+    ok(`docs/index.html: no pack without a tour is documented as carrying one (${
+      packRegistry.filter((p) => !gates.has(p.id)).map((p) => p.folder).join(", ") || "(none)"})`,
+      !tourStray.length,
+      `${tourStray.join("\n      ")}\n      ` +
+      "sending a reader to ⌘K → Interactive tutorial for a row that is not there is the more " +
+      "expensive direction of this drift");
+  }
+}
+
 console.log(failed ? `\n✗ doc-truth: ${failed} claim(s) have drifted from the source of truth`
   : "\n✅ doc-truth: every published claim matches the source it describes");
 process.exit(failed ? 1 : 0);
