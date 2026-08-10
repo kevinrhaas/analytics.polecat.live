@@ -8672,6 +8672,166 @@ if (kitLive) {
   }
 }
 
+/* ── 76. the ⌘K palette's own NOUN for the thing its Add commands create ─────────────────────
+   N7. Check 75 holds the palette's WIRING — every command clicks a control that exists. This
+   holds its WORDING, and it is check 14's move one surface over: derive the internal noun and
+   the rendered one from the SAME function, then forbid the internal one where a reader reads.
+
+   Measured 2026-08-10, before the fix. LF52/LF57 made **View** the user-facing name for a
+   chart on a dashboard and swept the controls; the palette's copy was left behind, so ⌘K was
+   the last surface still offering the pre-rename word:
+   · `Add text / annotation panel` drove `#cesText`, a button whose own label reads
+     **¶ Add a text View** — the command and the control it clicks disagreed about what they
+     make, which is check 75 (c)'s failure one field over (there the label named the wrong
+     control, here it names the right control by the wrong noun);
+   · `chartTypeCommands` minted `"Add panel: " + label` for all 55 types and printed
+     **Add panel** as the family tag on every one of those rows — the single most repeated
+     string in the palette, and Help quoted it verbatim under check 61 (d), so the retired
+     noun was published as the thing to type.
+
+   Sources of truth. `addTextPanel()` in app/studio.js is the handler behind BOTH the canvas
+   ¶ button and the palette's own Add-text command, and it names both nouns in five lines: it
+   pushes into `S.spec.panels` (the spec key — internal, and deliberately unrenamed) and
+   toasts "Text View added" to the reader. The premise then corroborates that rendered noun
+   against three independent surfaces — check 14's library group (`buildAnalysesLib`), the
+   canvas empty state's ¶ button and `#dropHint` — because a one-function derivation that
+   nothing agrees with is a typo, not a vocabulary. The registry is EVALUATED, check 61's
+   idiom, and the builders give up their label prefix, family word and synonyms the same way.
+
+   Three rules:
+   (a) every ADD command's visible copy — its label and its family tag — names the rendered
+       noun and never the internal one. Scoped to the commands that CREATE one, by their own
+       "Add" verb: `panel` is still the right word for a pane of the UI (the Data panel, the
+       Inspector panel), so a blanket ban would be wrong the day someone adds a toggle for
+       one. The positive half matters as much as the negative: "Add text / annotation" with
+       the noun simply dropped would satisfy a ban and still leave the reader guessing.
+   (b) a command that drives a NAMED control agrees with that control's own label about it —
+       check 75 (c) generalised from one hand-named pair to the noun, so the palette can never
+       again offer to add a "panel" by clicking a button that says View.
+   (c) the rename costs no discoverability, and the page says so only while it is true. The
+       retired noun stays in `kw` — the palette's hidden synonyms — and rule (c) PROBES
+       Studio.catalogSearch (check 61 (e)'s idiom, run the other way: not "can you find what
+       we published" but "can you still find it by the word you learned first"). Held in
+       BOTH directions against Help's own sentence, the parity-only-when-true idiom: promise
+       the old word works and it must, drop it from the synonyms and the promise must go too.
+
+   Deliberately not held: the app's non-palette copy. `spec.panels` is a real key a spec author
+   reads, Help's chart-interaction prose says "panel" about the thing under a cursor, and
+   rewriting those is a vocabulary decision across two documents rather than a derivation —
+   check 15 is the model for the day someone takes it. */
+{
+  const pal = read("app/palette.js");
+  const appIndex = read("app/index.html");
+
+  // ── the two nouns, out of one function (check 14's idiom).
+  const addTextSrc = (() => {
+    const at = studioJs.indexOf("function addTextPanel(");
+    return at < 0 ? "" : searchBlockAt(studioJs, studioJs.indexOf("{", at), "{", "}");
+  })();
+  const internalKey = (addTextSrc.match(/spec\.(\w+)\.push\(/) || [])[1] || "";      // "panels"
+  const internalNoun = internalKey.replace(/s$/, "");                                 // "panel"
+  // The toast the same function shows: "Text View added — …". The noun is the last capitalised
+  // word before "added", so the phrase may grow an adjective without the rule losing its grip.
+  const toastPhrase = (addTextSrc.match(/toast\("([^"]*?)\s+added\b/) || [])[1] || "";
+  const renderedNoun = (toastPhrase.match(/\b[A-Z][a-z]+\b(?!.*\b[A-Z][a-z]+\b)/) || [])[0] || "";
+
+  // The three surfaces that must agree with it, so a typo cannot become the vocabulary.
+  const btnLabel = (id) =>
+    (appIndex.match(new RegExp(`<button[^>]*\\bid="${id}"[^>]*>([^<]*)</button>`)) || [, ""])[1].trim();
+  const cesTextLabel = btnLabel("cesText");
+  const dropHint = (appIndex.match(/id="dropHint"[^>]*>([^<]*)</) || [, ""])[1].trim();
+  const nounRe = renderedNoun ? new RegExp(`\\b${renderedNoun}s?\\b`) : /$^/;
+  const staleRe = internalNoun ? new RegExp(`\\b${internalNoun}s?\\b`, "i") : /$^/;
+
+  // ── the registry, evaluated exactly as checks 61 and 75 evaluate it.
+  const cmds76 = (() => {
+    const at = pal.indexOf("var COMMANDS = [");
+    if (at < 0) return null;
+    try {
+      const arr = new Function("return " + searchBlockAt(pal, pal.indexOf("[", at), "[", "]") + ";")();
+      return Array.isArray(arr) && arr.every((c) => c && typeof c.label === "string" &&
+        typeof c.hint === "string" && typeof c.kw === "string") ? arr : null;
+    } catch { return null; }
+  })();
+  // The builders mint their strings around a live name; the literals are the published parts.
+  const palStr1 = (body, key, next) => {
+    const seg = (body.match(new RegExp(`${key}:([\\s\\S]*?),\\s*${next}:`)) || [, ""])[1];
+    return [...seg.matchAll(/"((?:[^"\\]|\\.)*)"/g)].map((m) => m[1])[0] || "";
+  };
+  const builderCmd = (name) => {
+    const at = pal.indexOf("function " + name + "(");
+    if (at < 0) return null;
+    const body = searchBlockAt(pal, pal.indexOf("{", pal.indexOf(")", at)), "{", "}");
+    return { label: palStr1(body, "label", "hint"), hint: palStr1(body, "hint", "kw"),
+      kw: palStr1(body, "kw", "ic"), ids: [], from: name + "()" };
+  };
+  const chartCmd = builderCmd("chartTypeCommands");
+  const driven76 = (c) => [...new Set([...String(c.run || "")
+    .matchAll(/\bclick\(\s*"([\w-]+)"\s*\)/g)].map((m) => m[1]))];
+  const allCmds = [
+    ...(cmds76 || []).map((c) => ({ label: c.label, hint: c.hint, kw: c.kw, ids: driven76(c), from: "COMMANDS" })),
+    ...(chartCmd ? [chartCmd] : []),
+  ];
+  // The commands that CREATE one, named by their own verb rather than by a list here.
+  const addCmds = allCmds.filter((c) => /^add\b/i.test(c.label.trim()) || /^add\b/i.test(c.hint.trim()));
+
+  const nounPremise = ok(`app/studio.js + app/palette.js: the two nouns derived for check 76 ` +
+    `(internal "${internalNoun || "?"}" from spec.${internalKey || "?"}, rendered ` +
+    `"${renderedNoun || "?"}" from addTextPanel's own toast) across ${addCmds.length} Add command(s)`,
+    !!internalNoun && !!renderedNoun && internalNoun !== renderedNoun && !!searchKit &&
+      renderedNoun === savedNoun && nounRe.test(cesTextLabel) && nounRe.test(dropHint) &&
+      !!cmds76 && cmds76.length >= 20 && !!chartCmd && addCmds.length >= 2,
+    `addTextPanel parsed: ${!!addTextSrc} · toast phrase: "${toastPhrase || "(none)"}"\n      ` +
+    `corroboration — check 14's library group: "${savedNoun}" · #cesText: "${cesTextLabel || "(none)"}" · ` +
+    `#dropHint: "${dropHint || "(none)"}"\n      ` +
+    `Add commands: ${addCmds.map((c) => `"${c.label}" [${c.hint}]`).join(" · ") || "(none)"}\n      ` +
+    "one function's word is a typo until three other surfaces say it too — the premise is what " +
+    "makes the rules below a vocabulary rather than a transcription");
+
+  if (nounPremise) {
+    // (a) the noun a reader reads.
+    const nounGaps = addCmds.flatMap((c) => [
+      ...(staleRe.test(c.label) ? [`${c.from}: label "${c.label}" says "${internalNoun}"`] : []),
+      ...(staleRe.test(c.hint) ? [`${c.from}: family tag "${c.hint}" says "${internalNoun}"`] : []),
+      ...(!nounRe.test(c.label) && !nounRe.test(c.hint)
+        ? [`${c.from}: "${c.label}" [${c.hint}] names neither "${renderedNoun}" nor anything else it makes`] : []),
+    ]);
+    ok(`app/palette.js: every Add command calls what it makes a "${renderedNoun}", the app's own word for it, and never a "${internalNoun}"`,
+      !nounGaps.length,
+      `${nounGaps.join("\n      ") || "(none)"}\n      ` +
+      `"${internalNoun}" is the spec key (spec.${internalKey}) and stays one — what LF52/LF57 renamed ` +
+      "is every word the reader sees, and ⌘K was the last surface still on the old one, on 55 rows at once");
+
+    // (b) the command and the control it clicks agree.
+    const disagree = addCmds.flatMap((c) => c.ids
+      .map((id) => ({ id, ctl: btnLabel(id) }))
+      .filter((x) => x.ctl && nounRe.test(x.ctl) && !nounRe.test(c.label))
+      .map((x) => `"${c.label}" clicks #${x.id}, which the app renders as "${x.ctl}"`));
+    ok(`app/palette.js: no Add command names by one noun a control the app labels with the other`,
+      !disagree.length,
+      `${disagree.join("\n      ") || "(none)"}\n      ` +
+      "check 75 (c) holds one hand-named pair to each other's words; this is the same rule over " +
+      "the noun, so a control renamed on the canvas can never leave the keyboard offering the old one");
+
+    // (c) the old word still finds the row — probed on the app's own matcher — and the page
+    //     promises that exactly while it is true.
+    const unfindable = addCmds
+      .filter((c) => !kitFinds(internalNoun, [c.label, c.hint, c.kw]))
+      .map((c) => `"${c.label}" — synonyms: "${c.kw}"`);
+    const labP = (() => {
+      const at = help.indexOf('<p id="cmdk-labels">');
+      return at < 0 ? "" : help.slice(at, help.indexOf("</p>", at) + 4);
+    })();
+    const helpPromises = new RegExp(`<strong>${internalNoun}</strong>`, "i").test(labP);
+    ok(`app/palette.js + docs/index.html: typing "${internalNoun}" still finds every Add command, and Help promises that only while it does`,
+      !unfindable.length && helpPromises === !unfindable.length,
+      `finds nothing: ${unfindable.join("\n      ") || "(none)"}\n      ` +
+      `Help's #cmdk-labels promises the old word works: ${helpPromises} · it does: ${!unfindable.length}\n      ` +
+      "a rename that quietly drops the word half the readers learned first is a regression wearing " +
+      "a tidy label — the synonym is the whole reason this rename costs nobody anything");
+  }
+}
+
 console.log(failed ? `\n✗ doc-truth: ${failed} claim(s) have drifted from the source of truth`
   : "\n✅ doc-truth: every published claim matches the source it describes");
 process.exit(failed ? 1 : 0);

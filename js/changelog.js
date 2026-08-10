@@ -6,6 +6,18 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 988,
+    title: 'The command palette was the last place the app still called a View a panel',
+    kind: 'fix',
+    ts: '2026-08-10T23:22:21.000Z',
+    items: [
+      'A chart on a dashboard is a <b>View</b>. It has been since the rename, and every control says so — the canvas prompts you to "add a View", the ¶ button on an empty canvas says <b>Add a text View</b>, and the catalog you find them in is called Views. The <b>⌘K / Ctrl-K</b> palette never got the message: it offered <b>Add panel: Bar chart</b>, <b>Add panel: Waterfall</b> and 52 more, tagged every one of those rows <b>Add panel</b>, and called the text one <b>Add text / annotation panel</b> while clicking a button labelled Add a text View.',
+      'All 55 rows now use the app\'s own word: <b>Add View: &lt;chart type&gt;</b> in an <b>Add View</b> family, and <b>Add text / annotation View</b>.',
+      '<b>Typing "panel" still finds every one of them.</b> The old word is kept as a hidden synonym on both commands, because it is the word anyone who has used the app for a while will reach for first — a rename that quietly costs you the search term you already knew is not an improvement. The Help page says so too, and a new check holds that promise to the synonyms actually being there: drop them and the build fails rather than the sentence going quietly false.',
+      'The same check derives both words from the one function behind the ¶ button — the internal key it writes into a saved dashboard, and the message it shows you — so the next time a control is renamed on the canvas, the keyboard cannot be left offering the old name.',
+    ],
+  },
+  {
     v: 987,
     title: 'Two ⌘K commands: one clicked a button deleted four weeks ago, and the safe remedy was missing',
     kind: 'fix',

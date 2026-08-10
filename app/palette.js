@@ -33,11 +33,14 @@
     { label: "Export all artifacts (bundle)", hint: "Export", kw: "export all bundle zip artifacts", ic: "copy", run: function () { studio(); var b = document.querySelector('#menuExport button[data-exp="all"]'); if (b) b.click(); } },
     // editing
     // The ¶ Text button MOVED out of the Data-panel header into the canvas empty state on
-    // 2026-07-14 (it creates a PANEL, so it belongs with the canvas) and this command kept
+    // 2026-07-14 (it creates a spec panel, so it belongs with the canvas) and this command kept
     // clicking `btnAddText`, an id that has not existed since — so ⌘K found the row and the
     // row did nothing. `#cesText` is static markup wired to addTextPanel, so a programmatic
     // click works whether or not the empty state is the thing on screen.
-    { label: "Add text / annotation panel", hint: "Edit", kw: "text annotation note markdown richtext add panel", ic: "edit", run: function () { studio(); click("cesText"); } },
+    // N7: the button it drives renders "¶ Add a text View", so the command says View too —
+    // `panel` is the SPEC key (`spec.panels`), not a word the app shows anyone. It stays in
+    // `kw` on purpose: the old noun is still what a long-time reader types (doc-truth 76c).
+    { label: "Add text / annotation View", hint: "Edit", kw: "text annotation note markdown richtext add panel view", ic: "edit", run: function () { studio(); click("cesText"); } },
     { label: "New dataset / connection", hint: "Data", kw: "new dataset connection source data query connect", ic: "db", run: function () { studio(); click("btnNewDS"); } },
     { label: "Undo", hint: "Edit", kw: "undo revert back step", ic: "undo", run: function () { studio(); click("btnUndo"); } },
     { label: "Redo", hint: "Edit", kw: "redo forward step", ic: "redo", run: function () { studio(); click("btnRedo"); } },
@@ -152,11 +155,14 @@
       if (card) card.click();
     }, 30);
   }
+  // N7: the canvas names what this creates — `#dropHint` says "Drop a dataset here to add a
+  // View" and `#cesText` says "¶ Add a text View" — so the prefix and the family tag say View.
+  // `kw` keeps `panel` so the pre-LF52 word still finds the row (doc-truth 76c).
   function chartTypeCommands() {
     var CHARTS = (window.Studio && Studio.CHARTS) || {};
     return Object.keys(CHARTS).map(function (t) {
       var label = CHARTS[t].label || t;
-      return { label: "Add panel: " + label, hint: "Add panel", kw: "add new panel chart type " + t + " " + label, ic: "plus", run: function () { addPanelOfType(t); } };
+      return { label: "Add View: " + label, hint: "Add View", kw: "add new panel view chart type " + t + " " + label, ic: "plus", run: function () { addPanelOfType(t); } };
     });
   }
 

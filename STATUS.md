@@ -135,6 +135,55 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N7 — the ⌘K palette was the last surface still calling a View a panel (v988, sw v564,
+  2026-08-10, steward; dev branch; est 1pt, took 1 — ON estimate):** 🔁 N7 was again the only
+  takeable item in ▶ NOW (N31, N44, N41 and N25 all ⛔ on Kevin; SP-1 ⏳ on `hold` PR #689), and
+  the v987 pass had left this as its named candidate. Check 75 holds the palette's WIRING — every
+  command clicks a control that exists; this is the same question asked of its WORDING, and it is
+  check 14's move one surface over.
+  **What was measured, live rather than read.** LF52/LF57 made **View** the user-facing name and
+  swept the controls; ⌘K kept the old one on **55 rows at once** — `chartTypeCommands` minted
+  `"Add panel: " + label` for all **54** registered types and tagged every one of those rows with
+  the family word **Add panel**, and `Add text / annotation panel` clicked `#cesText`, a button
+  whose own label reads **¶ Add a text View**. So the palette and the button it drives disagreed
+  about what they make, which is check 75 (c)'s failure one field over — there the label named the
+  wrong control, here it named the right control by the wrong noun. Help quoted the retired string
+  verbatim (check 61 (d) had just been written to hold it, correctly: Help documents what ships),
+  so the old word was published as the thing to type.
+  **Both halves in one slice, and the v987 note's own split is why.** It called the text command
+  self-contained and the chart-type prefix a two-document change; taking them separately would
+  have left the palette printing BOTH nouns at once, because the family tag is shared — check 61
+  (b) makes Help publish every family the palette prints, so the tag moves whichever half goes
+  first. All 55 rows now read **Add View: &lt;chart type&gt;** in an **Add View** family and
+  **Add text / annotation View**; Help's `#cmdk-families` and `#cmdk-labels` follow.
+  **The rename costs no discoverability, which is the part that made it safe to ship as copy.**
+  `panel` stays in both commands' hidden synonyms (`kw`), so typing it still returns all 55 rows —
+  verified live, not asserted — and Help now says so in a sentence check 76 (c) holds in BOTH
+  directions: promise the old word works and it must, drop it from the synonyms and the promise
+  must go too.
+  **Doc-truth check 76.** Both nouns come out of ONE function, check 14's idiom: `addTextPanel()`
+  is the handler behind the canvas ¶ button and the palette's own Add-text command, and it names
+  them five lines apart — it pushes into `S.spec.panels` (the internal key, deliberately
+  unrenamed) and toasts *"Text View added"*. The premise then corroborates the rendered noun
+  against three independent surfaces (check 14's library group, `#cesText`, `#dropHint`), because
+  a one-function derivation nothing agrees with is a typo rather than a vocabulary. Premise +
+  three rules: (a) every ADD command's label and family tag name the rendered noun and never the
+  internal one — **scoped to the add commands by their own verb**, since `panel` is still right
+  for a pane of the UI and a blanket ban would be wrong the day one gets a command; (b) a command
+  that drives a named control agrees with that control's own label about the noun (check 75 (c)
+  generalised off its hand-named pair); (c) the probe, run in the opposite direction to check 61
+  (e)'s — not "can you find what we published" but "can you still find it by the word you learned
+  first". **All three fail on the real pre-fix tree**, and five more directions were measured on
+  mutated trees (the noun dropped rather than replaced; the label alone reverted; the synonym
+  stripped while Help still promised it; Help's promise deleted while the synonym stood; the
+  toast stripped of its noun) — each failing its own rule and only its own, and a sixth (the
+  canvas button renamed out of the vocabulary) correctly failing the premise rather than a rule.
+  **Verification.** The dev gate in full (validate · changelog-check · doc-truth · dev-smoke at
+  1400×950 and 390×780, zero pageerrors) plus a Playwright probe of the palette itself against the
+  real app, which is how the 54/55/one-family-tag figures above were obtained rather than counted
+  by hand. Four suite checks in `tests/run.js` carry it: the two existing add-of-type checks moved
+  to the new label, plus the no-stale-noun rule (scoped the same way (a) is) and the
+  synonym-survives probe.
 - **N7 — two ⌘K commands drove controls that were not there (v987, sw v563, 2026-08-10, steward;
   dev branch; est 1pt, took 1 — ON estimate):** 🔁 N7 was again the only takeable item in ▶ NOW
   (N31, N44, N41 and N25 all ⛔ on Kevin; SP-1 ⏳ on `hold` PR #689), and v986's pass had left a
@@ -17480,7 +17529,7 @@
     on mutated trees. The palette's own header had claimed the opposite for a year — *"clicks a real
     button… can never drift out of sync with the app"* — which is true of the mechanism and says
     nothing about the id.
-  * **Measured in the v987 pass and NOT taken, so the next run does not re-derive it — and it is
+  * ~~**Measured in the v987 pass and NOT taken, so the next run does not re-derive it — and it is
     the named candidate for the next N7 slice.** The palette still calls a View a **panel**.
     `Add text / annotation panel` drives a button whose own label reads **¶ Add a text View**, and
     `chartTypeCommands` mints `"Add panel: " + label` — the LF52/LF57 widget→View rename swept the
@@ -17490,7 +17539,32 @@
     palette-only edit; `"Add panel: <chart type>"` is quoted verbatim in Help under check 61's own
     label rule, so renaming it moves two documents and the check with them. Doc-truth check 75
     holds the WIRING, not the wording — a rule over the noun would be check 14's move, one surface
-    over.
+    over.~~ ✓ **SHIPPED v988, sw v564 (2026-08-10 — see DONE), both halves in one slice.** The
+    note's split was real but it argued for taking them TOGETHER rather than separately: the
+    family tag is shared (`Add panel` sat on all 54 chart rows AND is what check 61 (b) makes Help
+    publish), so renaming the text command alone would have left the palette printing both nouns
+    at once. **Measured live rather than read:** all 54 types, one family tag, 55 rows. The
+    rename keeps the retired noun as a hidden synonym — typing `panel` still returns all 55 —
+    which is what let a copy change ship without costing anyone the search term they already had.
+    Doc-truth **check 76** derives both nouns from `addTextPanel()` alone (it writes
+    `S.spec.panels` and toasts "Text View added"), corroborates the rendered one against three
+    surfaces, and holds the synonym in both directions against Help's own sentence.
+  * **Measured in the v988 pass and NOT taken, so the next run does not re-derive it — and it is
+    the named candidate for the next N7 slice.** The noun rename stopped at the palette on
+    purpose, and the surface it stopped short of is **Help's own chart-interaction prose**:
+    `docs/index.html` still says "wherever that panel has a detail drawer", "clicking a mark still
+    selects the panel for editing" and similar in the keyboard chapter, where every control it
+    names beside them is a **View**. That is the v875→v876 move exactly (check 14 held the tours'
+    bolded labels, check 15 then held Help's sentences around them), and check 76's header says
+    why it was not taken here: check 76 is scoped to `app/palette.js`, and Help's uses are
+    *prose about the thing under your cursor* rather than a label, so the rule that catches them
+    has to be check 15's stricter shape — outside `<code>`, the word must not appear — which
+    needs a decision about the genuinely legitimate uses first (`spec.panels` is a real key a
+    spec author reads, and SPEC.md documents it). **Pure derivation once that line is drawn**, and
+    it is one document. Also measured and **NOT N7's** (it is code, not copy): `app/palette.js`'s
+    matcher comment still illustrates the ANDed-terms rule with *"export panel" reaches "Export
+    the current panel"* — a command label the palette has never printed. It is a comment, so no
+    check can fail on it (check 12's rule) and none should.
 
 > **📋 RECORDED FOR KEVIN, NOT PROMOTED — grooming pass 4, 2026-08-10.** This sits BELOW the queue
 > on purpose: `docs/BACKLOG.md` says the loop never promotes into ▶ NOW on its own, and pass 2's
