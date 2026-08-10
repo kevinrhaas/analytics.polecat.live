@@ -135,6 +135,55 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **SP-5 (b) — Campaign Finance gets its dashboards (v967, sw v557, 2026-08-10, steward; dev
+  branch; est 1pt for this slice, took 1 — the pack is 2 of ~3 slices in, still on its 3pt
+  estimate):** three dashboards over the FEC data slice (a) installed, seeded from the same turn
+  that writes the datasets and healed onto existing installs by
+  `Studio.ensureCampaignFinanceDashboards` (the SP-1/SP-6 shape, third time).
+  - **Who Funds Whom** (the hero): the donor-state → recipient-committee sankey at a $10M floor,
+    the share of each Senate candidate's itemized money that came from the state they are running
+    in (the `is_home_state` flag as an ordinary View filter — 16 rows, the three presidential
+    committees absent by construction because their seat is "US"), and the 41 pairs where one
+    state supplied a fifth or more of a whole committee.
+  - **Where the Money Comes From**: the donor-state choropleth on the app's `state` scale, the
+    small-gift and max-out shares as builder CALC columns (not extract columns), and the
+    money-against-small-share scatter. Sixteen of the 67 rows have no geometry — overseas
+    military, territories, two Canadian provinces, ZZ — and the note says so rather than letting
+    the map's silence do it.
+  - **Who Gives It, and How**: the size-band marimekko (cheque size × kind of committee), the
+    cycle's shape as a line over the View's own SUM rollup, and occupation/employer — where the
+    three largest "employers" are RETIRED, NOT EMPLOYED and SELF EMPLOYED, which the note states
+    rather than ranking around.
+  - **THE FINDING, and it changed the slice's design: the View Builder silently keeps only the
+    first 2,000 rows of a live dataset run** (`app/build.js` `bdLoadRowsFor`), BEFORE the View's
+    own filters. The join's output is 2,658 rows in `cmte_id` order, so a panel bound to it
+    directly loses the last **twelve committees outright — Trump 47 and Trump National Committee
+    JFC among them** — while still drawing a perfectly plausible sankey. That is
+    indistinguishable from the partisan artifact slice (a) went out of its way to avoid, arrived
+    at by an app limit rather than a modelling choice, and nothing on screen would have said so.
+    Measured first (the hero drew $2.8B of $3.69B and 38 of 50 committees), then designed around:
+    the pack now ships a **second job** — "Keep the donor-state flows a live View can hold",
+    chained onto the first one's output, `filter amount >= $200,000` — whose 1,293-row output is
+    what every flow panel reads. It keeps **97.7% of the dollars and all 50 committees**, and the
+    dashboard's own note states the trim in rows and dollars beside the sankey's separate
+    readability floor. The suite asserts the twelve committees a 2,000-row prefix drops are all
+    present in the live rows, by name.
+  - **Two app defects found and NOT fixed here, recorded for Kevin to rank** (the SP-6(b)
+    precedent — a pack slice is the wrong place to change the toolkit): (1) the 2,000-row cap
+    above is silent — no badge, no note, nothing in Help; every user building a View over a
+    bigger dataset is charting a prefix and cannot tell. (2) `DashKit.heatmap` divides its width
+    among its columns after reserving a 130px label gutter and never clamps the result, so a
+    heatmap emits negative-width `<rect>`s — 336 console errors per render for a 24×7 pivot —
+    whenever the panel is narrow, which includes every first paint; the shipped
+    `conservation-scorecard` example already emits 56 of them today. Vertical bars divide width
+    the same way and fail the same way. That is why the cycle panel is a line and not the pivot
+    it was first written as; `vendor/dashkit.js` is pristine by invariant, so the clamp belongs
+    to a toolkit slice.
+  - **Verified**: `node tools/validate.mjs`, `node tools/changelog-check.js`, `node
+    tools/doc-truth.mjs`, `node tools/dev-smoke.mjs` all green, plus the five new suite checks
+    and the amended SP-5(a) block run against a live browser at 1400×950 AND 390×780 — three
+    dashboards rendering with **zero console or page errors** at both sizes (the heatmap was the
+    only source of any, which is what retired it).
 - **SP-5 (a) — Campaign Finance, the pack's data foundation (v966, sw v556, 2026-08-10,
   steward; dev branch; est 3pt for the pack, this is slice 1 of ~3 — on estimate):** the second
   of the three money-flow packs Kevin promoted on 2026-08-09, in the shape SP-1 (a) and SP-6 (a)
@@ -14577,7 +14626,7 @@
 > its ⏫ marker until SP-5 is done. **Grooming pass 4 note:** with N31/N41/N44/N25 all ⛔ and SP-1 ⏳, SP-5 is the
 > only ready non-recurring work in this queue — that is the honest state, not an oversight.
 
-- ⏳ **PR #750** — **SP-5 ★★ [3pt est, 1 slice shipped] — Campaign Finance, the second of
+- ⏳ **PR #NEW** — **SP-5 ★★ [3pt est, 2 slices shipped] — Campaign Finance, the second of
   Kevin's three money-flow packs.** *(Grammar line minted 2026-08-10 by the run that started it,
   the way SP-6's was — the promotion note above named the three packs and gave a line to none of
   them, so the queue had nothing to mark. The scope decisions in the 📦 SAMPLE-PACK PROGRAM
@@ -14598,9 +14647,35 @@
   Census Geocoder half of the item has nothing to read, the pack's geography is ZIP-derived
   throughout, and there is no mixture for a `geo_precision` column to disclose. Recorded here
   because the item's constraints were written expecting one.
-  **WHAT REMAINS — (b) the dashboards, then (c) the pinned Views + tour + docs.** The SP-6 split,
-  for the SP-6 reason: a dashboard is a blob over the rows slice (a) creates, so it cannot be
-  authored a turn earlier, and Guard-main and the janitor both operate per-PR. Est 1pt each.
+  ✓ **SLICE (b) IS SHIPPED — the three dashboards: v967, sw v557 (2026-08-10, steward — see DONE).**
+  Who Funds Whom (the donor-state→committee sankey, the home-state share, the concentrated pairs),
+  Where the Money Comes From (the state map and the two shares as calc columns), and Who Gives It,
+  and How (the size-band marimekko, the cycle's shape, occupation and employer). Est 1pt, took 1.
+  **What slice (b) found and could not un-find — and both halves are Kevin's to rank, not the
+  loop's to fix on a pack slice (the SP-6(b) precedent):**
+  **(1) THE VIEW BUILDER SILENTLY CHARTS A PREFIX.** `app/build.js` (`bdLoadRowsFor`) keeps the
+  first **2,000 rows** of any live dataset run, BEFORE the View's own filters, with no badge, no
+  note and nothing in Help. On this pack it was not cosmetic: the join's output is 2,658 rows in
+  `cmte_id` order, so the hero drew **$2.8B of $3.69B and 38 of 50 committees**, losing Trump 47
+  and Trump National Committee JFC — i.e. the app's own row limit reproduced exactly the partisan
+  artifact slice (a) had gone out of its way to avoid, and nothing on screen said so. The pack
+  worked around it with a second job (filter ≥ $200k → 1,293 rows, 97.7% of the dollars, all 50
+  committees) and states the trim on the dashboard. **The general fix is not that.** Options, in
+  Kevin's order: (a) disclose it — a panel/View badge when a run was truncated, which is the
+  honesty rule the app applies everywhere else; (b) raise the cap with a measured budget; (c)
+  both. **Est 1pt for (a) alone**, and (a) is the one this loop would recommend taking first: a
+  wrong chart that announces itself is a different product from one that does not.
+  **(2) `DashKit.heatmap` EMITS INVALID SVG WHEN NARROW.** It divides the width it is given among
+  its columns after reserving a 130px label gutter and never clamps
+  (`cw = (w - labelW - mR)/cols.length`), so a panel's first paint — which happens at ~28px — emits
+  one negative-width `<rect>` per cell: **336 console errors** for a 24×7 pivot, and the shipped
+  `conservation-scorecard` example already emits **56 today**. Vertical bars divide width the same
+  way and fail the same way; horizontal bars, lines, sankeys, scatters and maps do not. `vendor/`
+  is pristine by invariant, so the clamp is a **toolkit slice (est 1pt)** in `app/studio-charts.js`
+  or a vendored-toolkit update, not something to smuggle in on a pack. Until then a seeded
+  dashboard cannot use a heatmap, which is why SP-5's cycle panel is a line.
+  **WHAT REMAINS — (c) the pinned Views + tour + docs.** Est 1pt, the same shape as SP-1 (c) and
+  SP-6 (c).
 
 - ⛔ **N44 ★★ [3pt est, 3 slices shipped — the estimate is spent] — SQL is edited in plain textareas
   app-wide.** **⛔ BLOCKED ON KEVIN, marked 2026-08-10 (steward), and it is the LAST half of the

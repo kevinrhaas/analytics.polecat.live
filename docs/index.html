@@ -926,15 +926,25 @@
     <li><strong>Campaign Finance</strong> is the pack about who funds federal politics: the
     Federal Election Commission's own record of itemized individual contributions in the closed
     2023-24 election cycle — $6.5 billion of them — embedded in the app rather than fetched. It
-    seeds one <strong>connection</strong> over eight <strong>datasets</strong> — giving by donor
+    seeds one <strong>connection</strong> over nine <strong>datasets</strong> — giving by donor
     state, the fifty largest recipient committees, every donor state each of those committees drew
     from, the top 200 occupations and the top 200 employers, twenty-four months of giving by kind
-    of committee, contributions banded from under $50 to the per-election limit, and the output of
-    the prep <strong>job</strong> that joins a donor state to the committee that received it, so
+    of committee, contributions banded from under $50 to the per-election limit, and the outputs of
+    two prep <strong>jobs</strong>: the first joins a donor state to the committee that received it, so
     one state's giving reads as a share of that committee and as the share that came from outside
-    the state the candidate is running in. The flow table carries the committee <em>id</em> and
+    the state the candidate is running in, and the second keeps the flows of $200,000 or more —
+    97.7% of the money and all fifty committees — because a View reads a dataset's first 2,000 rows
+    live and the full table is 2,658, so the pack trims by a rule you can open rather than losing
+    the tail silently. The flow table carries the committee <em>id</em> and
     not its name on purpose: bringing the readable name, the party, the seat and the committee's
-    own total across is exactly what the job is for.
+    own total across is exactly what the job is for. On top of them sit three
+    <strong>dashboards</strong> in a <strong>Campaign Finance</strong> folder: <em>Who Funds
+    Whom</em> (the donor-state-to-committee sankey, how much of each Senate candidate's itemized
+    money came from the state they are running in, and the pairs where one state supplied a fifth
+    or more of a committee), <em>Where the Money Comes From</em> (the donor-state map, with the
+    small-gift and max-out shares as calculated columns you can open and edit), and <em>Who Gives
+    It, and How</em> (occupation and employer, a marimekko of cheque size against the kind of
+    committee that received it, and the twenty-four-month arc of the cycle).
     <strong>Two things to read it with, both of them in the data rather than around it.</strong>
     First, it is <em>itemized</em> giving: a committee reports a donor once their cycle total
     passes $200 and reports everything below that as one unitemized lump, so the small

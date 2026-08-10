@@ -6,6 +6,18 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 967,
+    title: 'Campaign Finance gets its dashboards — who funds whom, where the money comes from, and who gives it',
+    ts: '2026-08-10T11:55:04.000Z',
+    items: [
+      'The <b>Campaign Finance</b> sample pack now ships three dashboards over the FEC data it installed last time. Already have the pack? They arrive on your next boot — no reinstall, nothing you have edited is touched.',
+      '<b>Who Funds Whom</b> is the flow the pack was extracted for: a <b>sankey</b> from donor state to recipient committee for every relationship worth $10 million or more, the share of each Senate candidate\'s itemized money that came from the state they are actually running in, and the pairs where one state supplied a fifth or more of a whole committee. The committee reads as a name, with its kind and party, because the panels sit on the pack\'s own join.',
+      '<b>Where the Money Comes From</b> maps giving by the donor\'s own state and then asks how differently each state gives — the share arriving in gifts under $200 against the share arriving at the per-election limit. Both shares are <b>calculated columns on the View</b>, not columns in the extract: open one in the View Builder and the formula is on the shelf.',
+      '<b>Who Gives It, and How</b> is the shape of the money: a <b>marimekko</b> of cheque size against the kind of committee that received it, a month-by-month heatmap of the whole cycle, and the occupation and employer donors typed in themselves — where the three largest "employers" turn out to be RETIRED, NOT EMPLOYED and SELF EMPLOYED, which the dashboard says out loud rather than ranking around.',
+      'The honest caveats are on the dashboards, not in a footnote: this is <b>itemized</b> giving only (a donor is named once their cycle total passes $200), the kind of committee is a column rather than a silent filter because the two sides raised through different plumbing, and the sixteen non-mappable donor codes — overseas military, territories, an unresolved ZZ — stay in the totals even though the map cannot draw them.',
+    ],
+  },
+  {
     v: 966,
     title: 'A new sample pack: who funds federal politics',
     ts: '2026-08-10T10:56:21.000Z',

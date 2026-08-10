@@ -5983,9 +5983,14 @@ function serve() {
           (d.content || "").split("\n")[0] === EXPECTED[f];
       });
 
-      var job = jobs[0];
+      // Two jobs since SP-5 (b) — the join, and the trim that follows it — so the join is
+      // selected by its own step rather than by position.
+      var job = jobs.filter(function (j) { return (j.steps || []).some(function (st) { return st.op === "join"; }); })[0];
+      var trimJob = jobs.filter(function (j) { return j !== job; })[0];
       var outputDs = dsets.filter(function (d) { return d.id === job.outputDatasetId; })[0];
       out.hasOutput = !!outputDs && (outputDs.tags || []).indexOf("job-output") >= 0;
+      out.trimJobSteps = trimJob ? JSON.stringify(trimJob.steps) : "";
+      out.trimReadsTheJoin = !!trimJob && trimJob.sourceDatasetId === outputDs.id;
 
       // The seeded output is a PROMISE about what a Run will produce — reproduce the live
       // path and hold it to the byte (the SP-1/SP-6 rule).
@@ -6076,9 +6081,10 @@ function serve() {
       out.restored = Studio.demoPackInstalled(ID) === was;
       return out;
     });
-    ok("SP-5(a): the Campaign Finance pack materializes its committed FEC CSV — install seeds the connection, the ensure-function adds all seven extract datasets plus the donor-share job and its pre-materialized output, every table's columns are exactly the aggregate shape the extract promises (no donor name, no address, at extraction rather than at render), the committee-id join brought across the name, party and total the flow table does not carry, each donor state's share is real arithmetic that sums to its committee, the home-state flag is the whole gift or none of it and never fires for a committee with no seat, every mappable state code draws on the app's own state geometry with all 50 + DC present, re-running the job through the live adapter+engine path reproduces the output byte for byte, a second ensure changes nothing, and Remove sweeps the async rows too",
+    ok("SP-5(a): the Campaign Finance pack materializes its committed FEC CSV — install seeds the connection, the ensure-function adds all seven extract datasets plus the donor-share job, the trim job that follows it and both pre-materialized outputs, every table's columns are exactly the aggregate shape the extract promises (no donor name, no address, at extraction rather than at render), the committee-id join brought across the name, party and total the flow table does not carry, each donor state's share is real arithmetic that sums to its committee, the home-state flag is the whole gift or none of it and never fires for a committee with no seat, every mappable state code draws on the app's own state geometry with all 50 + DC present, re-running the job through the live adapter+engine path reproduces the output byte for byte, a second ensure changes nothing, and Remove sweeps the async rows too",
       cfa.cleanBefore && cfa.afterInstallSync.connections === 1 && cfa.afterInstallSync.datasets === 0 &&
-      cfa.counts.connections === 1 && cfa.counts.datasets === 8 && cfa.counts.jobs === 1 &&
+      cfa.counts.connections === 1 && cfa.counts.datasets === 9 && cfa.counts.jobs === 2 &&
+      cfa.trimReadsTheJoin &&
       cfa.allFoldered && cfa.stillOne && cfa.extractColumnsExact && cfa.hasOutput &&
       cfa.outputRows === 2658 && cfa.joined && cfa.derived && cfa.pctIsANumber && cfa.pctChecks &&
       // 16, not 19: nineteen of the fifty committees have a seat, but three of them are
@@ -6088,6 +6094,276 @@ function serve() {
       cfa.committees === 50 && cfa.everyCommitteeSharesTo100 &&
       cfa.stateRows === 67 && cfa.fiftyOnePresent && cfa.statesResolved >= 51 && cfa.postalTableRead >= 51 &&
       cfa.rerunReproduces && cfa.removedClean && cfa.restored, JSON.stringify(cfa));
+
+    // ---- SP-5 (b): the pack's three dashboards ---------------------------------
+    // The claim under test is not "three specs exist". It is that the flow the pack was
+    // extracted to draw is drawn WHOLE, from the pack's own rows, under rules a reader can
+    // open and move. So every number below is recomputed here from the shipped CSV or read
+    // off a LIVE Studio.Build.runBlob (the #118 path the panels themselves use), never off
+    // the spec being checked.
+    //
+    // The one check that matters more than the rest: THE HERO MUST NOT LOSE COMMITTEES TO A
+    // ROW LIMIT. app/build.js runs a workspace dataset live and keeps its first 2,000 rows,
+    // BEFORE the View's own filters; the join's output is 2,658 rows in cmte_id order, so a
+    // panel bound to it silently drops the last twelve committees — both Trump committees
+    // among them — while still drawing a plausible sankey. That is indistinguishable from
+    // the partisan artifact slice (a) went out of its way to avoid, which is why the pack
+    // trims with a second job instead and why this block asserts all fifty committees are
+    // present in the LIVE rows, by name.
+    const cfDash = await page.evaluate(async function () {
+      var W = Studio.Workspace, ID = "campaignfinance";
+      var wasInstalled = Studio.demoPackInstalled(ID);
+      if (!wasInstalled) Studio.installDemoPack(ID);
+      await Studio.ensurePackDataMaterialized(ID);
+      function dash(name) {
+        return W.all("dashboards").filter(function (r) { return r.demoPackId === ID && (r.spec && r.spec.name) === name; })[0];
+      }
+      var flow = dash("campaignfinance-flow"), geo = dash("campaignfinance-geography"), don = dash("campaignfinance-donors");
+      var out = { wasInstalled: wasInstalled, all3: !!(flow && geo && don) };
+      if (!out.all3) return out;
+      var all = [flow, geo, don];
+      out.foldered = all.every(function (r) { return r.folder === "Campaign Finance"; });
+      // SP-0(b): somebody else's data is credited where the work is READ
+      window.__studioReconcilePackDashboards();
+      var line = Studio.demoPackSourceLine(ID);
+      out.attributed = !!line && all.every(function (r) {
+        return String((W.get("dashboards", r.id).spec || {}).subtitle || "").indexOf(line) >= 0;
+      });
+
+      // every charted panel and KPI is bound to a builder-blob DA over one of the PACK'S
+      // OWN datasets — nothing here is sample-engine noise
+      var mine = {};
+      W.all("datasets").filter(function (d) { return d.demoPackId === ID; }).forEach(function (d) { mine[d.id] = d; });
+      out.packDatasets = Object.keys(mine).length;
+      out.bound = true; out.onPackData = true;
+      all.forEach(function (r) {
+        var byId = {};
+        ((r.spec.cda || {}).dataAccesses || []).forEach(function (d) { byId[d.id] = d; });
+        (r.spec.panels || []).forEach(function (p) {
+          if (p.chart.type === "richtext") return;
+          var d = byId[p.chart.da];
+          if (!d || !d.builder || !d.builder.dsId) { out.bound = false; return; }
+          if (!mine[d.builder.dsId]) out.onPackData = false;
+        });
+        (r.spec.kpis || []).forEach(function (k) { if (!byId[k.da]) out.bound = false; });
+      });
+
+      function panel(r, id) { return (r.spec.panels || []).filter(function (p) { return p.id === id; })[0]; }
+      function da(r, id) { return ((r.spec.cda || {}).dataAccesses || []).filter(function (d) { return d.id === id; })[0]; }
+
+      // (1) the hero IS the flow, and it reads the TRIMMED job output rather than the join's
+      var sank = panel(flow, "pcf_flow");
+      out.sankey = !!sank && sank.chart.type === "sankey" &&
+        sank.chart.map.sourceCol === "state" && sank.chart.map.targetCol === "committee" &&
+        sank.chart.map.valueCol === "amount";
+      var join = W.all("datasets").filter(function (d) { return d.demoPackId === ID && d.fileName === "committee_donor_state_shares.csv"; })[0];
+      var charted = W.all("datasets").filter(function (d) { return d.demoPackId === ID && d.fileName === "committee_donor_state_flows_charted.csv"; })[0];
+      out.bothOutputsExist = !!join && !!charted;
+      out.heroReadsCharted = !!charted && da(flow, "vcf_flow_big").builder.dsId === charted.id;
+      out.everyFlowPanelReadsCharted = !!charted && ["vcf_flow_all", "vcf_flow_big", "vcf_home", "vcf_dominant"]
+        .every(function (id) { return da(flow, id).builder.dsId === charted.id; });
+
+      // (2) THE REGRESSION THIS DESIGN EXISTS FOR: the live rows carry all fifty
+      //     committees, not the 2,000-row prefix's thirty-eight
+      var joinRows = String(join.content || "").trim().split("\n"); joinRows.shift();
+      var chartedRows = String(charted.content || "").trim().split("\n"); chartedRows.shift();
+      out.joinRowCount = joinRows.length;
+      out.chartedRowCount = chartedRows.length;
+      out.trimmedIsUnderTheCap = chartedRows.length < 2000 && joinRows.length > 2000;
+      var live = await Studio.Build.runBlob(da(flow, "vcf_flow_all").builder);
+      out.liveRows = live ? live.rows.length : 0;
+      out.liveIsWhole = out.liveRows === out.chartedRowCount;
+      if (live) {
+        var iC = live.cols.indexOf("committee"), iA = live.cols.indexOf("amount");
+        var names = {};
+        live.rows.forEach(function (r) { names[String(r[iC])] = 1; });
+        out.liveCommittees = Object.keys(names).length;
+        // The regression, stated exactly: which committees does the builder's 2,000-row
+        // prefix of the JOIN's output lose entirely? Derived here rather than named, so it
+        // stays true if the extract is re-run — and every one of them has to be in the live
+        // rows the panels actually get. It is twelve today, Trump 47 and Trump National
+        // Committee JFC among them, which is why slice (a)'s "same money, different
+        // plumbing" note would have read as a landslide if the hero had lost them.
+        // Parsed through the app's own file adapter rather than a split(",") — the
+        // committee and candidate columns are quoted free text ("TRUMP 47 COMMITTEE, INC.")
+        // and a naive split names the wrong column while still producing twelve of
+        // something, which is precisely the kind of almost-right this block exists to catch.
+        var joinRes = await Studio.fileSource.queryData({}, join);
+        var jName = joinRes.columns.indexOf("committee");
+        var prefix = {}, whole = {};
+        joinRes.rows.forEach(function (r, ix) {
+          whole[String(r[jName])] = 1;
+          if (ix < 2000) prefix[String(r[jName])] = 1;
+        });
+        out.droppedByTheCap = Object.keys(whole).filter(function (n) { return !prefix[n]; });
+        out.everyDroppedCommitteeIsLive = out.droppedByTheCap.length > 0 &&
+          out.droppedByTheCap.every(function (n) { return names[n] === 1; });
+        out.trumpPresent = Object.keys(names).filter(function (n) { return /TRUMP/i.test(n); }).length;
+        out.liveDollars = live.rows.reduce(function (a, r) { return a + Number(r[iA]); }, 0);
+      }
+
+      // (3) the readability floor on top of the trim is a real narrowing every row obeys
+      var big = await Studio.Build.runBlob(da(flow, "vcf_flow_big").builder);
+      var floor = Number(da(flow, "vcf_flow_big").builder.filters[0].min);
+      out.bigRows = big ? big.rows.length : 0;
+      out.bigFromCsv = chartedRows.filter(function (l) { return Number(l.split(",")[4]) >= floor; }).length;
+      if (big) {
+        var iAmt = big.cols.indexOf("amount");
+        out.bigObeysFloor = big.rows.every(function (r) { return Number(r[iAmt]) >= floor; });
+      }
+      out.bigIsARealSubset = out.bigRows > 0 && out.bigRows < out.liveRows;
+
+      // (4) the home-state panel is the flag filter, and its share is real arithmetic
+      var home = await Studio.Build.runBlob(da(flow, "vcf_home").builder);
+      out.homeRows = home ? home.rows.length : 0;
+      if (home) {
+        var iP = home.cols.indexOf("pct_of_committee"), iAm = home.cols.indexOf("amount"), iT = home.cols.indexOf("total_amount");
+        out.homeChecks = home.rows.every(function (r) {
+          return Math.abs(Number(r[iP]) - (Number(r[iAm]) / (Number(r[iT]) / 100))) < 1e-9;
+        });
+      }
+      var dom = await Studio.Build.runBlob(da(flow, "vcf_dominant").builder);
+      var domMin = Number(da(flow, "vcf_dominant").builder.filters[0].min);
+      out.dominantRows = dom ? dom.rows.length : 0;
+      if (dom) {
+        var iDp = dom.cols.indexOf("pct_of_committee");
+        out.dominantObeysRule = dom.rows.length > 0 && dom.rows.every(function (r) { return Number(r[iDp]) >= domMin; });
+      }
+
+      // (5) the two donor-geography shares are CALC columns and real arithmetic, and the
+      //     map is on the app's own state scale
+      var mapPanel = panel(geo, "pcg_map");
+      out.stateScale = !!mapPanel && mapPanel.chart.type === "choropleth" &&
+        mapPanel.chart.opts.scale === "state" && mapPanel.chart.map.idCol === "state";
+      var stBlob = da(geo, "vcg_states").builder;
+      out.sharesAreCalcs = ["small_dollar_pct", "max_out_pct"].every(function (n) {
+        return (stBlob.calcs || []).some(function (c) { return c.name === n; });
+      });
+      var st = await Studio.Build.runBlob(stBlob);
+      out.stateRows = st ? st.rows.length : 0;
+      if (st) {
+        var iAmount = st.cols.indexOf("amount"), iSm = st.cols.indexOf("small_dollar_amount"),
+          iSp = st.cols.indexOf("small_dollar_pct"), iMx = st.cols.indexOf("max_out_amount"),
+          iMp = st.cols.indexOf("max_out_pct");
+        out.shareChecks = iSp >= 0 && iMp >= 0 && st.rows.every(function (r) {
+          var s1 = (Number(r[iSm]) / Number(r[iAmount])) * 100, s2 = (Number(r[iMx]) / Number(r[iAmount])) * 100;
+          return Math.abs(Number(r[iSp]) - s1) < 1e-9 && Math.abs(Number(r[iMp]) - s2) < 1e-9 &&
+            Number(r[iSp]) >= 0 && Number(r[iSp]) <= 100;
+        });
+      }
+
+      // (6) the cycle's shape is a ROLLUP the View performs, not a second table
+      var monthBlob = da(don, "vcd_month_total").builder;
+      out.monthIsARollup = (monthBlob.shelfCols || []).some(function (f) { return f.agg === "sum"; });
+      var months = await Studio.Build.runBlob(monthBlob);
+      out.monthRows = months ? months.rows.length : 0;
+      if (months) {
+        var monthlyDs = W.all("datasets").filter(function (d) { return d.demoPackId === ID && d.fileName === "monthly.csv"; })[0];
+        var raw = String(monthlyDs.content || "").trim().split("\n"); raw.shift();
+        var want = {};
+        raw.forEach(function (l) { var c = l.split(","); want[c[0]] = (want[c[0]] || 0) + Number(c[3]); });
+        var iM = months.cols.indexOf("month"), iSum = months.cols.indexOf("SUM amount");
+        out.rollupSumsCheck = iSum >= 0 && months.rows.every(function (r) {
+          return Math.abs(Number(r[iSum]) - want[String(r[iM])]) < 1e-6;
+        });
+        out.rawMonths = Object.keys(want).length;
+      }
+
+      // (7) the copy states the pack's own numbers, recomputed here from the shipped CSV
+      var statesDs = W.all("datasets").filter(function (d) { return d.demoPackId === ID && d.fileName === "state-donors.csv"; })[0];
+      var sLines = String(statesDs.content || "").trim().split("\n"), sHead = sLines.shift().split(",");
+      function col(name) { return sHead.indexOf(name); }
+      var tot = 0, small = 0, maxOut = 0, contribs = 0, smallN = 0, maxN = 0;
+      sLines.forEach(function (l) {
+        var c = l.split(",");
+        tot += Number(c[col("amount")]); small += Number(c[col("small_dollar_amount")]);
+        maxOut += Number(c[col("max_out_amount")]); contribs += Number(c[col("contributions")]);
+        smallN += Number(c[col("small_dollar_contributions")]); maxN += Number(c[col("max_out_contributions")]);
+      });
+      var pct = function (a, b) { return (Math.round((a / b) * 1000) / 10).toFixed(1); };
+      var billions = function (n) { return "$" + (Math.round(n / 1e8) / 10).toLocaleString() + "B"; };
+      out.figures = { total: billions(tot), smallPct: pct(small, tot), maxPct: pct(maxOut, tot),
+        smallCountPct: pct(smallN, contribs), maxCountPct: pct(maxN, contribs) };
+      var geoNote = panel(geo, "pcg_note").chart.opts.content;
+      out.geoCopyStatesTheData = geoNote.indexOf(billions(tot)) >= 0 && geoNote.indexOf(billions(small)) >= 0 &&
+        geoNote.indexOf("**" + pct(small, tot) + "%**") >= 0 && geoNote.indexOf("**" + pct(maxOut, tot) + "%**") >= 0 &&
+        geoNote.indexOf("**" + contribs.toLocaleString() + "**") >= 0;
+      var flowNote = panel(flow, "pcf_note").chart.opts.content;
+      // the trim is disclosed in the units it happened in — rows and dollars
+      out.flowCopyStatesTheTrim = flowNote.indexOf("**" + out.chartedRowCount.toLocaleString() + "**") >= 0 &&
+        flowNote.indexOf("**" + out.joinRowCount.toLocaleString() + "**") >= 0 &&
+        flowNote.indexOf("2,000") >= 0;
+      var donNote = panel(don, "pcd_note").chart.opts.content;
+      out.donCopyStatesTheData = donNote.indexOf("**" + pct(small, tot) + "%**") >= 0 &&
+        donNote.indexOf("**" + pct(maxOut, tot) + "%**") >= 0 &&
+        donNote.indexOf("**" + pct(smallN, contribs) + "%**") >= 0;
+      return out;
+    });
+    ok("SP-5(b): the Campaign Finance pack seeds its three dashboards — the donor-state→committee flow hero, donor geography on the state scale, and who gives it — all foldered, all crediting the FEC in their subtitles, every panel and KPI bound to a builder blob over one of the pack's own datasets",
+      cfDash.all3 && cfDash.foldered && cfDash.attributed && cfDash.bound && cfDash.onPackData &&
+      cfDash.sankey && cfDash.stateScale && cfDash.bothOutputsExist &&
+      cfDash.heroReadsCharted && cfDash.everyFlowPanelReadsCharted, JSON.stringify(cfDash));
+    ok("SP-5(b): the flow hero cannot lose a committee to a row limit — the join's 2,658-row output is over the View Builder's 2,000-row live cap, so every flow panel reads the pack's SECOND job output instead, whose 1,293 rows the builder returns WHOLE: all 50 committees are in the live rows by name — including every one of the twelve a 2,000-row prefix of the join drops outright, Trump 47 and Trump National Committee JFC among them, and the dashboard's own note states the trim in rows and dollars",
+      cfDash.trimmedIsUnderTheCap && cfDash.liveIsWhole && cfDash.liveCommittees === 50 &&
+      cfDash.everyDroppedCommitteeIsLive && cfDash.trumpPresent === 3 &&
+      cfDash.flowCopyStatesTheTrim, JSON.stringify(cfDash));
+    ok("SP-5(b): every rule on the three dashboards is a live one — the sankey's readability floor narrows the trimmed flows and every returned row obeys it, the home-state panel returns the 16 candidate committees whose seat is a donor state with the share recomputing exactly from amount ÷ committee total, the concentrated-relationships table returns only shares at or above its own floor, both donor-geography shares are calculated columns that recompute on all 67 rows, the cycle's shape is the View's own SUM rollup over the 24 months (checked against the raw monthly table), and both note panels state figures recomputed from the shipped CSV",
+      cfDash.bigIsARealSubset && cfDash.bigObeysFloor && cfDash.bigRows === cfDash.bigFromCsv &&
+      cfDash.homeRows === 16 && cfDash.homeChecks && cfDash.dominantObeysRule &&
+      cfDash.sharesAreCalcs && cfDash.shareChecks && cfDash.stateRows === 67 &&
+      cfDash.monthIsARollup && cfDash.monthRows === 24 && cfDash.monthRows === cfDash.rawMonths &&
+      cfDash.rollupSumsCheck && cfDash.geoCopyStatesTheData && cfDash.donCopyStatesTheData,
+      JSON.stringify(cfDash));
+
+    // The heal: a workspace that installed the pack at slice (a) — FEC data, no dashboards
+    // — gets them on boot reconcile without a reinstall; a second run is a no-op.
+    const cfHeal = await page.evaluate(function () {
+      var W = Studio.Workspace, names = ["campaignfinance-flow", "campaignfinance-geography", "campaignfinance-donors"];
+      names.forEach(function (n) {
+        W.all("dashboards").filter(function (r) { return (r.spec && r.spec.name) === n; })
+          .forEach(function (r) { W.remove("dashboards", r.id, { silent: true }); });
+      });
+      W.notify("dashboards");
+      var healed = Studio.ensureCampaignFinanceDashboards();
+      var back = names.every(function (n) { return W.all("dashboards").some(function (r) { return (r.spec && r.spec.name) === n; }); });
+      var again = Studio.ensureCampaignFinanceDashboards();
+      return { healed: healed, back: back, idempotent: again === false };
+    });
+    ok("SP-5(b): the boot heal re-seeds the three Campaign Finance dashboards into a slice-(a) install and is idempotent on a healthy one",
+      cfHeal.healed && cfHeal.back && cfHeal.idempotent, JSON.stringify(cfHeal));
+
+    // And it RENDERS. A sankey with an unmapped column does not throw — it draws the
+    // toolkit's "No flows" placeholder and reads as an empty panel, which is exactly the
+    // failure a spec-shape check cannot see. So load the hero and count ribbons.
+    await page.evaluate(function () {
+      var W = Studio.Workspace;
+      var hero = W.all("dashboards").filter(function (r) { return (r.spec && r.spec.name) === "campaignfinance-flow"; })[0];
+      window.__studioLoad(Studio.clone(hero.spec));
+    });
+    await page.waitForTimeout(3000);
+    const cfRender = await page.evaluate(function () {
+      var d = document.querySelector("#preview").contentDocument;
+      function panelOf(id) {
+        return Array.prototype.filter.call(d.querySelectorAll("[data-panel-id]"), function (n) { return n.getAttribute("data-panel-id") === id; })[0];
+      }
+      function ribbons(id) { var p = panelOf(id); return p ? p.querySelectorAll("svg path").length : 0; }
+      function emptyState(id) { var p = panelOf(id); return !!(p && p.querySelector(".empty")); }
+      return {
+        flowRibbons: ribbons("pcf_flow"),
+        homeBars: (function () { var p = panelOf("pcf_home"); return p ? p.querySelectorAll("svg rect").length : 0; }()),
+        anyEmpty: emptyState("pcf_flow") || emptyState("pcf_home") || emptyState("pcf_dominant"),
+        tableRows: (function () { var p = panelOf("pcf_dominant"); return p ? p.querySelectorAll("tbody tr").length : 0; }()),
+        note: !!d.querySelector(".sr-richtext"),
+        kpis: d.querySelectorAll("#kpis .kpi").length,
+        kpiValues: Array.prototype.map.call(d.querySelectorAll("#kpis .kpi .v"), function (n) { return n.textContent.trim(); }),
+        err: /Could not load|Render error|No query bound/.test((d.querySelector("#content") || {}).textContent || "")
+      };
+    });
+    ok("SP-5(b): the Campaign Finance flow hero actually draws — 3 KPIs with real values, a ribbon per kept flow in the donor-state→committee sankey (not the toolkit's \"No flows\" placeholder, which is what an unmapped column renders instead of an error), the home-state bars and the concentrated-relationships table populated and the method note rendered, with no panel-level error",
+      cfRender.flowRibbons > 40 && cfRender.homeBars >= 16 && !cfRender.anyEmpty &&
+      cfRender.tableRows > 0 && cfRender.note && cfRender.kpis === 3 &&
+      cfRender.kpiValues.every(function (v) { return v && v !== "—" && v !== "0"; }) && !cfRender.err,
+      JSON.stringify(cfRender));
 
     // ---- SP-6 (b): the pack's three dashboards ---------------------------------
     // The slice's claim is not "three specs exist" — it is that the FLOW the pack was
