@@ -178,6 +178,54 @@
       },
       afterInstall: function () { Studio.ensurePackDataMaterialized("contractawards"); }
     },
+    // SP-5: the THIRD pack carrying real data, and the one where the source is a public
+    // record about private people — the FEC's bulk individual contributions for the CLOSED
+    // 2023-2024 cycle, committed as CSV under data/packs/campaignfinance/ by
+    // tools/pack-extract/campaignfinance.mjs (docs/PACKS.md is the contract). Kevin promoted
+    // it on 2026-08-09 as the second of the three money-flow packs and settled its scope on
+    // 2026-08-08 (STATUS.md § SP-5): donor NAMES were put to him in full and he took them.
+    // This pack nevertheless carries none — not as a reversal, but because every table it
+    // ships is an aggregate and an aggregate has no name column to put one in. The decision
+    // is banked for a slice that needs it; nothing here does.
+    // Slice (a) is the data foundation: the connection, the seven committed tables, and the
+    // job that turns one state's giving into a share of the committee that received it.
+    campaignfinance: {
+      id: "campaignfinance",
+      kind: "workspace",
+      folder: "Campaign Finance",
+      name: "Campaign Finance — who funds federal politics",
+      // Count-led and ending in "embedded" (the suite's #116 shape check), and it names
+      // every KIND install seeds — connection, datasets, job — because doc-truth check 35
+      // rule (a) holds this string and the blurb to the installer separately.
+      tagline: "8 datasets on 1 connection · $6.5B of itemized individual giving in the 2023-24 cycle · 50 committees × 65 donor states · 200 occupations and 200 employers · 24 months · a donor-share job — real public data, embedded",
+      // Three sentences, which is N40's cap — the card is a decision surface and the
+      // inventory belongs in Help. Count-led and says "embedded" for the suite's #116.
+      blurb: "8 datasets on 1 connection over the Federal Election Commission's own record of " +
+        "who gave money to whom in the 2023-24 election cycle — $6.5 billion of itemized " +
+        "individual contributions, summarised by donor state, by recipient committee, by " +
+        "occupation and employer, by month, and by the size of the cheque. A prep job joins each " +
+        "donor state to the committee that received it, so one state's giving reads as a share of " +
+        "that committee, and as the share that came from outside the state the candidate is " +
+        "running in. The data is the FEC's own, public domain and embedded — and it is itemized " +
+        "giving only, so the small contributions in it are gifts from donors who passed the $200 " +
+        "itemisation threshold rather than the small-dollar donor universe.",
+      source: {
+        kind: "public",
+        name: "Federal Election Commission — individual contributions, 2023-2024 cycle",
+        url: "https://www.fec.gov/data/browse-data/?tab=bulk-data",
+        licence: "Public domain (U.S. Government work)",
+        retrieved: "2026-08-10"
+      },
+      // No `seeds`, for the reason SP-1 and SP-6 state above: install() writes the connection
+      // synchronously and everything else lands from the CSV a moment later.
+      install: function () { installCampaignFinanceConnection(); },
+      data: {
+        files: ["state-donors.csv", "committees.csv", "committee-state.csv",
+                "occupations.csv", "employers.csv", "monthly.csv", "size-bands.csv"],
+        seed: function (csv) { seedCampaignFinanceData(csv); }
+      },
+      afterInstall: function () { Studio.ensurePackDataMaterialized("campaignfinance"); }
+    },
     // LF2(c)/LF16: the pre-existing generic showcase gallery (governance, platform ops,
     // delivery, finance, marketing, reliability, compliance, feature tour) folded into a
     // toggleable pack the same way Conservation Insight is one — kind:"examples" (below)
@@ -2045,6 +2093,163 @@
     var W = Studio.Workspace;
     return seedContractAwardsViews(W, id, contractAwardsDatasets(W, id)) > 0;
   };
+
+  /* ---- SP-5 (a): Campaign Finance — the data foundation ------------------------------
+     The pack asks who funds federal politics, and the extract
+     (tools/pack-extract/campaignfinance.mjs) answers it in seven committed tables: who gave
+     (by state, occupation, employer, cheque size and month) and who received (the fifty
+     largest recipient committees, and every donor state each of them drew from).
+
+     THE ONE MODELLING DECISION WORTH KNOWING, because it is the difference between a
+     truthful chart and a partisan-looking one: the extract counts EVERY recipient committee,
+     not just the campaigns. Measured on the 2024 file, restricting recipients to candidate
+     committees puts Harris For President at $390M and no Trump campaign in the top fifty —
+     not because one side raised nothing, but because the Trump operation raised through
+     JOINT FUNDRAISING committees that transfer onward while the Harris operation's earmarked
+     money was itemized directly against the campaign. Same money, different plumbing. So the
+     kind of committee is a COLUMN here (`committee_type`) rather than a silent filter, and
+     the reader can do what the filter would have done, visibly.
+
+     Everything below the connection is written by seedCampaignFinanceData once
+     Studio.ensurePackDataMaterialized has the bytes. */
+  var CF_FOLDER = "Campaign Finance";
+  var CF_STATES = "state-donors.csv";
+  var CF_COMMITTEES = "committees.csv";
+  var CF_FLOW = "committee-state.csv";
+  var CF_OCCUPATIONS = "occupations.csv";
+  var CF_EMPLOYERS = "employers.csv";
+  var CF_MONTHLY = "monthly.csv";
+  var CF_BANDS = "size-bands.csv";
+  var CF_SOURCE_DESC = "Itemized individual contributions for the 2023-24 election cycle, " +
+    "extracted by tools/pack-extract/campaignfinance.mjs and read from files in your browser.";
+
+  function installCampaignFinanceConnection() {
+    Studio.Workspace.put("connections", {
+      name: "FEC bulk downloads — embedded extracts", adapter: "file", cfg: {},
+      desc: CF_SOURCE_DESC, folder: CF_FOLDER, demoPackId: "campaignfinance"
+    });
+  }
+  // The pack's own connection, however install left it — looked up rather than threaded
+  // through, because install() and the seed run in different turns (the SP-1 convention).
+  function campaignFinanceConnection() {
+    return Studio.Workspace.all("connections").filter(function (r) { return r.demoPackId === "campaignfinance"; })[0] ||
+      Studio.Workspace.put("connections", {
+        name: "FEC bulk downloads — embedded extracts", adapter: "file", cfg: {},
+        desc: CF_SOURCE_DESC, folder: CF_FOLDER, demoPackId: "campaignfinance"
+      });
+  }
+
+  // The job's four steps, as a fresh array each call — the same definition seeds the job row
+  // AND pre-computes its output below, so the two can never describe different work.
+  function campaignFinanceSteps(committeesDatasetId) {
+    return [
+      // 1. the join the pack exists to show: every donor-state row gains the committee's
+      //    NAME, its kind, its party, the seat it is running for and its own cycle total.
+      //    No column collides, because the extract deliberately left all of that out of the
+      //    flow table — see tools/pack-extract/campaignfinance.mjs.
+      { op: "join", datasetId: committeesDatasetId, leftCol: "cmte_id", rightCol: "cmte_id", type: "inner" },
+      // 2-3. one state's share of one committee. The committee's total is divided down to ONE
+      //      PERCENT first, so the ratio that follows is a plain division and every
+      //      intermediate column is a number a reader can name (SP-1's and SP-6's shape).
+      { op: "derive", outCol: "one_pct_of_committee", a: { col: "total_amount" }, operator: "/", b: { value: 100 } },
+      { op: "derive", outCol: "pct_of_committee", a: { col: "amount" }, operator: "/", b: { col: "one_pct_of_committee" } },
+      // 4. the out-of-state story, and the reason `is_home_state` is a 0/1 in the extract
+      //    rather than something derived here: the job engine's derive step does arithmetic
+      //    on numbers and cannot compare two strings, so "did this money come from the state
+      //    the candidate is running in" arrives as a flag this multiplies by. Summed per
+      //    committee against total_amount, it IS the out-of-state share.
+      { op: "derive", outCol: "home_state_amount", a: { col: "amount" }, operator: "*", b: { col: "is_home_state" } }
+    ];
+  }
+
+  function seedCampaignFinanceData(csv) {
+    var id = "campaignfinance", W = Studio.Workspace;
+    var conn = campaignFinanceConnection();
+    var tags = ["demo", "elections", "money"];
+
+    var statesDs = W.put("datasets", {
+      name: "Individual contributions by donor state — 2023-24 cycle", connectionId: conn.id,
+      kind: "file", format: "csv", fileName: CF_STATES,
+      content: csv[CF_STATES],
+      columns: ["state", "contributions", "amount", "small_dollar_contributions",
+                "small_dollar_amount", "max_out_contributions", "max_out_amount"],
+      folder: CF_FOLDER, demoPackId: id, tags: tags.concat(["geo"])
+    });
+    var committeesDs = W.put("datasets", {
+      name: "The 50 largest recipient committees — 2023-24 cycle", connectionId: conn.id,
+      kind: "file", format: "csv", fileName: CF_COMMITTEES,
+      content: csv[CF_COMMITTEES],
+      columns: ["cmte_id", "committee", "committee_type", "candidate", "party", "office",
+                "office_state", "district", "total_contributions", "total_amount"],
+      folder: CF_FOLDER, demoPackId: id, tags: tags
+    });
+    var flowDs = W.put("datasets", {
+      name: "Where each committee's money came from, by donor state", connectionId: conn.id,
+      kind: "file", format: "csv", fileName: CF_FLOW,
+      content: csv[CF_FLOW],
+      columns: ["cmte_id", "state", "is_home_state", "contributions", "amount"],
+      folder: CF_FOLDER, demoPackId: id, tags: tags.concat(["flow"])
+    });
+    var occupationsDs = W.put("datasets", {
+      name: "Individual contributions by donor occupation — top 200", connectionId: conn.id,
+      kind: "file", format: "csv", fileName: CF_OCCUPATIONS,
+      content: csv[CF_OCCUPATIONS], columns: ["occupation", "contributions", "amount"],
+      folder: CF_FOLDER, demoPackId: id, tags: tags
+    });
+    var employersDs = W.put("datasets", {
+      name: "Individual contributions by donor employer — top 200", connectionId: conn.id,
+      kind: "file", format: "csv", fileName: CF_EMPLOYERS,
+      content: csv[CF_EMPLOYERS], columns: ["employer", "contributions", "amount"],
+      folder: CF_FOLDER, demoPackId: id, tags: tags
+    });
+    var monthlyDs = W.put("datasets", {
+      name: "Individual contributions by month and committee kind", connectionId: conn.id,
+      kind: "file", format: "csv", fileName: CF_MONTHLY,
+      content: csv[CF_MONTHLY], columns: ["month", "committee_type", "contributions", "amount"],
+      folder: CF_FOLDER, demoPackId: id, tags: tags.concat(["time"])
+    });
+    var bandsDs = W.put("datasets", {
+      name: "Small-dollar to max-out — contributions by size band", connectionId: conn.id,
+      kind: "file", format: "csv", fileName: CF_BANDS,
+      content: csv[CF_BANDS],
+      columns: ["band_order", "band", "committee_type", "contributions", "amount"],
+      folder: CF_FOLDER, demoPackId: id, tags: tags
+    });
+
+    var steps = campaignFinanceSteps(committeesDs.id);
+    // Pre-materialized so the shares are there to chart before anyone clicks Run — and
+    // computed by running the job's OWN steps through the engine rather than a hand-kept
+    // second copy of the arithmetic, so a Run rewrites this dataset with identical numbers
+    // instead of quietly correcting it (docs/PACKS.md). Seeded as a pack-tagged, foldered
+    // row so Remove sweeps it.
+    var left = parsePackCsv(csv[CF_FLOW]);
+    var ctx = { datasets: {} };
+    ctx.datasets[committeesDs.id] = parsePackCsv(csv[CF_COMMITTEES]);
+    var out = Studio.runJobSteps(left, steps, ctx);
+    var outputName = "Donor states — each state's share of the committee it gave to (job output)";
+    var outputDs = W.put("datasets", {
+      name: outputName, connectionId: conn.id,
+      kind: "file", format: "csv", fileName: "committee_donor_state_shares.csv",
+      content: out.error ? "" : Studio.rowsToCsv(out.columns, out.rows),
+      columns: (out.columns || []).slice(),
+      folder: CF_FOLDER, demoPackId: id, tags: tags.concat(["job-output"])
+    });
+
+    W.put("jobs", {
+      name: "Join the committees and derive each donor state's share",
+      sourceDatasetId: flowDs.id,
+      outputDatasetId: outputDs.id, outputName: outputName,
+      steps: steps,
+      folder: CF_FOLDER, demoPackId: id
+    });
+
+    // Slice (a) stops here, deliberately. The dashboards and the pinned Views are slices (b)
+    // and (c) and land the same way SP-6's did — seeded from this same turn, because the rows
+    // they read exist only now, and paired with a boot heal so a workspace that installed the
+    // pack today picks them up without a reinstall.
+    return { states: statesDs, committees: committeesDs, flow: flowDs, occupations: occupationsDs,
+             employers: employersDs, monthly: monthlyDs, bands: bandsDs, output: outputDs };
+  }
 
   // SP-0: registry-driven. This function knows about no pack in particular — an entry
   // that seeds a workspace supplies `install`; one that only gates gallery visibility

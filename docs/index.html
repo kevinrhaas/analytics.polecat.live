@@ -847,7 +847,7 @@
   sample content, never your real data — and <strong>Remove</strong> takes
   back exactly what Install added. Everything a pack adds is <strong>filed in the pack's own
   folder</strong> (Conservation Insight, Data Management, Market Coverage, Federal Contract
-  Awards) across every section, and its raw sample
+  Awards, Campaign Finance) across every section, and its raw sample
   tables only appear in the dataset pickers while the pack is installed — an uninstalled pack leaves
   no trace. <strong>The packs are the only sample-content switch there is</strong> — Settings used to
   carry a separate "Sample content" mode toggle that hid everything at once, and it is gone: remove the
@@ -922,6 +922,31 @@
     filter behind the numbers — contracts only, one closed fiscal year, the top 25 agencies and
     the top 12 industries and vendors within each — is written down in
     <code>tools/pack-extract/contractawards.mjs</code> and in the pack's
+    <code>SOURCE.json</code>.</li>
+    <li><strong>Campaign Finance</strong> is the pack about who funds federal politics: the
+    Federal Election Commission's own record of itemized individual contributions in the closed
+    2023-24 election cycle — $6.5 billion of them — embedded in the app rather than fetched. It
+    seeds one <strong>connection</strong> over eight <strong>datasets</strong> — giving by donor
+    state, the fifty largest recipient committees, every donor state each of those committees drew
+    from, the top 200 occupations and the top 200 employers, twenty-four months of giving by kind
+    of committee, contributions banded from under $50 to the per-election limit, and the output of
+    the prep <strong>job</strong> that joins a donor state to the committee that received it, so
+    one state's giving reads as a share of that committee and as the share that came from outside
+    the state the candidate is running in. The flow table carries the committee <em>id</em> and
+    not its name on purpose: bringing the readable name, the party, the seat and the committee's
+    own total across is exactly what the job is for.
+    <strong>Two things to read it with, both of them in the data rather than around it.</strong>
+    First, it is <em>itemized</em> giving: a committee reports a donor once their cycle total
+    passes $200 and reports everything below that as one unitemized lump, so the small
+    contributions here are small gifts from donors who crossed that line — not the small-dollar
+    donor universe, which this source simply does not contain. Second, every recipient committee
+    is counted and not just the campaigns, which is why <code>committee_type</code> exists: the
+    two sides raised through different plumbing — joint fundraising committees that transfer
+    onward on one, earmarked money itemized straight against the campaign on the other — and
+    filtering to candidate committees would have shown a landslide that did not happen. No donor
+    names and no addresses are in the pack: every table is an aggregate, and the FEC's bulk file
+    carries no street address in the first place. Every filter behind the numbers is written down
+    in <code>tools/pack-extract/campaignfinance.mjs</code> and in the pack's
     <code>SOURCE.json</code>.</li>
     <li><strong>Data Management &amp; Governance</strong> is the built-in generic showcase gallery
     (Data Governance, Data Platform Operations, Product Delivery, Finance, Marketing, Incident

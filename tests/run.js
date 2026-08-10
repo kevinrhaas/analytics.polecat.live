@@ -5932,6 +5932,163 @@ function serve() {
       fca.districtRows === 436 && fca.districtsAllDrawable &&
       fca.rerunReproduces && fca.removedClean && fca.restored, JSON.stringify(fca));
 
+    // ---- SP-5 (a): the third real-data pack, and the one with a privacy invariant ----
+    // Same async path SP-1 (a) and SP-6 (a) proved, so the shape matches them; three things
+    // are different enough to be worth stating, because they are what this block guards.
+    //
+    // 1. THE COLUMN SETS ARE ASSERTED EXACTLY, and that is the item's own instruction, not
+    //    belt-and-braces. STATUS.md § SP-5 requires the extract to drop the donor's street
+    //    address "at extraction, not at render" and says the assertion is the thing that
+    //    stops a later change re-adding it. Every table here is an aggregate, so there is no
+    //    donor name or address to carry — and pinning the seven column lists is how that
+    //    stays true: any future extract that adds one changes a list and reddens the suite.
+    // 2. THE JOIN BRINGS ACROSS WHAT THE SOURCE TABLE DOES NOT HAVE (SP-6's property, one
+    //    pack over): the flow table has a committee ID and nothing readable, so `committee`,
+    //    `party` and `total_amount` appearing in the output IS the evidence the key resolved.
+    // 3. THE HOME-STATE FLAG IS ARITHMETIC, NOT DECORATION. `home_state_amount` must equal
+    //    `amount` exactly on the rows a candidate's own state gave, and exactly zero
+    //    everywhere else — including for every committee with no seat to be home to. Summed
+    //    against the committee total that is the out-of-state share, so a flag that drifted
+    //    would misstate the pack's headline number while still looking like a number.
+    const cfa = await page.evaluate(async function () {
+      var W = Studio.Workspace, ID = "campaignfinance", was = Studio.demoPackInstalled(ID);
+      if (was) Studio.removeDemoPack(ID);
+      var out = { cleanBefore: W.all("datasets").filter(function (r) { return r.demoPackId === ID; }).length === 0 };
+      Studio.installDemoPack(ID);
+      out.afterInstallSync = {
+        connections: W.all("connections").filter(function (r) { return r.demoPackId === ID; }).length,
+        datasets: W.all("datasets").filter(function (r) { return r.demoPackId === ID; }).length
+      };
+      await Studio.ensurePackDataMaterialized(ID);
+      function rows(t) { return W.all(t).filter(function (r) { return r.demoPackId === ID; }); }
+      var dsets = rows("datasets"), jobs = rows("jobs");
+      out.counts = { connections: rows("connections").length, datasets: dsets.length, jobs: jobs.length };
+      out.allFoldered = rows("connections").concat(dsets, jobs).every(function (r) { return r.folder === "Campaign Finance"; });
+      await Studio.ensurePackDataMaterialized(ID);
+      out.stillOne = rows("datasets").length === dsets.length && rows("jobs").length === jobs.length;
+
+      // (1) the privacy invariant, as an exact shape rather than a search for bad words
+      var EXPECTED = {
+        "state-donors.csv": "state,contributions,amount,small_dollar_contributions,small_dollar_amount,max_out_contributions,max_out_amount",
+        "committees.csv": "cmte_id,committee,committee_type,candidate,party,office,office_state,district,total_contributions,total_amount",
+        "committee-state.csv": "cmte_id,state,is_home_state,contributions,amount",
+        "occupations.csv": "occupation,contributions,amount",
+        "employers.csv": "employer,contributions,amount",
+        "monthly.csv": "month,committee_type,contributions,amount",
+        "size-bands.csv": "band_order,band,committee_type,contributions,amount"
+      };
+      out.extractColumnsExact = Object.keys(EXPECTED).every(function (f) {
+        var d = dsets.filter(function (x) { return x.fileName === f; })[0];
+        return d && (d.columns || []).join(",") === EXPECTED[f] &&
+          (d.content || "").split("\n")[0] === EXPECTED[f];
+      });
+
+      var job = jobs[0];
+      var outputDs = dsets.filter(function (d) { return d.id === job.outputDatasetId; })[0];
+      out.hasOutput = !!outputDs && (outputDs.tags || []).indexOf("job-output") >= 0;
+
+      // The seeded output is a PROMISE about what a Run will produce — reproduce the live
+      // path and hold it to the byte (the SP-1/SP-6 rule).
+      var srcRes = await Studio.fileSource.queryData({}, W.get("datasets", job.sourceDatasetId));
+      var joinStep = (job.steps || []).filter(function (s) { return s.op === "join"; })[0];
+      var rightRes = await Studio.fileSource.queryData({}, W.get("datasets", joinStep.datasetId));
+      var ctx = { datasets: {} };
+      ctx.datasets[joinStep.datasetId] = { columns: rightRes.columns, rows: rightRes.rows };
+      var live = await Studio.runJobStepsAsync({ columns: srcRes.columns, rows: srcRes.rows }, job.steps, ctx);
+      out.rerunError = live.error || "";
+      out.rerunReproduces = !live.error && Studio.rowsToCsv(live.columns, live.rows) === (outputDs || {}).content;
+
+      var head = live.columns || [], rws = live.rows || [];
+      out.outputRows = rws.length;
+      var at = function (c) { return head.indexOf(c); };
+      // (2) the join matched: none of these three is in the flow table
+      out.joined = at("committee") >= 0 && at("party") >= 0 && at("total_amount") >= 0;
+      out.derived = ["one_pct_of_committee", "pct_of_committee", "home_state_amount"]
+        .every(function (c) { return at(c) >= 0; });
+      var iCmte = at("cmte_id"), iState = at("state"), iHome = at("is_home_state"),
+        iAmt = at("amount"), iTot = at("total_amount"), iPct = at("pct_of_committee"),
+        iHomeAmt = at("home_state_amount"), iOffice = at("office_state"), iName = at("committee");
+      var first = rws[0] || [];
+      var pct = Number(first[iPct]);
+      out.pctIsANumber = isFinite(pct) && pct > 0;
+      out.pctChecks = Math.abs(pct - (Number(first[iAmt]) / (Number(first[iTot]) / 100))) < 1e-9;
+
+      var byCmte = {}, sane = true, nullFree = true, homeOk = true, homeRows = 0;
+      rws.forEach(function (r) {
+        var p = Number(r[iPct]), a = Number(r[iAmt]), h = Number(r[iHomeAmt]), flag = Number(r[iHome]);
+        if (r[iName] === "" || r[iName] == null || r[iPct] === "" || r[iPct] == null) nullFree = false;
+        if (!isFinite(p) || p < 0 || !isFinite(h) || h < 0) sane = false;
+        // (3) the flag is arithmetic: home dollars are the whole gift or none of it, and a
+        //     committee with no seat can never have a home state to have given from
+        if (flag === 1) { homeRows++; if (h !== a || String(r[iOffice]) !== String(r[iState])) homeOk = false; }
+        else if (h !== 0 || (r[iOffice] && String(r[iOffice]) === String(r[iState]))) homeOk = false;
+        byCmte[r[iCmte]] = (byCmte[r[iCmte]] || 0) + p;
+      });
+      out.nullFree = nullFree;
+      out.sharesSane = sane;
+      out.homeFlagIsArithmetic = homeOk;
+      out.homeRows = homeRows;
+      out.committees = Object.keys(byCmte).length;
+      // every committee's donor states are a partition of its own money, so the shares sum
+      // to 100 — under it only by the rows whose donor state the filer never typed
+      out.everyCommitteeSharesTo100 = Object.keys(byCmte).every(function (c) {
+        return byCmte[c] > 95 && byCmte[c] <= 100.000001;
+      });
+
+      // The state table exists to be drawn. Checked against the geometry the app would draw
+      // it on, the way SP-6 checks its districts: every two-letter code the map can resolve
+      // has to be a state in vendor/geo/states-albers-10m.json, and the 50 + DC all present.
+      var statesDs = dsets.filter(function (d) { return d.fileName === "state-donors.csv"; })[0];
+      var sRes = await Studio.fileSource.queryData({}, statesDs);
+      var iSt = sRes.columns.indexOf("state");
+      var geo = await (await fetch("vendor/geo/states-albers-10m.json")).json();
+      var drawable = {};
+      ((geo.objects.states || {}).geometries || []).forEach(function (g) { drawable[("00" + g.id).slice(-2)] = 1; });
+      out.geoStates = Object.keys(drawable).length;
+      // geoNormalizeId("state", …) resolves a postal code through studio-charts.js's own
+      // FIPS_POSTAL table, which is module-private — so the table is READ OUT OF THE APP'S
+      // SOURCE rather than restated here. A second copy would pass this check while the map
+      // drew nothing, which is the failure the check exists to catch.
+      var chartSrc = await (await fetch("app/studio-charts.js")).text();
+      var postalToFips = {};
+      (chartSrc.match(/var FIPS_POSTAL = \{[^}]*\}/) || [""])[0]
+        .replace(/"(\d{2})":"([A-Z]{2})"/g, function (_, fips, postal) { postalToFips[postal] = fips; return ""; });
+      out.postalTableRead = Object.keys(postalToFips).length;
+      var seen = {}, resolved = 0, unresolved = [];
+      sRes.rows.forEach(function (r) {
+        var code = String(r[iSt]);
+        var fips = postalToFips[code];
+        seen[code] = 1;
+        if (fips && drawable[fips]) resolved++; else unresolved.push(code);
+      });
+      out.stateRows = sRes.rows.length;
+      out.statesResolved = resolved;
+      // AA/AE/AP (military post offices) and the territories have no geometry — they are
+      // real donor origins and stay in the table rather than being quietly dropped.
+      out.unresolvedStates = unresolved.sort().join(",");
+      out.fiftyOnePresent = "AL AK AZ AR CA CO CT DE DC FL GA HI ID IL IN IA KS KY LA ME MD MA MI MN MS MO MT NE NV NH NJ NM NY NC ND OH OK OR PA RI SC SD TN TX UT VT VA WA WV WI WY"
+        .split(" ").every(function (c) { return seen[c] === 1; });
+
+      Studio.removeDemoPack(ID);
+      out.removedClean = ["connections", "datasets", "jobs", "dashboards", "analyses"]
+        .every(function (t) { return rows(t).length === 0; }) && !Studio.demoPackInstalled(ID);
+      if (was) { Studio.installDemoPack(ID); await Studio.ensurePackDataMaterialized(ID); }
+      out.restored = Studio.demoPackInstalled(ID) === was;
+      return out;
+    });
+    ok("SP-5(a): the Campaign Finance pack materializes its committed FEC CSV — install seeds the connection, the ensure-function adds all seven extract datasets plus the donor-share job and its pre-materialized output, every table's columns are exactly the aggregate shape the extract promises (no donor name, no address, at extraction rather than at render), the committee-id join brought across the name, party and total the flow table does not carry, each donor state's share is real arithmetic that sums to its committee, the home-state flag is the whole gift or none of it and never fires for a committee with no seat, every mappable state code draws on the app's own state geometry with all 50 + DC present, re-running the job through the live adapter+engine path reproduces the output byte for byte, a second ensure changes nothing, and Remove sweeps the async rows too",
+      cfa.cleanBefore && cfa.afterInstallSync.connections === 1 && cfa.afterInstallSync.datasets === 0 &&
+      cfa.counts.connections === 1 && cfa.counts.datasets === 8 && cfa.counts.jobs === 1 &&
+      cfa.allFoldered && cfa.stillOne && cfa.extractColumnsExact && cfa.hasOutput &&
+      cfa.outputRows === 2658 && cfa.joined && cfa.derived && cfa.pctIsANumber && cfa.pctChecks &&
+      // 16, not 19: nineteen of the fifty committees have a seat, but three of them are
+      // PRESIDENTIAL and the FEC's office state for a presidential run is "US", which is
+      // not a donor state and so can never be anyone's home row.
+      cfa.nullFree && cfa.sharesSane && cfa.homeFlagIsArithmetic && cfa.homeRows === 16 &&
+      cfa.committees === 50 && cfa.everyCommitteeSharesTo100 &&
+      cfa.stateRows === 67 && cfa.fiftyOnePresent && cfa.statesResolved >= 51 && cfa.postalTableRead >= 51 &&
+      cfa.rerunReproduces && cfa.removedClean && cfa.restored, JSON.stringify(cfa));
+
     // ---- SP-6 (b): the pack's three dashboards ---------------------------------
     // The slice's claim is not "three specs exist" — it is that the FLOW the pack was
     // extracted for is really drawn, from the pack's own rows, narrowed by rules a reader

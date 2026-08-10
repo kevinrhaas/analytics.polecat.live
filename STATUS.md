@@ -135,6 +135,64 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **SP-5 (a) — Campaign Finance, the pack's data foundation (v966, sw v556, 2026-08-10,
+  steward; dev branch; est 3pt for the pack, this is slice 1 of ~3 — on estimate):** the second
+  of the three money-flow packs Kevin promoted on 2026-08-09, in the shape SP-1 (a) and SP-6 (a)
+  proved — the extract, the committed CSVs, the connection, the datasets and the job.
+  - **The data.** `tools/pack-extract/campaignfinance.mjs` reads the FEC's bulk downloads for the
+    CLOSED 2023-24 cycle (`indiv24`, `cm24`, `cn24`; 4.2GB compressed, 58.2M rows), keeps the
+    46.2M individual receipts — `ENTITY_TP=IND`, types 15/15E/15J, positive, non-memo — and
+    aggregates $6.50B into seven tables: donor state (67 rows), the 50 largest recipient
+    committees, every donor state each of them drew from (2,658 rows), the top 200 occupations
+    and 200 employers, 24 months by kind of committee, and seven size bands from under $50 to the
+    per-election limit. **95.6KB of the 150KB budget.** A closed cycle was chosen over the live
+    one deliberately: the file is frozen, so a re-run is byte-identical forever.
+  - **The modelling decision that mattered, and it was measured rather than assumed.** The obvious
+    filter — recipients must be candidate committees — produces a chart that is *wrong in a way
+    that looks partisan*: it puts HARRIS FOR PRESIDENT at $390M and no Trump campaign in the top
+    fifty, because the Trump operation raised through JOINT FUNDRAISING committees that transfer
+    onward (Trump 47, $349M; Trump National Committee JFC, $290M) while the Harris operation's
+    earmarked money was itemized straight against the campaign. Same money, different plumbing. So
+    every recipient committee is counted and `committee_type` (the FEC's own designation/type
+    codes) is a COLUMN a reader can group by, instead of a filter that silently picks a winner.
+    The first extract run shipped the naive filter; it was caught by reading the output, not by a
+    test, which is the honest account of it.
+  - **Two more corrections from reading the same output.** The NRSC came out filed under *Alaska*
+    — the committee master links some party committees to a candidate id — so a candidate's seat
+    is now attributed only to the candidate's OWN committee. And Amy Klobuchar came out "other
+    party", because Minnesota's Democrats register as **DFL**; DFL and DNL now count as DEM, which
+    is a fact about their registered names and not an editorial fold.
+  - **The privacy line, and what it cost: nothing.** Kevin settled the scope on 2026-08-08 and
+    took individual donor NAMES. This slice ships none — not as a reversal, but because every
+    table is an aggregate and an aggregate has no name column to put one in; the decision is
+    banked for a slice that needs it. **The street-address half of the item is unreachable from
+    this source, which is a measurement and not a skip:** the FEC bulk file's 21 fields stop at
+    city/state/ZIP, so there is no address to read, no Census Geocoder call to make, and no
+    rooftop-derived tract to mix with a ZIP-derived one — which is why nothing carries the
+    `geo_precision` column the item specified for disclosing exactly that mixture. The suite pins
+    all seven column lists exactly, which is the item's own "assert it in the pack's test" made
+    good: a later extract that re-adds a name or an address changes a list and reddens the gate.
+  - **The job.** `committee-state.csv` carries a committee ID and nothing readable; the job joins
+    `committees.csv` for the name, kind, party, seat and cycle total, then derives
+    `one_pct_of_committee` → `pct_of_committee` (one state's share of one committee) and
+    `home_state_amount`. That last one is why `is_home_state` is a 0/1 in the extract rather than
+    something derived here: the engine's derive step does arithmetic on numbers and cannot compare
+    two strings, so the flag arrives as something it can multiply by — and summed against the
+    committee total it IS the out-of-state share.
+  - **Verified**: `tools/validate.mjs`, `tools/doc-truth.mjs` (checks 34/35/47/48 all read the new
+    pack), `tools/changelog-check.js`, `tools/dev-smoke.mjs` and the pack's own suite block — a
+    Playwright check that installs the pack, materializes the CSV, pins the seven column shapes,
+    re-runs the job through the live adapter+engine path and holds the seeded output to the BYTE,
+    checks every committee's donor-state shares sum to it, holds `home_state_amount` to "the whole
+    gift or none of it" on all 2,658 rows (16 home-state rows — 19 of the 50 committees have a
+    seat, and three of those are presidential, whose FEC office state is "US" and can never be a
+    donor's home — and never one for a committee with no seat at all), resolves every mappable
+    state code against `vendor/geo/states-albers-10m.json`
+    through the app's OWN postal→FIPS table read out of `app/studio-charts.js` rather than a second
+    copy, and asserts Remove sweeps the async rows.
+  - **What remains: (b) the dashboards and (c) the pinned Views + tour + docs**, the SP-6 split,
+    and the reason is the same one — a dashboard reads the rows this slice created, so it cannot
+    be written a turn earlier, and the two are different blast radii in one PR.
 - **Grooming pass 4 — the queue's two unmarked items were both waiting on Kevin (no version/sw
   bump; docs-only; 2026-08-10, steward; dev branch; est 1pt, took 1 — on estimate):**
   `docs/BACKLOG.md` triggers a grooming pass at "fewer than 3 ready items **or** ≥5 struck entries
@@ -14511,13 +14569,38 @@
 > (grooming pass 4 moved its entry to `docs/BACKLOG-ARCHIVE.md`). It had its own item line, minted
 > because the promotion note named the three packs but gave a grammar line to none of them, so the
 > queue had nothing to mark when work started.
-> **SP-5 is therefore the next of the three, and it is READY** — Kevin promoted it here himself, so
-> taking it is following this note, not the loop promoting a reservoir item. Its constraints were
-> settled 2026-08-08 and they ARE the item: read the SP-5 entry in the 📦 SAMPLE-PACK PROGRAM
-> reservoir before starting, then mint its grammar line in this block the way SP-6's was, marking
-> it ⏳ with the PR number as soon as one is open. SP-13 stays in the reservoir with its ⏫ marker
-> until SP-5 is done. **Grooming pass 4 note:** with N31/N41/N44/N25 all ⛔ and SP-1 ⏳, SP-5 is the
+> **SP-5 was therefore the next of the three, and it is STARTED — slice (a) shipped 2026-08-10
+> and it has its own grammar line in this block now** (minted the way SP-6's was, ⏳ with its PR).
+> Kevin promoted it here himself, so taking it followed this note rather than grazing the
+> reservoir. Its constraints were settled 2026-08-08 and they ARE the item: read the SP-5 entry in
+> the 📦 SAMPLE-PACK PROGRAM reservoir before taking slice (b). SP-13 stays in the reservoir with
+> its ⏫ marker until SP-5 is done. **Grooming pass 4 note:** with N31/N41/N44/N25 all ⛔ and SP-1 ⏳, SP-5 is the
 > only ready non-recurring work in this queue — that is the honest state, not an oversight.
+
+- ⏳ **PR #__PR__** — **SP-5 ★★ [3pt est, 1 slice shipped] — Campaign Finance, the second of
+  Kevin's three money-flow packs.** *(Grammar line minted 2026-08-10 by the run that started it,
+  the way SP-6's was — the promotion note above named the three packs and gave a line to none of
+  them, so the queue had nothing to mark. The scope decisions in the 📦 SAMPLE-PACK PROGRAM
+  reservoir entry are binding and unchanged; read them before taking the next slice.)*
+  ✓ **SLICE (a) IS SHIPPED — the data foundation: v966, sw v556 (2026-08-10, steward — see DONE).**
+  The extract over the FEC's closed 2023-24 bulk files, seven committed tables (95.6KB of the
+  150KB budget, $6.50B of itemized individual giving over 46.2M contributions), the pack's
+  connection, its eight datasets and the job that turns one donor state into a share of the
+  committee it gave to — and, where the committee has a seat, the share that came from outside it.
+  **Three things the item did not anticipate, all found by reading the extract's output:**
+  (1) filtering recipients to candidate committees — the obvious reading of "who funds the
+  candidates" — draws a landslide that never happened, because the two sides raised through
+  different plumbing; `committee_type` is a column now instead. (2) The committee master links
+  some PARTY committees to a candidate id, which filed the NRSC under Alaska. (3) Minnesota's
+  Democrats register as DFL, which put Amy Klobuchar in "other party".
+  **And one thing the item asked for that this source cannot give, measured rather than skipped:**
+  the FEC bulk file has NO street address in it — 21 fields ending at city/state/ZIP — so the
+  Census Geocoder half of the item has nothing to read, the pack's geography is ZIP-derived
+  throughout, and there is no mixture for a `geo_precision` column to disclose. Recorded here
+  because the item's constraints were written expecting one.
+  **WHAT REMAINS — (b) the dashboards, then (c) the pinned Views + tour + docs.** The SP-6 split,
+  for the SP-6 reason: a dashboard is a blob over the rows slice (a) creates, so it cannot be
+  authored a turn earlier, and Guard-main and the janitor both operate per-PR. Est 1pt each.
 
 - ⛔ **N44 ★★ [3pt est, 3 slices shipped — the estimate is spent] — SQL is edited in plain textareas
   app-wide.** **⛔ BLOCKED ON KEVIN, marked 2026-08-10 (steward), and it is the LAST half of the
