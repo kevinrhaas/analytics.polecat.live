@@ -20272,6 +20272,134 @@ function serve() {
     });
     await page.waitForTimeout(150);
 
+    // ---- N44 slice 1: the shared SQL editor (app/sqledit.js) ----
+    // Two halves, deliberately: the pure functions (what it highlights, what it
+    // is willing to CLAIM about a query) and the adoption at the dataset editor
+    // (that it enhances the host field in place without disturbing the value the
+    // save loop reads). The honesty rule is under test too — a well-formed query
+    // must produce NO all-clear, because this checks structure, not dialect.
+    console.log("\n• N44 slice 1: the shared SQL editor — highlighting, completion, honest checks");
+    const n44Pure = await page.evaluate(() => {
+      const S = window.Studio.SQLEdit;
+      const msgs = (s, o) => S.lint(s, o).map((m) => m.msg).join(" | ");
+      return {
+        present: !!S,
+        // the editor's checking IS Studio.sqlLint — one checker, two surfaces
+        sameChecker: JSON.stringify(S.lint("SELECT a) FROM t")) === JSON.stringify(window.Studio.sqlLint("SELECT a) FROM t", [], {})),
+        clean: S.lint("SELECT a FROM t WHERE b = 'x' -- note\n").length,
+        openParen: msgs("SELECT count( FROM t"),
+        extraClose: msgs("SELECT a) FROM t"),
+        openStr: msgs("SELECT 'abc FROM t"),
+        escapedStr: S.lint("SELECT 'it''s fine' FROM t").length,
+        openComment: msgs("SELECT a FROM t /* hm"),
+        quoteInBlockComment: S.lint("SELECT a FROM t /* don't count this */").length,
+        backtick: msgs("SELECT `a FROM t"),
+        notSelect: msgs("UPDATE t SET a = 1"),
+        notSelectOff: S.lint("UPDATE t SET a = 1", { expectSelect: false }).length,
+        kwInString: S.highlight("SELECT 'from me'"),
+        kwPlain: S.highlight("SELECT a FROM t"),
+        paramTok: S.highlight("WHERE d > {{since}}"),
+        commentTok: S.highlight("-- SELECT hidden")
+      };
+    });
+    ok("N44: Studio.SQLEdit exists and a well-formed query reports NOTHING (no false all-clear, no false alarm)",
+      n44Pure.present && n44Pure.clean === 0, JSON.stringify(n44Pure.clean));
+    ok("N44: the editor did not grow a rival checker — it returns Studio.sqlLint's own findings",
+      n44Pure.sameChecker, JSON.stringify(n44Pure.extraClose));
+    ok("N44: the strengthened scan tells an unclosed ( from a stray ), and reads /* */ and backticks",
+      /1 “\(” never closed/.test(n44Pure.openParen) && /1 “\)” with no/.test(n44Pure.extraClose) &&
+      /Unclosed \/\*/.test(n44Pure.openComment) && n44Pure.quoteInBlockComment === 0 &&
+      /double quote|quoted identifier/.test(n44Pure.backtick),
+      JSON.stringify([n44Pure.openParen, n44Pure.extraClose, n44Pure.openComment, n44Pure.quoteInBlockComment, n44Pure.backtick]));
+    ok("N44: an unterminated string quote is named, and an escaped '' one is not mistaken for it",
+      /single quote/.test(n44Pure.openStr) && n44Pure.escapedStr === 0, n44Pure.openStr);
+    ok("N44: a statement that is not SELECT/WITH is still flagged, and expectSelect:false drops it",
+      /SELECT or WITH/.test(n44Pure.notSelect) && n44Pure.notSelectOff === 0, n44Pure.notSelect);
+    ok("N44: keywords, params and comments highlight — and a keyword inside a string or after -- does not",
+      (n44Pure.kwPlain.match(/sqe-k/g) || []).length === 2 && /sqe-p/.test(n44Pure.paramTok) &&
+      (n44Pure.kwInString.match(/sqe-k/g) || []).length === 1 && /sqe-s">'from me'/.test(n44Pure.kwInString) &&
+      /sqe-c/.test(n44Pure.commentTok) && !/sqe-k/.test(n44Pure.commentTok),
+      JSON.stringify([n44Pure.kwPlain, n44Pure.kwInString, n44Pure.commentTok]));
+
+    await page.evaluate(() => { Studio.Datasets.openEditor(); });
+    await page.waitForTimeout(250);
+    const n44Wired = await page.evaluate(() => {
+      const ta = document.querySelector(".modal-ov .dsx-sql");
+      if (!ta) return { found: false };
+      const wrap = ta.closest(".sqe"), hl = wrap && wrap.querySelector(".sqe-hl");
+      const cs = getComputedStyle(ta), hs = hl && getComputedStyle(hl);
+      return {
+        found: true, wrapped: !!wrap, hasOverlay: !!hl, enhanced: !!ta.sqEdit,
+        fontMatch: !!hs && hs.fontFamily === cs.fontFamily && hs.fontSize === cs.fontSize &&
+          hs.lineHeight === cs.lineHeight && hs.paddingLeft === cs.paddingLeft && hs.paddingTop === cs.paddingTop,
+        glyphsHidden: cs.webkitTextFillColor === "rgba(0, 0, 0, 0)" || cs.color === "rgba(0, 0, 0, 0)",
+        caretVisible: cs.caretColor !== "rgba(0, 0, 0, 0)"
+      };
+    });
+    ok("N44: the dataset editor's SQL field IS the shared editor, enhanced in place",
+      n44Wired.found && n44Wired.wrapped && n44Wired.hasOverlay && n44Wired.enhanced, JSON.stringify(n44Wired));
+    ok("N44: the overlay inherits the host field's font and padding, so the painted text sits exactly on the caret",
+      n44Wired.fontMatch && n44Wired.glyphsHidden && n44Wired.caretVisible, JSON.stringify(n44Wired));
+
+    const n44Ta = page.locator(".modal-ov .dsx-sql");
+    await n44Ta.click();
+    await n44Ta.pressSequentially("SELECT count( FROM orders");
+    await page.waitForTimeout(150);
+    const n44Typed = await page.evaluate(() => {
+      const t = document.querySelector(".modal-ov .dsx-sql");
+      const hl = t.closest(".sqe").querySelector(".sqe-hl");
+      const st = t.closest(".sqe").parentNode.querySelector(".sqe-status");
+      return { value: t.value, kw: hl.querySelectorAll(".sqe-k").length, fn: hl.querySelectorAll(".sqe-f").length,
+        shown: !!st && !st.hidden, text: st ? st.textContent : "", cls: st ? st.className : "" };
+    });
+    ok("N44: typing paints tokens over the field and leaves the field's own value byte-for-byte what was typed",
+      n44Typed.kw >= 2 && n44Typed.fn >= 1 && n44Typed.value === "SELECT count( FROM orders", JSON.stringify(n44Typed));
+    ok("N44: the unclosed ( reaches the reader as a warning on the status line",
+      n44Typed.shown && /never closed/.test(n44Typed.text) && /warn/.test(n44Typed.cls), JSON.stringify(n44Typed));
+
+    await page.evaluate(() => {
+      const t = document.querySelector(".modal-ov .dsx-sql");
+      t.value = ""; t.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await n44Ta.click();
+    await n44Ta.pressSequentially("SEL");
+    await page.waitForTimeout(150);
+    const n44Ac = await page.evaluate(() => {
+      const ac = document.querySelector(".modal-ov .sqe-ac");
+      const t = document.querySelector(".modal-ov .dsx-sql");
+      const r = ac && !ac.hidden ? ac.getBoundingClientRect() : null;
+      const opts = ac ? [].slice.call(ac.querySelectorAll(".sqe-ac-opt")) : [];
+      return { open: !!ac && !ac.hidden, count: opts.length,
+        first: opts[0] ? opts[0].querySelector(".sqe-ac-name").textContent : "",
+        minTap: opts.length ? Math.min.apply(null, opts.map((o) => o.getBoundingClientRect().height)) : 0,
+        onScreen: r ? r.left >= 0 && r.right <= window.innerWidth : false,
+        expanded: t.getAttribute("aria-expanded"), active: !!t.getAttribute("aria-activedescendant") };
+    });
+    ok("N44: typing a prefix opens the completion popup with SELECT first, announced to a screen reader",
+      n44Ac.open && n44Ac.count > 0 && n44Ac.first === "SELECT" && n44Ac.expanded === "true" && n44Ac.active,
+      JSON.stringify(n44Ac));
+    ok("N44: every option is a ≥36px tap target and the popup is clamped on screen (mobile is a gate)",
+      n44Ac.minTap >= 36 && n44Ac.onScreen, JSON.stringify(n44Ac));
+
+    await page.keyboard.press("Enter");
+    await page.waitForTimeout(120);
+    const n44Accept = await page.evaluate(() => {
+      const t = document.querySelector(".modal-ov .dsx-sql");
+      const ac = document.querySelector(".modal-ov .sqe-ac");
+      window.Studio.insertAtCursor(t, "orders");
+      const ac2 = document.querySelector(".modal-ov .sqe-ac");
+      const hl = t.closest(".sqe").querySelector(".sqe-hl");
+      return { accepted: t.value.indexOf("SELECT") === 0, closed: !ac || ac.hidden,
+        afterInsert: t.value, painted: hl.textContent.indexOf("orders") >= 0,
+        popupAfterInsert: !!ac2 && !ac2.hidden };
+    });
+    ok("N44: Enter accepts the highlighted option and closes the popup",
+      n44Accept.accepted && n44Accept.closed, JSON.stringify(n44Accept));
+    ok("N44: the schema browser's click-to-insert still writes and repaints, and does NOT pop a menu nobody asked for",
+      /orders/.test(n44Accept.afterInsert) && n44Accept.painted && !n44Accept.popupAfterInsert, JSON.stringify(n44Accept));
+    await page.evaluate(() => { const x = document.querySelector(".modal-ov .x"); if (x) x.click(); });
+    await page.waitForTimeout(200);
+
     // ---- N-DATA: "Auto-arrange" — one-click panel reflow (pure function + UI wiring) ----
     console.log("\n• N-DATA: Auto-arrange panel layout");
     const aa = await page.evaluate(function () {

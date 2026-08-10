@@ -6,6 +6,21 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 958,
+    title: 'SQL is written in a real editor now — colour, column help, and an honest check',
+    kind: 'feature',
+    ts: '2026-08-10T03:35:54.000Z',
+    items: [
+      'Every SQL box in this app was a plain grey textarea: no colour, no help with the column you were halfway through typing, nothing to catch the bracket you never closed. The <b>Dataset editor’s SQL field</b> is the first to change, and what it became is one shared editor the rest of the app will adopt in turn.',
+      '<b>It is coloured as you type.</b> Keywords, strings, numbers, comments and <code>{{parameter}}</code> placeholders each read differently, in both themes and every palette. A keyword inside a string stays a string — the colours follow the query, not a word list.',
+      '<b>It knows your columns.</b> Type a couple of letters and a short list appears at the cursor: the columns your last <b>Preview</b> actually returned, the tables and columns <b>Browse schema</b> has loaded, this dataset’s own parameters, then keywords and common functions. Arrow keys and Enter, or a tap — <kbd>Ctrl</kbd>+<kbd>Space</kbd> summons it deliberately. With nothing previewed and nothing browsed it offers keywords and functions and invents nothing.',
+      '<b>It says what is wrong, and only what it can actually tell.</b> An unterminated quote, an unclosed <code>/*</code>, a <code>(</code> that never closes or a <code>)</code> with nothing to close, a statement that does not begin with SELECT or WITH — named in a line under the field, gone the moment you fix it.',
+      'What it will never do is tell you the query is <i>valid</i>. This app speaks to seven engines with seven dialects; a green tick that is sometimes wrong is worse than no tick at all. So there is no tick. It is quiet when it has nothing to say, and <b>Preview</b> is still the only thing that proves a query runs.',
+      'It is also one check, not two. The dashboard-only query builder has warned about exactly these things since July — rather than grow a second checker with its own wording, this slice made that one stronger for both: it now reads <code>/* */</code> comments and backtick names, and tells an unclosed <code>(</code> apart from a stray <code>)</code>.',
+      'The connection wizard’s query fields and the Jobs SQL step are still plain boxes. They are next — the whole point of building it as one component.',
+    ],
+  },
+  {
     v: 957,
     title: 'Changing the query behind a dashboard now tells you what it is about to change',
     kind: 'feature',

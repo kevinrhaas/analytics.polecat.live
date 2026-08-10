@@ -3197,3 +3197,41 @@ body.simple-mode .da-acts{display:none!important}
 .home-ex-title{font-size:var(--fs-13);font-weight:700;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .home-ex-types{display:flex;gap:4px;flex-wrap:wrap}
 .home-ex-types .ex-chip{font-size:var(--fs-10);padding:var(--sp-2) var(--sp-6);border-radius:999px;background:var(--field);color:var(--muted);border:1px solid var(--line)}
+
+/* ── N44 slice 1: the shared SQL editor (app/sqledit.js) ─────────────────────
+   The component ENHANCES a host <textarea> in place, so nothing here restates
+   the host's font, padding or border — sqledit.js copies those from computed
+   style onto the overlay. These rules are only the parts a stylesheet must own:
+   the stacking, the token colours (semantic tokens only, so every palette and
+   both themes are covered), and the popup.
+   The text you see is the OVERLAY; the textarea underneath keeps its own
+   background, border, caret and selection and simply stops painting glyphs. */
+.sqe{position:relative;display:block}
+.sqe>.sqe-ta{display:block;width:100%;position:relative;z-index:1;
+  color:transparent;-webkit-text-fill-color:transparent;caret-color:var(--ink)}
+.sqe>.sqe-ta::placeholder{color:var(--faint);-webkit-text-fill-color:var(--faint);opacity:1}
+.sqe-hl{position:absolute;inset:0;z-index:2;pointer-events:none;overflow:hidden;margin:0;
+  background:transparent;color:var(--ink);overflow-wrap:break-word;word-break:break-word}
+.sqe-mirror{visibility:hidden;z-index:0}
+.sqe-k{color:var(--brand);font-weight:700}
+.sqe-s{color:var(--good)}
+.sqe-c{color:var(--faint);font-style:italic}
+.sqe-n{color:var(--dk)}
+.sqe-f{color:var(--dk)}
+.sqe-id{color:var(--dk)}
+.sqe-p{color:var(--warn);font-weight:700}
+.sqe-o{color:var(--muted)}
+/* The findings line. Silent unless something was actually found — this checks
+   structure (quotes, comments, parentheses, the opening keyword) and never
+   claims the query is valid, so it must never render an all-clear tick. */
+.sqe-status{margin-top:5px;font-size:var(--fs-12);color:var(--muted);line-height:1.45}
+.sqe-status.warn{color:var(--warn)}
+.sqe-ac{position:absolute;z-index:3;min-width:170px;max-width:100%;max-height:214px;overflow:auto;
+  background:var(--pane);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow-lg);
+  padding:var(--sp-4);display:flex;flex-direction:column;gap:1px}
+.sqe-ac-opt{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;
+  min-height:36px;text-align:left;background:none;border:0;border-radius:7px;cursor:pointer;
+  padding:var(--sp-6) var(--sp-10);color:var(--ink);font-size:var(--fs-13);font-family:var(--mono)}
+.sqe-ac-opt:hover,.sqe-ac-opt.on{background:var(--field);color:var(--brand)}
+.sqe-ac-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sqe-ac-kind{flex:0 0 auto;font-family:var(--font);font-size:var(--fs-11);color:var(--faint)}
