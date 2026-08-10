@@ -135,6 +135,66 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N7 — the Glossary vs the nouns the app actually prints (v975, NO sw bump, 2026-08-10,
+  steward; dev branch; est 1pt, took 1 — ON estimate):** 🔁 N7 was again the only takeable item
+  in ▶ NOW (N31, N44, N41 and N25 all ⛔ on Kevin; SP-1 ⏳ on `hold` PR #689), and grooming pass 5
+  had already drained the queue that morning and deliberately declined to open a fifth proposal
+  on top of the unanswered #623 — so there was nothing to groom either. v974's closing note parked
+  its own find as *not* N7's (widening the chart registry's `desc` strings is app copy in a
+  precached file **and** a product call about which synonyms the product says out loud), so this
+  pass picked its own target: **the Glossary**, the last chapter on the page that nothing derived,
+  and the one whose title makes the strongest promise on the site — *"every term, one line each"*.
+  - **It defined ten terms and omitted three the app renders constantly.** Measured against the
+    app, not read: **Repository** — a section of the rail's own **Workspace** group, and the page
+    Help's Simple-mode, folders and filing prose all route the reader to by name — appeared
+    nowhere in the chapter. **Folder** — the noun the 🗂 ORGANIZE program turns on — was absent
+    while `app/studio.js` prints it on every catalog row, on the Repository's folder tree, on the
+    `+ New folder` button (`studio.js:8006`) and on the workbook chips' own *"Move workbook … to a
+    folder"* control. And of the three builders the rail carries in its **Build** group, the
+    chapter named **Quick Views** and the **View Builder** in the `View` entry's second sentence
+    and never named the **Dashboard Builder** at all — the dictionary of the app left out the
+    place dashboards are made.
+  - **Two more were added on the page's own evidence rather than on a rule.** **Data access** and
+    **Ensemble** each own a Help `<h2>` (*"Data sources &amp; data accesses"*, *"Ensembles &amp;
+    scientific honesty"*) and a bolded defining sentence inside it — so the page was spending two
+    words in its chapter titles that its dictionary did not carry, and a *Data access* is
+    pointedly **not** a *Dataset*, which the glossary did define. Both are app-said, not
+    doc-invented: `"New compound data access"` / `"Member data accesses (stacked)"` in
+    `app/studio.js`, `label: "Ensemble (common estimate)"` / `"Ensemble channel"` in
+    `app/model.js`.
+  - **The chapter now states its own contract** (`<p id="glossary-promise">`): what it covers —
+    the five kinds the Repository indexes, the three builders on the rail's Build group, and the
+    two ways they are filed — and that the spellings are the app's own. Without it, the rules
+    below would be a private convention rather than something a reader can rely on (the
+    check-62 move, one chapter over).
+  - **Doc-truth check 63, premise + six rules**, deriving the required vocabulary from three
+    places in `app/`, none of them a hand-written list: the rail's own IA (`app/index.html`'s
+    `rail-group-lbl` divs walked in document order, each `data-sec` button's `aria-label`
+    attaching to the group above it — the comment there is explicit that *Workspace = the things
+    you HAVE, Build = the places you MAKE them*); `REPO_TYPES` in `app/studio.js`, **evaluated**
+    rather than regexed (it is a plain literal), for the five object kinds; and the two organizer
+    nouns read off the buttons that mint them, so renaming `+ New folder` in the app moves the
+    rule with it. The premise also holds the title's OTHER half — *one line each* means one `<li>`
+    per term, so a nested list or a `<br>` inside an entry is itself the failure. Rule (g) runs
+    the other direction: a term defined here must be one the rest of the page actually bolds,
+    which is what would catch a retired noun lingering after a rename (the "analysis"→View
+    sweep's shape).
+  - **One rule was wrong on its first pass and the pre-fix measurement caught it.** The naming
+    rules originally read the whole section's text, so the new promise paragraph — which names
+    **Repository** and **Build** in order to state the contract — satisfied rule (c) by itself and
+    it passed on the pre-fix content. They now read the entry list only; the paragraph that
+    announces a rule cannot be what satisfies it.
+  - **Verified in both directions.** Premise fails on the true pre-fix tree (no
+    `#glossary-promise` anchor to hold), so the doc-side rules were measured on a mutated tree
+    carrying the pre-fix entry list under the new paragraph: **all three code-derived gaps flagged
+    there** (Repository unnamed, Dashboard Builder unnamed, folder undefined) and green after.
+    Five code-side directions measured on mutated trees — a fourth Build section on the rail, the
+    folder button renamed `+ New collection`, a sixth `REPO_TYPE`, a glossary word the docs never
+    bold, and an entry grown a nested list — **each failing its own rule and only its own.**
+  - Verification: `node tools/doc-truth.mjs` (63 checks), `node tools/validate.mjs`,
+    `node tools/changelog-check.js` and `node tools/dev-smoke.mjs` at 390×780 + desktop, zero
+    pageerrors. Docs-only + a gate script: `docs/index.html` is not precached, so **no `sw.js`
+    bump** (same as v974).
 - **N7 — the NAME on a Help chart card vs the name the picker prints (v974, NO sw bump,
   2026-08-10, steward; dev branch; est 1pt, took 1 — ON estimate):** 🔁 N7 was again the only
   takeable item in ▶ NOW (N31, N44, N41, N25 all ⛔ on Kevin; SP-1 ⏳ on `hold` PR #689), and
@@ -16444,6 +16504,37 @@
     the product's own copy is a product call, not a derivation. Also measured and found CURRENT:
     the chapter's group `<h3>`s (check 50 holds all 54 cards to the picker's tabs, both
     directions) and the `<div class="chart-group"></div>` stub every card carries.
+  * *The Glossary vs the nouns the app prints — v975, NO sw bump (2026-08-10 — see DONE).* No
+    candidate was standing again (v974's note parked its find as a product call about the app's
+    own synonyms), so this pass took the **Glossary** — the last chapter nothing derived, and the
+    one whose title makes the page's strongest promise: *"every term, one line each"*. It defined
+    ten and **omitted three the app renders constantly**: **Repository** (a rail **Workspace**
+    section, and where three other chapters send the reader for filing), **Folder** (ORGANIZE's
+    noun — every catalog row, the Repository tree, the `+ New folder` button at
+    `studio.js:8006`), and the **Dashboard Builder** (of the rail's three builders, only Quick
+    Views and the View Builder were named — the dictionary of the app omitted where dashboards
+    are made). **Data access** and **Ensemble** were added on the page's own evidence rather than
+    a rule: each owns an `<h2>` and a bolded defining sentence, so the page spent two words in its
+    chapter titles that its dictionary did not carry.
+    Doc-truth **check 63**, premise + six rules, deriving the vocabulary from the rail's own IA
+    (`rail-group-lbl` walked in document order), `REPO_TYPES` **evaluated** rather than regexed,
+    and the two organizer buttons — so renaming `+ New folder` moves the rule with it. The
+    premise holds the title's other half (*one line each* = one `<li>`, no nested list); rule (g)
+    runs the reverse — a defined term must be one the rest of the page bolds. Premise fails on
+    the true pre-fix tree (no anchor), so the doc-side rules were measured on a mutated tree
+    carrying the pre-fix entries under the new paragraph: all three gaps flagged, and **one rule
+    was wrong on that first pass** — reading the whole section let the promise paragraph, which
+    names Repository to state the contract, satisfy rule (c) by itself; the rules now read the
+    entry list only. Five code-side directions measured on mutated trees, each failing its own
+    rule and only its own.
+    **Measured in the same pass and NOT taken, so the next run does not re-derive it:** the
+    glossary's `Workbook` entry says workbooks are *"a filter chip in the Dashboards section"* and
+    that is **correct** — `renderDashboards()` writes into `#repoResults` (a historical id) and
+    owns the chip strip, while the rail's **Repository** section is `renderRepository()`, the
+    all-types finder. The two are easy to conflate from the ids alone; they were checked rather
+    than assumed. Also measured and found CURRENT: all ten pre-existing terms are words the app
+    still says (`Turso` is still a shipped workspace backend), and every one is bolded elsewhere
+    on the page — rule (g) passes on the pre-fix list, so nothing had gone dead.
 
 > **📋 RECORDED FOR KEVIN, NOT PROMOTED — grooming pass 4, 2026-08-10.** This sits BELOW the queue
 > on purpose: `docs/BACKLOG.md` says the loop never promotes into ▶ NOW on its own, and pass 2's
