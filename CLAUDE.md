@@ -36,7 +36,9 @@ they branch from dev and PR into dev per the pipeline rules below.
   stamps later in the pipeline.
 - **The changelog contract is sacred.** `js/changelog.js` is fleet-format,
   literal style, parsed live by Manager and the polecat.live launcher. Prepend
-  ONE entry with `ts: ''` at the TOP, then run `node tools/changelog-normalize.js`
+  ONE entry with `ts: ''` and `v: null` at the TOP (the normalizer assigns the
+  number — two branches that each guess "top + 1" both get it wrong), then run
+  `node tools/changelog-normalize.js`
   to stamp + canonicalize it YOURSELF before merging — nothing stamps after
   merge. `node tools/changelog-check.js` verifies with the manager's exact
   parser without writing (Guard main runs it).
