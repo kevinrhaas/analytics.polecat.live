@@ -1701,12 +1701,9 @@ body.lib-dragging #preview{pointer-events:none}
   .bd-ifr{width:100%!important}
 }
 
-/* LF63 slice 3: the builder's live SQL sanity hints (Studio.sqlLint) */
-.dsb-lint{display:flex;flex-direction:column;gap:4px;margin:6px 0 2px}
-.dsb-lint-row{font-size:var(--fs-12);line-height:1.45;color:var(--ink);
-  padding:var(--sp-6) var(--sp-10);border-radius:8px;
-  background:color-mix(in srgb,var(--warn,#f5a623) 13%,transparent);
-  border:1px solid color-mix(in srgb,var(--warn,#f5a623) 32%,transparent)}
+/* LF63 slice 3's `.dsb-lint` strip is gone as of N44 slice 2: this builder's query
+   boxes are the shared SQL editor now, and it renders the same Studio.sqlLint
+   findings on its own `.sqe-status` line under the field. One place, not two. */
 .dsb-addcol{font-family:var(--mono)}
 .dsb-params{display:flex;flex-direction:column;gap:6px;margin-bottom:4px}
 .dsb-prow{display:flex;gap:6px;align-items:center}
@@ -2869,6 +2866,11 @@ body.simple-mode .da-acts{display:none!important}
 .jobs-groupby{display:flex;flex-wrap:wrap;gap:6px;align-items:center;width:100%}
 .jobs-sql-box{width:100%;padding:var(--sp-8) var(--sp-10);font-size:var(--fs-13);font-family:var(--mono,monospace);
   border:1px solid var(--line);border-radius:8px;background:var(--surface,var(--field));color:var(--ink);resize:vertical}
+/* N44 slice 2: the step card's field row is a wrapping flex, and the SQL editor
+   wraps its textarea in a `.sqe` + drops a `.sqe-status` line after it — both are
+   full-width rows here, exactly as the bare textarea was. Host CSS owns the
+   layout; sqledit.js never restates it. */
+.jobs-step-fields>.sqe,.jobs-step-fields>.sqe-status{flex:1 1 100%}
 /* LF13(d) slice 1: the source field list — a read-only legend of the source
    dataset's columns above the step pipeline, so you can see what's available
    before building steps instead of discovering it one dropdown at a time. */

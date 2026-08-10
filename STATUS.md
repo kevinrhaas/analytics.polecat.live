@@ -135,6 +135,58 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N44 slice 2 — the other eight SQL surfaces, and the acceptance list is complete (v959, sw v549,
+  2026-08-10, steward; dev branch; est 3pt, 2 slices spent, 1 remains — on estimate):** the first
+  ready item in ▶ NOW (N31 is still ⛔ on Kevin; everything above N44 is struck). Slice 1 shipped the
+  component and adopted it at the dataset editor; this slice is the acceptance list the item wrote:
+  the seven per-adapter query boxes in the data-source builder and the Jobs SQL step. Every place
+  this app asks you to write SQL is now the same editor.
+  - **Seven boxes turned out to be ONE adoption, not seven — which is the point of the component.**
+    All seven adapter branches (`sql`, `duckdb`, `httpvfs`, `snowflake`, `databricks`, `bigquery`,
+    `http`) build their query box inside a single `renderQSection()`, each tagged `.dsb-query`, so
+    one `attach()` loop at the END of that function covers all of them and **no adapter branch
+    learns the editor exists.** Each keeps its own `oninput` (which is what writes `draft.query`),
+    its placeholder, its **Browse schema** and date-token insert buttons, and the SQL Builder's
+    generated SELECT — `attach()` enhances the node it is handed, so none of that moved.
+  - **The `.dsb-lint` strip is GONE, not stacked.** The item flagged this and it was the one real
+    trap: LF63 slice 3 rendered `Studio.sqlLint`'s findings in a strip of the builder's own, and the
+    editor renders those same findings on its own `.sqe-status` line. Two copies of one finding
+    would have been worse than none. The strip and its CSS are deleted; `runLint()` survives as one
+    line that repaints the editor, so the *other* trigger — the declared-column drift check
+    re-running when the column chips change, not just on a keystroke — still fires. LF63's two live
+    assertions were **re-pointed at `.sqe-status`, not deleted**, and a new check asserts the strip
+    is absent so the double-report can't come back.
+  - **What each surface can honestly offer, which is the interesting half.** The builder's boxes are
+    filled in BEFORE a connection is saved, so their completer reads a live `dsbSchema()` — the
+    declared column chips (which "Detect from query" and every adapter's Test-connection button
+    already populate), whatever **Browse schema** loaded this session (`dsbTables`, captured from
+    the same `listSchema()` call the panel already made), and the query's declared parameters. With
+    nothing tested and nothing browsed it offers keywords and functions and **invents nothing.** The
+    Jobs step is the opposite: it runs against the pipeline's rows so far in a DuckDB table named
+    `t`, so its schema function returns `colsBeforeStep(stepIdx)` and that one table — read live, so
+    editing a step above it changes what completes. `expectSelect:false` was needed **nowhere**: all
+    nine surfaces really are reads, so the item's guess about gviz-style boxes didn't apply here.
+  - **One host-CSS rule, because the component still restates nothing.** `.jobs-step-fields` is a
+    wrapping flex row; the editor's `.sqe` wrapper and its `.sqe-status` line are full-width rows
+    there exactly as the bare textarea was, so the JOBS stylesheet gained
+    `.jobs-step-fields>.sqe,.jobs-step-fields>.sqe-status{flex:1 1 100%}`. Host CSS owns layout —
+    `sqledit.js` was not touched by this slice at all.
+  - **Verified in the foreground** on the dev gate (`tools/validate.mjs`, `changelog-check`,
+    `doc-truth`, `dev-smoke` at 390×780 + desktop, all green) plus the new N44 slice-2 block and the
+    re-pointed LF63 checks run standalone against a live app at 1500×1040 **and** 390×780 —
+    11 passed / 0 failed, **zero pageerrors**. What the new checks hold: that all seven builder
+    boxes are enhanced in place with their placeholders intact, that visiting every kind in turn
+    leaves exactly ONE findings line behind (no leaked status element per kind), that the old
+    `.dsb-lint` strip is gone, that the builder's completer offers a declared chip as a `column`
+    with ≥36px tap targets, that the Jobs box keeps its saved query and completes on the incoming
+    columns and `t`, and that the flex step card still gives it a full-width row.
+  - **Docs moved with it:** `docs/index.html`'s "Writing SQL" section now names all nine surfaces
+    and states what each can and cannot offer, and the paragraph that promised the wizard and Jobs
+    boxes were "still plain text areas for now" is retired.
+  - **What remains (slice 3) and the honest split:** table-qualified completion (`orders.` → that
+    table's columns) is **ready** — it needed the schema loaded, and this slice loaded it. The
+    other half, flagging unknown column names, stays **Kevin's call**: it is only defensible where
+    the app knows the full column set, and the loop must not decide that on his behalf.
 - **N44 slice 1 — one SQL editor, and it is honest about what it can check (v958, sw v548,
   2026-08-10, steward; dev branch; est 3pt, 1 slice spent, 2 remain):** the first ready item in
   ▶ NOW (N31 is ⛔ on Kevin; everything above N44 is struck). Kevin asked for *"syntax checking and
@@ -14355,7 +14407,7 @@
   **Cheap first cut, if this needs splitting:** make the existing Query preview section's SQL
   clickable, opening the dataset editor on that dataset. That alone closes "I can see it's wrong
   and can't get to it" and is most of the value.
-- **N44 ★★ [3pt est, 1 slice shipped — 2 remain] — SQL is edited in plain textareas app-wide.**
+- **N44 ★★ [3pt est, 2 slices shipped — 1 remains] — SQL is edited in plain textareas app-wide.**
   ✓ **SLICE 1 IS SHIPPED — the component and its first adoption: v958, sw v548 (2026-08-10,
   steward — see DONE).** `app/sqledit.js` / `Studio.SQLEdit.attach(textarea, opts)` exists,
   enhances a host textarea in place (copying its font/padding/border, so it fits any of the nine
@@ -14365,22 +14417,30 @@
   about checking — `Studio.sqlLint` (LF63 slice 3) already did balance-and-shape checks under the
   dashboard-only builder. Slice 1 therefore ADOPTED and strengthened that one function rather than
   minting a rival; do not re-add a second checker.
-  **SLICE 2 — the remaining eight surfaces, which is the acceptance list the item already wrote:**
-  the seven per-adapter query boxes in the connection/dataset wizard (`studio.js:2243, 2288, 2343,
-  2394, 2445, 2498, 2512`) and the Jobs SQL step (`jobs.js:924`). Each is one `attach()` call plus
-  the honest question of what schema it can offer — the wizard boxes run BEFORE a connection is
-  saved, so the completer may have nothing but keywords there, and the Jobs step queries a DuckDB
-  table named `t` whose columns the pipeline already knows, which is the interesting one. Pass
-  `expectSelect:false` where a bare SELECT is not the contract. Mind that the dashboard-only
-  builder's `.dsb-query` already renders `sqlLint`'s findings in its own `.dsb-lint` strip: adopting
-  the editor there means removing that strip, not stacking a second one under it.
-  **SLICE 3 — what slice 1 deliberately did not do.** (a) The item asks for "unknown column names
+  ✓ **SLICE 2 IS SHIPPED — the acceptance list is complete: v959, sw v549 (2026-08-10, steward —
+  see DONE).** All nine surfaces are the one editor. The seven per-adapter query boxes turned out
+  to be ONE adoption, not seven: they are all `.dsb-query` inside one `renderQSection()`, so a
+  single `attach()` loop at the end of it covers every adapter branch and no branch learns about
+  the editor. `expectSelect:false` was needed nowhere — all nine surfaces really are reads. Three
+  things the item did not anticipate: the `.dsb-lint` strip's removal took `runLint()` with it
+  (it is now one line that repaints the editor, so the chips-changed re-check still works and
+  LF63's two live checks were re-pointed at `.sqe-status` rather than deleted); `.jobs-step-fields`
+  is a wrapping flex, so the wrapper and status line needed one host-side `flex:1 1 100%` rule
+  (host CSS owns layout, the component still restates nothing); and the builder's completer needed
+  its own live schema function — chips + browsed tables + declared params, plus `t` for the DuckDB
+  kind whose own field label promises it.
+  **SLICE 3 — what slice 1 deliberately did not do. Take (b): it is ready now, and (a) is not.**
+  (a) The item asks for "unknown column names
   against the declared columns"; slice 1 refused it as a false-positive machine under the item's own
   "do not claim to validate dialect SQL we cannot parse" rule — if it is wanted, it needs a design
   that only fires where the app genuinely knows the full column set (a saved dataset with previewed
-  columns and no `SELECT *`), and it is Kevin's call whether that narrow version is worth it.
+  columns and no `SELECT *`), and it is Kevin's call whether that narrow version is worth it. **Do
+  not start (a) without that answer;** it is the one half of this item the loop must not decide.
   (b) Completion is prefix-only and flat; table-qualified completion (`orders.` → that table's
-  columns) is the obvious next step and needs the schema loaded, so it belongs after slice 2.
+  columns) is the obvious next step and needed the schema loaded, which slice 2 delivered — the
+  data-source builder now keeps `dsbTables` from "Browse schema" and the Jobs step reads the
+  pipeline's own columns live, so a qualified prefix has something real to resolve against. That
+  is the whole of slice 3 as it stands, and it is startable.
   *(Original text kept until the next grooming pass archives it.)* Kevin, 2026-08-09: *"keep syntax checking and any SQL
   help writing with fields or autocomplete in places where you can in the app throughout, please
   do that."*

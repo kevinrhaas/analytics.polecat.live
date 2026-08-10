@@ -6,6 +6,19 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 959,
+    title: 'Every SQL box in the app is the real editor now — the wizard’s seven and the Jobs step',
+    kind: 'feature',
+    ts: '2026-08-10T04:12:33.000Z',
+    items: [
+      'Last release gave the <b>Dataset editor</b> a proper SQL field — colour as you type, a short list of your columns at the cursor, and a line naming the bracket you never closed. It ended with a promise: the connection wizard’s query boxes and the Jobs SQL step were next. They are done. Every place this app asks you to write SQL is now the same editor.',
+      '<b>The data-source wizard, all seven of them.</b> The built-in SQL engine, DuckDB, SQLite, Snowflake, Databricks, BigQuery and a generic SQL endpoint each had their own plain box; they now share one. What each offers you is what it honestly knows: the column chips you have declared or detected, whatever <b>Browse schema</b> has loaded, the query’s own <code>{{parameters}}</code>, then keywords and functions. A brand-new source with nothing tested and nothing browsed offers keywords and invents nothing — those boxes run before a connection is even saved.',
+      '<b>The Jobs SQL step, where the app knows the most.</b> That step runs against the rows your pipeline has produced so far, in a DuckDB table called <code>t</code>. So the completer offers exactly those incoming columns and that one table — and it keeps up when you change a step above it. The hint under the box has always described those columns; now you can type them.',
+      '<b>One finding, not two.</b> The dashboard-only query builder used to print its SQL warnings in a strip of its own. That strip is gone, because the editor already reports the same findings on the same line as everywhere else. Same checks, same wording, one place — and still no green tick, because a tick that is sometimes wrong is worse than none.',
+      'Nothing about how these boxes save changed: each keeps its own placeholder, its <b>Browse schema</b> and date-token buttons, the SQL Builder’s generated SELECT, and the value your Preview and Test buttons read. The editor wraps the field you already had rather than replacing it.',
+    ],
+  },
+  {
     v: 958,
     title: 'SQL is written in a real editor now — colour, column help, and an honest check',
     kind: 'feature',
