@@ -10,9 +10,9 @@ whose data is this, under what terms, and can anyone reproduce it?
 
 ## The two kinds of pack data
 
-**Synthetic** — generated in JS at install time, which is what two of the three
-shipped packs do (Conservation Insight and Data Management; Market Coverage is the
-real one). No files, no fetch, no licence question. It must still say so in plain
+**Synthetic** — generated in JS at install time, which is what two of the four
+shipped packs do (Conservation Insight and Data Management; Market Coverage and
+Federal Contract Awards are the real ones). No files, no fetch, no licence question. It must still say so in plain
 words: the entry declares `source: { kind: "synthetic", label: "…" }` and the app
 shows that line.
 

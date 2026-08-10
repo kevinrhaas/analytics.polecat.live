@@ -136,6 +136,45 @@
       },
       afterInstall: function () { Studio.ensurePackDataMaterialized("marketcoverage"); }
     },
+    // SP-6: the SECOND pack carrying real data, and the first carrying a FLOW — USASpending.gov,
+    // public domain, committed as CSV under data/packs/contractawards/ by
+    // tools/pack-extract/contractawards.mjs (docs/PACKS.md is the contract). Kevin promoted it
+    // on 2026-08-09 ("some where the money is going"), and it is the program's only source of a
+    // genuine origin→destination table, which is what sankey and marimekko want and what every
+    // pack before it had to fake.
+    // Slice (a) — this one — is the data foundation: the connection, the four datasets, and the
+    // job that turns a vendor's raw obligations into a share of the agency that paid them.
+    // Slices (b) and (c) add the dashboards and the pinned Views that read it.
+    contractawards: {
+      id: "contractawards",
+      kind: "workspace",
+      folder: "Federal Contract Awards",
+      name: "Federal Contract Awards — where the money goes",
+      // No dashboard count in either string, deliberately: slice (a) seeds none, and
+      // doc-truth check 35 (b) holds every count claimed here to a number the pack really
+      // produces. Slice (b) adds the dashboards and the count in the same PR.
+      tagline: "4 datasets on 1 connection · 25 agencies · $778B of FY2025 contracts · 600 agency→industry and agency→vendor flows · 436 congressional districts · a vendor-share job — real public data, embedded",
+      blurb: "4 datasets of real federal contract spending: what the 25 largest agencies bought " +
+        "in FY2025, the industries and vendors they bought it from, and the congressional " +
+        "districts the work landed in. A prep job joins each vendor to its agency's total, so " +
+        "you can read one contractor's haul as a share of the agency that paid it. The data is " +
+        "USASpending.gov's, public domain and embedded on 1 connection: no credentials to enter.",
+      source: {
+        kind: "public",
+        name: "USASpending.gov — federal contract awards, FY2025",
+        url: "https://www.usaspending.gov/",
+        licence: "Public domain (U.S. Government work)",
+        retrieved: "2026-08-10"
+      },
+      // No `seeds`, for the reason SP-1 states above: install() writes the connection
+      // synchronously and everything else lands from the CSV a moment later.
+      install: function () { installContractAwardsConnection(); },
+      data: {
+        files: ["agency-totals.csv", "agency-industry.csv", "agency-vendor.csv", "district-awards.csv"],
+        seed: function (csv) { seedContractAwardsData(csv); }
+      },
+      afterInstall: function () { Studio.ensurePackDataMaterialized("contractawards"); }
+    },
     // LF2(c)/LF16: the pre-existing generic showcase gallery (governance, platform ops,
     // delivery, finance, marketing, reliability, compliance, feature tour) folded into a
     // toggleable pack the same way Conservation Insight is one — kind:"examples" (below)
@@ -1327,6 +1366,120 @@
     if (!outputDs) return false;
     return seedMarketCoverageViews(W, id, outputDs, parsePackCsv(outputDs.content)) > 0;
   };
+
+  /* ---- SP-6 "Federal Contract Awards" -----------------------------------------------
+     The pack's question: where does federal contract money actually go? Four tables from
+     one source (USASpending.gov, FY2025 contracts) answer it from four directions — the
+     agencies that spend it, the industries they buy, the vendors they pay, and the
+     congressional districts the work is performed in.
+
+     Why FOUR datasets and a job rather than one wide table, which is the same reasoning
+     SP-1 used and the reason both packs are worth installing: the two flow tables carry
+     only the agency CODE, so the readable agency name and the agency's own total are a
+     JOIN away — and that join is what turns "Lockheed took $14B from DOD" into "Lockheed
+     took 3% of everything DOD bought", which is the sentence the data is actually for.
+
+     Everything below the connection is written by seedContractAwardsData once
+     Studio.ensurePackDataMaterialized has the bytes. */
+  var FCA_FOLDER = "Federal Contract Awards";
+  var FCA_TOTALS = "agency-totals.csv";
+  var FCA_INDUSTRY = "agency-industry.csv";
+  var FCA_VENDOR = "agency-vendor.csv";
+  var FCA_DISTRICTS = "district-awards.csv";
+
+  function installContractAwardsConnection() {
+    Studio.Workspace.put("connections", {
+      name: "USASpending.gov — embedded extracts", adapter: "file", cfg: {},
+      desc: "Federal contract awards for FY2025, extracted by " +
+        "tools/pack-extract/contractawards.mjs and read from files in your browser.",
+      folder: FCA_FOLDER, demoPackId: "contractawards"
+    });
+  }
+  // The pack's own connection, however install left it — looked up rather than threaded
+  // through, because install() and the seed run in different turns (the SP-1 convention).
+  function contractAwardsConnection() {
+    return Studio.Workspace.all("connections").filter(function (r) { return r.demoPackId === "contractawards"; })[0] ||
+      Studio.Workspace.put("connections", { name: "USASpending.gov — embedded extracts", adapter: "file", cfg: {}, folder: FCA_FOLDER, demoPackId: "contractawards" });
+  }
+
+  // The job's four steps, as a fresh array each call — the same definition seeds the job
+  // row AND pre-computes its output below, so the two can never describe different work.
+  function contractAwardsSteps(totalsDatasetId) {
+    return [
+      // 1. the join the pack exists to show: every vendor row gains its agency's NAME and
+      //    its agency's TOTAL. No column collides, because the extract deliberately left
+      //    the name out of the vendor table — see tools/pack-extract/contractawards.mjs.
+      { op: "join", datasetId: totalsDatasetId, leftCol: "agency_code", rightCol: "agency_code", type: "inner" },
+      // 2-4. the shares. The agency total is divided down to ONE PERCENT first, so the two
+      // ratios that follow are plain divisions and every intermediate column is a number a
+      // reader can name — the same shape SP-1's saturation index uses, for the same reason.
+      { op: "derive", outCol: "one_pct_of_agency", a: { col: "total_obligations" }, operator: "/", b: { value: 100 } },
+      { op: "derive", outCol: "pct_of_agency", a: { col: "obligations" }, operator: "/", b: { col: "one_pct_of_agency" } },
+      { op: "derive", outCol: "agency_small_business_pct", a: { col: "small_business_obligations" }, operator: "/", b: { col: "one_pct_of_agency" } }
+    ];
+  }
+
+  function seedContractAwardsData(csv) {
+    var id = "contractawards", W = Studio.Workspace;
+    var conn = contractAwardsConnection();
+    var tags = ["demo", "federal", "spending"];
+
+    var totalsDs = W.put("datasets", {
+      name: "Agency contract totals — FY2025", connectionId: conn.id,
+      kind: "file", format: "csv", fileName: FCA_TOTALS,
+      content: csv[FCA_TOTALS],
+      columns: ["agency_code", "agency", "total_obligations", "small_business_obligations"],
+      folder: FCA_FOLDER, demoPackId: id, tags: tags
+    });
+    W.put("datasets", {
+      name: "Agency spend by industry — FY2025 (NAICS)", connectionId: conn.id,
+      kind: "file", format: "csv", fileName: FCA_INDUSTRY,
+      content: csv[FCA_INDUSTRY],
+      columns: ["agency_code", "naics", "industry", "obligations"],
+      folder: FCA_FOLDER, demoPackId: id, tags: tags.concat(["flow"])
+    });
+    var vendorDs = W.put("datasets", {
+      name: "Agency spend by vendor — FY2025", connectionId: conn.id,
+      kind: "file", format: "csv", fileName: FCA_VENDOR,
+      content: csv[FCA_VENDOR],
+      columns: ["agency_code", "vendor", "vendor_uei", "obligations"],
+      folder: FCA_FOLDER, demoPackId: id, tags: tags.concat(["flow"])
+    });
+    W.put("datasets", {
+      name: "Contract spend by congressional district — FY2025", connectionId: conn.id,
+      kind: "file", format: "csv", fileName: FCA_DISTRICTS,
+      content: csv[FCA_DISTRICTS],
+      columns: ["district_id", "district", "state", "obligations", "population"],
+      folder: FCA_FOLDER, demoPackId: id, tags: tags.concat(["geo"])
+    });
+
+    var steps = contractAwardsSteps(totalsDs.id);
+    // Pre-materialized so the shares are there to chart before anyone clicks Run — and
+    // computed by running the job's OWN steps through the engine rather than a hand-kept
+    // second copy of the arithmetic, so a Run rewrites this dataset with identical numbers
+    // instead of quietly correcting it (docs/PACKS.md). Seeded as a pack-tagged, foldered
+    // row so Remove sweeps it.
+    var left = parsePackCsv(csv[FCA_VENDOR]);
+    var ctx = { datasets: {} };
+    ctx.datasets[totalsDs.id] = parsePackCsv(csv[FCA_TOTALS]);
+    var out = Studio.runJobSteps(left, steps, ctx);
+    var outputName = "Federal vendors — share of their agency's spend (job output)";
+    var outputDs = W.put("datasets", {
+      name: outputName, connectionId: conn.id,
+      kind: "file", format: "csv", fileName: "federal_vendor_share_of_agency.csv",
+      content: out.error ? "" : Studio.rowsToCsv(out.columns, out.rows),
+      columns: (out.columns || []).slice(),
+      folder: FCA_FOLDER, demoPackId: id, tags: tags.concat(["job-output"])
+    });
+
+    W.put("jobs", {
+      name: "Join agency totals and derive each vendor's share",
+      sourceDatasetId: vendorDs.id,
+      outputDatasetId: outputDs.id, outputName: outputName,
+      steps: steps,
+      folder: FCA_FOLDER, demoPackId: id
+    });
+  }
 
   // SP-0: registry-driven. This function knows about no pack in particular — an entry
   // that seeds a workspace supplies `install`; one that only gates gallery visibility

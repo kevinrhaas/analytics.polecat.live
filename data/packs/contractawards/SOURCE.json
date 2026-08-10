@@ -1,0 +1,44 @@
+{
+  "pack": "contractawards",
+  "source": {
+    "kind": "public",
+    "name": "USASpending.gov — federal contract awards, FY2025",
+    "url": "https://www.usaspending.gov/",
+    "licence": "Public domain (U.S. Government work)",
+    "retrieved": "2026-08-10"
+  },
+  "notes": [
+    "USASpending.gov API v2, fiscal year 2025 (2024-10-01 to 2025-09-30), the most recent closed federal fiscal year",
+    "Contract awards only — award type codes A, B, C and D (definitive contracts, purchase orders, delivery orders and BPA calls). Grants, loans and direct payments are excluded",
+    "The top 25 awarding agencies by obligations, which is 99.97% of the year's contract dollars; the remaining agencies are excluded to stay inside the pack's 150KB budget",
+    "Per agency, the top 12 NAICS industries and the top 12 recipients by obligations",
+    "The industry and vendor tables carry the agency CODE only; the readable agency name and the agency's own total live in agency-totals.csv, and the pack's job is what joins them",
+    "The small-business figure is the same agency query re-run with USASpending's small_business recipient filter, so it counts every small-business dollar and not just the ones in the top-12 vendor list",
+    "District rows are PLACE OF PERFORMANCE (where the work happens), not the recipient's headquarters; district_id is state FIPS + district number, the id the app's congressional-district map keys on",
+    "The territories' at-large delegations (American Samoa, Guam, Northern Mariana Islands, Puerto Rico, US Virgin Islands — 0.6% of the year's contract dollars) are excluded from the district table: the app's congressional-district map has no geometry for them",
+    "Amounts are obligations rounded to whole dollars"
+  ],
+  "files": [
+    {
+      "name": "agency-industry.csv",
+      "bytes": 19226,
+      "rows": 300
+    },
+    {
+      "name": "agency-totals.csv",
+      "bytes": 1454,
+      "rows": 25
+    },
+    {
+      "name": "agency-vendor.csv",
+      "bytes": 16453,
+      "rows": 300
+    },
+    {
+      "name": "district-awards.csv",
+      "bytes": 13688,
+      "rows": 436
+    }
+  ],
+  "script": "tools/pack-extract/contractawards.mjs"
+}
