@@ -135,6 +135,62 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N7 — the guided-tour chooser vs the tours it really offers (v979, NO sw bump, 2026-08-10,
+  steward; dev branch; est 1pt, took 1 — ON estimate):** 🔁 N7 was again the only takeable item in
+  ▶ NOW (N31, N44, N41 and N25 all ⛔ on Kevin; SP-1 ⏳ on `hold` PR #689), and v978's closing note
+  parked both of its finds — one an information-architecture call, one code rather than copy — so
+  this pass changed the ALTITUDE rather than the chapter: **checks 12/13/14/19/20/22/23/24 all read
+  INSIDE the tours (their steps, spotlight targets, nouns) and nothing had ever read the LIST.**
+  Help's account of the chooser was written when there were four general topics and one pack tour.
+  **Measured:** `TOUR_ORDER` (`app/tutorial.js:838`) holds **nine** tours — five always-visible
+  (`Getting started`, `Quick analysis`, `Build a dashboard`, `Prep data (Jobs)`,
+  `Connections &amp; Datasets`) and four gated on an installed pack by `TOUR_GATES`
+  (conservation, marketcoverage, campaignfinance, countymigration). Help published **four**
+  lowercase paraphrases, and the fourth — *"prepping and connecting your data"* — had silently
+  merged `jobs` and `connect`, two separate walks, into one phrase that is not a row you can click.
+  So a reader counted four and the picker drew five, and the two tours most likely to be wanted by
+  someone bringing their own data were the pair that had been collapsed. The pack half said *"plus
+  one for your installed sample pack"*, singular, of a chooser that adds a row per pack — and of
+  two engines (`welcome.js`'s `computeSteps` and `tutorial.js`'s `computeOverviewSteps`) that each
+  splice one step **per** installed pack via `packs.map(...)`.
+  **The same drift reached the Sample packs chapter from the other end, and this is the half that
+  made the page actively misleading:** Campaign Finance and Where America Moved each close on *"The
+  pack also carries its own guided tour, which appears in ⌘K → Interactive tutorial once it is
+  installed"*, while **Conservation Insight and Market Coverage — which have had tours just as
+  long — said nothing**, and Federal Contract Awards and Data Management (which genuinely have
+  none) also said nothing. The page's silence therefore meant two different things, so it meant
+  nothing. Both entries now carry the sentence verbatim in the idiom the page already uses.
+  Doc-truth **check 67**, premise + four rules, all derived from `app/tutorial.js`: the order, each
+  entry's own printed `label:`, and each gate's body — **not its key** — for the pack it really
+  asks about. The premise holds that join (a gate keyed on one tour but asking about another pack
+  would attach rules (d)/(e)'s sentence to the wrong entry) plus membership in `packRegistry`, so
+  it fails loudly rather than letting a coverage rule pass over an empty string. Rule (b) runs both
+  directions inside the new `#tour-topics` anchor and matches the label VERBATIM, so renaming a
+  tour moves the rule with it instead of leaving a plausible paraphrase behind; rule (c) holds the
+  count sentence separately, so a sixth topic added to the chooser and to the list while the
+  sentence still says five fails on its own.
+  **Seven failure modes measured, each failing its own rule and only its own** — the pre-fix
+  paraphrase list under the new anchor (b); the count reading "four" (c); Conservation Insight's
+  real pre-fix entry with no tour sentence (d); Federal Contract Awards claiming a tour it does not
+  have (e); a sixth ungated tour added to `TOUR_ORDER` reddening (b) AND (c) together, code-side; a
+  `contractawards` gate added to the chooser reddening (d), code-side; and a gate rewritten to ask
+  about a different pack failing the PREMISE rather than any rule. The premise fails on the true
+  pre-fix tree (no anchor to hold), which is why the doc-side rules were measured on mutated trees
+  carrying the pre-fix wording — check 63's pattern, unchanged.
+  **Verified:** `node tools/doc-truth.mjs` (all 67 checks green), `node tools/validate.mjs`,
+  `node tools/changelog-check.js`, `node tools/dev-smoke.mjs` at 390×780 + desktop, zero
+  pageerrors. Docs-only in shipped terms (`docs/index.html` is not precached), so NO `sw.js` bump.
+  **Measured in the same pass and NOT taken, so the next run does not re-derive it:** the tour
+  chooser's own footer offers **← Back** and **Maybe later**, and Help names only the Back button —
+  the smaller of the two, and naming the dismiss control is an editorial call about how much of a
+  dialog a Help page should transcribe, not a derivation, so check 67 holds the topic list and not
+  the chrome around it. Also measured and found CURRENT: Help's Jobs chapter against
+  `Studio.JOB_STEP_KINDS` (all nine step types named), `JOB_AGG_FNS` (all five rollup metrics),
+  `Studio.filterOps` (all nine operators, verbatim) and its fifteen relative date ranges; the View
+  Builder chapter's twelve chart types against `CHART_TYPES` and its seven aggregation badges
+  against `AGGS`; and Home's five reorderable sections against `HOME_SECTION_KEYS`. Four chapters
+  read and found true is why this slice's drift is the tour list and not one of them. The two v922
+  candidates are still open and still Kevin's calls.
 - **N7 — the Admin user editor's provisioning controls vs the copy that documents them (v978,
   NO sw bump, 2026-08-10, steward; dev branch; est 1pt, took 1 — ON estimate):** 🔁 N7 was again
   the only takeable item in ▶ NOW (N31, N44, N41 and N25 all ⛔ on Kevin; SP-1 ⏳ on `hold`
@@ -16794,6 +16850,32 @@
     hard-codes its role list rather than reading `PolecatAuth.ROLES` / `ROLE_LABELS` — v977's own
     note already flagged it, and it is still true. The two v922 candidates are still open and
     still Kevin's calls.
+  * *The guided-tour CHOOSER vs the tours it really offers — v979, NO sw bump (2026-08-10 — see
+    DONE).* No candidate was standing again (v978 parked one information-architecture call and one
+    code find), so this pass changed the ALTITUDE instead of the chapter: eight checks read INSIDE
+    the tours and **nothing had ever read the LIST**. `TOUR_ORDER` holds **nine** tours — five
+    always-visible plus four gated on an installed pack — and Help published **four** lowercase
+    paraphrases, the fourth of which (*"prepping and connecting your data"*) had merged `jobs`
+    (**Prep data (Jobs)**) and `connect` (**Connections &amp; Datasets**), two separate walks, into
+    one phrase that is not a row you can click. The pack half said *"plus one for your installed
+    sample pack"*, singular, of a chooser that adds a row per pack and of two engines that splice
+    one step **per** pack. **The half that made the page actively misleading was the Sample packs
+    chapter:** two of the four tour-carrying packs closed on *"The pack also carries its own guided
+    tour"* and **Conservation Insight and Market Coverage said nothing** — the same silence the two
+    packs with no tour keep, so the silence meant nothing. Doc-truth **check 67** derives the
+    chooser from the registry (order, each entry's printed `label:`, and each gate's BODY rather
+    than its key, so the premise holds the join Help's per-pack sentence depends on); rule (b) runs
+    both directions inside the new `#tour-topics` anchor and matches the label verbatim. Seven
+    failure modes measured, each failing its own rule and only its own.
+    **Audited and found CURRENT in the same pass, no change needed** (four chapters, which is why
+    the drift is the tour list and not one of them): the Jobs chapter against `JOB_STEP_KINDS`,
+    `JOB_AGG_FNS`, `Studio.filterOps` and its fifteen relative ranges; the View Builder's twelve
+    chart types and seven aggregation badges; Home's five reorderable sections.
+    **Measured in the same pass and NOT taken, so the next run does not re-derive it:** the
+    chooser's footer also offers **Maybe later** and Help names only **← Back** — how much of a
+    dialog a Help page should transcribe is editorial, not a derivation, so check 67 holds the
+    topic list and not the chrome around it. The two v922 candidates are still open and still
+    Kevin's calls.
 
 > **📋 RECORDED FOR KEVIN, NOT PROMOTED — grooming pass 4, 2026-08-10.** This sits BELOW the queue
 > on purpose: `docs/BACKLOG.md` says the loop never promotes into ▶ NOW on its own, and pass 2's

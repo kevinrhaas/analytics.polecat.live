@@ -305,11 +305,19 @@
   cards are the tours:</p>
   <ul>
     <li><strong>Take the guided tour</strong> — spotlighted walkthroughs of the real app. It opens
-      a picker of topics (getting started, quick analysis, building a dashboard, prepping and
-      connecting your data — plus one for your installed sample pack), each a couple of minutes,
-      with a Back button if you change your mind. <strong>Getting started</strong> walks the left
+      a picker of five topics — <span id="tour-topics"><strong>Getting started</strong>,
+      <strong>Quick analysis</strong>, <strong>Build a dashboard</strong>, <strong>Prep data
+      (Jobs)</strong> and <strong>Connections &amp; Datasets</strong></span> — each a couple of
+      minutes, with a Back button if you change your mind. The last two are separate walks, not
+      one errand: prepping data is the Jobs tour, connecting it is the Connections-and-Datasets
+      one. Sample packs add their own rows <em>below</em> those five — a pack that carries a tour
+      joins the picker the moment you install it and leaves again when you remove it, so the list
+      is as long as your workspace is furnished (which packs those are is noted under
+      <a href="#sample-packs">Sample packs</a>).
+      <strong>Getting started</strong> walks the left
       rail from the top down, group by group — Workspace, then Build, then Manage — so the tour
-      and the rail you're looking at stay in the same order. Every tour brings you back to the
+      and the rail you're looking at stay in the same order; if you have packs installed it also
+      splices in one stop per pack, right after the welcome. Every tour brings you back to the
       welcome screen when it finishes, so you can take another or head off and explore.</li>
     <li><strong>Take a quick tour</strong> — a short step-by-step carousel right in the dialog:
       what the app is, the three places you build (<strong>Quick Views</strong>, the
@@ -318,9 +326,9 @@
       <strong>Repository</strong> and <strong>Home</strong>), exporting a dashboard, and
       bringing your own data in through <strong>Connections</strong>,
       <strong>Datasets</strong> and <strong>Jobs</strong> — so between them the cards name
-      every section on the rail. It's <strong>pack-aware</strong>: a workspace set up with a
-      sample pack (say, Conservation Insight) gets an extra step introducing that pack by
-      name.</li>
+      every section on the rail. It's <strong>pack-aware</strong>: a workspace set up with sample
+      packs gets one extra step per installed pack, each introducing its pack by name — so two
+      packs mean two extra cards, not one.</li>
   </ul>
   <p>Below the tours, smaller shortcuts jump straight into a section (<strong>New View</strong>,
   <strong>Build a dashboard</strong>, <strong>Bring your data</strong>), and a clearly-labeled
@@ -884,7 +892,8 @@
     outlier-detection view, a year-over-year practice-switching view, and a richtext-led narrative
     overview rolling all of it up, each with their own filter bar too, save the overview) to both
     your Dashboards screen and Home's sample gallery — removing the pack takes all fourteen dashboards
-    back out again, so the workspace doesn't get cluttered for everyone else.</li>
+    back out again, so the workspace doesn't get cluttered for everyone else. The pack also carries
+    its own guided tour, which appears in ⌘K → Interactive tutorial once it is installed.</li>
     <li><strong>Market Coverage</strong> is the pack built on real data: US Census county business
     counts and demographics, embedded in the app rather than fetched. It seeds one
     <strong>connection</strong> over three <strong>datasets</strong> — the two committed Census
@@ -896,7 +905,8 @@
     (restaurant supply by county, its grocery twin, and income plotted against supply), the
     demographics behind them (income, age, education), and a shortlist of counties with the income
     but not the restaurants. The shortlist's two rules are ordinary filters on the View — open it in
-    the builder and you can move them.</li>
+    the builder and you can move them. The pack also carries its own guided tour, which appears in
+    ⌘K → Interactive tutorial once it is installed.</li>
     <li><strong>Federal Contract Awards</strong> is the pack about where public money goes:
     USASpending.gov's record of federal contracts obligated in fiscal year 2025, embedded in the
     app rather than fetched. It seeds one <strong>connection</strong> over five

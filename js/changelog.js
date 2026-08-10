@@ -6,6 +6,18 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 979,
+    title: 'Help undercounted the guided tours, and two packs never mentioned theirs',
+    kind: 'fix',
+    ts: '2026-08-10T19:41:43.000Z',
+    items: [
+      'The "Your first sign-in" section described a tour picker with four topics. It draws <b>five</b>: the copy had quietly merged <b>Prep data (Jobs)</b> and <b>Connections &amp; Datasets</b> — two separate walks — into one phrase, "prepping and connecting your data", which is not a row you can click. The five are now listed by the names the picker actually prints.',
+      'It also promised "one" extra row for your installed sample pack, singular. Four packs ship a tour, each row appears the moment that pack is installed and leaves when it is removed, and the pack-aware tours splice in one stop <i>per</i> installed pack — two packs mean two extra stops, not one.',
+      'On the other side of the page, the Sample packs chapter said "the pack also carries its own guided tour" for Campaign Finance and Where America Moved, and said nothing for <b>Conservation Insight</b> and <b>Market Coverage</b> — which have carried tours just as long. Both entries now say so, so the page\'s silence means one thing only: no tour (which is still true of Federal Contract Awards and Data Management).',
+      'A new doc-truth check derives the chooser from the tour registry itself — its order, each row\'s printed label, and which rows are gated on an installed pack — and holds Help to it in both directions: a tour nobody documented and a topic the picker no longer offers fail the dev gate equally, as does a pack sold a tour it does not have.',
+    ],
+  },
+  {
     v: 978,
     title: 'Help documented a sample-pack checkbox the Admin form stopped having',
     kind: 'fix',
