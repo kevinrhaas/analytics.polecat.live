@@ -135,6 +135,58 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N7 — the SETTINGS page's own cards vs the section that documents them (v985, NO sw bump,
+  2026-08-10, steward; dev branch; est 1pt, took 1 — ON estimate):** 🔁 N7 was again the only
+  takeable item in ▶ NOW (N31, N44, N41 and N25 all ⛔ on Kevin; SP-1 ⏳ on `hold` PR #689), and
+  v984 left no candidate standing, so this pass repeated check 69's ALTITUDE move one page over.
+  Eight checks read things a reader reaches THROUGH Settings — 39 the backend chooser, 40 the two
+  theme rosters, 35 the pack cards, 59/60 the mode — and **nothing had ever read the PAGE those
+  cards sit on**, the same gap check 69 found for Home.
+  **Measured: Help named three of the eight cards.** `renderSettings()` emits Account, Workspace
+  backend, Appearance, Mode, Presentation, Dashboard defaults, Sample packs and Data; the rail
+  bullet published Settings as *"appearance and colour theme, the workspace-backend card, and
+  where you sign out"*. **`Presentation` was named nowhere on the page at all** — so the card
+  carrying Demo mode and the tour was invisible — and neither was the Account card. The Mode
+  card's membership went the same way: `Restore unsaved work` and `Open the builder with side
+  panels` each appeared exactly once, as a bare "flip it in Settings", with no card to flip it on.
+  **And one route pointed at a card that does not exist.** The welcome chapter closed on
+  *"revisit it anytime from **Settings → Tour**"*. There is no Tour card and there never was one
+  under that name: the tour is the **Welcome tour** row inside **Presentation**, whose button
+  reads **Take the tour**. That is check 13's class of defect (a named route resolving to
+  nothing), one menu over, and no rule had ever looked at a `Settings → …` route.
+  New `#settings-cards` section: every card in render order, each saying what it is for, closing
+  on the three settings-shaped cards that live on **Admin** instead (Section access, Workspaces,
+  Branding) so a reader stops scrolling for them. The rail bullet now points at it rather than
+  publishing a fourth partial inventory.
+  **Doc-truth check 73**, one premise + four rules, everything read from inside `renderSettings()`
+  — the two delegated cards (`accountCardHtml()`, `#wsBackendCard`) resolved to the `<h2>` each of
+  their own renderers prints, the `groups.map` expanded to `SETTINGS_TOGGLES`' groups in
+  declaration order, the rest in place, and the whole thing sorted by emission index so ORDER is
+  derived rather than transcribed. (a) every card marked `data-set-card`, in the app's order, both
+  directions — the section's own first sentence promises "in the order they appear"; (b) each mark
+  carries real prose (check 72 (b)'s idiom — a card called "Data" tells a reader nothing);
+  (c) every switch marked `data-set-row` and named by the label the app PRINTS, both directions;
+  (d) every **bolded** `Settings → …` route resolves to a real card. Rule (d)'s scope is derived,
+  not hand-drawn: the page bolds its OWN routes and italicises another product's — measured nine
+  `<strong>` against one `<em>` for Databricks' `Settings → Developer → Access tokens` — so the
+  markup already draws the line. **Rules (a), (c) and (d) all fail on the real pre-fix tree**, and
+  five more directions were measured on mutated trees (a card renamed, the cards reordered, a
+  switch renamed, a sixth switch added, a card listed with no prose), each failing its own rule and
+  only its own, with the premise catching a broken parse while the rules stay silent.
+  **It also required amending check 59 (f), which is a partition, not a weakening.** That rule
+  treats any `SETTINGS_TOGGLES` label appearing in the `#simple-mode` chapter as a claim that the
+  switch NEIGHBOURS Simple mode, and the new inventory names Demo mode with its own card —
+  the opposite claim. (f) now reads the chapter with `#settings-card-list` cut out, check 70's
+  idiom over check 36's table, and check 73 (c) is what holds each switch to the right card.
+  Verified the amendment did not blunt it: naming Demo mode beside Simple mode anywhere ELSE in
+  the chapter still fails (f).
+  **Docs-only, so NO `sw.js` CACHE bump** — `docs/index.html` is runtime-cached, not precached
+  (`sw.js:20` says so outright), same reasoning as every N7 slice since v915, and it keeps this
+  PR clear of open issue #631 (a CACHE bump deterministically reddens the N2 slice-4 checks).
+  **Verified in the foreground:** the full dev gate — `tools/validate.mjs`,
+  `tools/changelog-check.js`, `tools/doc-truth.mjs` (73 checks, all green) and
+  `tools/dev-smoke.mjs` at 390×780 + desktop with zero pageerrors.
+  Files: docs/index.html, tools/doc-truth.mjs, js/changelog.js, js/changelog-head.js, STATUS.md.
 - **N7 — what a feedback report CARRIES vs the chapter that promises to say (v984, NO sw bump,
   2026-08-10, steward; dev branch; est 1pt, took 1 — ON estimate):** 🔁 N7 was again the only
   takeable item in ▶ NOW (N31, N44, N41 and N25 all ⛔ on Kevin; SP-1 ⏳ on `hold` PR #689), and
@@ -17259,6 +17311,35 @@
     `ctx(extra)`'s caller-supplied `extra` is unheld on purpose — the one caller passes none, so
     there is nothing static to derive. The two v922 candidates are still open and still Kevin's
     calls.
+  * *The SETTINGS page's own cards vs the section that documents them — v985, NO sw bump
+    (2026-08-10 — see DONE).* No candidate was standing again, so this pass repeated check 69's
+    ALTITUDE move one page over: eight checks read things a reader reaches THROUGH Settings (39
+    the backend chooser, 40 the theme rosters, 35 the pack cards, 59/60 the mode) and **nothing
+    had ever read the page those cards sit on**. **Help named three of the eight** — the rail
+    bullet's "appearance and colour theme, the workspace-backend card, and where you sign out" —
+    so **`Presentation`, the card carrying Demo mode and the tour, was named nowhere on the page
+    at all**, and the Mode card's `Restore unsaved work` / `Open the builder with side panels`
+    each had one bare "flip it in Settings" with no card attached. **And one route resolved to
+    nothing:** *"revisit it anytime from **Settings → Tour**"* — the tour is the **Welcome tour**
+    row inside **Presentation**, button **Take the tour**. New `#settings-cards` section; doc-truth
+    **check 73**, premise + four rules, the card order derived from `renderSettings()`'s own
+    emission index. Three of four rules fail on the real pre-fix tree; five more directions
+    measured on mutated trees. Check 59 (f) was amended to partition with it (it now reads the
+    chapter with the inventory cut out — check 70's idiom), and the amendment was verified not to
+    blunt it.
+    **Measured in the same pass and NOT taken, so the next run does not re-derive it — and this
+    one is a real, live defect, not a gap.** **`Settings → hard reset` resolves to NOTHING.** Help
+    offers it as the remedy for a stuck offline copy of the app (the read-only schema-version
+    paragraph), and so does the APP — `app/studio.js`'s version banner prints the same route
+    verbatim. There is no hard-reset control anywhere in `app/`: the nearest thing is ⋯ More →
+    **Clear local data**, which wipes the workspace and is emphatically NOT what someone with a
+    stale service worker should be told to press. Check 73 (d) deliberately holds only routes whose
+    first segment is a card NAME (upper-case), and its header records why: this one names an
+    ACTION, both surfaces print it, and fixing Help alone would leave the app contradicting the
+    page. **It is the candidate for the next N7 slice** — but it is a code-and-copy slice that
+    bumps the `sw.js` CACHE, and whichever run takes it should decide whether the honest fix is a
+    real control or copy that stops promising one. The two v922 candidates are still open and
+    still Kevin's calls.
 
 > **📋 RECORDED FOR KEVIN, NOT PROMOTED — grooming pass 4, 2026-08-10.** This sits BELOW the queue
 > on purpose: `docs/BACKLOG.md` says the loop never promotes into ▶ NOW on its own, and pass 2's

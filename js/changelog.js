@@ -6,6 +6,19 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 985,
+    title: 'Help described three of the eight cards on the Settings page, and sent you to a ninth that does not exist',
+    kind: 'fix',
+    ts: '2026-08-10T21:43:36.000Z',
+    items: [
+      'The Settings page is eight cards, and Help introduced it as "appearance and colour theme, the workspace-backend card, and where you sign out". <b>Presentation</b> — the card carrying <b>Demo mode</b> and the tour — was named nowhere on the page at all, and neither was the <b>Account</b> card.',
+      'Two switches you are told elsewhere to "flip in Settings" now say which card they are in. <b>Restore unsaved work</b> and <b>Open the builder with side panels</b> both live under <b>Mode</b>, beside Simple mode.',
+      'The welcome chapter closed on "revisit the tour anytime from <b>Settings → Tour</b>". There is no Tour card. The tour is the <b>Welcome tour</b> row inside <b>Presentation</b>, and its button reads <b>Take the tour</b> — which is what Help says now.',
+      'Settings has a section of its own: every card in the order the page renders them, each one saying what it is for, with the three settings-shaped cards that live on the <b>Admin</b> page instead named as such so you stop scrolling for them.',
+      'A new doc-truth check reads the Settings page out of the app\'s own code — the cards in emission order, and every switch by the label it prints — and fails the build if the list falls behind in either direction, or if any bolded <b>Settings → …</b> route on the page names a card that is not there.',
+    ],
+  },
+  {
     v: 984,
     title: 'Help now lists everything a feedback report sends, not four of the nine things',
     kind: 'fix',
