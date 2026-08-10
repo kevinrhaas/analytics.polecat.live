@@ -6079,7 +6079,9 @@ if (kitLive) {
    (e) the count word — every "<n> advanced … sections" claim is the registry's number;
    (f) the routes — every control that toggles the mode is published, and a toggle the page
        calls its neighbour must really neighbour it (the rail's other quick switch, or a
-       member of Simple mode's own Settings group);
+       member of Simple mode's own Settings group). Amended 2026-08-10: the neighbour half
+       reads the chapter with `#settings-card-list` cut out, so it partitions with check 73
+       instead of firing on a list whose whole job is to file each switch under its own card;
    (g) what the mode ADDS — every label its own UI prints, held in bold, plus the badge from
        both ends (Help may describe one only while `#simpleBadge` is in the markup);
    (h) the boot section, held from both ends — while the expression is conditional, every
@@ -6190,8 +6192,15 @@ if (kitLive) {
     ...railLbls.filter((l) => l !== "Simple mode"),
     ...toggles.filter((t) => simpleTog && t.grp === simpleTog.grp && t.id !== "simple").map((t) => t.t),
   ]);
+  // …and it is read over the chapter with the SETTINGS CARD INVENTORY cut out, so 59 (f) and
+  // 73 partition the section rather than contradict each other (check 70's idiom over check
+  // 36's table). #settings-card-list names every switch WITH the card it is filed under —
+  // the opposite of calling it Simple mode's neighbour — and check 73 (c) is what holds each
+  // one to the right card. Everywhere else in the chapter, naming a switch beside Simple mode
+  // still means what it meant when this rule was written.
+  const smNeighbourText = flat(smSec.replace(/<ol id="settings-card-list">[\s\S]*?<\/ol>/, " "));
   const badNeighbours = toggles
-    .filter((t) => t.id !== "simple" && !legalNeighbour.has(t.t) && new RegExp(`\\b${esc(t.t)}\\b`, "i").test(smText));
+    .filter((t) => t.id !== "simple" && !legalNeighbour.has(t.t) && new RegExp(`\\b${esc(t.t)}\\b`, "i").test(smNeighbourText));
   const groupPublished = !!simpleTog &&
     new RegExp(`<strong>${esc(simpleTog.grp)}</strong> group`).test(smSec);
   ok(`docs/index.html: all ${smLive.length} ways into Simple mode are published, and its neighbours are real`,
@@ -8193,6 +8202,156 @@ if (kitLive) {
           `named, not offered: ${kindSaid.filter((k) => !kinds.includes(k)).join(", ") || "(none)"}\n      ` +
           "the picker is the first thing the dialog asks for, so its list is the one sentence a " +
           "new kind falsifies without touching another word on the page");
+  }
+}
+
+/* ── 73. the SETTINGS page's own cards vs the section that documents them ────────────────────
+   N7, and check 69's ALTITUDE move one page over: eight checks read things a reader reaches
+   THROUGH Settings (39 the backend chooser, 40 the theme rosters, 35 the pack cards, 59/60 the
+   mode), and nothing had ever read the PAGE those cards sit on — the same gap check 69 found
+   for Home.
+
+   Measured 2026-08-10, before the fix:
+   · **Help named three of the eight cards.** The rail bullet published Settings as
+     "appearance and colour theme, the workspace-backend card, and where you sign out"; the page
+     renders Account, Workspace backend, Appearance, Mode, Presentation, Dashboard defaults,
+     Sample packs and Data. **Presentation was named nowhere on the page at all**, and neither
+     were the Account card or the Mode card's membership — `Restore unsaved work` and `Open the
+     builder with side panels` each appeared once, as a bare "flip it in Settings".
+   · **And one route pointed at a card that does not exist.** The welcome chapter closed on
+     "revisit it anytime from **Settings → Tour**". There is no Tour card: the tour is a row
+     inside **Presentation**, whose button reads **Take the tour**.
+
+   Sources of truth, all app-side and all derived, never listed here: `renderSettings()`'s own
+   body, in the order it emits cards — `accountCardHtml()` and the `#wsBackendCard` slot resolved
+   to the `<h2>` each of those two renderers prints, the `groups.map` expanded to
+   `SETTINGS_TOGGLES`' groups in declaration order, and the literal `settings-card` headings in
+   place. Four rules:
+   (a) `#settings-card-list` marks every card with `data-set-card`, in the app's own ORDER and
+       both directions — the section's first sentence promises "in the order they appear", so a
+       card that moves, arrives or leaves falsifies it (check 11's ordering rule, one page over);
+   (b) each mark carries real prose, not the heading echoed back (check 72 (b)'s idiom — a rule
+       (a) is satisfiable mechanically, and "Data" tells a reader nothing);
+   (c) every `SETTINGS_TOGGLES` row is marked with `data-set-row` and named by the label the
+       switch PRINTS, both directions — the toggles are the part of the page a reader is sent to
+       flip, and a renamed or retired switch is exactly what left `Restore unsaved work` reading
+       like a footnote;
+   (d) every bolded `Settings → …` route on the page resolves to a real card. Scoped to
+       `<strong>` deliberately and not by hand: the page bolds its OWN routes and italicises
+       another product's (measured — nine `<strong>` ours, one `<em>` for Databricks'
+       `Settings → Developer → Access tokens`), so the markup already draws the line.
+
+   Two things deliberately NOT held, so the next run does not re-derive them:
+   · a route whose first segment is lower-case names an ACTION rather than a card, and there is
+     exactly one — **`Settings → hard reset`**, which resolves to NOTHING: no such control exists
+     anywhere in `app/`. It is left alone here because the same route is printed by the app
+     itself (the read-only schema banner in `app/studio.js`), so fixing the copy on one side only
+     would make the two disagree — it is a code-and-copy question, and a candidate for a run that
+     is willing to bump the `sw.js` CACHE.
+   · the Admin page's three settings-shaped cards (Section access, Workspaces, Branding) — the
+     paragraph naming them is prose about where they are NOT, and check 66 already holds the one
+     with controls in it. */
+{
+  const braced = (src, from) => {
+    const open = src.indexOf("{", from);
+    if (open < 0) return "";
+    let depth = 0;
+    for (let i = open; i < src.length; i++) {
+      if (src[i] === "{") depth++;
+      else if (src[i] === "}" && --depth === 0) return src.slice(open, i + 1);
+    }
+    return "";
+  };
+
+  // The switches, in declaration order — their groups ARE cards, their labels are rule (c).
+  const togStart = studioJs.indexOf("var SETTINGS_TOGGLES = [");
+  const togSrc = togStart < 0 ? "" : studioJs.slice(togStart, studioJs.indexOf("\n  ];", togStart));
+  const toggles = [...togSrc.matchAll(/\{\s*grp:\s*"([^"]+)",\s*id:\s*"([^"]+)",\s*t:\s*"([^"]+)"/g)]
+    .map((m) => ({ grp: m[1], id: m[2], t: m[3] }));
+  const groups = [...new Set(toggles.map((t) => t.grp))];
+
+  // The two cards renderSettings() delegates: each named by the <h2> its own renderer prints.
+  const accountName = (studioJs.match(/id="accountCard"><h2>([^<]+)<\/h2>/) || [, ""])[1];
+  const backendName = (studioJs.match(/card\.innerHTML = '<h2>([^<]+)<\/h2>/) || [, ""])[1];
+
+  // renderSettings()'s body, read in emission order: a delegated card, the group loop, or a
+  // heading written in place. `[^<'+]` keeps the loop's `'<h2>' + esc(g) + '</h2>'` out of the
+  // literal arm — it belongs to the group expansion below, not to itself.
+  const settingsBody = braced(studioJs, studioJs.indexOf("function renderSettings()"));
+  const found = [];
+  const at = (re, names) => {
+    for (const m of settingsBody.matchAll(re)) found.push({ i: m.index, names: names(m) });
+  };
+  at(/accountCardHtml\(\)/g, () => [accountName]);
+  at(/class="settings-card" id="wsBackendCard"/g, () => [backendName]);
+  at(/class="settings-card"><h2>'\s*\+\s*esc\(g\)/g, () => groups);
+  at(/class="settings-card"><h2>([^<'+]+)<\/h2>/g, (m) => [m[1].replace(/&amp;/g, "&").trim()]);
+  const cards = found.sort((a, b) => a.i - b.i).flatMap((f) => f.names).filter(Boolean);
+
+  const premise = ok(`app/studio.js: the Settings page parsed for check 73 (${cards.length} card(s): ` +
+    `${cards.join(" → ") || "(none)"}; ${toggles.length} switch(es))`,
+    cards.length >= 7 && new Set(cards).size === cards.length &&
+      cards.includes("Account") && cards.includes("Data") && toggles.length >= 4 &&
+      groups.every((g) => cards.includes(g)),
+    `groups: ${groups.join(", ") || "(unparsed)"} · switches: ${toggles.map((t) => t.t).join(", ") || "(unparsed)"}\n      ` +
+    "an empty or duplicated parse would let the rules below pass while measuring nothing, and " +
+    "this is the rule that notices the day a card stops going through renderSettings()");
+
+  if (premise) {
+    const list = (help.match(/<ol id="settings-card-list">([\s\S]*?)<\/ol>/) || [, null])[1];
+    const items = list === null ? null : [...list.matchAll(/<li>([\s\S]*?)<\/li>/g)].map((m) => m[1]);
+
+    // (a) every card, in the app's own order, and no invented one.
+    const said = (items || []).map((li) => (li.match(/data-set-card="([^"]+)"/) || [, ""])[1]).filter(Boolean);
+    ok(`docs/index.html: #settings-card-list names all ${cards.length} Settings card(s), in render order`,
+      items !== null && said.join(" → ") === cards.join(" → "),
+      items === null ? "docs/index.html has no <ol id=\"settings-card-list\"> — the rail bullet is the only " +
+        `place Settings is described, and the page renders ${cards.length} cards`
+        : `rendered: ${cards.join(" → ")}\n      ` +
+          `documented: ${said.join(" → ") || "(none)"}\n      ` +
+          "the section's own first sentence says \"in the order they appear\", so this is an " +
+          "ordering claim as well as a completeness one");
+
+    // (b) a mark is only documentation if the line says something the heading doesn't.
+    const thin = (items || []).filter((li) => {
+      const name = (li.match(/data-set-card="([^"]+)"/) || [, ""])[1];
+      if (!name) return false;
+      const prose = li.replace(/<[^>]+>/g, " ").replace(/&amp;/g, "&")
+        .replace(new RegExp(name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "g"), " ")
+        .replace(/\s+/g, " ").trim();
+      return prose.length < 40;
+    }).map((li) => (li.match(/data-set-card="([^"]+)"/) || [, ""])[1]);
+    ok("docs/index.html: every Settings card is described in words, not just listed",
+      !thin.length,
+      `named with no prose of their own: ${thin.join(", ")}\n      ` +
+      "rule (a) is satisfied by a bare list, and a card called \"Data\" tells a reader nothing");
+
+    // (c) the switches, by the label they print, both directions.
+    const rows = list === null ? [] : [...list.matchAll(/data-set-row="([^"]+)">([\s\S]*?)<\/strong>/g)]
+      .map((m) => ({ id: m[1], text: m[2].replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim() }));
+    const missing = toggles.filter((t) => !rows.some((r) => r.id === t.id)).map((t) => `${t.id} (${t.t})`);
+    const wrong = rows.filter((r) => {
+      const t = toggles.find((x) => x.id === r.id);
+      return !t || t.t !== r.text;
+    }).map((r) => `${r.id} → "${r.text}"`);
+    ok(`docs/index.html: #settings-card-list names all ${toggles.length} Settings switch(es) by their own labels`,
+      !missing.length && !wrong.length,
+      `rendered, not documented: ${missing.join(", ") || "(none)"}\n      ` +
+      `documented under a name the app does not print: ${wrong.join(", ") || "(none)"}\n      ` +
+      `the app's labels: ${toggles.map((t) => `${t.id}="${t.t}"`).join(", ")}`);
+
+    // (d) the routes. Bolded ones are the page's own; the first segment must be a real card.
+    const routes = [...help.matchAll(/<strong>Settings\s*→\s*([\s\S]*?)<\/strong>/g)]
+      .map((m) => m[1].replace(/<[^>]+>/g, " ").replace(/&amp;/g, "&").replace(/\s+/g, " ").trim())
+      .map((r) => ({ route: r, head: r.split("→")[0].trim() }));
+    const held = routes.filter((r) => /^[A-Z]/.test(r.head));
+    const unresolved = [...new Set(held.filter((r) => !cards.includes(r.head)).map((r) => r.route))];
+    ok(`docs/index.html: all ${held.length} bolded "Settings → …" route(s) reach a card that exists`,
+      !unresolved.length,
+      `routes that resolve to nothing: ${unresolved.join(" · ")}\n      ` +
+      `the cards on the page: ${cards.join(", ")}\n      ` +
+      "a route naming a card the page does not render sends the reader looking for it — this is " +
+      "check 13's rule for \"⋯ More → X\", one menu over");
   }
 }
 

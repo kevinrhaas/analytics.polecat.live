@@ -333,7 +333,8 @@
   <p>Below the tours, smaller shortcuts jump straight into a section (<strong>New View</strong>,
   <strong>Build a dashboard</strong>, <strong>Bring your data</strong>), and a clearly-labeled
   <strong>Skip the tour</strong> button lets you go explore on your own. The welcome shows only
-  once; revisit it anytime from <strong>Settings → Tour</strong>.</p>
+  once; revisit it anytime from <strong>Settings → Presentation</strong>, whose
+  <strong>Welcome tour</strong> row carries a <strong>Take the tour</strong> button.</p>
 
   <h3>The left rail — three groups</h3>
   <!-- IMAGE-SLOT: annotated screenshot of the left rail with the three group labels
@@ -367,9 +368,10 @@
           indicator to jump to the backend card in Settings</li>
       </ul></li>
     <li><strong>Pinned at the bottom</strong>, below the groups and always available:
-      <strong>Settings</strong> (appearance and colour theme, the workspace-backend card, and
-      where you sign out) and <strong>Help</strong> — this guide, opened inside the app rather
-      than in a new tab.</li>
+      <strong>Settings</strong> — <a href="#settings-cards">one page of cards</a>, from your
+      account and the workspace backend through appearance, mode and presentation to your
+      dashboard defaults, the sample packs and settings backup; it is also where you sign out —
+      and <strong>Help</strong>, this guide, opened inside the app rather than in a new tab.</li>
   </ul>
   <p>Collapse the rail to icons-only with the toggle at its bottom. Your browser's
   <strong>Back</strong>/<strong>Forward</strong> buttons step through sections instead of leaving the
@@ -3019,6 +3021,48 @@
       panel inspector, none of them hidden.</li>
   </ul>
 
+  <h3 id="settings-cards">The Settings page — every card on it</h3>
+  <p>Settings is pinned at the foot of the left rail, and it is one scrolling page of cards. In
+  the order they appear:</p>
+  <ol id="settings-card-list">
+    <li><strong data-set-card="Account">Account</strong> — who you are signed in as, with your
+      role beside the name (and a <em>demo account</em> note when it is one), and the
+      <strong>Sign out</strong> button. This card is why Settings stays in the rail for a viewer
+      even when an admin has switched every other section off.</li>
+    <li><strong data-set-card="Workspace backend">Workspace backend</strong> — which workspace
+      this browser is working in and whether it is syncing, with <strong>Connect</strong> /
+      <strong>Switch backend</strong>, the <strong>Recent sync activity</strong> log and the
+      access-file export. It has a chapter of its own:
+      <a href="#admin-docs">Admin &amp; backend setup</a>.</li>
+    <li><strong data-set-card="Appearance">Appearance</strong> —
+      <strong data-set-row="dark">Dark mode</strong>, plus the
+      <a href="#color-theme">Color theme</a> picker's palette cards.</li>
+    <li><strong data-set-card="Mode">Mode</strong> — three switches:
+      <strong data-set-row="simple">Simple mode</strong>, the subject of this chapter;
+      <strong data-set-row="restore">Restore unsaved work</strong>, off by default, which offers
+      on your next visit to bring back a dashboard you were editing but never saved; and
+      <strong data-set-row="panels">Open the builder with side panels</strong>, also off by
+      default, which decides whether the Dashboard Builder opens with its Data and Inspector
+      panes already out.</li>
+    <li><strong data-set-card="Presentation">Presentation</strong> —
+      <strong data-set-row="demo">Demo mode</strong>, which simulates a live-refreshing feed for a
+      stakeholder demo, and <strong>Welcome tour</strong>, whose <strong>Take the tour</strong>
+      button re-runs the guided walkthrough. This card is where the tour lives; it is not on the
+      top bar, and <kbd>⌘K</kbd> → <strong>Take the tour</strong> reaches the same thing.</li>
+    <li><strong data-set-card="Dashboard defaults">Dashboard defaults</strong> — the house style
+      every brand-new blank dashboard starts from, plus <strong>Style presets</strong>. Detailed
+      immediately below.</li>
+    <li><strong data-set-card="Sample packs">Sample packs</strong> — install or remove each
+      <a href="#sample-packs">sample pack</a>, one pack at a time, with each card naming where its
+      data came from. This is the only sample-content switch there is.</li>
+    <li><strong data-set-card="Data">Data</strong> — <strong>Export settings</strong> /
+      <strong>Import settings</strong>, described under
+      <a href="#backing-up">Backing up your settings</a> below.</li>
+  </ol>
+  <p>Three more cards look like Settings cards but live on the <strong>Admin</strong> page
+  instead, because they are app-wide rather than yours: <strong>Section access</strong>,
+  <strong>Workspaces</strong> and <strong>Branding &amp; app identity</strong>.</p>
+
   <h3>Dashboard defaults</h3>
   <p>The Settings page's <strong>Dashboard defaults</strong> card sets the house style every
   brand-new <strong>Blank dashboard</strong> starts from — handy for teams with a house tagline,
@@ -3038,7 +3082,7 @@
   settings and included in Clear local data.</p>
   <p>Below that, <strong>Style presets</strong> lets you save the current set of defaults above as a named preset — type a name and click "+ Save as preset". Save more than one (e.g. one per client) and click <strong>Apply</strong> on any saved preset to switch which one is the active default; the trash button removes a preset. The preset whose saved fields match your current defaults is marked <strong>Active</strong> (a highlighted row + pill), so you can tell at a glance which house style is live — change any default and the marker clears until a preset matches again. A preset with a saved logo shows a small thumbnail instead of a plain color swatch. Presets travel with Export/Import settings and are included in Clear local data too.</p>
 
-  <h3>Backing up your settings</h3>
+  <h3 id="backing-up">Backing up your settings</h3>
   <p>The Settings page has a <strong>Data</strong> card with <strong>Export settings</strong> / <strong>Import settings</strong>. This saves/restores your theme, mode, workspace connections, and pane-layout preferences as a <code>.json</code> file — handy before clearing local data, or to carry your setup to another browser or device. It only covers app preferences, not dashboard content (use <strong>Save</strong> / <strong>Open</strong> for a <code>.studio.json</code>).</p>
 
   <h3>Branding &amp; app identity</h3>
