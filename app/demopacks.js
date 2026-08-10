@@ -187,24 +187,28 @@
     // This pack nevertheless carries none — not as a reversal, but because every table it
     // ships is an aggregate and an aggregate has no name column to put one in. The decision
     // is banked for a slice that needs it; nothing here does.
-    // Slice (a) is the data foundation: the connection, the seven committed tables, and the
+    // Slice (a) was the data foundation: the connection, the seven committed tables, and the
     // job that turns one state's giving into a share of the committee that received it.
+    // Slice (b) added the three dashboards that read them (the flow hero, donor geography,
+    // and who gives it). Slice (c) adds the pinned Views.
     campaignfinance: {
       id: "campaignfinance",
       kind: "workspace",
       folder: "Campaign Finance",
       name: "Campaign Finance — who funds federal politics",
       // Count-led and ending in "embedded" (the suite's #116 shape check), and it names
-      // every KIND install seeds — connection, datasets, job — because doc-truth check 35
-      // rule (a) holds this string and the blurb to the installer separately.
-      tagline: "8 datasets on 1 connection · $6.5B of itemized individual giving in the 2023-24 cycle · 50 committees × 65 donor states · 200 occupations and 200 employers · 24 months · a donor-share job — real public data, embedded",
+      // every KIND install seeds — connection, datasets, dashboards, job — because doc-truth
+      // check 35 rule (a) holds this string and the blurb to the installer separately, and
+      // rule (b) holds every count in either one to a number the pack really produces. The
+      // dashboard count arrived with slice (b), in the same PR as the dashboards.
+      tagline: "3 dashboards on 9 datasets and 1 connection · $6.5B of itemized individual giving in the 2023-24 cycle · 50 committees × 65 donor states · 200 occupations and 200 employers · 24 months · 2 prep jobs — real public data, embedded",
       // Three sentences, which is N40's cap — the card is a decision surface and the
       // inventory belongs in Help. Count-led and says "embedded" for the suite's #116.
-      blurb: "8 datasets on 1 connection over the Federal Election Commission's own record of " +
-        "who gave money to whom in the 2023-24 election cycle — $6.5 billion of itemized " +
-        "individual contributions, summarised by donor state, by recipient committee, by " +
-        "occupation and employer, by month, and by the size of the cheque. A prep job joins each " +
-        "donor state to the committee that received it, so one state's giving reads as a share of " +
+      blurb: "3 dashboards over 9 datasets on 1 connection, built from the Federal Election " +
+        "Commission's own record of who gave money to whom in the 2023-24 election cycle — " +
+        "$6.5 billion of itemized individual contributions, read by donor state, by recipient " +
+        "committee, by occupation and employer, by month, and by the size of the cheque. Two prep jobs join each " +
+        "donor state to the committee that received it and then keep the flows a live View can hold, so one state's giving reads as a share of " +
         "that committee, and as the share that came from outside the state the candidate is " +
         "running in. The data is the FEC's own, public domain and embedded — and it is itemized " +
         "giving only, so the small contributions in it are gifts from donors who passed the $200 " +
@@ -2243,13 +2247,468 @@
       folder: CF_FOLDER, demoPackId: id
     });
 
-    // Slice (a) stops here, deliberately. The dashboards and the pinned Views are slices (b)
-    // and (c) and land the same way SP-6's did — seeded from this same turn, because the rows
-    // they read exist only now, and paired with a boot heal so a workspace that installed the
-    // pack today picks them up without a reinstall.
+    // SP-5 (b): a SECOND job, chained onto the first one's output, and the reason it
+    // exists is a measured limit of the app rather than anything about the FEC.
+    //
+    // The View Builder runs a workspace dataset live and keeps the FIRST 2,000 rows
+    // (app/build.js, bdLoadRowsFor) — a real cap that every panel bound to a builder blob
+    // inherits, applied BEFORE the View's own filters. The share table above is 2,658 rows
+    // in cmte_id order, so a panel reading it directly loses the last 12 committees
+    // outright, INCLUDING both Trump committees — which would have made the flow hero look
+    // exactly like the partisan artifact slice (a) went out of its way to avoid, silently
+    // and while still drawing a plausible chart.
+    //
+    // So the pack does the trimming ITSELF, in the open, as a job whose rule you can read
+    // and change: keep the flows worth CF_CHART_FLOOR or more. That is 1,293 of the 2,658
+    // rows and 97.7% of the dollars, with all 50 committees and all 16 home-state rows
+    // intact — and the flow dashboard's own note states it. The cap is the builder's, not
+    // the pack's, and lifting it is an app change recorded in the SP-5 item for Kevin.
+    var chartSteps = [{ op: "filter", col: "amount", cmp: "gte", value: CF_CHART_FLOOR }];
+    var chartOut = Studio.runJobSteps({ columns: out.columns || [], rows: out.rows || [] }, chartSteps, {});
+    var chartName = "Donor states — the flows big enough for a live View (job output)";
+    var chartDs = W.put("datasets", {
+      name: chartName, connectionId: conn.id,
+      kind: "file", format: "csv", fileName: "committee_donor_state_flows_charted.csv",
+      content: chartOut.error ? "" : Studio.rowsToCsv(chartOut.columns, chartOut.rows),
+      columns: (chartOut.columns || []).slice(),
+      folder: CF_FOLDER, demoPackId: id, tags: tags.concat(["job-output", "flow"])
+    });
+    W.put("jobs", {
+      name: "Keep the donor-state flows a live View can hold",
+      sourceDatasetId: outputDs.id,
+      outputDatasetId: chartDs.id, outputName: chartName,
+      steps: chartSteps,
+      folder: CF_FOLDER, demoPackId: id
+    });
+
+    // SP-5 (b): the dashboards read the job's output and the extract tables together, so
+    // they are seeded here — the moment those rows exist — rather than in install(), which
+    // runs a turn earlier with nothing to chart yet (the SP-1/SP-6 convention). The pinned
+    // Views are still slice (c).
+    seedCampaignFinanceDashboards(W, id, {
+      states: statesDs, committees: committeesDs, occupations: occupationsDs,
+      employers: employersDs, monthly: monthlyDs, bands: bandsDs,
+      output: outputDs, charted: chartDs
+    }, new Date().toISOString());
+
     return { states: statesDs, committees: committeesDs, flow: flowDs, occupations: occupationsDs,
-             employers: employersDs, monthly: monthlyDs, bands: bandsDs, output: outputDs };
+             employers: employersDs, monthly: monthlyDs, bands: bandsDs,
+             output: outputDs, charted: chartDs };
   }
+
+  /* ---- SP-5 (b): the pack's three dashboards ----------------------------------------
+     The pack asks who funds federal politics. The extract answers it from two ends, so
+     the dashboards do too, and the third one is about the reading itself:
+
+       1. WHO FUNDS WHOM (the hero) — the FLOW, donor state → recipient committee, over
+          the job's output so the committee reads as a NAME with its kind and party
+          attached. Underneath it, the question the flow table exists for: how much of a
+          candidate's itemized money came from the state they are running in.
+       2. WHERE THE MONEY COMES FROM — donor geography on the app's `state` scale, and
+          the two shares the extract ships the ingredients for (small gifts, max-out
+          gifts) as builder CALC columns rather than extract columns.
+       3. WHO GIVES IT, AND HOW — occupation and employer, the size bands as a marimekko
+          (the one chart whose width-times-height IS the "few big cheques" story), and
+          the 24-month arc by committee kind.
+
+     Two conventions carried from SP-1 and SP-6, for the same reasons:
+     * every charted panel is bound to a builder-blob DA over one of the pack's OWN
+       datasets (curatedDA), so #118's live re-run feeds the panels the REAL rows;
+     * a panel that shows a SUBSET narrows it with the builder's own filter grammar
+       rather than a hand-cut second dataset — open the View and the rule is right there.
+
+     THE ONE THING THIS SLICE HAD TO GET RIGHT, and it is the same modelling decision
+     slice (a) recorded: the committee kind is a COLUMN, never a silent filter. Every
+     panel here draws all six kinds of committee together, and the note panels say what
+     that means — a joint fundraising committee's haul and a campaign's are the same
+     money seen at different points in the plumbing, and adding them is not a total. */
+  // Seeding order, and it matters: the hero is LAST so it is the newest row and tops a
+  // recency-sorted list (the CONS-2/CONS-3 convention SP-1 and SP-6 both follow).
+  var CF_DASHBOARDS = ["campaignfinance-donors", "campaignfinance-geography", "campaignfinance-flow"];
+  // Floors, all about READABILITY rather than significance — the same kind of constant
+  // (and the same disclosure) as SP-1's MC_BIG_COUNTY and SP-6's FCA_FLOW_FLOOR. Every
+  // panel that applies one says so in its own subtitle, in the units on screen.
+  //
+  // The flow floor was MEASURED the way SP-6's was: a sankey lays its nodes out with an
+  // 11px gap, so the readable limit is the node COUNT. At $5M the state side has 30
+  // nodes and the committee side 35 and the labels collide; at $10M it is 21 and 20,
+  // which the panel's height then gives ~30px apiece.
+  var CF_FLOW_FLOOR = 1e7;        // the hero sankey: 69 of 2,658 state→committee flows
+  var CF_DOMINANT_PCT = 20;       // "one state supplied a fifth or more" (41 rows)
+  // NOT a readability floor — the builder's live-run cap, taken deliberately by the
+  // pack's second job so the trimming is visible instead of silent. See the job.
+  var CF_CHART_FLOOR = 2e5;       // 1,293 of 2,658 rows, 97.7% of the dollars
+  var CF_OCCUPATION_FLOOR = 5e7;  // occupations big enough to read as bars (13 of 200)
+  var CF_EMPLOYER_FLOOR = 3e6;    // employers big enough to read as bars (18 of 200)
+
+  // The pack's own headline figures, derived from the shipped rows at seed time rather
+  // than typed in — the SP-1 rule. A re-extract that moves the numbers re-seeds copy that
+  // is still true, and the suite recomputes these independently and demands they agree.
+  function campaignFinanceFigures(states, flow, charted) {
+    var cols = (states && states.columns) || [], rows = (states && states.rows) || [];
+    function sum(col) {
+      var i = cols.indexOf(col);
+      return i < 0 ? 0 : rows.reduce(function (a, r) { return a + (Number(r[i]) || 0); }, 0);
+    }
+    var total = sum("amount"), contributions = sum("contributions");
+    var small = sum("small_dollar_amount"), smallN = sum("small_dollar_contributions");
+    var maxOut = sum("max_out_amount"), maxOutN = sum("max_out_contributions");
+    function flowSum(t) {
+      var c = (t && t.columns) || [], r = (t && t.rows) || [], i = c.indexOf("amount");
+      return i < 0 ? 0 : r.reduce(function (a, x) { return a + (Number(x[i]) || 0); }, 0);
+    }
+    var flowTotal = flowSum(flow), chartedTotal = flowSum(charted);
+    function pct(part, whole) { return whole ? Math.round((part / whole) * 1000) / 10 : 0; }
+    return {
+      states: rows.length, total: total, contributions: contributions,
+      small: small, smallPct: pct(small, total), smallCountPct: pct(smallN, contributions),
+      maxOut: maxOut, maxOutPct: pct(maxOut, total), maxOutCountPct: pct(maxOutN, contributions),
+      flowTotal: flowTotal, flowPct: pct(flowTotal, total),
+      // What the pack's second job kept, so the flow dashboard can state its own trim
+      // rather than leave the reader to discover it.
+      flowRows: ((flow && flow.rows) || []).length,
+      chartedRows: ((charted && charted.rows) || []).length,
+      chartedTotal: chartedTotal, chartedPct: pct(chartedTotal, flowTotal)
+    };
+  }
+  // "$6.5B" / "$1.3B" — the pack quotes big dollars constantly and a reader should never
+  // have to count digits to compare two of them.
+  function cfBillions(n) { return "$" + (Math.round(n / 1e8) / 10).toLocaleString() + "B"; }
+  function cfMillions(n) { return "$" + Math.round(n / 1e6).toLocaleString() + "M"; }
+  // The two shares as percentages OF THE STATE, as builder calc columns — the extract
+  // ships the dollar figures and deliberately not their ratios, because a ratio is a
+  // derivation and this pack's whole argument is that derivations stay visible.
+  var CF_SMALL_PCT_CALC = { name: "small_dollar_pct", formula: "[small_dollar_amount] / [amount] * 100" };
+  var CF_MAXOUT_PCT_CALC = { name: "max_out_pct", formula: "[max_out_amount] / [amount] * 100" };
+  // curatedDA's rolled-up sibling: the same builder blob, but with the shelf AGGREGATED —
+  // dims carry no agg, measures carry one, and the builder names the result "SUM amount"
+  // (app/build.js aggLabel). SP-6 avoided a rollup because it wanted a ratio to keep the
+  // reader's own name for it; this one wants the opposite — a long table of 167 month ×
+  // committee-kind rows collapsed to the 24 monthly totals a time series needs, which is
+  // exactly what the shelf is for. Every column a chart binds to is the shelf's own label.
+  function cfRollupDA(id, name, dsId, shelf) {
+    var cols = shelf.map(function (f) { return f.agg ? f.agg.toUpperCase() + " " + f.col : f.col; });
+    return { id: id, name: name, kind: "sql", sql: "", query: "",
+      columns: cols, params: [], authored: true,
+      builder: { dsKind: "ws", dsId: dsId, chartType: "line",
+        shelfCols: shelf.map(function (f) { return { col: f.col, agg: f.agg || null }; }),
+        shelfRows: [], filters: [], calcs: [], shelfColor: [], paletteKey: "", mapScale: "" } };
+  }
+
+  // (1) the hero: the flow, which is what the pack was extracted to draw.
+  function campaignFinanceFlowSpec(ds, f) {
+    var das = [], panels = [], kpis = [];
+
+    // EVERY panel on this dashboard reads the pack's SECOND job output, not the first.
+    // The first is 2,658 rows and the builder's live run keeps 2,000 of them, so a panel
+    // bound to it would quietly lose the last twelve committees; the second job trims by
+    // a rule instead of by an accident, and the note below says exactly what it cost.
+    var flowAllDa = curatedDA("vcf_flow_all", "Campaign Finance — every charted donor state to committee flow",
+      ds.charted.id, ["state", "committee", "committee_type", "party", "amount", "pct_of_committee"]);
+    das.push(flowAllDa);
+    kpis.push({ da: flowAllDa.id, valueCol: "amount", label: "To the 50 largest committees",
+      fmt: "money", agg: "sum", subtitle: f.chartedPct.toFixed(1) + "% of what those 50 raised", state: "",
+      info: "Itemized individual contributions received by the 50 committees that took the most of them, counted over the flows the pack's second job keeps — everything at or above " + cfMillions(CF_CHART_FLOOR) + ". The first job's table has the rest." });
+    kpis.push({ da: flowAllDa.id, valueCol: "amount", label: "Largest single flow",
+      fmt: "money", agg: "max", subtitle: "one state to one committee", state: "",
+      info: "The biggest donor-state → committee relationship in the extract, in one election cycle." });
+    kpis.push({ da: flowAllDa.id, valueCol: "pct_of_committee", label: "Largest share of one committee",
+      fmt: "pct", agg: "max", subtitle: "one state's cut", state: "",
+      info: "The job divides each state's giving by the committee's own cycle total. This is the highest result — the most concentrated donor-state relationship the pack can see." });
+
+    var bigFlowDa = curatedDA("vcf_flow_big", "Campaign Finance — donor state to committee, the largest flows",
+      ds.charted.id, ["state", "committee", "amount", "pct_of_committee"],
+      [{ col: "amount", kind: "range", min: String(CF_FLOW_FLOOR), max: "" }]);
+    das.push(bigFlowDa);
+    panels.push({ id: "pcf_flow", section: "Who funds whom",
+      title: "Donor state to recipient committee", span: "full",
+      sub: "flows of " + cfMillions(CF_FLOW_FLOOR) + " or more — the band width is the money",
+      info: "One ribbon per state-committee pair. The floor is about readability, not significance: all 2,658 pairs at once is a hairball. Open the View and move it.",
+      chart: { type: "sankey", da: bigFlowDa.id,
+        map: { sourceCol: "state", targetCol: "committee", valueCol: "amount" },
+        opts: { srcCap: "Donor state", dstCap: "Recipient committee", fmt: "money", height: 720 } } });
+
+    // is_home_state is a 0/1 the extract denormalized into the flow table (the job engine
+    // derives arithmetic and cannot compare two strings), so "the state the candidate is
+    // running in" is an ordinary value filter here — the builder's own `in` grammar.
+    var homeDa = curatedDA("vcf_home", "Campaign Finance — money from the state the candidate is running in",
+      ds.charted.id, ["committee", "state", "party", "amount", "pct_of_committee", "total_amount"],
+      [{ col: "is_home_state", kind: "in", values: ["1"] }]);
+    das.push(homeDa);
+    panels.push({ id: "pcf_home", section: "How much came from home",
+      title: "Share of a candidate's itemized money that came from their own state", span: "full",
+      sub: "the Senate campaigns in the top 50 — everything else on the bar came from somewhere else",
+      info: "The filter is is_home_state = 1, a flag the extract ships because the job engine cannot compare two strings. The three presidential committees are absent by construction: their seat is \"US\", which is not a donor state.",
+      chart: { type: "bars", da: homeDa.id, map: { labelCol: "committee", valueCol: "pct_of_committee" },
+        opts: { horizontal: true, sortBars: true, showValues: true, fmt: "pct", height: 460 } } });
+
+    var dominantDa = curatedDA("vcf_dominant", "Campaign Finance — states supplying a fifth of a committee",
+      ds.charted.id, ["state", "committee", "committee_type", "amount", "pct_of_committee"],
+      [{ col: "pct_of_committee", kind: "range", min: String(CF_DOMINANT_PCT), max: "" }]);
+    das.push(dominantDa);
+    panels.push({ id: "pcf_dominant", section: "The concentrated relationships",
+      title: "Where one state supplied a fifth or more of a committee's itemized money", span: "full",
+      sub: "share of the committee's whole cycle total, not of the states listed beside it",
+      chart: { type: "table", da: dominantDa.id,
+        map: { cols: [
+          { col: "state", label: "Donor state" },
+          { col: "committee", label: "Recipient committee" },
+          { col: "committee_type", label: "Kind" },
+          { col: "amount", label: "Itemized", num: true, fmt: "money" },
+          { col: "pct_of_committee", label: "Share of the committee", num: true, fmt: "pct" }
+        ] },
+        opts: { pageSize: 12, freezeHeader: true, density: "comfortable" } } });
+
+    panels.push({ id: "pcf_note", section: "How to read it", title: "What this pack is measuring", span: "full",
+      chart: { type: "richtext", da: null, opts: { content: [
+        "**Itemized individual contributions, one closed cycle.** A committee itemizes a donor once their cycle total passes $200; everything under that is reported as an unitemized lump and is not in this source at all. So these are the dollars the FEC can name a giver for, not all the dollars raised.",
+        "",
+        "**The kind of committee is a column, not a filter, and that is the whole point.** Restricting recipients to candidate committees looks like the obvious reading of \"who funds the candidates\" and draws a landslide that never happened: one side's earmarked money was itemized directly against the campaign while the other's ran through joint fundraising committees that transfer onward. Same money, different plumbing. Every panel here draws all six kinds together and labels them — **adding a joint fundraiser's total to its participants' is double-counting**, which is why no panel does.",
+        "",
+        "**Two floors, and they are different in kind.** The panels above sit on the pack's SECOND job, which keeps every state→committee flow of " + cfMillions(CF_CHART_FLOOR) + " or more — **" + f.chartedRows.toLocaleString() + "** of the first job's **" + f.flowRows.toLocaleString() + "** rows, and **" + f.chartedPct.toFixed(1) + "%** of its dollars, with all fifty committees still present. That trim exists because the View Builder runs a dataset live and keeps its first 2,000 rows, and a chart that lost twelve committees to a row limit would look exactly like a chart that had taken a side. The sankey's own " + cfMillions(CF_FLOW_FLOOR) + " floor, on top of it, is about readability alone: open the View and move it.",
+        "",
+        "- Itemized individual giving, 2023-24: **" + cfBillions(f.total) + "** across **" + f.contributions.toLocaleString() + "** contributions",
+        "- Received by the 50 largest committees: **" + cfBillions(f.flowTotal) + "** (**" + f.flowPct.toFixed(1) + "%**), which is the first job's table",
+        "- Charted above: **" + cfBillions(f.chartedTotal) + "** of it, the flows of " + cfMillions(CF_CHART_FLOOR) + " or more",
+        "",
+        "*What this is not:* a measure of who won. It is money raised, not money kept (refunds are dropped rather than netted) and not money spent, and independent expenditure — the spending that never passes through a candidate's committee at all — is a different file."
+      ].join("\n") } } });
+
+    return {
+      id: "campaignfinance-flow", name: "campaignfinance-flow",
+      title: "Who Funds Whom",
+      subtitle: "Itemized individual contributions from the state that gave them to the committee that received them, 2023-24 cycle",
+      dashboardTheme: "polecat",
+      panels: panels, kpis: kpis, filters: [],
+      cda: { connections: [], dataAccesses: das }
+    };
+  }
+
+  // (2) donor geography — the app's state scale, and the two shares as calc columns.
+  function campaignFinanceGeographySpec(ds, f) {
+    var das = [], panels = [], kpis = [];
+    var stateDa = curatedDA("vcg_states", "Campaign Finance — donor states, with the small-gift and max-out shares",
+      ds.states.id, ["state", "contributions", "amount", "small_dollar_amount", "small_dollar_pct",
+                     "max_out_amount", "max_out_pct"],
+      [], [CF_SMALL_PCT_CALC, CF_MAXOUT_PCT_CALC]);
+    das.push(stateDa);
+    kpis.push({ da: stateDa.id, valueCol: "amount", label: "Itemized individual giving",
+      fmt: "money", agg: "sum", subtitle: "2023-24, " + f.states + " donor states and territories", state: "",
+      info: "Every itemized individual contribution in the cycle, summed by the state the donor reported. Rows with no two-letter state are excluded from this table and counted in the extract's notes." });
+    kpis.push({ da: stateDa.id, valueCol: "amount", label: "The largest donor state",
+      fmt: "money", agg: "max", subtitle: "one state, one cycle", state: "",
+      info: "Read against the median beside it: political giving concentrates about as hard as income does." });
+    kpis.push({ da: stateDa.id, valueCol: "amount", label: "The median donor state",
+      fmt: "money", agg: "median", subtitle: "the middle of " + f.states, state: "",
+      info: "The middle of the list, including the territories and the overseas military codes — which is why it sits so far below the mean." });
+    kpis.push({ da: stateDa.id, valueCol: "small_dollar_pct", label: "Small gifts",
+      fmt: "pct", agg: "median", subtitle: "of the median state's dollars", state: "",
+      info: "This View's own calculated column: small_dollar_amount ÷ amount. \"Small\" here means a gift under $200 from a donor who was itemized anyway — not the small-dollar donor universe, which this source cannot see." });
+
+    panels.push({ id: "pcg_map", section: "Where the money comes from",
+      title: "Itemized individual giving by donor state", span: "full",
+      sub: "the donor's own reported state, 2023-24 cycle",
+      info: "Colour classes are evenly spaced between the smallest and largest state, so California and Texas hold the top of the scale and most of the map reads as one band. The bars below are how you read the rest of it.",
+      chart: { type: "choropleth", da: stateDa.id,
+        map: { idCol: "state", valueCol: "amount" },
+        opts: { scale: "state", fmt: "money", agg: "sum", classes: 6, height: 460 } } });
+
+    panels.push({ id: "pcg_small", section: "Not every state gives the same way",
+      title: "Share of each state's dollars that came in gifts under $200", span: 2,
+      sub: "a calculated column on this View — small_dollar_amount ÷ amount",
+      info: "The states at the top of this list are not the states at the top of the map. A high share means a state's itemized total is built from many small gifts rather than a few large ones.",
+      chart: { type: "bars", da: stateDa.id, map: { labelCol: "state", valueCol: "small_dollar_pct" },
+        opts: { horizontal: true, sortBars: true, showValues: false, fmt: "pct", height: 620 } } });
+
+    panels.push({ id: "pcg_maxout", title: "Share that came in max-out gifts", span: 2,
+      sub: "the mirror image — max_out_amount ÷ amount, the same " + f.states + " rows",
+      info: "A max-out gift is one at or above the per-election limit ($3,300 in this cycle). The two shares are not complements: everything between $200 and $3,300 is in neither.",
+      chart: { type: "bars", da: stateDa.id, map: { labelCol: "state", valueCol: "max_out_pct" },
+        opts: { horizontal: true, sortBars: true, showValues: false, fmt: "pct", height: 620 } } });
+
+    panels.push({ id: "pcg_scatter", section: "Does a big state give differently?",
+      title: "Every state, by what it gave and by how much of it was small", span: 2,
+      sub: "one dot per state: total itemized dollars against the small-gift share",
+      info: "If large donor states were simply scaled-up small ones, the dots would sit on a flat line. The spread up the y-axis is states with genuinely different giving cultures.",
+      chart: { type: "scatter", da: stateDa.id,
+        map: { labelCol: "state", xCol: "amount", yCol: "small_dollar_pct" },
+        opts: { trend: false, fmt: "abbr", xLabel: "Itemized individual giving",
+          yLabel: "Share in gifts under $200 (%)", height: 380 } } });
+
+    panels.push({ id: "pcg_note", title: "What the map leaves out, and why", span: 2,
+      chart: { type: "richtext", da: null, opts: { content: [
+        "**The state is the donor's, not the candidate's.** Every dollar here is placed where the person who gave it said they live. Where it went is the other dashboard.",
+        "",
+        "**Sixteen of the " + f.states + " rows are not on the map, and they are left in the data on purpose.** The overseas military codes (AA, AE, AP), the territories (PR, GU, VI, MP, AS, MH, FM, PW), a handful of Canadian provinces typed into the state field, and ZZ for a donor whose state the filer never resolved. The app's state layer has no geometry for any of them, so they colour nothing — but dropping them from the table would quietly change every total on this page.",
+        "",
+        "- Itemized individual giving: **" + cfBillions(f.total) + "** over **" + f.contributions.toLocaleString() + "** contributions",
+        "- In gifts under $200: **" + cfBillions(f.small) + "** (**" + f.smallPct.toFixed(1) + "%** of the dollars, **" + f.smallCountPct.toFixed(1) + "%** of the contributions)",
+        "- In max-out gifts: **" + cfBillions(f.maxOut) + "** (**" + f.maxOutPct.toFixed(1) + "%** of the dollars, **" + f.maxOutCountPct.toFixed(1) + "%** of the contributions)",
+        "",
+        "*That last pair is the finding this dashboard exists for:* nine contributions in ten are small, and they are a fifth of the money."
+      ].join("\n") } } });
+
+    return {
+      id: "campaignfinance-geography", name: "campaignfinance-geography",
+      title: "Where the Money Comes From",
+      subtitle: "Itemized individual contributions by the donor's own state, and how differently each state gives",
+      dashboardTheme: "polecat",
+      panels: panels, kpis: kpis, filters: [],
+      cda: { connections: [], dataAccesses: das }
+    };
+  }
+
+  // (3) who gives it, and how it arrives.
+  function campaignFinanceDonorsSpec(ds, f) {
+    var das = [], panels = [], kpis = [];
+
+    var bandsDa = curatedDA("vcd_bands", "Campaign Finance — contributions by size band and committee kind",
+      ds.bands.id, ["band", "committee_type", "contributions", "amount"]);
+    das.push(bandsDa);
+    kpis.push({ da: bandsDa.id, valueCol: "amount", label: "Itemized to every kind of committee",
+      fmt: "money", agg: "sum", subtitle: "the same " + cfBillions(f.total) + ", cut by cheque size", state: "",
+      info: "The size-band table covers the whole cycle, so it sums to the donor-state table's total apart from the contributions whose donor state the filer never typed — those have no state row to sit in. Both round to the same $6.5B, which is a useful thing to check when you open either one." });
+    kpis.push({ da: bandsDa.id, valueCol: "contributions", label: "Contributions",
+      fmt: "n", agg: "sum", subtitle: f.smallCountPct.toFixed(1) + "% of them under $200", state: "",
+      info: "Counted, not estimated: every itemized individual contribution the FEC published for the cycle." });
+    kpis.push({ da: bandsDa.id, valueCol: "amount", label: "Largest single band",
+      fmt: "money", agg: "max", subtitle: "one band, one kind of committee", state: "",
+      info: "The biggest cell of the band × committee-kind grid the marimekko below draws." });
+
+    panels.push({ id: "pcd_bands", section: "How the money arrives",
+      title: "Cheque size against the kind of committee that received it", span: "full",
+      sub: "column width is the band's share of the money; the stack inside it is which committees got it",
+      info: "A marimekko carries both facts at once, which is what this table is for: the widest column is the money, and the segments say the giving cultures behind it differ by band.",
+      chart: { type: "marimekko", da: bandsDa.id,
+        map: { labelCol: "band", groupCol: "committee_type", valueCol: "amount" },
+        opts: { fmt: "money", showPct: true, height: 420 } } });
+
+    var monthlyDa = curatedDA("vcd_monthly", "Campaign Finance — itemized giving by month and committee kind",
+      ds.monthly.id, ["month", "committee_type", "contributions", "amount"]);
+    das.push(monthlyDa);
+    // A LINE, NOT THE PIVOT THIS PANEL WAS FIRST WRITTEN AS, and the reason is measured.
+    // The toolkit's heatmap divides the width it is given between its columns after
+    // reserving a 130px label gutter (vendor/dashkit.js: cw = (w - labelW - mR)/cols) and
+    // never clamps the result, and a panel's FIRST paint happens while its body is 28px
+    // wide — so a month × committee-kind heatmap emitted 336 negative-width rects per
+    // render, which the suite counts as console errors. Vertical bars divide width the
+    // same way and fail the same test; horizontal bars and a line divide the HEIGHT and
+    // are fine. The clamp is a real fix, it belongs to the toolkit rather than to a pack
+    // slice (vendor/dashkit.js is pristine by invariant), and it is recorded in the SP-5
+    // item for Kevin to rank. The pack draws the cycle as a cycle in the meantime.
+    var monthTotalDa = cfRollupDA("vcd_month_total", "Campaign Finance — itemized giving by month",
+      ds.monthly.id, [{ col: "month" }, { col: "amount", agg: "sum" }]);
+    das.push(monthTotalDa);
+    panels.push({ id: "pcd_months", section: "When it arrives",
+      title: "The shape of an election cycle", span: "full",
+      sub: "every month from January 2023 to December 2024, all committees together",
+      info: "The View rolls the monthly table up with a SUM shelf, which is why the series reads \"SUM amount\" — open it and the shelf is the first thing you see. Rows carrying a transaction date outside the cycle (filer typos reaching the 1990s and the 2080s) are excluded from this table only.",
+      chart: { type: "line", da: monthTotalDa.id,
+        map: { labelCol: "month", series: ["SUM amount"] },
+        opts: { area: true, smooth: false, showDots: true, fmt: "abbr", height: 360 } } });
+
+    var occDa = curatedDA("vcd_occupations", "Campaign Finance — the largest donor occupations",
+      ds.occupations.id, ["occupation", "contributions", "amount"],
+      [{ col: "amount", kind: "range", min: String(CF_OCCUPATION_FLOOR), max: "" }]);
+    das.push(occDa);
+    panels.push({ id: "pcd_occ", section: "Who gives it",
+      title: "Donor occupations above " + cfMillions(CF_OCCUPATION_FLOOR), span: 2,
+      sub: "free text the donor's own filer typed — the floor is on the View, so move it",
+      info: "Upper-cased with punctuation and whitespace collapsed, and nothing more: \"SELF-EMPLOYED\" and \"SELF EMPLOYED\" merge, while \"RETIRED\" and \"NOT EMPLOYED\" stay apart. A synonym table would be an editorial judgement the extract cannot defend.",
+      chart: { type: "bars", da: occDa.id, map: { labelCol: "occupation", valueCol: "amount" },
+        opts: { horizontal: true, sortBars: true, showValues: false, fmt: "money", height: 420 } } });
+
+    var empDa = curatedDA("vcd_employers", "Campaign Finance — the largest donor employers",
+      ds.employers.id, ["employer", "contributions", "amount"],
+      [{ col: "amount", kind: "range", min: String(CF_EMPLOYER_FLOOR), max: "" }]);
+    das.push(empDa);
+    panels.push({ id: "pcd_emp", title: "Donor employers above " + cfMillions(CF_EMPLOYER_FLOOR), span: 2,
+      sub: "and the top of this list is the finding — see the note below",
+      info: "The same free-text treatment as occupation. Named employers begin well down the list, which is what the note beside this panel is about.",
+      chart: { type: "bars", da: empDa.id, map: { labelCol: "employer", valueCol: "amount" },
+        opts: { horizontal: true, sortBars: true, showValues: false, fmt: "money", height: 420 } } });
+
+    panels.push({ id: "pcd_note", section: "How to read it", title: "Two fields nobody validates", span: "full",
+      chart: { type: "richtext", da: null, opts: { content: [
+        "**Occupation and employer are free text.** The FEC requires a committee to ask for both and to report what it is told; nothing checks the answer. So the largest \"employers\" in this cycle are RETIRED, NOT EMPLOYED and SELF EMPLOYED — which are not employers at all, but what people type when they have none. Any read of this table that skips that fact gets the ranking of real firms wrong by three places.",
+        "",
+        "**The size bands are where the shape of the money is.** Nine contributions in ten are under $200 and they are a fifth of the dollars; the gifts at or above the per-election limit are a fraction of one percent of the contributions and over two-fifths of the dollars.",
+        "",
+        "- Under $200: **" + cfBillions(f.small) + "** (**" + f.smallPct.toFixed(1) + "%** of dollars) from **" + f.smallCountPct.toFixed(1) + "%** of contributions",
+        "- At or above the per-election limit: **" + cfBillions(f.maxOut) + "** (**" + f.maxOutPct.toFixed(1) + "%** of dollars) from **" + f.maxOutCountPct.toFixed(1) + "%** of contributions",
+        "",
+        "*And the threshold under all of it:* a donor is itemized only once their cycle total passes $200, so the \"small\" gifts here belong to donors who gave enough in total to be named. The genuinely small-dollar universe is reported as a lump sum and is not in this file."
+      ].join("\n") } } });
+
+    return {
+      id: "campaignfinance-donors", name: "campaignfinance-donors",
+      title: "Who Gives It, and How",
+      subtitle: "Itemized individual contributions by occupation, employer, cheque size and month of the 2023-24 cycle",
+      dashboardTheme: "polecat",
+      panels: panels, kpis: kpis, filters: [],
+      cda: { connections: [], dataAccesses: das }
+    };
+  }
+
+  // Idempotent by dashboard name (the CONS-1 convention SP-1 and SP-6 also follow), so it
+  // is safe from the seed, from the boot heal, and from a workspace where someone deleted
+  // one of the three.
+  function seedCampaignFinanceDashboards(W, id, ds, now) {
+    if (!ds || !ds.states || !ds.occupations || !ds.employers || !ds.monthly || !ds.bands ||
+        !ds.output || !ds.charted) return 0;
+    // The figures are read back off the rows that were just written rather than taken as
+    // arguments: the seed path and the boot heal then cannot disagree about what the pack
+    // says about itself.
+    var f = campaignFinanceFigures(parsePackCsv(ds.states.content), parsePackCsv(ds.output.content),
+      parsePackCsv(ds.charted.content));
+    if (!f.states || !f.total || !f.flowTotal || !f.chartedRows) return 0; // nothing to state honestly, so state nothing
+    var specs = {
+      "campaignfinance-donors": campaignFinanceDonorsSpec(ds, f),
+      "campaignfinance-geography": campaignFinanceGeographySpec(ds, f),
+      "campaignfinance-flow": campaignFinanceFlowSpec(ds, f)
+    };
+    var added = 0;
+    CF_DASHBOARDS.forEach(function (name) {
+      var have = W.all("dashboards").some(function (r) {
+        return r.demoPackId === id && (r.name === name || (r.spec && r.spec.name) === name);
+      });
+      if (have) return;
+      var spec = specs[name];
+      W.put("dashboards", {
+        name: name, title: spec.title, ts: now, spec: spec,
+        folder: CF_FOLDER, demoPackId: id
+      });
+      added++;
+    });
+    return added;
+  }
+
+  // The boot heal (studio.js reconcilePackDashboards): a workspace that installed the
+  // pack when it was slice (a) — the seven tables and the share job, no dashboards — gets
+  // them without a reinstall, and so does one where a dashboard was deleted. Returns false
+  // when there is nothing to do, including the legitimate "data hasn't materialized yet"
+  // case: the seed path above writes the dashboards itself the moment the datasets exist.
+  Studio.ensureCampaignFinanceDashboards = function () {
+    var id = "campaignfinance";
+    if (!Studio.demoPackInstalled(id)) return false;
+    var W = Studio.Workspace;
+    var mine = W.all("datasets").filter(function (d) { return d.demoPackId === id && d.content; });
+    function byFile(name) {
+      return mine.filter(function (d) { return (d.fileName || "") === name; })[0];
+    }
+    var ds = {
+      states: byFile(CF_STATES), committees: byFile(CF_COMMITTEES),
+      occupations: byFile(CF_OCCUPATIONS), employers: byFile(CF_EMPLOYERS),
+      monthly: byFile(CF_MONTHLY), bands: byFile(CF_BANDS),
+      // Both job outputs are looked up by their own file name rather than by the
+      // job-output tag, which both of them carry.
+      output: byFile("committee_donor_state_shares.csv"),
+      charted: byFile("committee_donor_state_flows_charted.csv")
+    };
+    if (!ds.states || !ds.occupations || !ds.employers || !ds.monthly || !ds.bands ||
+        !ds.output || !ds.charted) return false;
+    return seedCampaignFinanceDashboards(W, id, ds, new Date().toISOString()) > 0;
+  };
 
   // SP-0: registry-driven. This function knows about no pack in particular — an entry
   // that seeds a workspace supplies `install`; one that only gates gallery visibility
