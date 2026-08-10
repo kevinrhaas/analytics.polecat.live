@@ -135,6 +135,76 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N7 — the Quick Views mapping grid vs the chapter that documents it (v980, NO sw bump,
+  2026-08-10, steward; dev branch; est 1pt, took 1 — ON estimate):** 🔁 N7 was again the only
+  takeable item in ▶ NOW (N31, N44, N41 and N25 all ⛔ on Kevin; SP-1 ⏳ on `hold` PR #689), and
+  v979's closing note parked its one find as editorial, so no candidate was standing. This pass
+  took the gap v979's own altitude move implies one section over: **check 32 reads the Quick Views
+  editor's four numbered steps (`1 · Data`, `2 · Chart`, `3 · Mapping`, `4 · Result`) and the
+  marketing shot framed around them, and nothing had ever read what step 3 puts INSIDE the mapping
+  grid** — which is the pane a reader is sent to when Help names a control. It had drifted in both
+  of the directions that matter.
+  **It documented two controls Quick Views does not have.** `xpMapEditorHtml()`
+  (`app/explore.js:594`) is the sole producer of the mapping grid, and it pushes exactly **three**
+  per-chart option rows: `scale` and `renderer` for a map, `refSeries` for an Ensemble chart. The
+  chapter walked the reader through those and then through the GL map's **Zoom/pan controls**
+  (Show / Compact / Hidden) and **Controls position** (any corner) — `Studio.CHARTS.choropleth`
+  options (`app/model.js:1084`, `:1090`) rendered by the **Dashboard Builder's** generic inspector
+  table and by nothing in `app/explore.js`. Both sentences sat inside a bullet about this pane, so
+  the reader hunts a three-row grid for a fourth and a fifth. The copy now names the three that are
+  there and says plainly where the rest live, so the pointer is useful rather than absent.
+  **And it named two of the four chart types the Rollup control is hidden on.** *"Geo and Ensemble
+  charts carry their own aggregation, so the control is hidden for those"* was true and incomplete:
+  `XP_AGG_TYPES` (`app/explore.js:146`) shows the control for **five of the nine chips**, so
+  **Scatter / bubble** and **Heatmap (pivot)** are excluded too — for a reason the code states
+  outright (a rollup aggregates ONE measure by category; scatter carries x+y and heatmap is a
+  row×column pivot, so grouping one measure away would collapse them). Two of the four exclusions
+  were therefore silent, which is the expensive direction: the reader picks the chip, the row is
+  not there, and the page never said it would not be. The bullet now names all four with the
+  reason, plus the `No aggregation (raw rows)` setting the control starts on.
+  Doc-truth **check 68**, premise + five rules. Every LABEL is read from the evaluated `M` model
+  rather than pattern-matched — chart names **verbatim** (they are the words on the chips the
+  reader is choosing between) and option names by their **pre-parenthesis stem**, because Explore
+  and the registry word the same option's tail differently (`Reference series (never joins the
+  estimate)` vs `(excluded from the estimate)`) and the reader is looking for the name, not the
+  aside. The premise asserts the join the rules depend on: every `data-xp-opt` key Explore renders
+  must resolve in the chart registry, which is what lets (b) read the registry's label instead of a
+  second copy of it. Rules (b)/(c)/(d)/(e) all run **both directions** inside their own anchors, and
+  the "where the other options live" sentence sits OUTSIDE `#quickviews-chart-options` on purpose —
+  so telling a reader the GL cluster is in the builder stays legal while presenting it as a Quick
+  Views control does not.
+  **Twelve failure modes measured, each failing its own rule and only its own** — doc-side: the
+  real pre-fix defect (a builder-only option bolded inside the options anchor) (b); a rendered
+  option losing its name (b); a shown chart type dropped from the on-list (c); **the true pre-fix
+  exclusion list, Geo + Ensemble only** (d); an aggregate function left unpublished (e); the
+  group-by count reading "three" (f). Code-side: Quick Views growing an undocumented option row
+  (b); the registry renaming `Region scale` (b); `scatter` moving into `XP_AGG_TYPES`, which
+  correctly reddens (c) AND (d) together because one type moving between the two lists is one
+  defect seen from both ends; `Studio.AGG_FNS` gaining a seventh function (e); a third group-by
+  select appearing (f); and a chart type renamed in the registry, which reddens (d) alongside
+  checks 45 and 50 — correctly, a rename is published on several surfaces. The premise fails on the
+  true pre-fix tree (no anchors to hold), which is why the doc-side rules were measured on mutated
+  trees carrying the pre-fix wording — check 63's pattern, unchanged.
+  **Verified — the whole dev gate, in the foreground:** `node tools/validate.mjs`,
+  `node tools/changelog-check.js`, `node tools/doc-truth.mjs` (all 68 checks green) and
+  `NODE_PATH=… node tools/dev-smoke.mjs` at 390×780 + desktop, zero pageerrors, including its
+  "docs render" leg — which is the page this slice changes. The full `tests/run.js` suite is the
+  STAGE gate (`promote-to-stage.yml`), not the dev gate, and is unaffected: nothing here ships to
+  the app. Docs-only in shipped terms (`docs/index.html` is not precached and `tools/` ships
+  nothing), so NO `sw.js` bump.
+  **Measured in the same pass and NOT taken, so the next run does not re-derive it** — both are
+  code rather than copy, and both are in the precached `app/explore.js`, so they belong to the next
+  slice that has to bump anyway (issue #631): (1) `xpMapEditorHtml()` hard-codes its **Region
+  scale** choice list (six scales) rather than reading `Studio.CHARTS.choropleth`'s `scale` opt
+  (seven, including `Custom regions`) — the exact second-hardcoded-list problem the `renderer` row
+  right below it was refactored to avoid, and its own comment says so; (2) the same function prints
+  `Reference series (never joins the estimate)` where the registry's label is `Reference series
+  (excluded from the estimate)` — one option, two on-screen names. Check 68 matches on the stem, so
+  it holds the name and not the divergent aside, and neither find is doc drift. Also measured and
+  found CURRENT: the chapter's four numbered steps, its navigator description (folder tree, sample
+  grouping, search-flattens-the-tree), the `+ New dashboard` / `Existing dashboard…` pair, the live
+  run's sample-row fallback, and the six region scales it lists against the six Explore renders. The
+  two v922 candidates are still open and still Kevin's calls.
 - **N7 — the guided-tour chooser vs the tours it really offers (v979, NO sw bump, 2026-08-10,
   steward; dev branch; est 1pt, took 1 — ON estimate):** 🔁 N7 was again the only takeable item in
   ▶ NOW (N31, N44, N41 and N25 all ⛔ on Kevin; SP-1 ⏳ on `hold` PR #689), and v978's closing note
@@ -16876,6 +16946,31 @@
     dialog a Help page should transcribe is editorial, not a derivation, so check 67 holds the
     topic list and not the chrome around it. The two v922 candidates are still open and still
     Kevin's calls.
+  * *The Quick Views MAPPING GRID vs the chapter that documents it — v980, NO sw bump (2026-08-10 —
+    see DONE).* No candidate was standing again (v979 parked its find as editorial), so this pass
+    took the gap v979's own altitude move implies one section over: check 32 reads the Quick Views
+    editor's four numbered steps and the shot framed around them, and **nothing had ever read what
+    step 3 puts inside the mapping grid** — the pane a reader is sent to when Help names a control.
+    **It documented two controls Quick Views does not have:** `xpMapEditorHtml()` pushes exactly
+    three per-chart option rows (`scale`, `renderer`, `refSeries`), and the chapter also walked the
+    reader through the GL map's **Zoom/pan controls** and **Controls position** — registry options
+    rendered by the **Dashboard Builder's** inspector and by nothing in `app/explore.js`. **And it
+    named two of the four chart types the Rollup control is hidden on:** `XP_AGG_TYPES` shows it for
+    five of nine chips, so **Scatter / bubble** and **Heatmap (pivot)** are excluded alongside Geo
+    and Ensemble, for a reason the code states outright. Doc-truth **check 68**, premise + five
+    rules, every label read from the evaluated `M` model — chart names verbatim, option names by
+    their pre-parenthesis stem, because Explore and the registry word the same option's tail
+    differently. Twelve failure modes measured, each failing its own rule and only its own.
+    **Measured in the same pass and NOT taken, so the next run does not re-derive it** — both code
+    rather than copy, both in the precached `app/explore.js` (issue #631's territory): the
+    hard-coded **Region scale** choice list, which has drifted to six where the registry's `scale`
+    opt has seven — the exact second-hardcoded-list problem the `renderer` row beneath it was
+    refactored to avoid; and `Reference series (never joins the estimate)` against the registry's
+    `Reference series (excluded from the estimate)`, one option with two on-screen names. **Audited
+    and found CURRENT in the same pass, no change needed:** the chapter's four numbered steps, the
+    navigator description, the `+ New dashboard` / `Existing dashboard…` pair, the live-run sample
+    fallback, and its six region scales against the six Explore renders. The two v922 candidates are
+    still open and still Kevin's calls.
 
 > **📋 RECORDED FOR KEVIN, NOT PROMOTED — grooming pass 4, 2026-08-10.** This sits BELOW the queue
 > on purpose: `docs/BACKLOG.md` says the loop never promotes into ▶ NOW on its own, and pass 2's

@@ -6,6 +6,17 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 980,
+    title: 'Help sent Quick Views users hunting for two map controls that live in the builder',
+    kind: 'fix',
+    ts: '2026-08-10T20:03:27.000Z',
+    items: [
+      'The <b>Quick Views</b> chapter walked you through a map\'s <b>Zoom/pan controls</b> (Show / Compact / Hidden) and <b>Controls position</b> (any corner) as if they sat under the column mapping with everything else. They do not: Quick Views renders exactly three per-chart options — <b>Region scale</b> and <b>Renderer</b> on a map, <b>Reference series</b> on an Ensemble chart — and those two belong to the <b>Dashboard Builder</b>\'s inspector. The page now names the three you get and says plainly where the rest are, so a reader stops searching a three-row grid for a fifth row.',
+      'The <b>Rollup</b> bullet named two of the four chart types it is hidden on. "Geo and Ensemble charts carry their own aggregation" was true and incomplete — <b>Scatter / bubble</b> and <b>Heatmap (pivot)</b> hide it too, because a rollup aggregates one measure by category and those two position more than one measure at a time. All four are now named, with the reason, plus the "No aggregation (raw rows)" setting the control starts on.',
+      'A new doc-truth check reads the Quick Views mapping grid itself — the option rows it renders, the chart types the Rollup control appears and does not appear on, the aggregate functions it offers and how many dimensions it groups by — and holds Help to all of it in both directions. An option the pane gains, one it loses, a chart type that changes sides, or a renamed control now fails the dev gate instead of quietly outliving its documentation.',
+    ],
+  },
+  {
     v: 979,
     title: 'Help undercounted the guided tours, and two packs never mentioned theirs',
     kind: 'fix',

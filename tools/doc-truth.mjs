@@ -7484,6 +7484,150 @@ if (kitLive) {
   }
 }
 
+/* ── Check 68 — the Quick Views EDITOR's own controls vs the chapter documenting them ─────
+   N7. Check 32 reads the Quick Views editor's four numbered steps (Data / Chart / Mapping /
+   Result) and the marketing shot framed around them; nothing had ever read what step 3 puts
+   INSIDE the mapping grid. That grid is where a reader is sent to find a control, and the
+   chapter had drifted in both of the ways that matters.
+
+   It documented two controls Quick Views does not have. `xpMapEditorHtml()` is the sole
+   producer of the mapping grid and it pushes exactly three per-chart options — `scale` and
+   `renderer` for a map, `refSeries` for an Ensemble chart. The chapter walked the reader
+   through those and then through the GL map's **Zoom/pan controls** (Show / Compact / Hidden)
+   and **Controls position** (any corner), which are `Studio.CHARTS.choropleth` options rendered
+   by the Dashboard Builder's generic inspector table and by nothing in `app/explore.js`. Both
+   sentences read as instructions for the pane the bullet is about, so the reader hunts a grid
+   with three rows for a fourth and a fifth.
+
+   And it named two of the four chart types the Rollup control is hidden on. The copy said
+   "Geo and Ensemble charts carry their own aggregation, so the control is hidden for those",
+   while `XP_AGG_TYPES` shows the control for five of the nine chips — scatter and heatmap are
+   excluded too, for a reason the code states outright (a rollup aggregates ONE measure by
+   category; scatter carries x+y and heatmap is a row×column pivot, so grouping one measure away
+   would collapse them). Two of the four exclusions were therefore silent.
+
+   Sources of truth, all evaluated rather than pattern-matched where possible: `XP_TYPES` and
+   `XP_AGG_TYPES` in app/explore.js, that file's own `data-xp-opt=` / `data-xp-agg=` attributes
+   (the controls it really renders), and the shared `M` model for every LABEL — chart names
+   verbatim, option names by their pre-parenthesis stem, because Explore and the registry word
+   the same option's tail differently ("never joins the estimate" / "excluded from the
+   estimate") and the reader is looking for the name, not the aside. So renaming a chart type
+   or an option moves these rules with it instead of leaving a plausible label behind. */
+{
+  const exploreSrc = read("app/explore.js");
+  const arrLit = (name) => ((exploreSrc.match(new RegExp(`var ${name} = \\[([^\\]]*)\\]`)) || [, ""])[1]
+    .match(/"([^"]+)"/g) || []).map((s) => s.slice(1, -1));
+  const xpTypes = arrLit("XP_TYPES");
+  const xpAggTypes = arrLit("XP_AGG_TYPES");
+  const xpNoAggTypes = xpTypes.filter((t) => !xpAggTypes.includes(t));
+
+  // What step 3 really renders. xpMapEditorHtml() is the only producer of the mapping grid,
+  // so its own attributes ARE the control list — no second place to keep in sync.
+  const mapEdAt = exploreSrc.indexOf("function xpMapEditorHtml()");
+  const mapEdBody = mapEdAt < 0 ? "" : braceBlockAt(exploreSrc, exploreSrc.indexOf("{", mapEdAt));
+  const xpOptKeys = [...new Set([...mapEdBody.matchAll(/data-xp-opt="(\w+)"/g)].map((m) => m[1]))];
+  const xpGroupBys = [...new Set([...mapEdBody.matchAll(/data-xp-agg="(g\d+)"/g)].map((m) => m[1]))];
+
+  // The option pool: every option any Quick Views chart type HAS, keyed the way Explore keys
+  // it, so an option the pane skips is still nameable and rule (b)'s stray half can find it.
+  const optStem = (s) => s.replace(/\s*\(.*$/, "").replace(/&amp;/g, "&").replace(/\s+/g, " ").trim();
+  const optLabel = new Map();
+  for (const t of xpTypes)
+    for (const o of ((M.CHARTS[t] || {}).opts || []))
+      if (!optLabel.has(o.key)) optLabel.set(o.key, optStem(o.label));
+  const chartLabel = (t) => ((M.CHARTS[t] || {}).label || t);
+  const aggStems = (M.AGG_FNS || []).map((f) => optStem(f[1]));
+
+  const deEnt = (s) => s.replace(/&amp;/g, "&").replace(/&nbsp;/g, " ").replace(/\s+/g, " ").trim();
+  const spanOf = (id) => (help.match(new RegExp(`<span id="${id}">([\\s\\S]*?)</span>`)) || [, ""])[1];
+  const taggedIn = (span, tag) =>
+    [...span.matchAll(new RegExp(`<${tag}>([\\s\\S]*?)</${tag}>`, "g"))].map((m) => deEnt(m[1]));
+
+  const optSpan = spanOf("quickviews-chart-options");
+  const onSpan = spanOf("quickviews-rollup-on");
+  const offSpan = spanOf("quickviews-rollup-off");
+  const fnSpan = spanOf("quickviews-rollup-fns");
+  const dimWord = (help.match(/grouped by <strong>(\w+)<\/strong> dimensions/) || [, ""])[1] || "";
+
+  // (a) the premise. Everything below dereferences this parse. The join worth asserting is
+  // that every key Explore renders resolves in the chart registry — that is what lets rules
+  // (b) and (c) read the registry's label rather than a second copy of it in the pane.
+  const xpPremise = ok(`app/explore.js: the Quick Views mapping grid parsed for check 68 ` +
+    `(${xpTypes.length} chart chip(s); Rollup on ${xpAggTypes.length}, hidden on ${xpNoAggTypes.length}; ` +
+    `per-chart option(s): ${xpOptKeys.map((k) => `${k}="${optLabel.get(k) || "?"}"`).join(" · ") || "(none)"}; ` +
+    `${xpGroupBys.length} group-by select(s))`,
+    xpTypes.length >= 5 && xpAggTypes.length >= 1 && xpNoAggTypes.length >= 1 &&
+      xpAggTypes.every((t) => xpTypes.includes(t)) &&
+      xpTypes.every((t) => M.CHARTS[t]) &&
+      xpOptKeys.length >= 1 && xpOptKeys.every((k) => optLabel.has(k)) &&
+      xpGroupBys.length >= 1 && aggStems.length >= 2 &&
+      !!optSpan && !!onSpan && !!offSpan && !!fnSpan && !!dimWord,
+    `XP_TYPES: ${xpTypes.join(", ") || "(unparsed)"}\n      ` +
+    `XP_AGG_TYPES: ${xpAggTypes.join(", ") || "(unparsed)"}\n      ` +
+    `data-xp-opt keys in xpMapEditorHtml(): ${xpOptKeys.join(", ") || "(none)"}\n      ` +
+    `unknown to the chart registry: ${xpOptKeys.filter((k) => !optLabel.has(k)).join(", ") || "(none)"}\n      ` +
+    `Studio.AGG_FNS: ${aggStems.join(", ") || "(none)"}\n      ` +
+    `docs/index.html anchors — options: ${optSpan ? "ok" : "MISSING"}, rollup-on: ${onSpan ? "ok" : "MISSING"}, ` +
+    `rollup-off: ${offSpan ? "ok" : "MISSING"}, rollup-fns: ${fnSpan ? "ok" : "MISSING"}, ` +
+    `"grouped by <strong>N</strong> dimensions": ${JSON.stringify(dimWord)}`);
+
+  if (xpPremise) {
+    // (b) the per-chart options, both directions and inside the anchor only — the sentence
+    // that says where the OTHER options live sits outside it on purpose, so telling a reader
+    // "the GL cluster is in the builder" stays legal while presenting it as a Quick Views
+    // control does not. The stray half is the half that was failing.
+    const wantOpts = xpOptKeys.map((k) => optLabel.get(k));
+    const gotOpts = taggedIn(optSpan, "strong");
+    const optMissing = wantOpts.filter((l) => !gotOpts.includes(l));
+    const optStray = gotOpts.filter((l) => !wantOpts.includes(l));
+    ok(`docs/index.html: #quickviews-chart-options names the ${wantOpts.length} per-chart option(s) ` +
+      `the Quick Views mapping grid renders, and no others`,
+      !optMissing.length && !optStray.length,
+      `rendered by xpMapEditorHtml(), not named: ${optMissing.join(", ") || "(none)"}\n      ` +
+      `named as a Quick Views control, not rendered there: ${optStray.join(", ") || "(none)"}\n      ` +
+      `(options the registry has for these chart types but this pane skips: ${
+        [...optLabel.entries()].filter(([k]) => !xpOptKeys.includes(k)).map(([, l]) => l).join(", ") || "(none)"})`);
+
+    // (c) the chart types the Rollup control APPEARS on, both directions. Verbatim registry
+    // labels: these are the words on the chips the reader is choosing between.
+    const wantOn = xpAggTypes.map(chartLabel);
+    const gotOn = taggedIn(onSpan, "strong");
+    ok(`docs/index.html: #quickviews-rollup-on lists the ${wantOn.length} chart type(s) XP_AGG_TYPES ` +
+      `shows the Rollup control for`,
+      !wantOn.filter((l) => !gotOn.includes(l)).length && !gotOn.filter((l) => !wantOn.includes(l)).length,
+      `shows the control, not listed: ${wantOn.filter((l) => !gotOn.includes(l)).join(", ") || "(none)"}\n      ` +
+      `listed, does not show it: ${gotOn.filter((l) => !wantOn.includes(l)).join(", ") || "(none)"}`);
+
+    // (d) the other direction of the same list, and the half that was wrong: the copy named
+    // Geo and Ensemble and stopped, leaving scatter and heatmap silently excluded.
+    const wantOff = xpNoAggTypes.map(chartLabel);
+    const gotOff = taggedIn(offSpan, "strong");
+    ok(`docs/index.html: #quickviews-rollup-off names all ${wantOff.length} chart type(s) the Rollup ` +
+      `control is hidden on`,
+      !wantOff.filter((l) => !gotOff.includes(l)).length && !gotOff.filter((l) => !wantOff.includes(l)).length,
+      `hidden on it, not named: ${wantOff.filter((l) => !gotOff.includes(l)).join(", ") || "(none)"}\n      ` +
+      `named as excluded, but the control is shown: ${gotOff.filter((l) => !wantOff.includes(l)).join(", ") || "(none)"}\n      ` +
+      "an unnamed exclusion is the expensive direction — the reader picks the chip, the row is " +
+      "not there, and the page never said it would not be");
+
+    // (e) the aggregate functions themselves, both directions, matched on the stem of the
+    // option's own printed label so "Mean (average)" is found by "Mean".
+    const gotFns = taggedIn(fnSpan, "em");
+    ok(`docs/index.html: #quickviews-rollup-fns publishes all ${aggStems.length} function(s) ` +
+      `Studio.AGG_FNS offers`,
+      !aggStems.filter((l) => !gotFns.includes(l)).length && !gotFns.filter((l) => !aggStems.includes(l)).length,
+      `offered by the registry, not published: ${aggStems.filter((l) => !gotFns.includes(l)).join(", ") || "(none)"}\n      ` +
+      `published, not offered: ${gotFns.filter((l) => !aggStems.includes(l)).join(", ") || "(none)"}`);
+
+    // (f) how many dimensions the rollup groups by — its own claim, because the Group by /
+    // Then by pair is what a reader plans a dataset around.
+    ok(`docs/index.html: "grouped by ${dimWord} dimensions" is the ${xpGroupBys.length} group-by ` +
+      `select(s) the mapping grid renders`,
+      asNumber(dimWord) === xpGroupBys.length,
+      `xpMapEditorHtml() renders ${xpGroupBys.join(" + ") || "(none)"}; the copy says ${JSON.stringify(dimWord)}`);
+  }
+}
+
 console.log(failed ? `\n✗ doc-truth: ${failed} claim(s) have drifted from the source of truth`
   : "\n✅ doc-truth: every published claim matches the source it describes");
 process.exit(failed ? 1 : 0);
