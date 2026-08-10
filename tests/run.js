@@ -43885,7 +43885,7 @@ function serve() {
       var switches = Array.prototype.map.call(sec.querySelectorAll("input[data-set]"), function (cb) { return cb.getAttribute("data-set"); });
       return {
         visible: sec.hidden === false,
-        hasCards: sec.querySelectorAll(".settings-card").length === 8, // Account (M3) + Workspace backend + 3 toggle groups + Sample packs (Viridis V7, LF16) + Dashboard defaults + Data (Branding moved to Admin)
+        hasCards: sec.querySelectorAll(".settings-card").length === 9, // Account (M3) + Workspace backend + 3 toggle groups + Sample packs (Viridis V7, LF16) + Dashboard defaults + Data + App (N7 v986's Hard reset; Branding moved to Admin)
         switchIds: switches.join(","),
         darkChecked: sec.querySelector('input[data-set="dark"]').checked,
         simpleChecked: sec.querySelector('input[data-set="simple"]').checked,
@@ -43900,7 +43900,11 @@ function serve() {
     // its presence is asserted here).
     // N32 retired the "Sample content" switch — the Sample packs card governs sample
     // content now — so the Mode group is one switch shorter; the card count is unchanged.
-    ok("Z5: Settings section renders 8 cards with 5 mode switches — modes (incl. #114 Restore unsaved work) off by default",
+    // N7 (v986) added the NINTH card, App, for the Hard reset the banner and Help had both
+    // been promising — 8 → 9 here and in the Z5 follow-up below. Both counts are hand-kept
+    // and both went stale the same day; doc-truth check 73 derives the same list from
+    // renderSettings()'s own emission order and is what holds the page honest between passes.
+    ok("Z5: Settings section renders 9 cards with 5 mode switches — modes (incl. #114 Restore unsaved work) off by default",
       z5Boot.visible && z5Boot.hasCards && z5Boot.switchIds === "dark,simple,restore,panels,demo"
         && !z5Boot.darkChecked && !z5Boot.simpleChecked && !z5Boot.restoreChecked && !z5Boot.demoChecked,
       JSON.stringify(z5Boot));
@@ -44242,7 +44246,7 @@ function serve() {
       };
     });
     ok("Z5: Settings page has a Data card with Export/Import buttons",
-      z5Data.cardCount === 8 && z5Data.hasExportBtn && z5Data.hasImportBtn, JSON.stringify(z5Data));
+      z5Data.cardCount === 9 && z5Data.hasExportBtn && z5Data.hasImportBtn, JSON.stringify(z5Data));
 
     const [z5Dl] = await Promise.all([page.waitForEvent("download"), page.click("#setExportBtn")]);
     const z5DlName = z5Dl.suggestedFilename();
@@ -50216,6 +50220,149 @@ function serve() {
       JSON.stringify(hrsDesk));
     ok("N7: the hard-reset walk raised zero pageerrors", hrsErrors.length === 0, hrsErrors.slice(0, 3).join(" | "));
     await hrsCtx.close();
+
+    // ── N7: the ⌘K palette drives controls that EXIST, and offers the safe remedy ──────────
+    // doc-truth check 75 is the static half — it reads every id the registry clicks and fails
+    // the build on one the app does not render. This is the live half, and it is the one that
+    // proves the two findings were real rather than merely parseable:
+    //   · "Add text / annotation panel" clicked `btnAddText`, deleted 2026-07-14 when ¶ Text
+    //     moved to the canvas empty state (`#cesText`). The row rendered and did NOTHING.
+    //   · The palette reached ⋯ More → Clear local data (wipes the workspace) and not
+    //     Settings → App → Hard reset (v986, wipes nothing) — the destructive remedy a
+    //     keystroke away, the safe one reachable through Settings alone.
+    // Its own context: the hard-reset command ends on a real confirm(), and a stray accept
+    // would unregister the service worker out from under the page the rest of the suite uses.
+    // Playwright dismisses dialogs by default, which is exactly the assertion we want — the
+    // command must REACH the button's own handler, and then not go through with it.
+    console.log("\n• N7: ⌘K → Hard reset… / Add text (390×780 → 1280×900)");
+    const palCtx = await browser.newContext({
+      storageState: await page.context().storageState(), viewport: { width: 390, height: 780 } });
+    const palPage = await palCtx.newPage();
+    const palErrors = [], palDialogs = [];
+    palPage.on("pageerror", (e) => { palErrors.push(e.message); errors.push("N7 palette page: " + e.message); });
+    palPage.on("dialog", (d) => { palDialogs.push(d.message()); d.dismiss(); });
+    await palPage.addInitScript(() => { try { sessionStorage.setItem("studio-gate-ok", "1"); } catch (e) {} });
+    await palPage.goto(`http://localhost:${PORT}/app/`, { waitUntil: "networkidle" });
+    await palPage.waitForTimeout(400);
+
+    // The pair, as the palette renders it: both rows reachable by the words someone would type,
+    // both tagged with the same family so they read as alternatives rather than unrelated rows.
+    const palPair = await palPage.evaluate(function () {
+      var P = window.StudioPalette;
+      var rowsFor = function (q) {
+        P.open();
+        var input = document.getElementById("cmdkInput");
+        input.value = q;
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+        var out = Array.prototype.map.call(document.querySelectorAll("#cmdkList .cmdk-row"), function (li) {
+          return {
+            label: (li.querySelector(".cmdk-lbl") || {}).textContent || "",
+            hint: (li.querySelector(".cmdk-hint") || {}).textContent || "",
+            icon: !!li.querySelector(".cmdk-ic svg"),
+          };
+        });
+        P.close();
+        return out;
+      };
+      var byLabel = function (rows, l) { return rows.filter(function (r) { return r.label === l; })[0] || null; };
+      // The words the banner, Help and the Settings card all use for this remedy.
+      var hard = rowsFor("hard reset"), stuck = rowsFor("stuck offline copy");
+      var wipe = rowsFor("clear local data");
+      return {
+        hard: byLabel(hard, "Hard reset…"),
+        // the failure mode is described, not named — the keywords have to carry it
+        foundByProblem: !!byLabel(stuck, "Hard reset…"),
+        wipe: byLabel(wipe, "Clear local data…"),
+      };
+    });
+    ok("N7: ⌘K offers Hard reset…, in the same family as Clear local data… and with its own icon",
+      !!palPair.hard && !!palPair.wipe && palPair.hard.hint === palPair.wipe.hint &&
+      palPair.hard.hint === "Manage" && palPair.hard.icon,
+      JSON.stringify(palPair));
+    ok("N7: and it is found by the PROBLEM as well as the name — 'stuck offline copy' reaches it",
+      palPair.foundByProblem, JSON.stringify(palPair));
+
+    // Running it: the command must land on the Settings control's own handler. The confirm() is
+    // dismissed, so the reset never happens — the dialog's text IS the proof of arrival.
+    const palRun = await palPage.evaluate(function () {
+      var P = window.StudioPalette;
+      P.open();
+      var input = document.getElementById("cmdkInput");
+      input.value = "hard reset";
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      var first = document.querySelector("#cmdkList .cmdk-row");
+      var ranLabel = first ? (first.querySelector(".cmdk-lbl") || {}).textContent : null;
+      if (first) first.click();
+      var setRail = document.querySelector('.rail-item[data-sec="settings"]');
+      var btn = document.getElementById("setHardResetBtn");
+      return {
+        ranLabel: ranLabel,
+        closed: !document.getElementById("cmdkOverlay").classList.contains("open"),
+        navigated: !!(setRail && setRail.classList.contains("active")),
+        settingsShown: (document.getElementById("secSettings") || { hidden: true }).hidden === false,
+        btnOnScreen: !!btn && btn.getBoundingClientRect().width > 0,
+      };
+    });
+    await palPage.waitForTimeout(200);
+    ok("N7: ⌘K → Hard reset… closes the palette and puts you on Settings, where the control is",
+      palRun.ranLabel === "Hard reset…" && palRun.closed && palRun.navigated &&
+      palRun.settingsShown && palRun.btnOnScreen,
+      JSON.stringify(palRun));
+    ok("N7: it reaches the Settings button's OWN handler — the confirmation it raises says what it clears and what it keeps",
+      palDialogs.length === 1 && /hard reset the app/i.test(palDialogs[0]) &&
+      /offline copy/i.test(palDialogs[0]) && /workspace/i.test(palDialogs[0]),
+      JSON.stringify(palDialogs));
+
+    // And the dead id, proved live: the command adds a richtext panel now instead of nothing.
+    const palText = await palPage.evaluate(function () {
+      var P = window.StudioPalette;
+      if (window.__studioShellSetSection) window.__studioShellSetSection("studio");
+      var panels = function () {
+        var s = window.__STUDIO_STATE && window.__STUDIO_STATE.spec;
+        return s && s.panels ? s.panels.length : -1;
+      };
+      var before = panels();
+      P.open();
+      var input = document.getElementById("cmdkInput");
+      input.value = "annotation";
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      var first = document.querySelector("#cmdkList .cmdk-row");
+      var ranLabel = first ? (first.querySelector(".cmdk-lbl") || {}).textContent : null;
+      if (first) first.click();
+      var after = window.__STUDIO_STATE.spec.panels;
+      return {
+        ranLabel: ranLabel, before: before, after: after.length,
+        type: after.length ? after[after.length - 1].chart && after[after.length - 1].chart.type : null,
+        oldIdStillGone: !document.getElementById("btnAddText"),
+      };
+    });
+    ok("N7: ⌘K → Add text / annotation panel really adds a richtext panel (it clicked a deleted id for four weeks)",
+      palText.ranLabel === "Add text / annotation panel" && palText.before >= 0 &&
+      palText.after === palText.before + 1 && palText.type === "richtext" && palText.oldIdStillGone,
+      JSON.stringify(palText));
+
+    // Desktop: the palette is a keyboard surface, so this is where it is used most.
+    await palPage.setViewportSize({ width: 1280, height: 900 });
+    await palPage.waitForTimeout(300);
+    const palDesk = await palPage.evaluate(function () {
+      var P = window.StudioPalette;
+      P.open();
+      var input = document.getElementById("cmdkInput");
+      input.value = "reset";
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      var labels = Array.prototype.map.call(document.querySelectorAll("#cmdkList .cmdk-row .cmdk-lbl"),
+        function (n) { return n.textContent; });
+      P.close();
+      return {
+        labels: labels,
+        safeFirst: labels.indexOf("Hard reset…") >= 0 && labels.indexOf("Clear local data…") >= 0 &&
+          labels.indexOf("Hard reset…") < labels.indexOf("Clear local data…"),
+      };
+    });
+    ok("N7: typing 'reset' at 1280×900 offers both remedies, the non-destructive one first",
+      palDesk.safeFirst, JSON.stringify(palDesk));
+    ok("N7: the palette walk raised zero pageerrors", palErrors.length === 0, palErrors.slice(0, 3).join(" | "));
+    await palCtx.close();
 
     // N27: the live-posture verify classifies its own answers, and that classifier gets a
     // vote on whether production is safe to ship to (promote-to-prod runs it BEFORE the
