@@ -6,6 +6,21 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 955,
+    title: 'Fix a View’s SQL from the dashboard you are building, not from the other side of the app',
+    kind: 'feature',
+    ts: '2026-08-10T00:42:37.000Z',
+    items: [
+      'The Inspector’s <b>Query preview</b> could always show you the query behind the selected View — the SQL, its columns, three sample rows. What it could never do was let you touch it. Seeing that the query was wrong meant leaving the dashboard, finding the dataset in the Datasets catalog, editing it there, and coming back.',
+      'That section now carries an <b>Edit this query</b> link. It opens the ordinary dataset editor straight over the dashboard: change the SQL, press Preview to see the rows it returns now, save. The dashboard is still behind it with the same View selected, and the chart repaints against the query you just saved.',
+      'It is the same editor the Datasets catalog and the View Builder open, not a second SQL box that drifts from them — so parameters, the schema browser and the connection picker are all there, and anything you save is saved for every dashboard reading that dataset.',
+      'A dashboard keeps its own copy of each query so an export still works after the dataset is deleted, and that copy used to go stale the moment anyone edited the dataset. It is now brought up to date on save — the query, its columns, its parameters and its connection — while the View keeps the name and identity you gave it, so nothing on the canvas is renamed or unbound behind your back.',
+      'If the query you saved no longer returns a column one of your shelves was using, it tells you which column, by name, instead of leaving you to work out why an axis went empty. Cached rows from the old query are dropped at the same moment, so Run live cannot answer with them.',
+      'A View that carries its own rows inline — a sample-pack View, or a dashboard-only query — has no dataset to open, so it shows no link rather than a button that cannot work.',
+      'Twelve checks hold it: that a linked View offers the link and an authored one does not, that it opens the shared editor on the right dataset, that saving reaches the dashboard’s own copy, that the preview repaints, that identity survives, that a dropped column is reported, and that a dataset with no known columns leaves the shelves alone.',
+    ],
+  },
+  {
     v: 954,
     title: 'A brand-new workspace promised twelve showcase dashboards and shipped none of them',
     kind: 'fix',

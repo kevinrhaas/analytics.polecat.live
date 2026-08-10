@@ -19810,6 +19810,136 @@ function serve() {
     ok("N-DATA: the Query preview section's data-quality notes exactly match Studio.dataQualityIssues() for that DA's own sample",
       dqWiring.warnCount === dqWiring.expected, JSON.stringify(dqWiring));
 
+    // ---- N43 slice 1: edit a panel's SQL from the Query preview, without leaving the dashboard ----
+    console.log("\n• N43: edit this query (Query preview → shared dataset editor)");
+    // (a) an AUTHORED data access (this example's DAs carry their rows inline, no datasetId)
+    //     must NOT offer the link — there is no dataset to open.
+    const n43Authored = await page.evaluate(() => ({
+      btn: !!document.querySelector("#inspBody [data-qpeek-edit]"),
+      linked: !!(window.__STUDIO_STATE.spec.cda.dataAccesses[0] || {}).datasetId
+    }));
+    ok("N43: an authored data access (rows inline, no workspace dataset) offers no edit link",
+      n43Authored.btn === false && n43Authored.linked === false, JSON.stringify(n43Authored));
+
+    // (b) the pure re-sync: identity survives, the query is adopted, dropped columns are reported.
+    const n43Sync = await page.evaluate(() => {
+      var da = { id: "keep_me", name: "Authored label", kind: "sql", sql: "select a,b,c from t",
+        query: "select a,b,c from t", columns: ["a", "b", "c"], params: [], datasetId: "d1", connectionId: "c0" };
+      var r = Studio.syncDAFromDataset(da, { id: "d1", name: "renamed in the catalog", kind: "sql",
+        sql: "select a, b from t", columns: ["a", "b"], connectionId: "c1", params: [{ key: "p", value: "1" }] });
+      // a dataset whose columns are unknown (never previewed, and no SQL to detect them from)
+      // must not wipe the shelves the DA already has
+      var da2 = { id: "y", name: "Y", kind: "sql", sql: "", query: "", columns: ["a", "b"], params: [] };
+      var r2 = Studio.syncDAFromDataset(da2, { id: "d2", name: "n", kind: "table", table: "orders", columns: [], connectionId: "c1" });
+      // idempotence: sync a DA to a dataset, then sync it again to the SAME dataset — the
+      // second pass must report nothing, or every reopen of the inspector would look like an edit
+      var da3 = { id: "z", name: "Z", kind: "sql", sql: "", query: "", columns: [], params: [] };
+      var ds3 = { id: "d3", name: "n", kind: "sql", sql: "select a from t", columns: ["a"], connectionId: "c1", params: [] };
+      Studio.syncDAFromDataset(da3, ds3);
+      var r3 = Studio.syncDAFromDataset(da3, ds3);
+      return {
+        changed: r.changed, removed: r.removedColumns.join(","),
+        sql: da.sql, query: da.query, cols: da.columns.join(","), conn: da.connectionId,
+        embedded: da.dataset && da.dataset.sql, param: (da.params[0] || {}).name,
+        idKept: da.id === "keep_me", nameKept: da.name === "Authored label",
+        colsKept: da2.columns.join(","), noRemovedWhenUnknown: r2.removedColumns.length === 0,
+        noopChanged: r3.changed, noopRemoved: r3.removedColumns.length
+      };
+    });
+    ok("N43: re-syncing a data access from its dataset adopts the new query, columns, params and connection",
+      n43Sync.changed && n43Sync.sql === "select a, b from t" && n43Sync.query === "select a, b from t" &&
+      n43Sync.cols === "a,b" && n43Sync.conn === "c1" && n43Sync.embedded === "select a, b from t" &&
+      n43Sync.param === "p", JSON.stringify(n43Sync));
+    ok("N43: the re-sync never rewrites identity — the DA keeps its id (every panel references it) and its authored name",
+      n43Sync.idKept && n43Sync.nameKept, JSON.stringify(n43Sync));
+    ok("N43: a column the edited query no longer returns is reported by name",
+      n43Sync.removed === "c", JSON.stringify(n43Sync));
+    ok("N43: a dataset with no known columns leaves the DA's columns alone rather than emptying the shelves",
+      n43Sync.colsKept === "a,b" && n43Sync.noRemovedWhenUnknown, JSON.stringify(n43Sync));
+    ok("N43: re-syncing the same dataset a second time is a no-op — no change reported, no columns dropped",
+      n43Sync.noopChanged === false && n43Sync.noopRemoved === 0, JSON.stringify(n43Sync));
+
+    // (c) the wiring, end to end: a LINKED panel shows the link, it opens the shared dataset
+    //     editor, and saving an edited query flows back into the dashboard still open behind it.
+    const n43Setup = await page.evaluate(() => {
+      var conn = Studio.Workspace.put("connections", { name: "n43-conn", adapter: "turso", cfg: {} });
+      var ds = Studio.Workspace.put("datasets", { name: "n43-ds", connectionId: conn.id, kind: "sql",
+        sql: "select region, total from sales", columns: ["region", "total"] });
+      window.__studioLoad({ title: "N43 test", panels: [], kpis: [] });
+      window.__studioAddFromWorkspaceDataset(ds.id, "bars");
+      var da = window.__STUDIO_STATE.spec.cda.dataAccesses[0];
+      var btn = document.querySelector("#inspBody [data-qpeek-edit]");
+      return {
+        connId: conn.id, dsId: ds.id, daId: da.id, daName: da.name,
+        hasBtn: !!btn, forThisDa: !!btn && btn.getAttribute("data-qpeek-edit") === da.id,
+        label: btn ? btn.textContent.trim() : "", titled: btn ? /n43-ds/.test(btn.title || "") : false
+      };
+    });
+    ok("N43: a panel whose data access is linked to a workspace dataset offers 'Edit this query' in Query preview",
+      n43Setup.hasBtn && n43Setup.forThisDa && n43Setup.label === "Edit this query", JSON.stringify(n43Setup));
+    ok("N43: the link names the dataset it will open", n43Setup.titled, JSON.stringify(n43Setup));
+    await page.evaluate(() => document.querySelector("#inspBody [data-qpeek-edit]").click());
+    await page.waitForTimeout(250);
+    const n43Modal = await page.evaluate(() => {
+      var ov = document.querySelector(".modal-ov");
+      return {
+        open: !!ov,
+        title: ov && ov.querySelector(".modal-h") ? ov.querySelector(".modal-h").textContent.trim() : "",
+        sql: ov && ov.querySelector(".dsx-sql") ? ov.querySelector(".dsx-sql").value : "",
+        hasPreview: !!(ov && [].slice.call(ov.querySelectorAll(".cx-wiz-foot .btn")).filter(function (b) { return b.textContent === "Preview"; })[0])
+      };
+    });
+    ok("N43: the link opens THE shared dataset editor on that dataset, with its SQL and its Preview button",
+      n43Modal.open && /Edit dataset/.test(n43Modal.title || "") &&
+      n43Modal.sql === "select region, total from sales" && n43Modal.hasPreview, JSON.stringify(n43Modal));
+    const n43Saved = await page.evaluate(() => {
+      var ov = document.querySelector(".modal-ov");
+      var ta = ov.querySelector(".dsx-sql");
+      ta.value = "select region, total, margin from sales";
+      ta.dispatchEvent(new Event("input", { bubbles: true }));
+      [].slice.call(ov.querySelectorAll(".cx-wiz-foot .btn")).filter(function (b) { return /^Save changes$/.test(b.textContent); })[0].click();
+      return true;
+    });
+    await page.waitForTimeout(300);
+    const n43After = await page.evaluate(() => {
+      var da = window.__STUDIO_STATE.spec.cda.dataAccesses[0];
+      var ws = Studio.Workspace.get("datasets", da.datasetId);
+      var peekSql = document.querySelector("#inspBody .qpeek-sql");
+      return {
+        modalClosed: !document.querySelector(".modal-ov"),
+        daSql: da.sql, daQuery: da.query, embedded: da.dataset && da.dataset.sql,
+        wsSql: ws && ws.sql, id: da.id, name: da.name,
+        peek: peekSql ? peekSql.textContent : "",
+        stillSelected: window.__STUDIO_STATE.selection && window.__STUDIO_STATE.selection.kind === "panel",
+        panels: window.__STUDIO_STATE.spec.panels.length
+      };
+    });
+    ok("N43: saving the edited query closes the editor and leaves the dashboard exactly where it was",
+      n43Saved && n43After.modalClosed && n43After.stillSelected && n43After.panels === 1, JSON.stringify(n43After));
+    ok("N43: the edit reaches the dashboard's own copy of the query — the spec DA and its embedded dataset both carry the new SQL",
+      n43After.daSql === "select region, total, margin from sales" &&
+      n43After.daQuery === "select region, total, margin from sales" &&
+      n43After.embedded === "select region, total, margin from sales" &&
+      n43After.wsSql === "select region, total, margin from sales", JSON.stringify(n43After));
+    ok("N43: the Query preview repaints with the query just saved, and the DA keeps its id and name",
+      /margin/.test(n43After.peek) && n43After.id === n43Setup.daId && n43After.name === n43Setup.daName,
+      JSON.stringify(n43After));
+    // restore: drop the scratch rows and put the example spec + selection back for what follows
+    await page.evaluate(async (ids) => {
+      Studio.Workspace.remove("datasets", ids.dsId, { silent: true });
+      Studio.Workspace.remove("connections", ids.connId, { silent: true });
+      Studio.Workspace.notify("*");
+      const spec = await fetch("data/examples/studio-cost.studio.json").then((r) => r.json());
+      window.__studioLoad(spec);
+    }, { dsId: n43Setup.dsId, connId: n43Setup.connId });
+    await page.waitForTimeout(350);
+    await page.evaluate(() => {
+      var rows = [].slice.call(document.querySelectorAll("#inspBody .row-item"));
+      var pr = rows.filter(function (r) { var ic = r.querySelector(".ri-icon"); return ic && ic.textContent !== "◧" && ic.textContent !== "⛃"; });
+      if (pr[0]) pr[0].click();
+    });
+    await page.waitForTimeout(150);
+
     // ---- N-DATA: "Auto-arrange" — one-click panel reflow (pure function + UI wiring) ----
     console.log("\n• N-DATA: Auto-arrange panel layout");
     const aa = await page.evaluate(function () {

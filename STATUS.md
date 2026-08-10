@@ -135,6 +135,54 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N43a — fix a View's SQL from the dashboard you are building, not from the other side of the
+  app (v955, sw v545, 2026-08-10, steward; dev branch; est 2pt for all of N43, took 1 for this
+  slice; N43b remains):** the first ready item in ▶ NOW (N31 is ⛔ on Kevin; N35/N37/N34/N33a/
+  N32/N42 are struck). Shipped the item's own **"cheap first cut"** verbatim — *"make the existing
+  Query preview section's SQL clickable, opening the dataset editor on that dataset"* — because it
+  is the half that closes *"I can see it's wrong and can't get to it"*.
+  - **The affordance.** `renderQueryPeek` (`app/studio.js`) gains an **Edit this query** link
+    below the SQL snippet, reusing the H-track `.edit-src-btn` link language already in that
+    inspector (same `edit` glyph, same colour — one link vocabulary, not two) with a taller hit
+    area for 390×780. It opens **THE shared dataset editor** (`Studio.Datasets.openEditor`), which
+    already IS the loop the item asks for — SQL box, **Preview** → rows, Save — rather than
+    growing a second SQL surface. The View Builder's dataset pane opens the same editor the same
+    way, so this is the third caller of one thing, not a new one.
+  - **Offered only when it can work.** The link renders only when the DA is genuinely linked to a
+    workspace row that still exists (`da.datasetId` → `Workspace.get`). An authored/pack DA
+    carries its rows inline and has no dataset to open, so it shows nothing — the app's standing
+    "capability absent → the UI hides it" rule, not a button that apologises. The row is
+    re-resolved at click time, since it can be deleted while the inspector sits open.
+  - **The part the item did not name, and the slice would have been a lie without it.** `dsToDA`
+    deliberately COPIES the query into the spec so an export survives the dataset being deleted;
+    the cost is that the copy went stale the moment anyone edited the dataset. (Only `runLive`
+    re-resolved the row fresh — the Query preview, the detected columns and the exported runtime
+    did not.) New `Studio.syncDAFromDataset(da, ds)` brings the copy up to date **through
+    `dsToDA` itself**, so the sync cannot drift from the import. Identity is deliberately NOT
+    synced: `da.id` is what every panel/kpi/filter references and `da.name` is the label authored
+    onto the canvas, so renaming a dataset never renames or unbinds anything on a dashboard.
+    Columns are replaced only when the dataset actually knows some, so a save made without a
+    Preview keeps the shelves it had.
+  - **Two consequences handled rather than left to surprise.** The DA result cache is keyed by
+    DA id + params, NOT by query text, so a SQL edit would have kept serving the old query's rows
+    for the rest of its cache duration — `daCacheClear(da.id)` drops them on a changed sync. And a
+    successful save can still drop a column a shelf is mapped to: the toast names the columns by
+    name instead of leaving an axis silently empty.
+  - **Verified.** The FULL suite green in the foreground on the finished tree —
+    `NODE_PATH=… node tests/run.js`, **3297 passed / 0 failed**, zero pageerrors, 390×780 and
+    desktop — plus the whole dev gate: `tools/validate.mjs`, `tools/changelog-check.js`,
+    `tools/doc-truth.mjs`, `tools/dev-smoke.mjs`. Twelve new checks: an authored DA offers no
+    link; a linked one does, named for its dataset; the link opens the shared editor on the right
+    dataset with its SQL and Preview; saving reaches the spec DA, its embedded copy and the
+    workspace row; the Query preview repaints; the dashboard stays open with the same View
+    selected; identity survives; a dropped column is reported by name; unknown columns leave the
+    shelves alone; and a second sync of the same dataset is a no-op.
+  - **One test expectation was wrong and was fixed rather than weakened:** a DA with no embedded
+    `dataset` blob genuinely GAINS one on its first sync, so that call is a change. The check now
+    syncs once and asserts the SECOND pass is the no-op — a truer idempotence property than the
+    one originally written.
+  - **Help** (`docs/index.html`, "Using catalog queries") gained the link, what it opens, why an
+    inline-row View has none, and the dropped-column warning.
 - **N42 — the Data pane follows the canvas selection: pick a View, its dataset rings
   (v953, no sw bump, 2026-08-09, steward; dev branch; est 1pt, took 1):** the first ready item in
   ▶ NOW (N31 is ⛔ on Kevin; N35/N37/N34/N33a/N32 are struck). Kevin's report — *"if you select a
@@ -14096,8 +14144,28 @@
   **Two details:** a panel with no bound dataset (rich text) must highlight nothing rather than
   the first card, and the Data pane scrolls — highlighting a card the user cannot see is only
   half the answer, so scroll it into view.
-- **N43 ★ [2pt] — no way to preview a dataset, or fix its SQL, without leaving the dashboard
-  you are building.** Kevin, 2026-08-09: *"a quick preview of the dataset would be nice… people
+- ~~**N43a ★ [1pt] — the way IN: fix a View's SQL from the dashboard you are building.**~~
+  ✓ **SHIPPED v955, sw v545 (2026-08-10, steward — see DONE).** The item's own "cheap first cut",
+  verbatim: the Query preview section now carries an **Edit this query** link that opens THE
+  shared dataset editor (SQL → Preview → Save) over the dashboard, which stays open behind it with
+  the same View selected. The item did not name the half that would have made it a lie: a
+  dashboard keeps its OWN copy of each query (so exports survive the dataset being deleted) and
+  that copy went stale on every dataset edit — `Studio.syncDAFromDataset` now brings it up to date
+  on save, through `dsToDA` itself so the two cannot drift, while `da.id`/`da.name` stay put so
+  nothing on the canvas is renamed or unbound. Stale cached rows are dropped, and a column the new
+  query no longer returns is named in the toast.
+- **N43b ★ [1pt] — what remains: the loop, and what "test" means for a bound dataset.** N43a
+  gives you the editor and its Preview; what it does NOT do is answer the item's harder half —
+  *"a failed edit must not leave the panel pointing at a broken query."* Today a save is a save:
+  the editor's **Preview** is advisory, and nothing stops you saving SQL you never ran (or ran and
+  got an error from) over a dataset a live panel is bound to. Decide deliberately, since both are
+  defensible: (a) warn-and-confirm on saving a dataset that has open panels bound to it and whose
+  last Preview failed or never ran, or (b) let the panel itself surface the breakage after the
+  fact (the DA already records `lastRun`). Also still open from the item, and cheap once (a) or
+  (b) is settled: the panel's own **Run live** could re-run straight from the editor's rows rather
+  than making the user close the modal and press it again. **Do not re-do N43a's half** — read
+  its DONE entry first; the sync/identity/cache constraints there are the ones this slice inherits.
+  *(Original 2pt text kept until the next grooming pass archives it.)* Kevin, 2026-08-09: *"a quick preview of the dataset would be nice… people
   might want to pop open a preview of it, edit the SQL and see the preview, or pop open the
   preview and then make a quick change to the SQL, test it and preview it."*
   **What exists today**, so this extends rather than duplicates: the panel inspector already has
