@@ -3,6 +3,6 @@
    the version label and the What's-new unseen dot, so the ~680KB of full history is
    fetched lazily (Studio.loadChangelog) the first time someone opens the feed.
    Regenerated from js/changelog.js on every normalize run — never hand-edit. */
-window.STUDIO_LATEST_VERSION = 977;
-window.STUDIO_LATEST = {"v":977,"title":"The marketing page now sells the roles the app actually has","kind":"fix","ts":"2026-08-10T18:31:26.000Z"};
+window.STUDIO_LATEST_VERSION = 978;
+window.STUDIO_LATEST = {"v":978,"title":"Help documented a sample-pack checkbox the Admin form stopped having","kind":"fix","ts":"2026-08-10T18:49:32.000Z"};
 window.STUDIO_BUILD = "__BUILD_TS__";

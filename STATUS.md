@@ -135,6 +135,62 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N7 — the Admin user editor's provisioning controls vs the copy that documents them (v978,
+  NO sw bump, 2026-08-10, steward; dev branch; est 1pt, took 1 — ON estimate):** 🔁 N7 was again
+  the only takeable item in ▶ NOW (N31, N44, N41 and N25 all ⛔ on Kevin; SP-1 ⏳ on `hold`
+  PR #689), and v977's closing note parked both of its finds inside the precached `app/studio.js`
+  — issue #631's territory — so this pass took the chapter that whole family had read AROUND:
+  **`docs/index.html`'s `Admin &amp; backend setup`, 550 lines and the second-largest surface on
+  the page, held by nothing.** Checks 26/27/30 hold the provisioning SQL and 42/46 the gate
+  documents; the chapter a workspace administrator actually reads answered to none of them.
+  - **It documented a control the app no longer has** — the `ⓘ Tour` class check 41 (g) deleted
+    from README and check 44 (f) from `PUBLISH.md`, a third document over. The section said
+    Add user carries an **"Install the Conservation Insight sample pack on first sign-in"
+    checkbox**. **SP-0 replaced that checkbox with a `<select>`** (`openUserEditor`,
+    `app/studio.js` — `pSel = el("select")`, populated from `Object.keys(Studio.DEMO_PACKS)`),
+    and its own comment says why: *"With more than one pack registered it has to be a CHOICE."*
+  - **The consequence is bigger than the dead control, and it is a capability nobody was told
+    about.** The registry holds **six** packs (`conservation`, `marketcoverage`, `contractawards`,
+    `campaignfinance`, `countymigration`, `datamanagement`) — three of them the money-flow packs
+    Kevin promoted and that shipped the same day — and the only sentence in the product
+    describing per-user pack provisioning named **one**. An admin standing up an account for
+    contract-awards work had no way to learn from Help that the form would do it.
+  - **Second drift, running the other way — the copy under-reports what it captures.** "Copy my
+    current Dashboard defaults" was published as "every field from your **Settings → Dashboard
+    defaults** card", enumerating eight. `snapshotDashboardDefaults()` (`app/defaults.js:217`)
+    returns **nine**: the ninth is `quickModeCreativity`, and it is invisible in BOTH places —
+    **LF50 (b) hid the "Quick import creativity" row on the Settings card** (Kevin: *"it's
+    confusing things for now"*) while leaving the stored default and the whole low/high build
+    machinery live. So a value nobody can see is snapshotted onto a new account and replayed at
+    their first sign-in. The page now names it and says plainly that its Settings row is hidden —
+    the alternative was to add a ninth noun to the list and imply a control a reader would then
+    hunt for.
+  - **Doc-truth check 66, premise + four rules, and the membership is the derivation worth
+    keeping.** WHICH controls count as provisioning controls is read out of the SAVE HANDLER —
+    the operands of `opts.provisioning = (…)` and `opts.forceTour = …`, resolved one hop back to
+    the element each reads (`X.value` / `X.checked`, or the button whose `onclick` assigns it) —
+    so a control that stops being written onto the account leaves the rule with it and a newly
+    wired one joins the day it exists. That found **six**: the theme and pack pickers, the
+    one-shot tour checkbox, the two Dashboard-defaults buttons and the assigned-workspace select.
+    On top of it: (b) the pack control is documented as the element it IS, with the negative half
+    that a picker over the whole registry may not be published as installing ONE named pack
+    (naming none or several is fine — naming exactly one is the drift); (c) each picker's own
+    empty-option text is quoted, so "leaving it unset skips that part" points at a label the form
+    prints; (d) the snapshot's enumeration both directions, keyed by the RETURNED KEY so a tenth
+    captured field falls out of the vocabulary and fails the premise rather than passing green;
+    (e) coverage over the whole chapter, since two of the six are documented in their own `<h3>`s.
+  - **3 of the 4 rules measured failing on the real pre-fix tree** (the checkbox wording and the
+    single named pack both tripped (b); the pack picker's "Don't install one" was unquoted;
+    `quickModeCreativity` was unpublished). The rest on mutated trees, each failing its own rule
+    and only its own: a tenth captured default with no registered noun (premise), a captured field
+    dropped while the copy still names it ((d)'s negative half), the pack picker's label renamed
+    ((e)), its empty option renamed in code ((c)), the copy naming exactly one pack again ((b));
+    and the copy naming TWO measured GREEN, which is the point of that rule's shape.
+  - **Verification:** the full dev gate in the foreground — `tools/validate.mjs` (215 files,
+    6 packs), `tools/changelog-check.js` (955 entries, top v978, manager-parse OK),
+    `tools/doc-truth.mjs`, `tools/dev-smoke.mjs` (marketing / app / docs / 390px mobile, zero
+    pageerrors). NO `sw.js` bump: `docs/index.html` is not precached (sw.js's own line 20) and the
+    precache LIST is unchanged, which is the file's stated rule and #631's reason to prefer it.
 - **N7 — the roles the marketing page sells vs the roles the app has (v977, NO sw bump,
   2026-08-10, steward; dev branch; est 1pt, took 1 — ON estimate):** 🔁 N7 was again the only
   takeable item in ▶ NOW (N31, N44, N41 and N25 all ⛔ on Kevin; SP-1 ⏳ on `hold` PR #689), and
@@ -16703,6 +16759,41 @@
     popover's three bullets (coverage, full-coverage points, `lastUpdated`), the hatched no-data
     texture, and the band being the min–max range of the toggled-on providers — all still what the
     renderer does. The two v922 candidates are still open and still Kevin's calls.
+  * *The Admin user editor's provisioning controls vs the copy that documents them — v978, NO sw
+    bump (2026-08-10 — see DONE).* No candidate was standing again (v977 parked both of its finds
+    in the precached `app/studio.js`, issue #631's territory), so this pass took the chapter this
+    whole family had read AROUND rather than through: **`Admin &amp; backend setup`, 550 lines,
+    held by nothing** — checks 26/27/30 hold the provisioning SQL and 42/46 the gate documents,
+    and the pages an administrator actually reads answered to neither. **It documented a control
+    the app no longer has** — the `ⓘ Tour` class, a third document over: Add user was said to
+    carry an *"Install the Conservation Insight sample pack on first sign-in"* **checkbox**, where
+    **SP-0 replaced it with a `<select>` over `Studio.DEMO_PACKS`** whose own comment says why
+    (*"With more than one pack registered it has to be a CHOICE"*). The dead control is the
+    smaller half: the registry holds **six** packs — three of them the money-flow packs that
+    shipped the same day — and the only sentence in the product about per-user pack provisioning
+    named **one**, so an admin had no way to learn the form would assign any of the others.
+    **The second drift runs the other way:** "Copy my current Dashboard defaults" enumerated
+    **eight** fields where `snapshotDashboardDefaults()` returns **nine**, and the ninth is
+    invisible in both places — LF50 (b) hid the `Quick import creativity` row on the Settings card
+    while leaving the stored default live, so a value nobody can see is snapshotted onto a new
+    account and replayed at their first sign-in. The page now names it AND says its row is hidden,
+    rather than adding a ninth noun and sending a reader hunting for a control.
+    Doc-truth **check 66**, premise + four rules, and the membership is the part worth keeping:
+    WHICH controls are provisioning controls is derived from the SAVE HANDLER (`opts.provisioning`
+    / `opts.forceTour`, resolved one hop back to the element each reads), so a control that stops
+    being written onto the account leaves the rule with it — it found six. **3 of the 4 measured
+    failing on the real pre-fix tree**, the rest on mutated trees, each failing its own rule and
+    only its own; the copy naming TWO packs measured GREEN, which is the shape of rule (b).
+    **Measured in the same pass and NOT taken, so the next run does not re-derive it:** the
+    chapter's **Branding &amp; app identity** `<h3>` documents an **Admin** page card from inside
+    the `Simple mode vs Advanced mode` chapter (`docs/index.html:2965`), and the Admin page's own
+    **Section access** card — a fifth card `renderAdmin()` really draws — is named only once on
+    the page, up in *Getting started*. Both are v930/v936's information-architecture class (moving
+    a topic between chapters is an editorial call, not a derivation), so check 66 holds the copy
+    and not its address. Also measured and **NOT N7's** because it is code: `openUserEditor`
+    hard-codes its role list rather than reading `PolecatAuth.ROLES` / `ROLE_LABELS` — v977's own
+    note already flagged it, and it is still true. The two v922 candidates are still open and
+    still Kevin's calls.
 
 > **📋 RECORDED FOR KEVIN, NOT PROMOTED — grooming pass 4, 2026-08-10.** This sits BELOW the queue
 > on purpose: `docs/BACKLOG.md` says the loop never promotes into ▶ NOW on its own, and pass 2's
