@@ -135,6 +135,54 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **SP-6 slice (b) — the pack's three dashboards, and the flow it was extracted to draw
+  (v964, sw v554, 2026-08-10, steward; dev branch; est 3pt total, 2 of 3 slices spent — ON
+  estimate):** the first ready item in ▶ NOW again — N31 is ⛔ on Kevin, N35/N37/N34/N33a/N33b/
+  N32 are struck, and SP-6 (b) is what the 2026-08-09 promotion put next.
+  **What shipped.** Three dashboards, seeded from the same `seed(csv)` turn that writes the
+  datasets and healed onto existing installs by `Studio.ensureContractAwardsDashboards` (wired
+  into studio.js's `reconcilePackDashboards` beside SP-1's two) — so a workspace that installed
+  slice (a) picks them up on its next boot with no reinstall.
+  * **Where the Money Goes** (the hero, seeded last so it tops a recency-sorted list) — two
+    sankeys: agency→contractor over the JOB'S OUTPUT (so the agency reads as a name, not a code)
+    and agency→industry, both floored at $2B; the 20 contractors that took a tenth or more of the
+    agency that paid them, as a table; four KPIs; a method note.
+  * **Who Spends It** — the 25 agencies by obligations, then by small-business SHARE, which is a
+    completely different order. The share is a builder **calc column** on the View, not an
+    extract column.
+  * **Where the Work Lands** — the `cd` choropleth carrying real data for the first time, the
+    32 districts over $5B as bars, and a residents-vs-dollars scatter.
+  **The item's open question was wrong, and measuring it is what closed it.** It said "the app
+  has no sankey today, so the hero is either a marimekko/stacked treatment or a new chart type in
+  app/studio-charts.js". `Studio.CHARTS.sankey` has existed all along (app/model.js, group
+  "Flow", and already listed in `Studio.WIDE_CHART_TYPES`). So the hero is the real flow diagram
+  AND no chart-type build rode in on the pack slice — the outcome the item wanted, by the route
+  it did not expect.
+  **The slice found a real product defect, in the choropleth rather than in itself.** The
+  renderer's colour classes are LINEAR (`t = (v - vmin) / (vmax - vmin)`), and federal contract
+  money is a power law: **407 of the 436 districts fall in the lowest sixth of the range**, so six
+  classes render as one. A state rollup is no better (42 of 51). SP-1 never hit it because a rate
+  per 10,000 residents is bounded. The response was NOT to hide the map, invent a flattering
+  index, or add quantile breaks on the side of a pack slice — it was to say what the map is
+  evidence FOR ("a distribution so concentrated that one colour covers most of the country") and
+  put the readings you cannot get from it directly underneath. The chart fix (`classBreaks`:
+  quantile/log) is written into the SP-6 item as a finding for Kevin to rank, not promoted.
+  **Two smaller measurements worth keeping.** (1) The flow floor is about NODE count, not flow
+  count: a sankey lays nodes out with an 11px gap, so at $1B the vendor side had 36 destinations
+  and their labels collided — $2B gives 25 destinations and 20 industries, ~26px apiece at the
+  panel heights used. (2) A rolled-up shelf renames its measure to `SUM obligations`, so a chart
+  bound to it is reading a label; the two derived numbers this slice needed (small-business share,
+  dollars per resident) are calc columns instead, which keeps the reader's name for the number and
+  leaves the formula editable in the View Builder. `curatedDA` gained an optional `calcs` argument
+  for it — additive, and SP-1's and Conservation's call sites are untouched.
+  **Verified:** four new suite checks (spec shape + attribution + binding; the live
+  `Studio.Build.runBlob` rows — 300 kept flows, the floor a genuine narrowing every returned row
+  obeys, source labels that are agency NAMES rather than codes, both calc columns recomputed from
+  their two inputs on every row, and the copy's own figures recomputed from the shipped CSV; the
+  boot heal and its idempotence; and a real RENDER pass, because a sankey with an unmapped column
+  draws the toolkit's "No flows" placeholder rather than throwing). Full `tests/run.js` green,
+  zero pageerrors on all three dashboards. Files: app/demopacks.js, app/studio.js, docs/index.html,
+  tests/run.js, js/changelog.js, sw.js, STATUS.md. **NEXT: SP-6 (c), the pinned Views.**
 - **SP-6 slice (a) — Federal Contract Awards: the data foundation, and the program's first real
   flow (v963, sw v553, 2026-08-10, steward; dev branch; est 3pt, 1 of 3 slices spent — ON
   estimate):** the first ready item in ▶ NOW. N31 and N44 are ⛔ on Kevin; N35/N37/N34/N33a/N33b/
@@ -14427,7 +14475,7 @@
 > SP-5 and SP-13 still live in the reservoir with their ⏫ markers; give each a line here when its
 > first slice starts, the way this one did.
 
-- **SP-6 ★★ [3pt est, 1 slice shipped] — "Federal Contract Awards" — where federal contract money
+- **SP-6 ★★ [3pt est, 2 slices shipped] — "Federal Contract Awards" — where federal contract money
   goes (Kevin, promoted 2026-08-09: *"some where the money is going"*).** ✓ **SLICE (a) IS SHIPPED —
   the data foundation: v963, sw v553 (2026-08-10, steward — see DONE).** The extract script, four
   committed USASpending.gov datasets (FY2025 contracts: 25 agencies, 600 agency→industry and
@@ -14435,21 +14483,34 @@
   connection, and the job that turns a vendor's raw obligations into a share of the agency that
   paid it. The pack is the program's first source of a genuine origin→destination table, which is
   what the sankey/marimekko story needs and what every pack before it had to fake.
-  **What remains, in order:**
-  **(b) the dashboards (≈3)** — the hero is the money flow itself (agency → industry, agency →
-  vendor) which is the pack's whole reason for existing; beside it the small-business share by
-  agency (the one number in the pack that is a policy question, and it is already a column), and
-  the congressional-district choropleth, which is the app's `cd` scale getting real data for the
-  first time. The district ids are already proven to draw — the suite check asserts every one of
-  the 436 resolves against `vendor/geo/us-cd-albers.json`.
+  ✓ **SLICE (b) IS SHIPPED — the three dashboards: v964, sw v554 (2026-08-10, steward — see DONE).**
+  *Where the Money Goes* (two sankeys plus the concentrated relationships), *Who Spends It* (the 25
+  agencies, and the small-business share as a builder calc column) and *Where the Work Lands* (the
+  `cd` choropleth with the ranked list beside it).
+  **The item's one open question is ANSWERED, and the answer was that the question was wrong:**
+  it said "the app has no sankey today, so the hero is either a marimekko/stacked treatment or a
+  new chart type". Measured, `Studio.CHARTS.sankey` has existed all along (app/model.js, group
+  "Flow", `sourceCol`/`targetCol`/`valueCol`, and already in `Studio.WIDE_CHART_TYPES`). So the
+  hero is the real flow diagram, and no chart-type build rode in on the pack slice — by the other
+  route than the one the item expected.
+  **What remains:**
   **(c) the pinned Views** — authored the SP-1 way (`Studio.Build.compute` → `Studio.newPanel`),
   seeded from the same `seed(csv)` call, each paired with an ensure-function so a workspace that
-  installed slice (a) picks them up at boot with no reinstall.
-  **One thing (b) has to decide rather than inherit:** the app has no sankey today, so the hero is
-  either a marimekko/stacked treatment of the same flow or it is a new chart type in
-  `app/studio-charts.js` — which is a bigger slice than (b) and would want its own. Measure before
-  choosing; do not let a chart-type build ride in on a pack slice.
-  **And a note (b) must not lose:** the two flow tables carry the agency CODE only. Anything that
+  installed slice (a) or (b) picks them up at boot with no reinstall. The dashboards' DAs are the
+  obvious four: the vendor flow, the industry flow, the agency small-business share, and the
+  district table.
+  **A REAL PRODUCT FINDING slice (b) turned up, which is NOT part of (c) and is not the loop's to
+  rank** — recorded here so it is not lost, and proposed to Kevin at the next grooming pass rather
+  than promoted on the loop's own authority (`docs/BACKLOG.md`, "the loop never promotes reservoir
+  items into NOW"): **the choropleth's colour classes are LINEAR only** —
+  `t = (v - vmin) / (vmax - vmin)` in `app/studio-charts.js` — so any power-law measure paints one
+  colour. Federal contract obligations put **407 of 436 districts in the lowest sixth of the
+  range**; rolling them up to states does not help (42 of 51 in the lowest sixth). SP-1 never hit
+  it because a rate per 10,000 residents is bounded. Quantile or log class breaks (a `classBreaks`
+  opt beside `classes`) would fix every choropleth in the app, not just this pack's, and it is a
+  chart-capability slice of its own. Slice (b) deliberately did not smuggle it in: it says what
+  the map is evidence for and puts the ranked list underneath instead.
+  **And a note (c) must not lose:** the two flow tables carry the agency CODE only. Anything that
   wants the readable agency name reads the JOB'S OUTPUT, not the raw vendor table — that is the
   point of the join, and a panel bound to the wrong dataset will silently show codes.
 

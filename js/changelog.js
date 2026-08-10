@@ -6,6 +6,18 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 964,
+    title: 'Federal Contract Awards gets its dashboards — the flow, the agencies, and where the work lands',
+    ts: '2026-08-10T08:27:01.000Z',
+    items: [
+      'The <b>Federal Contract Awards</b> sample pack now ships three dashboards over the USASpending.gov data it installed last time. Already have the pack? They arrive on your next boot — no reinstall, nothing you have edited is touched.',
+      '<b>Where the Money Goes</b> is the flow the pack was extracted for: two <b>sankey</b> diagrams — agency to contractor and agency to industry — for every relationship worth $2 billion or more, with the contractors that took a tenth or more of the agency that paid them listed underneath. The agency reads as a name rather than a code because the panels sit on the pack\'s own join, which is exactly what that job is for.',
+      '<b>Who Spends It</b> ranks the 25 agencies by what they obligated, then ranks them again by how much of it reached a small business — a completely different order. That share is a <b>calculated column on the View</b>, not a column in the extract: open it in the View Builder and the formula is on the shelf.',
+      '<b>Where the Work Lands</b> maps contract obligations onto <b>congressional districts</b>, the first real data the app\'s district scale has carried. Federal contract money turns out to be concentrated enough that a map with evenly spaced colour classes puts 407 of the 436 districts in one band — so the dashboard says that out loud and puts the ranked list and a residents-versus-dollars scatter beside it, instead of dressing the map up. Three districts come out negative, because deobligations from earlier awards can outrun new ones; that is left in and explained.',
+      'Every filter on every panel is an ordinary View filter you can open and move, and each dashboard states its own numbers — the totals, the small-business share, the concentration — measured from the shipped rows rather than typed into the copy.',
+    ],
+  },
+  {
     v: 963,
     title: 'A new sample pack: where federal contract money actually goes',
     ts: '2026-08-10T07:05:11.000Z',

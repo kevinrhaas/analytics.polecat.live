@@ -1253,6 +1253,10 @@
     // SP-1(c) heal, the same shape one slice later: an install that predates the pack's
     // pinned Views gets them on boot rather than at a reinstall.
     try { if (Studio.ensureMarketCoverageViews) Studio.ensureMarketCoverageViews(); } catch (e) {}
+    // SP-6(b) heal, the same shape again: a workspace that installed Federal Contract
+    // Awards while it was slice (a) — the USASpending extracts and the share job, no
+    // dashboards — gets the three on boot rather than at a reinstall.
+    try { if (Studio.ensureContractAwardsDashboards) Studio.ensureContractAwardsDashboards(); } catch (e) {}
   }
   window.__studioReconcilePackDashboards = reconcilePackDashboards; // test hook
 
