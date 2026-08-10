@@ -655,23 +655,37 @@
     (with sample rows) even if the original workspace dataset is later deleted.</li>
     <li><strong>Every scale of chart.</strong> The chart chips include the everyday types plus
     the US choropleth map (county / state / USDA district / watershed / congressional district / ZIP code) and the Ensemble
-    common-estimate chart with its reference-series option. A map's <strong>Renderer</strong>
-    picker (Built-in vs Interactive GL — pan &amp; zoom at any polygon count) is right there too,
-    and the choice is saved with the View. On the Interactive GL renderer, a
-    <strong>Zoom/pan controls</strong> option shrinks the on-map cluster to a compact size or
-    hides it entirely (Show / Compact / Hidden) — handy when the controls compete with a dense
-    dashboard layout; dragging and scroll-to-zoom keep working even when the cluster is hidden.
-    A <strong>Controls position</strong> option docks that same cluster in any corner of the
-    map (top right by default, matching every map saved before this option existed).</li>
+    common-estimate chart.
+    <span id="quickviews-chart-options">Quick Views deliberately offers only the handful of
+    per-chart options that decide what the chart <em>is</em>, and they sit right under the column
+    mapping: <strong>Region scale</strong> and <strong>Renderer</strong> on a map (Built-in vs
+    Interactive GL — pan &amp; zoom at any polygon count), and <strong>Reference series</strong> on
+    an Ensemble chart (a series drawn for context that never joins the estimate).</span> Each is
+    saved with the View. Every <em>other</em> option a chart type has — a GL map's zoom/pan cluster
+    and which corner it docks in, colour classes, value formats, panel height — lives in the
+    <strong>Dashboard Builder</strong>'s inspector, so save the View here and open it there when
+    you want to tune it.</li>
     <li><strong>Workspace datasets run live</strong> for the table preview and the chart; if a
     live run fails, Explore falls back to typed sample rows and says so.</li>
     <li><strong>Rollups (group-by aggregation).</strong> Under the column mapping, the
-    <strong>Rollup</strong> control lets you aggregate the value column with <em>Sum, Mean,
-    Median, Min, Max</em> or <em>Count</em>, grouped by <strong>one or two</strong> dimensions
-    (Group by / Then by) — so a detail dataset becomes a chart of totals or averages without
-    building a Job first. The rollup is saved onto the View, so it re-aggregates the same way
-    on Home, in any dashboard, and in the exported HTML. (Geo and Ensemble charts carry their own
-    aggregation, so the control is hidden for those.)</li>
+    <strong>Rollup</strong> control lets you aggregate the value column
+    <span id="quickviews-rollup-fns">with <em>Sum</em>, <em>Mean</em>, <em>Median</em>,
+    <em>Min</em>, <em>Max</em> or <em>Count</em></span>, grouped by <strong>two</strong> dimensions
+    at most (Group by / Then by) — so a detail dataset becomes a chart of totals or averages
+    without building a Job first. It starts on <em>No aggregation (raw rows)</em>, which charts the
+    dataset as it comes. The rollup is saved onto the View, so it re-aggregates the same way
+    on Home, in any dashboard, and in the exported HTML.
+    <strong>It is not offered on every chart.</strong> A rollup aggregates <em>one</em> measure by
+    category, so the control appears on
+    <span id="quickviews-rollup-on">the single-measure category charts — <strong>Bar chart</strong>,
+    <strong>Line / area</strong>, <strong>Donut / pie</strong>, <strong>Treemap</strong> and
+    <strong>Table</strong></span>, and is hidden on
+    <span id="quickviews-rollup-off"><strong>Scatter / bubble</strong> and
+    <strong>Heatmap (pivot)</strong>, which position more than one measure at a time and would
+    collapse if one were grouped away, and on <strong>Map (US choropleth)</strong> and
+    <strong>Ensemble (common estimate)</strong>, which do their own aggregation</span>. Those four
+    chart their rows as they arrive; roll them up in a <strong>Job</strong> first if you need
+    totals.</li>
     <li>In <strong>Simple mode</strong>, Quick Views is the default section on first open when
     you have no featured content on Home; your own last-used section always wins.</li>
     <li><strong>New dataset without leaving Explore.</strong> The <strong>+ New</strong>
