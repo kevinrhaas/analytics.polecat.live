@@ -135,6 +135,46 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N7 — the keyboard chords Help prints OUTSIDE its shortcuts table (v982, NO sw bump,
+  2026-08-10, steward; dev branch; est 1pt, took 1 — ON estimate):** 🔁 N7 was again the only
+  takeable item in ▶ NOW (N31, N44, N41 and N25 all ⛔ on Kevin; SP-1 ⏳ on `hold` PR #689), and
+  v981 parked its one find as editorial, so no candidate was standing. This pass took check 36's
+  move one **altitude** up rather than one document over — and the drift it found is check 36's
+  own, still alive one chapter away from where v923 fixed it.
+  **Measured: Help's Undo / Redo chapter said `Shift Z` to redo — the exact chord v923 deleted
+  from the Keyboard shortcuts table a day earlier.** It has never worked: the builder's letter
+  shortcuts are read inside a block opening `if (!(e.metaKey || e.ctrlKey)) return;`, so a bare
+  Shift+Z falls straight through. Check 36's header says outright that it is *"scoped to the
+  TABLE, not the whole section"* — so the table was correct and the paragraph 1,500 lines above
+  it kept publishing the corpse. **And the chapter named ONE of the three chords its own two
+  buttons fire:** `undoAct()`/`redoAct()` implement `Ctrl/⌘+Z`, `Ctrl/⌘+Shift+Z` and `Ctrl/⌘+Y`,
+  so the chapter about redoing was the one place a reader could not learn how to redo. Both real
+  redo chords are named now; the ⋯ More phone route beside them was verified against `#menuMore`
+  and is correct.
+  **Doc-truth check 70**, two premises and three rules, all reading the page with the
+  `kbd-table` block CUT OUT so checks 36 and 70 partition the page rather than overlap on it:
+  (b) no letter chord without Ctrl/⌘ anywhere in the prose; (c) no Ctrl/⌘ chord the app's `?`
+  panel does not publish (transitive — check 36 already holds that panel to the handler); (d) the
+  `#undo-redo` anchor names exactly the chords the handler's undo/redo branches fire, both
+  directions, derived per-branch from the `undoAct()`/`redoAct()` call inside each one so the
+  rule can ask for completeness and not only "invent none". **The two premises are split on
+  purpose:** the pre-fix tree had no `#undo-redo` anchor at all (it ships with this slice), and a
+  single premise would have let the missing anchor silence the page-wide rule the real drift was
+  failing — measured, not theorised. Eight failure modes measured: rule (b) and the anchor
+  premise on the REAL pre-fix tree, (b) alone in an unrelated chapter, (c) alone, (d)'s missing
+  and stray halves separately, (d) from the CODE side (a handler that gains a redo chord fails it
+  alongside check 36's rule (a)), and the hard throw when the handler block moves.
+  **A fourth rule was written and deleted, recorded so nobody writes it again:** the chapter's
+  `⋯ More → Undo` / `→ Redo` route is already held page-wide by **check 21**, whose mutation
+  fails right beside this one's. Check 13's header excluding `docs/index.html` from route-checking
+  reads like a gap and is not one. Adopting the existing check beat minting a rival (N44 slice
+  1's lesson, one tool over).
+  **Measured in the same pass and NOT taken, so the next run does not re-derive it:** the page
+  spells the palette chord three ways — `⌘K` closed up, `Ctrl-K` hyphenated, and `Ctrl K` /
+  `⌘ K` in the table's own style. All three resolve to the same real chord (check 70 normalises
+  them before comparing, which is why they pass), so this is house style, not drift — and
+  `docs/BACKLOG.md` says the loop does not make editorial calls for Kevin. The two v922
+  candidates are still open and still Kevin's calls.
 - **N7 — Home's own page vs the chapter that introduces it (v981, NO sw bump, 2026-08-10,
   steward; dev branch; est 1pt, took 1 — ON estimate):** 🔁 N7 was again the only takeable item in
   ▶ NOW (N31, N44, N41 and N25 all ⛔ on Kevin; SP-1 ⏳ on `hold` PR #689), and v980 parked both of
@@ -17056,6 +17096,28 @@
     **Measured in the same pass and NOT taken:** Home's rotating tip strip is documented in one
     clause and deliberately unheld — `HOME_TIPS` is hand-written prose, so a rule over it would be
     transcription, not derivation. The two v922 candidates are still open and still Kevin's calls.
+  * *The keyboard chords Help prints OUTSIDE its shortcuts table — v982, NO sw bump (2026-08-10 —
+    see DONE).* No candidate was standing again (v981 parked its find as editorial), so this pass
+    took check 36's move one **altitude** up rather than one document over — and found check 36's
+    OWN drift, still alive one chapter away from where v923 fixed it. Check 36's header says it is
+    *"scoped to the TABLE, not the whole section"*, and the page prints chords in forty-three more
+    `<kbd>` outside that table. The **Undo / Redo** chapter said **`Shift Z`** to redo — the exact
+    chord v923 deleted from the table a day earlier, and one the builder has never had, because
+    every letter shortcut is read inside a block opening `if (!(e.metaKey || e.ctrlKey)) return;`.
+    It also named **one of the three chords its own two buttons fire** (`Ctrl/⌘+Z`,
+    `Ctrl/⌘+Shift+Z`, `Ctrl/⌘+Y`), so the chapter about redoing was the one place a reader could
+    not learn how to redo. Doc-truth **check 70**, two premises + three rules over the page with
+    the table CUT OUT (so 36 and 70 partition it rather than overlap): no modifier-less letter
+    chord, nothing the `?` panel does not publish, and the `#undo-redo` anchor holding exactly the
+    handler's undo/redo chords both ways — derived per-branch from the `undoAct()`/`redoAct()` call
+    inside each, which is what lets it demand completeness. Eight failure modes measured, two on
+    the real pre-fix tree. **A fourth rule was written and deleted:** the chapter's `⋯ More → Undo`
+    / `→ Redo` route is already held page-wide by **check 21** — check 13's exclusion of
+    `docs/index.html` reads like a gap and is not one.
+    **Measured in the same pass and NOT taken, so the next run does not re-derive it:** the page
+    spells the palette chord three ways (`⌘K`, `Ctrl-K`, `Ctrl K`), all resolving to the same real
+    chord — house style, not drift, and the loop does not make editorial calls for Kevin. The two
+    v922 candidates are still open and still Kevin's calls.
 
 > **📋 RECORDED FOR KEVIN, NOT PROMOTED — grooming pass 4, 2026-08-10.** This sits BELOW the queue
 > on purpose: `docs/BACKLOG.md` says the loop never promotes into ▶ NOW on its own, and pass 2's
