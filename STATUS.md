@@ -135,6 +135,112 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **Grooming pass 4 — the queue's two unmarked items were both waiting on Kevin (no version/sw
+  bump; docs-only; 2026-08-10, steward; dev branch; est 1pt, took 1 — on estimate):**
+  `docs/BACKLOG.md` triggers a grooming pass at "fewer than 3 ready items **or** ≥5 struck entries
+  lingering", and both halves had fired: ▶ NOW held **14 struck carcasses** (490 lines) and, past
+  them, exactly **two unmarked items** — N41 and N25. Neither turned out to be ready, which is the
+  substance of this pass. The 24 hours drained were the lane's densest: SP-6 end to end (v963–v965)
+  plus the N32–N37/N40/N42/N43 defect block Kevin filed on 2026-08-09.
+  - **Drained.** All 14 struck entries moved **verbatim** into `docs/BACKLOG-ARCHIVE.md` under a new
+    "grooming pass 4" section — N35, N37, SP-6, N34, N33a/N33b, N32, N42, N43a, N43b, N36 (both
+    halves of the one ID pass 3 ruled on), N40, N29, N26. Nothing deleted, nothing renumbered,
+    NOW's order untouched; the Contents list gained the section with its anchor. STATUS.md 21,934
+    → 21,444 lines before this pass's own bookkeeping.
+  - **N41 is ⛔, and it is the same decision as `hold` PR #689.** Its own closing sentence already
+    said *"this is Kevin's call, not a default to assume"* — it just never carried the marker, so a
+    run scanning top-down saw the pass's only unmarked ★ item and had to re-derive the block. The
+    exact question is now written on the item (Market Coverage only / both packs / neither), along
+    with the fact that **#689 already implements option one** and has been open on `hold` since
+    2026-08-09. Answering N41 resolves both; nothing needs code first.
+  - **N25's blocker MOVED, so re-reading it would have been wrong.** The item says slice 2 is
+    "BLOCKED ON N29" — but **N29 closed 2026-08-09**, so the anon-reads-nothing posture that
+    `app/workspaces.js` demands is now satisfied for dev. What blocks it today is two things only
+    Kevin can supply, and both are written onto the item: **the `polecat_dev` URL + publishable
+    key** (they exist solely as `SUPABASE_DEV_*` repo secrets, which no steward run can read), and
+    **whether `polecat_stage` gets created now or slice 2(a) ships dev-only**. Marked ⛔ with those
+    two questions stated.
+  - **The SP-6 finding was rescued on the way out.** SP-6's DONE entry says the choropleth's
+    LINEAR-only class breaks (407 of 436 districts in the lowest sixth of the range) are *"written
+    into the SP-6 item for Kevin to rank at the next grooming pass"* — and this pass archived that
+    item. It now lives as a **📋 RECORDED FOR KEVIN, NOT PROMOTED** note at the foot of ▶ NOW, with
+    the measurement, a ★ 2pt estimate, a `classBreaks` sketch, and a pointer to the archived text.
+    Recorded, not promoted: `docs/BACKLOG.md` reserves promotion to Kevin.
+  - **Three stale pointers corrected.** The ▸ PROMOTED note still said "SP-6 now has its own item
+    line, immediately below" (SP-6 is complete and archived) — it now says so, and names **SP-5 as
+    the next of Kevin's three money-flow packs and the queue's only ready non-recurring work**,
+    which is following his promotion rather than the loop promoting anything. The 🗂 Reservoir index
+    pointed at "NOW item **N6**" and "M7 is NOW item **N2**"; both shipped and were archived at
+    earlier passes, so a reader navigating by the index was sent looking for items that are not
+    there. The ⏳ marker on SP-1 was re-checked against the live PR and stands.
+  - **No batch proposed, deliberately** — pass 2's proposal (PR #623) has been open and unanswered
+    since 2026-08-07, and pass 3 declined for the same reason: a third unanswered proposal is
+    noise, not throughput. **The honest state after this pass: ⛔ N31, ⛔ N44, ⛔ N41, ⛔ N25, ⏳
+    SP-1 (#689), 🔁 N7 — and SP-5, ready, promoted by Kevin himself.**
+  **Verified:** docs-only — no app file, test, or exported artifact is touched and nothing is
+  user-visible, so no changelog entry and no version bump (the pass-1/2/3 precedent). The dev gate
+  is the whole gate and all four steps were run in the foreground on this branch; results are on
+  the PR.
+- **SP-6 slice (c) — the pack's four pinned Views, and the View Builder learns to build a flow
+  (v965, sw v555, 2026-08-10, steward; dev branch; est 3pt total, 3 of 3 slices spent — ON
+  estimate, SP-6 complete):** the first ready item in ▶ NOW. N31 is ⛔ on Kevin (the map-controls
+  decision), N44 is ⛔ and its estimate is spent, N35/N37/N34/N33a/N33b/N32/N42/N43a/N43b/N36/N40
+  are struck, N41 is a Kevin decision the loop may not take — so SP-6 (c), the slice the (b) entry
+  itself named as next, is what was ready.
+  **What shipped — the four Views.** Seeded from the same `seed(csv)` turn that writes the
+  datasets, and healed onto existing installs by `Studio.ensureContractAwardsViews` (wired into
+  studio.js's `reconcilePackDashboards` beside SP-1's), so a workspace that installed slice (a) or
+  (b) picks them up on its next boot with no reinstall. Authored exactly the SP-1 way —
+  `Studio.Build.compute` for the basis, `Studio.newPanel` over its head — so a seeded View and one
+  saved by hand in the builder are the same shape and open in the same editor.
+  * **agency → contractor** (the hero, seeded LAST so it leads Home's newest-first pinned shelf), a
+    real sankey over the JOB'S OUTPUT so the source end reads as an agency NAME;
+  * **agency → industry**, the same shape over the raw extract, where the agency is deliberately a
+    CODE — the extract leaves the name out and only the job brings it across, which the View's own
+    copy says rather than hides;
+  * **the small-business share of each agency**, as bars, with the ratio a **calc column** on the
+    View (the extract ships two dollar figures and not their ratio on purpose);
+  * **every congressional district** by dollars and per resident, as a table — because the reading
+    the map cannot give (see the open finding below) is exactly the one a table can.
+  **What the slice had to build, and why it is the same unit rather than a second one.** A pinned
+  flow View needs an editor to open in, and the View Builder had no Sankey: `BD.chartType` would
+  have been set to a type the strip does not contain, and the preview would have drawn the
+  toolkit's "No flows" placeholder — the silent, lossy round trip N33 exists to prevent. So
+  **Sankey is now a builder chart type**, and it cost three touch points because it rides the
+  HEATMAP's basis exactly: heatmap's `[Rows dim, Columns dim, measure]` triple IS a flow's
+  `(source, target, value)`, and `Studio.newPanel` already maps a sankey's `cols[0..2]` onto
+  `sourceCol/targetCol/valueCol` positionally. That is N33b's Quadrant-rides-scatter move, applied
+  again — one basis, two renderers, no parallel pivot to drift.
+  **One honest limit, stated rather than papered over:** the measure column of a rolled-up basis is
+  named by the pivot ("SUM obligations"), so that is what these Views' columns are called. It is
+  the same label the builder writes for a View you save yourself; a seeded View that quietly used a
+  prettier name would be the odd one out.
+  **The (b) finding is still open and still unranked** — the choropleth's LINEAR class breaks
+  against a power-law measure (407 of 436 districts in the lowest sixth). It is written into the
+  SP-6 item for Kevin to rank at the next grooming pass, not promoted on the loop's authority.
+  **Verified:** four new suite checks — the spec shape (four builder-native, pinned, foldered Views
+  over the pack's own datasets; the flows mapped positionally off their basis; the hero on the job
+  output and the industry flow on the raw extract; both calc columns; `state` left non-numeric; the
+  hero seeded last); the LIVE `Studio.Build.runBlob` rows (a flow per billion-dollar pair, every
+  one over the View's own floor and labelled with an agency name, the 25 agencies with their share
+  recomputed from the two shipped dollar figures on every row, all 436 districts); the boot heal
+  and its idempotence; and a real builder round trip — the strip offers Sankey, the seeded View
+  loads AS a sankey with it selected, its shelves read source → destination → measure, the basis is
+  the flow triple rather than a crosstab, and the preview draws real ribbons. `#117 (2)`'s
+  chart-strip roster check was updated with the new type rather than relaxed.
+  **Verification actually run, stated precisely:** the full dev gate green in the foreground
+  (`tools/validate.mjs`, `tools/changelog-check.js`, `tools/doc-truth.mjs`, `tools/dev-smoke.mjs`
+  at 390×780 + desktop, zero pageerrors), and `tests/run.js` green through **2,948 of ~3,338
+  checks** — every pack, View Builder, chart-strip, mobile-390px and uncaught-error check among
+  them — before the runner's 10-minute per-command ceiling cut the process off in the tail
+  (dashboard theming, chart options, command palette, forecasting; nothing this slice touches).
+  The remaining checks are what the nightly `promote-to-stage` full suite exists to run, with its
+  45-minute budget and auto-rollback. **doc-truth earned its keep on this one:** it failed the
+  gate because the pack's Help entry, tagline and blurb still said "3 dashboards" and never said
+  "View" — a pack that seeds Views while its card talks only about dashboards under-sells itself,
+  and all three now name them.
+  Files: app/build.js, app/demopacks.js, app/studio.js, docs/index.html, tests/run.js,
+  js/changelog.js, sw.js, STATUS.md. **NEXT: SP-6 is complete — the next ready item in ▶ NOW.**
 - **SP-6 slice (b) — the pack's three dashboards, and the flow it was extracted to draw
   (v964, sw v554, 2026-08-10, steward; dev branch; est 3pt total, 2 of 3 slices spent — ON
   estimate):** the first ready item in ▶ NOW again — N31 is ⛔ on Kevin, N35/N37/N34/N33a/N33b/
@@ -14374,75 +14480,6 @@
   controls. **Kevin's call between them.** Whichever wins, a US county choropleth with no way to
   zoom is the wrong default for the app's strongest geography.
 
-- ~~**N35 ★★ [1pt] — a calculated column can't be edited from the View Builder, and "＋ calc…"
-  doesn't open a blank one.**~~ ✓ **SHIPPED v949, sw v540 (2026-08-09, steward — see DONE).**
-  Both halves shipped exactly as the item framed them: a ✎ on the calc column itself, a SIBLING of
-  the pill so it survives `.used` and shown at rest so it exists on a phone; and ＋ kept its plus
-  and now opens a blank row appended + focused (Kevin's second sentence picked that over
-  relabelling). One thing the item implied but did not say: a rename made from that editor used to
-  drop the field off every shelf it was on, so the slice carries renames across — without it,
-  editing from a used pill still loses the column.
-  *(Original text kept until the next grooming pass archives it.)* Kevin, 2026-08-09, two reports with one root cause: *"in the View
-  Builder once you make a calculation there is no way to edit it, I think, from the View Builder
-  screen"* and *"I would think new calc on adding a calculated column would be a blank but it
-  seems to leave the last one."*
-  **Measured. The editor itself is fine — the way IN is the defect.** `openCalcEditor()`
-  (`app/build.js:293`) already lists every calc with an editable name + formula, a ✕ per row, an
-  "+ Add column" that pushes a genuinely blank `{name:"",formula:""}` (`:323`), and Apply →
-  `bdSetCalcs` (`:273`). But there is exactly ONE way to reach it: the dashed `#bdCalcBtn` at the
-  foot of the field list, labelled **"＋ calc…"**, title *"Define calculated columns"*
-  (`build.js:1420`, wired `:1815`). So a single control is both "create" and "manage them all",
-  and it reads as create — which produces both of Kevin's sentences at once: he clicks ＋
-  expecting a blank form and gets last time's calc pre-filled (report 2), and never finds a
-  separate edit path (report 1). Neither report is a misreading; the button misstates what it
-  opens.
-  **And the calc column itself is a dead end.** In the field list it renders as `.bd-col.calc`
-  with `=` as its kind glyph, and its only action is `bdAddField(col,"cols")` — add to a shelf
-  (`build.js:1416-1418`, wired `:1726`). Once it IS on a shelf it takes `.used`:
-  `opacity:.45;cursor:default` (`app/studio.css:1525`). So the column you just authored becomes a
-  dimmed, unclickable chip with no route back to its formula.
-  **The app already solved this one shelf over.** Filter chips carry an inline edit button —
-  `bd-flt-edit`, `title="Edit filter"` (`build.js:1523`, wired `:1806`) — so a filter is edited by
-  clicking the thing it made. Calcs should follow that pattern rather than invent a second one.
-  **Fix both halves, or neither reads right:** (1) put an edit affordance on the calc column
-  itself, opening the editor focused on that row — and it must survive `.used`, because the calc
-  you most want to edit is the one you already put on a shelf; (2) make the footer button honest
-  — either relabel it "Calculated columns…" so a pre-filled list is what you expect, or keep the
-  ＋ and have it open with a new blank row already appended and focused. Kevin's second sentence
-  says which he expects from a ＋.
-  **Mobile is a release gate:** a hover-only pencil does not exist on a phone, so whatever the
-  affordance is, it has to be tappable at 390×780.
-
-- ~~**N37 ★★ [1pt] — every catalog row reserves space for six text buttons it is not showing, so
-  the lists read as mostly empty.**~~ ✓ **SHIPPED v947 (2026-08-09) — see DONE.** Views was the
-  only section carrying six actions; the other catalogs have three and never wrapped.
-  *(Original spec kept until the next grooming pass archives it.)* Kevin, 2026-08-09, on the Views list: *"I don't love the look
-  of this, there is so much white space for those buttons — can you compress that and make those
-  icons or a drop menu so they are more digestible?"* His screenshot is the proof: the hovered
-  row shows Open · View Builder · Add to dashboard · Duplicate · Export · ✕ on a wrapped second
-  line, and the three rows below it — showing no buttons at all — are exactly as tall.
-  **Measured, and the cause is one CSS pair.** `.cx-row` is `flex-wrap:wrap` and `.cx-actions` is
-  `opacity:0` until row hover (`app/studio.css:2557`, `:2629-2630`). Opacity does not remove a box
-  from layout, so the wrapped button line occupies its full height in EVERY row, hovered or not.
-  That is the white space — it is not padding, it is six invisible buttons.
-  **This is not a Views problem.** `.cx-row` / `.cx-actions` is the shared catalog row used by
-  Views, Dashboards, Datasets, Connections, Jobs and Repository, so the structural half of the fix
-  lands everywhere at once — which is the point, and also why it needs a full-suite run.
-  **Do both halves:** (1) stop the hidden action block from reserving height (don't let it wrap
-  the row; the mobile rule at `:2734-2736` already treats it differently and shows it at rest —
-  keep that working); (2) demote the actions to a compact set: **Open** stays a real button,
-  frequent actions become icon buttons with tooltips + `aria-label`, and the tail (Duplicate,
-  Export, Delete, the alternate-editor open) goes behind a per-row **⋯ overflow menu**. Reuse the
-  existing `.menu-wrap` / `.menu` / `menuToggle` / `closeMenus` convention (`app/studio.css:903`,
-  `:914`; `app/studio.js:12250`) — the app already has one dropdown pattern, do not add a second,
-  and note `.menu` is `right:0` against its wrap so N8's fits-on-screen rule (`studio.js:12440`)
-  applies to a row-anchored menu too.
-  **Don't regress what the row already gets right:** pinned ★ and private state stay visible at
-  rest (that is deliberate — `studio.css:2631-2636` explains why they are siblings of
-  `.cx-actions`, not children), the tile view's own foot layout (`.dsx-tile-foot`) has its own
-  rules at `:2596-2601`, and delete must stay reachable in one gesture on mobile at 390×780.
-  Tests query these by `data-vw-*` attributes, so keep the attributes when the labels become
-  icons.
 > **▸ PROMOTED 2026-08-09 (Kevin, directly — not a grooming batch): three money-flow packs.**
 > *"when you get through the stabilization stuff can you prioritize some of the other sample
 > packs… we had some where the money is going and other ones on the list, I would like some more
@@ -14470,235 +14507,18 @@
 > Not promoted, deliberately: SP-12 (Neighborhood Change) and SP-14/SP-15 stay in the reservoir
 > for the next batch — Kevin asked for the money ones, and three 3pt packs is already ~9 PRs.
 >
-> **SP-6 now has its own item line, immediately below** — the promotion note named the three packs
-> but minted no grammar line for any of them, so the queue had nothing to mark when work started.
-> SP-5 and SP-13 still live in the reservoir with their ⏫ markers; give each a line here when its
-> first slice starts, the way this one did.
+> **SP-6 is COMPLETE and archived** — three slices, v963/v964/v965, all 2026-08-10, ON estimate
+> (grooming pass 4 moved its entry to `docs/BACKLOG-ARCHIVE.md`). It had its own item line, minted
+> because the promotion note named the three packs but gave a grammar line to none of them, so the
+> queue had nothing to mark when work started.
+> **SP-5 is therefore the next of the three, and it is READY** — Kevin promoted it here himself, so
+> taking it is following this note, not the loop promoting a reservoir item. Its constraints were
+> settled 2026-08-08 and they ARE the item: read the SP-5 entry in the 📦 SAMPLE-PACK PROGRAM
+> reservoir before starting, then mint its grammar line in this block the way SP-6's was, marking
+> it ⏳ with the PR number as soon as one is open. SP-13 stays in the reservoir with its ⏫ marker
+> until SP-5 is done. **Grooming pass 4 note:** with N31/N41/N44/N25 all ⛔ and SP-1 ⏳, SP-5 is the
+> only ready non-recurring work in this queue — that is the honest state, not an oversight.
 
-- **SP-6 ★★ [3pt est, 2 slices shipped] — "Federal Contract Awards" — where federal contract money
-  goes (Kevin, promoted 2026-08-09: *"some where the money is going"*).** ✓ **SLICE (a) IS SHIPPED —
-  the data foundation: v963, sw v553 (2026-08-10, steward — see DONE).** The extract script, four
-  committed USASpending.gov datasets (FY2025 contracts: 25 agencies, 600 agency→industry and
-  agency→vendor flow rows, 436 congressional districts — 49.6KB of the 150KB budget), the pack's
-  connection, and the job that turns a vendor's raw obligations into a share of the agency that
-  paid it. The pack is the program's first source of a genuine origin→destination table, which is
-  what the sankey/marimekko story needs and what every pack before it had to fake.
-  ✓ **SLICE (b) IS SHIPPED — the three dashboards: v964, sw v554 (2026-08-10, steward — see DONE).**
-  *Where the Money Goes* (two sankeys plus the concentrated relationships), *Who Spends It* (the 25
-  agencies, and the small-business share as a builder calc column) and *Where the Work Lands* (the
-  `cd` choropleth with the ranked list beside it).
-  **The item's one open question is ANSWERED, and the answer was that the question was wrong:**
-  it said "the app has no sankey today, so the hero is either a marimekko/stacked treatment or a
-  new chart type". Measured, `Studio.CHARTS.sankey` has existed all along (app/model.js, group
-  "Flow", `sourceCol`/`targetCol`/`valueCol`, and already in `Studio.WIDE_CHART_TYPES`). So the
-  hero is the real flow diagram, and no chart-type build rode in on the pack slice — by the other
-  route than the one the item expected.
-  **What remains:**
-  **(c) the pinned Views** — authored the SP-1 way (`Studio.Build.compute` → `Studio.newPanel`),
-  seeded from the same `seed(csv)` call, each paired with an ensure-function so a workspace that
-  installed slice (a) or (b) picks them up at boot with no reinstall. The dashboards' DAs are the
-  obvious four: the vendor flow, the industry flow, the agency small-business share, and the
-  district table.
-  **A REAL PRODUCT FINDING slice (b) turned up, which is NOT part of (c) and is not the loop's to
-  rank** — recorded here so it is not lost, and proposed to Kevin at the next grooming pass rather
-  than promoted on the loop's own authority (`docs/BACKLOG.md`, "the loop never promotes reservoir
-  items into NOW"): **the choropleth's colour classes are LINEAR only** —
-  `t = (v - vmin) / (vmax - vmin)` in `app/studio-charts.js` — so any power-law measure paints one
-  colour. Federal contract obligations put **407 of 436 districts in the lowest sixth of the
-  range**; rolling them up to states does not help (42 of 51 in the lowest sixth). SP-1 never hit
-  it because a rate per 10,000 residents is bounded. Quantile or log class breaks (a `classBreaks`
-  opt beside `classes`) would fix every choropleth in the app, not just this pack's, and it is a
-  chart-capability slice of its own. Slice (b) deliberately did not smuggle it in: it says what
-  the map is evidence for and puts the ranked list underneath instead.
-  **And a note (c) must not lose:** the two flow tables carry the agency CODE only. Anything that
-  wants the readable agency name reads the JOB'S OUTPUT, not the raw vendor table — that is the
-  point of the join, and a panel bound to the wrong dataset will silently show codes.
-
-- ~~**N34 ★★ [1pt] — dragging the View Builder canvas taller does not make the chart taller; it
-  just adds empty space below it.**~~ ✓ **SHIPPED v947, sw v538 (2026-08-09, steward — see DONE).**
-  Both open questions were decided in the slice: the repaint happens on RELEASE (PANEL-H's own
-  convention), and the dragged height does NOT persist into the saved View — the canvas is a
-  viewport, said in the tooltip and in Help rather than implied.
-  *(Original text kept until the next grooming pass archives it.)* Kevin, 2026-08-09: *"when I drag the canvas open the view
-  would resize? like the chart object is the same."* His screenshot shows the canvas dragged to
-  roughly double height with the scatter still occupying the top half and a large dead band
-  underneath — the container grew, the chart did not.
-  **The mechanism.** VB-12's drag handles (`app/build.js:1234` `bdWirePreviewResize`) resize the
-  IFRAME — they set `ifr.style` width/height and nothing else. The chart inside is rendered by
-  `renderChartPreview` → `bdPanelFor()` with a chart `opts.height` fixed at build time (360 for
-  this panel, from the pack spec). Nothing recomputes that height when the frame changes, so the
-  chart keeps its authored size inside a bigger box.
-  **Fix:** on drag (and on the double-click fill-to-bottom), derive the chart height from the new
-  canvas height and repaint — the chart should fill the canvas it was given, which is what
-  "the chart object is the same" means. **Reuse the existing mechanism rather than inventing
-  one:** the dashboard builder already does exactly this with PANEL-H — the preview posts
-  `{type:"resizeH", id, h}` and the host writes `chart.opts.height` (`app/studio.js:10673-10684`,
-  "the exact knob charts already draw to, so it holds identically in the preview, the viewer, and
-  every export"). The View Builder wants the same write against its own `BD` state.
-  **Two details worth getting right:** debounce the repaint so a drag does not re-render per
-  mousemove (the preview is a full `buildHtml` + `srcdoc` swap), and decide whether the dragged
-  height PERSISTS into the saved View — if it does, it must round-trip like any other opt; if it
-  does not, the canvas is a viewport and the saved chart keeps its authored height. Either is
-  defensible; silently doing one while implying the other is not.
-- ~~**N33a ★★ [1pt] — the View Builder drops the chart settings it has no editor for, on the way
-  in AND on the way out.**~~ ✓ **SHIPPED v950, sw v541 (2026-08-09, steward — see DONE).** The
-  builder now captures a View's authored, non-default `chart.opts`, applies them to the preview,
-  and writes them back unchanged on Update, with a notice naming what is being carried rather than
-  edited.
-  **⚠ THE DIAGNOSIS BELOW IS PARTLY WRONG — corrected by measurement in this slice, and the
-  correction is why the item split.** The item assumed Kevin's dashed line was `pmw_quad`'s
-  threshold crosshair. It is not. `pmw_quad` is a DASHBOARD panel, and dashboard panels open in the
-  Studio, never in the View Builder — `quadrant` appears exactly once in `app/demopacks.js` (:1007)
-  and never as a View. The View he opened is `mcv_income_vs_supply`, a **scatter** authored with
-  `opts: { trend: true }` (`demopacks.js:1234`) — `trend` is scatter's own OLS regression line
-  (`model.js` scatter opts; drawn as `line.trend-line`, dashed 6,4, in `studio-charts.js:3400`).
-  So his "trend line" was literally a trend line, and his instinct that it should be switchable was
-  about a control that already exists in the panel inspector but not in this builder.
-  **Measured before the fix, on dev:** the authored View carries `trend: true`; the builder's
-  preview rendered **0** `line.trend-line` elements; and pressing Update wrote `trend: false` back
-  over the pack's authored value — permanent, silent loss, exactly the class the item names. Root
-  cause was not the quadrant at all but `bdPanelFor()` minting every chart from `Studio.newPanel`
-  DEFAULTS, so ALL four Market Coverage Views were lossy (the choropleths' `classes: 6` /
-  `fmt: "abbr"` / authored `height: 300`, the shortlist's `pageSize` / `freezeHeader`), not just
-  one panel.
-  ~~**N33b ★ [1pt] — what remains, and it is genuinely the smaller half now.**~~ ✓ **SHIPPED v956,
-  sw v546 (2026-08-10, steward — see DONE).** Both named parts shipped: Quadrant is in the chart
-  strip (sharing scatter's basis, so a quadrant View opens AS a quadrant instead of degrading to a
-  table, thresholds and zone labels carried), and the trend line is a real checkbox. The item's
-  open question is answered rather than dodged — the toggle is the STATISTICAL fit (scatter's own
-  `trend` opt), and the REFERENCE-line reading is the quadrant's threshold crosshair, offered as a
-  type one button over instead of blurred into the same control. Part (3) — `chart.map` extras —
-  is deliberately still not carried, for the reason the item gives.
-  *(Original text kept until the next grooming pass archives it.)* (1) **Quadrant is
-  still absent from the builder's chart-type row**, so a quadrant View *would* still downgrade —
-  there just isn't one today, which is why this is no longer ★★. Carry-through gates on the type
-  surviving the trip (`bdApplyCarried`), so a quadrant falling back to a table correctly keeps its
-  thresholds out of the table rather than pasting them on; adding Quadrant to the type row is what
-  would make it round-trip whole. (2) **Kevin's actual ask: a trend-line control in the builder.**
-  The item below calls this "new capability" on the grounds that `showTrend` is bars-only — that is
-  true of `showTrend`, but scatter has its own `trend` opt already, so for scatter this is a
-  toggle, not new maths. The real question the item raises IS still live and worth answering
-  deliberately: a STATISTICAL trend (OLS, what `trend` does) versus a REFERENCE line at a chosen
-  constant (what quadrant thresholds are) look identical and mean different things. (3) Not
-  carried, deliberately, and worth its own decision: `chart.map` extras — most visibly the
-  shortlist's declared `map.cols` labels — because a map key names a COLUMN and the shelves can
-  rename columns out from under it, so carrying it blindly would be a different lossy bug.
-  *(Original text kept until the next grooming pass archives it.)* Kevin,
-  2026-08-09, with both screenshots: the pinned card renders a dashed reference line; opening the
-  same View in the builder renders the scatter WITHOUT it — *"I think there is a trend line on
-  the view but I can't see it turn it on/off in the View Builder yet, maybe I should?"*
-  **The mechanism, measured.** The pack authors that panel as
-  `chart: { type: "quadrant", …, opts: { xThreshold, yThreshold, q1..q4 } }`
-  (`app/demopacks.js:1007-1013`) — the dashed line Kevin sees is the **threshold crosshair at the
-  national county medians**, not a regression fit. The View Builder's chart-type row offers
-  Table · Bars · Stacked bars · Line · Stacked area · Donut · Heatmap · Map · Scatter · KPI —
-  **no Quadrant.** So the round-trip lands on the nearest neighbour, plain scatter, and drops
-  `xThreshold`/`yThreshold` and the quadrant labels ("Well served", "Served on a lower income",
-  "Thin on both", **"Whitespace"**). Those labels ARE the analysis: without them the panel is a
-  cloud of bubbles, which is exactly what the second screenshot shows.
-  **Why this is worse than a missing toggle:** it is silent and lossy. Nothing tells the reader
-  the View they opened is not the View they clicked, and a Save from that state would persist
-  the degraded form over the pack's authored one.
-  **Two things to fix, in this order:**
-  1. **Don't lose what you can't edit.** Either add Quadrant to the builder's type row, or —
-     cheaper and correct for every future type — make the builder carry unknown chart types and
-     unrecognised `opts` through unchanged, and say plainly in the UI that it is showing a
-     simplified edit of a richer chart. VB-5 already established the cross-editor notice pattern
-     for exactly this class of problem; reuse it rather than inventing a second one.
-  2. **Then Kevin's actual ask:** a reference/trend-line control in the builder. Note `showTrend`
-     exists today but is scoped *"vertical bars only"* (`app/model.js:665`), so scatter has no
-     trend line at all — this is new capability, not a hidden switch. Decide deliberately between
-     a STATISTICAL trend (OLS fit, which the codebase already computes at `model.js:314`/`334`
-     for the narrative sentences, so the math is there) and a REFERENCE line at a chosen constant
-     (which is what the quadrant thresholds are). They look identical and mean different things;
-     offering the wrong one on a whitespace chart would be actively misleading.
-- ~~**N32 ★ [1pt] — retire the Settings → MODE "Sample content" toggle; the packs already own
-  this.**~~ ✓ **SHIPPED v951, sw v542 (2026-08-09, steward — see DONE).** The switch and its
-  `showSamples()` mask are gone with pack state untouched, as the item required. Its "what to check
-  before deleting" clause was the substance and the answer was measured: Home's gallery and quick
-  card were already pack-derived (every example declares its `demoPackId`), the library's
-  hidden-state strip led to a group DECLUTTER-1 had unwired, and **the New ▾ starter sets were the
-  one real second job** — built from the demo-DB catalog tables that the registry says belong to
-  the `catalogSamples` pack, yet gated on the mask alone, so a removed pack could still fill the
-  menu. They now follow the owning pack, which is the rule Explore and the View Builder already
-  used. "An empty workspace" is now "remove the packs".
-  *(Original text kept until the next grooming pass archives it.)* Agreed, and the code already half-admits it: the toggle
-  at `app/studio.js:9382` is a single coarse switch over the same concept the pack registry
-  models per-pack, and `studio.js:9912` carries the comment *"with Sample content toggled off,
-  the packs' ONLY install/remove surface…"* — i.e. two systems governing one thing, with the
-  toggle able to CONTRADICT pack state (a pack installed, and hidden). LF16 was supposed to
-  merge demo content into the packs; the toggle survived the merge.
-  **What to check before deleting**, because a Settings switch usually has a second job: what
-  `setShowSamples(false)` actually suppresses beyond the packs — the library's
-  *"Sample content is hidden"* strip (`studio.js:994-997`) and, per its own copy, "the New ▾
-  starter sets". If those are genuinely separate concerns they need a home before the switch
-  goes; if they are just the packs by another name, they go with it. Also decide what happens
-  to a workspace where someone had it OFF: uninstalling their packs on their behalf would be a
-  data surprise, so prefer leaving pack state alone and simply removing the global mask.
-- ~~**N42 ★ [1pt] — select a panel in the dashboard builder and its dataset is not highlighted in
-  the Data pane on the left.**~~ ✓ **SHIPPED v953, no sw bump (2026-08-09, steward — see DONE).**
-  Both of the item's "two details" shipped as written, and the fix reaches one surface the item
-  did not name: a KPI names its dataset the same way, so it rings the same card.
-  *(Original text kept until the next grooming pass archives it.)* Kevin, 2026-08-09, in the builder with a panel selected: *"if you
-  select a panel you should see the dataset selected/highlighted on the left for the panel… so
-  you can [tell] which one from the list."*
-  **The mechanism already exists and is one condition short.** `buildWorkspaceDatasets`
-  highlights a dataset card when the SELECTION IS THE DATASET —
-  `if (S.selection && S.selection.kind === "da" && S.selection.id === da.id) c.classList.add("da-mine-sel")`
-  (`app/studio.js:1536`). Selecting a PANEL sets a different selection kind, so nothing lights up,
-  even though the panel names its dataset in `panel.da`. The fix is to also match when the
-  selection is a panel whose `da` is this card's dataset — same class, same styling, no new
-  visual language. `select()` (`:2576`) already re-renders the inspector and highlights the
-  preview; `buildLibrary()` needs to join that repaint.
-  **Two details:** a panel with no bound dataset (rich text) must highlight nothing rather than
-  the first card, and the Data pane scrolls — highlighting a card the user cannot see is only
-  half the answer, so scroll it into view.
-- ~~**N43a ★ [1pt] — the way IN: fix a View's SQL from the dashboard you are building.**~~
-  ✓ **SHIPPED v955, sw v545 (2026-08-10, steward — see DONE).** The item's own "cheap first cut",
-  verbatim: the Query preview section now carries an **Edit this query** link that opens THE
-  shared dataset editor (SQL → Preview → Save) over the dashboard, which stays open behind it with
-  the same View selected. The item did not name the half that would have made it a lie: a
-  dashboard keeps its OWN copy of each query (so exports survive the dataset being deleted) and
-  that copy went stale on every dataset edit — `Studio.syncDAFromDataset` now brings it up to date
-  on save, through `dsToDA` itself so the two cannot drift, while `da.id`/`da.name` stay put so
-  nothing on the canvas is renamed or unbound. Stale cached rows are dropped, and a column the new
-  query no longer returns is named in the toast.
-- ~~**N43b ★ [1pt] — what remains: the loop, and what "test" means for a bound dataset.**~~
-  ✓ **SHIPPED v957, sw v547 (2026-08-10, steward — see DONE).** The item's own either/or was
-  answered rather than dodged: **(a), warn-and-confirm** — and its "cheap once (a) or (b) is
-  settled" follow-on shipped in the same slice as **Preview, then save**, one tap that runs the
-  query and completes the save. What the item measured as "let the panel surface it after the
-  fact" is deliberately NOT what shipped, and the DONE entry says why. One part of (b) remains
-  worth its own item if Kevin wants it: a panel whose bound dataset last failed still says
-  nothing at rest — the DA records `lastRun`, and no surface reads it. That is a badge on the
-  panel, not this loop, so it is left unminted rather than smuggled in here.
-  *(Original text kept until the next grooming pass archives it.)* N43a
-  gives you the editor and its Preview; what it does NOT do is answer the item's harder half —
-  *"a failed edit must not leave the panel pointing at a broken query."* Today a save is a save:
-  the editor's **Preview** is advisory, and nothing stops you saving SQL you never ran (or ran and
-  got an error from) over a dataset a live panel is bound to. Decide deliberately, since both are
-  defensible: (a) warn-and-confirm on saving a dataset that has open panels bound to it and whose
-  last Preview failed or never ran, or (b) let the panel itself surface the breakage after the
-  fact (the DA already records `lastRun`). Also still open from the item, and cheap once (a) or
-  (b) is settled: the panel's own **Run live** could re-run straight from the editor's rows rather
-  than making the user close the modal and press it again. **Do not re-do N43a's half** — read
-  its DONE entry first; the sync/identity/cache constraints there are the ones this slice inherits.
-  *(Original 2pt text kept until the next grooming pass archives it.)* Kevin, 2026-08-09: *"a quick preview of the dataset would be nice… people
-  might want to pop open a preview of it, edit the SQL and see the preview, or pop open the
-  preview and then make a quick change to the SQL, test it and preview it."*
-  **What exists today**, so this extends rather than duplicates: the panel inspector already has
-  a **Query preview** section (`app/studio.js:4303`) — the SQL truncated at 140 chars with a
-  "Show full SQL" expander, a 3-row sample table and a row count. That is Kevin's *"maybe you
-  have that on the right"*. It is READ-ONLY and small, which is exactly the gap: you can see the
-  query is wrong and have nowhere to fix it.
-  **The ask is a loop, not a bigger panel:** open a real preview over the builder → edit the SQL
-  → run it → see the rows → keep or discard, without losing the dashboard you were editing.
-  Reuse the shared dataset editor (`Studio.Datasets.openEditor`) rather than growing a second SQL
-  surface, and decide deliberately what "test" means for a dataset a panel is already bound to —
-  a failed edit must not leave the panel pointing at a broken query.
-  **Cheap first cut, if this needs splitting:** make the existing Query preview section's SQL
-  clickable, opening the dataset editor on that dataset. That alone closes "I can see it's wrong
-  and can't get to it" and is most of the value.
 - ⛔ **N44 ★★ [3pt est, 3 slices shipped — the estimate is spent] — SQL is edited in plain textareas
   app-wide.** **⛔ BLOCKED ON KEVIN, marked 2026-08-10 (steward), and it is the LAST half of the
   item.** Slices 1–3 shipped the component, its nine adoptions, and qualified completion; what is
@@ -14768,53 +14588,21 @@
   **Ship it as ONE component adopted everywhere**, not per-surface variants; the nine sites above
   are the acceptance list, and mobile keyboards must still work at 390×780.
 
-- ~~**N36 ★ [2pt est, 2 slices shipped — the estimate is spent] — Admin says "Backends" for the same
-  thing the rest of the app calls a workspace — and keeps a SECOND, separate list of them.**~~
-  ✓ **COMPLETE — SLICE 2 SHIPPED v961, sw v551 (2026-08-10, steward — see DONE).** The card is
-  **Workspaces**, and so is every noun on it that means a saved, credentialed destination (wizard,
-  name field, remove confirmation, empty state, the user form's **Assigned workspace** picker, the
-  Switch picker's copy). "Backend" survives only where the item said it should — Settings' card and
-  the rail still read *Workspace backend — Local (this browser)*, because that names a STATE — and a
-  suite check holds both ends so neither can drift back. No identifier moved
-  (`provisioning.backendId` is persisted user data). Both decisions slice 1 deferred were made, not
-  inherited: Admin still lists SAVED entries only (editing or removing a packaged entry would mint a
-  local override that shadows the shipped one) but now NAMES the packaged ones in its intro; and
-  Settings' panel still offers `valid()` rows only, with the honest half — a **not configured** badge
-  — put on the Admin row instead. One stale sentence went with the rename: the assignment hint's
-  *"connecting a device to it is still a manual step"* has been false since #103.
-  *(Slice-1 text kept until the next grooming pass archives it.)* ✓ **SLICE 1 — the convergence:
-  v952, sw v543 (2026-08-09, steward — see DONE).** There is ONE list now
-  (`STUDIO_WS_STORE`); Admin's card is a view over it; the legacy `studio-admin-backends` rows
-  migrated additively with nothing dropped (including Firebase entries, which have no `cfg.url`
-  and which the workspace store's old validity rule would have deleted). Both surfaces are still
-  named as they were, which was the plan.
-  **SLICE 2 — what remains: the RENAME**, now safe because there is one list to name. Its two
-  open decisions are written into the DONE entry: whether Admin should also list the PACKAGED
-  workspaces (slice 1 kept Admin to the browser's SAVED entries, so its visible behaviour is
-  unchanged), and whether Settings' manager panel should show the half-configured rows Admin can
-  now hold. The "where backend still earns its keep" paragraph at the foot of this item is the
-  constraint the rename must respect.
-  *(Original text kept until the next grooming pass archives it.)* Kevin, 2026-08-09, on the Admin card:
-- ~~**N40 ★ [1pt] — the sample-pack blurbs are paragraphs where two or three sentences would do.**~~
-  ✓ **SHIPPED v962, sw v552 (2026-08-10, steward — see DONE).** Both offenders are three sentences
-  and every count, kind and promise the item told me to keep is still stated; Data Management's was
-  already three and was left alone, as the item said. The one thing the item did not ask for and the
-  slice added anyway: a suite check on the sentence budget over EVERY registered pack, because #116
-  read the blurbs' shape and nothing read their length — which is how they grew back into paragraphs
-  in the first place.
-  *(Original text kept until the next grooming pass archives it.)* Kevin, 2026-08-09, as an aside to the N39 report: *"those descriptions should be 2-3 sentences
-  at most."* Measured: Conservation Insight's `blurb` is 4 lines of source and one 60-word
-  sentence; **Market Coverage's is a single 100-word sentence** with five em-dash clauses and
-  three nested lists, which is the one on screen when he said it. Data Management's is already
-  close (3 sentences).
-  **Careful — this copy is under test and under a contract.** #116's suite check keeps the
-  blurbs COUNT-LED and honest about embedded data, and `tools/validate.mjs` enforces the
-  `source` declaration per `docs/PACKS.md`. So this is a rewrite that must keep every count it
-  states true, keep the "no credentials to enter" promise, and keep the source credit — not a
-  trim to whatever reads nicely. The `tagline` is the one-line form and already exists; the
-  `blurb` should stop trying to be a second tagline plus an inventory.
-- **N41 ★ [1pt, but the decision is Kevin's] — should Conservation Insight and Market Coverage be
-  installed by default?** Kevin, 2026-08-09: *"I would think from an incognito browser they would
+- ⛔ **N41 ★ [1pt, but the decision is Kevin's] — should Conservation Insight and Market Coverage be
+  installed by default?** **⛔ BLOCKED ON KEVIN, marked 2026-08-10 (grooming pass 4).** The item's
+  own last sentence already says *"this is Kevin's call, not a default to assume"* — it was simply
+  never given the marker, so a run reading the queue top-down saw the pass's only unmarked ★ item
+  and had to re-derive the block from the body. **The exact question: which packs, if any, are in
+  `DEFAULT_INSTALLED` — (a) Market Coverage only (the recommendation below), (b) Market Coverage +
+  Conservation Insight (what Kevin's sentence assumed was already true), or (c) leave it as
+  `["datamanagement"]` and change nothing?**
+  **And it is ALSO already implemented, waiting on the same answer:** open PR **#689** ("SP-1 (c2):
+  Market Coverage is the pack a new workspace starts with", `hold`, open since 2026-08-09) is
+  option (a) written out — `DEFAULT_INSTALLED: ["datamanagement"] → ["marketcoverage"]` plus the
+  hero-featuring rule, read only when the installed-packs key is absent so no existing workspace is
+  rewritten. So answering N41 with (a) is "merge #689"; answering (b) or (c) is "change or close
+  #689". Nothing here needs new code before the decision, which is why the loop must not start it.
+  Kevin, 2026-08-09: *"I would think from an incognito browser they would
   be installed if both of them are the default installed group now."* **They are not, and never
   have been:** `DEFAULT_INSTALLED = ["datamanagement"]` (`app/demopacks.js:241`) — the cards he
   saw read **Install**, not Remove. Nothing is broken here; the expectation and the code simply
@@ -14834,95 +14622,32 @@
   data pack, it is the strongest first impression, and it is one folder), and leave Conservation
   opt-in. But this is Kevin's call, not a default to assume.
 
-- ~~**N36 ★ [2pt] — Admin says "Backends" for the same thing the rest of the app calls a
-  workspace — and keeps a SECOND, separate list of them.**~~ ✓ **SHIPPED — this is the ORIGINAL
-  text of the item struck above, separated from it by N40/N41 at some earlier edit rather than
-  minted twice (one ID, one item; `docs/BACKLOG.md` says an ID is never reused, and this is not a
-  reuse). Both slices are done — see the struck entry above and DONE. The next grooming pass
-  archives the two together.** Kevin, 2026-08-09, on the Admin card:
-  *"I wonder if in Admin you should be referring to this as workspace not backend also."*
-  **He is right about the word, and the word is the smaller half of it.** Measured:
-  - Admin → **Backends** (`backendsCardHtml`, `app/studio.js:9045-9071`) keeps its rows in
-    `localStorage` under **`studio-admin-backends`** (`:9031-9032`), with Test / Connect / Edit /
-    ✕ per row and an "+ Add backend" wizard (`openBackendConfigWizard`, `:9127`). A user can be
-    assigned one (`provisioning.backendId`, `:10472-10486`).
-  - The gate's **Workspace** picker and Settings → Workspace backend read a DIFFERENT list —
-    `window.STUDIO_WS_STORE` over **`studio-workspaces-custom`** (`app/workspaces.js:93`), with
-    its own Manage panel, a default entry, per-entry access-file export and the production-block
-    rule (`app/gate.js:509-540`; N24 slice 2 / N25).
-  Both hold the same kind of object: a named, credentialed database this app can sync to
-  (adapter + URL + key). Two stores, two managers, two names, and no relationship between them —
-  register a backend in Admin and it never appears in the sign-in picker; save a workspace at the
-  gate and Admin cannot see it to assign it to anyone. **The history explains it and excuses
-  nothing:** Admin's card is LF42 slice 1 (2026-07-27); the workspace list arrived three days
-  later with WORKSPACE-LOGIN and grew the richer feature set (default, export, stage guard).
-  **So a pure rename makes it worse**, not better: two lists both labelled "Workspaces". Rename
-  and converge together, or do neither.
-  **✅ DECIDED (Kevin, 2026-08-09): converge onto the workspace store.** *"converge on the
-  workspace store so it's better, yes? that's sensible."* So: `STUDIO_WS_STORE` becomes the ONE
-  list (it is already the richer one, and the one the sign-in screen actually reads), and Admin's
-  card becomes a management VIEW over it, keeping its Test / Connect / assign-to-user actions and
-  losing its private store. Existing `studio-admin-backends` entries migrate in additively —
-  never wipe, per the local-first rule — and `provisioning.backendId` must keep resolving.
-  **Suggested slicing** (2pt, so two PRs): (1) converge the store — migrate + one read path,
-  both surfaces still named as they are today, tests proving no entry is lost either way; (2) the
-  rename, once there is only one list to name.
-  **Where "backend" still earns its keep:** the rail tooltip and Settings say *"Workspace
-  backend — Local (this browser)"*, which names a STATE (where is this workspace stored right
-  now), not a list entry. That reading is fine and should not become "workspace workspace". The
-  noun to rename is the saved, credentialed destination — that is a workspace.
-- ~~**N29 ★★ [1pt] — `polecat_dev` is leaking to anonymous callers.**~~ ✓ **CLOSED 2026-08-09,
-  Kevin + interactive session.** He ran `tools/supabase-deploy.sql` + §7 on the dev project and
-  the verify re-run went **PASSED — no table on dev is readable by an anonymous caller (8
-  checked)**. The two tables that were leaking (`dashboards`, `datasets`) are closed, and the
-  two that had read `HTTP 404 — does not exist` (`polecat_activity` / `polecat_feedback`, §6 of
-  deploy.sql) now return `HTTP 200, zero rows` — which is what proves the canonical file
-  actually ran end to end, rather than the tables merely being absent.
-  **Caveat worth keeping (this is N27's point):** `connections`, `analyses`, `jobs` and `users`
-  are almost certainly still EMPTY, so their "ok" is inconclusive rather than proof. The tables
-  that genuinely demonstrate the posture are the four above.
-  *(History below kept until the next grooming pass archives it.)*
-  **⚠ ID CORRECTED at grooming pass 3 (2026-08-09): this item was minted as a SECOND `N26`.**
-  `docs/BACKLOG.md` says an ID is never reused, and the N22c slice that measured the collision
-  (see DONE) left it flagged rather than resolved. N16's DONE entry and its NOW text both bind
-  `N26` to *"The admin function's only schema action re-opens a gone-live workspace"*, so THAT
-  item keeps the number and this one takes the next free one (highest existing was N28).
-  **Anything written before 2026-08-09 that says `N26` and means the `polecat_dev` leak means
-  N29** — DONE is append-only, so those entries were left verbatim rather than rewritten. The fix as written is a paste
-  into the `polecat_dev` SQL editor, and no automated run in this repo can perform it: the dev
-  database password lives in the `SUPABASE_DEV_*` repo secrets, which only `rls-dev.yml` and the
-  promotion workflows can read, and the one dispatchable provisioning workflow
-  (`supabase-provision.yml`) applies `supabase-bootstrap.sql` — the allow-all posture this item
-  blames — against PRODUCTION by default. **The ask: run `tools/supabase-deploy.sql` top-to-bottom
-  in the `polecat_dev` SQL editor, then § 7 for the first admin, then re-dispatch
-  `rls-verify.yml` with `target: dev`.** (If you would rather the fleet be able to do this itself,
-  say so and "a dispatchable workflow that applies `supabase-deploy.sql` to the DEV project only"
-  becomes its own item — it is a new workflow with a production guard, not a paste.)
-  Measured, not suspected — `tests/rls-verify.mjs` against the dev
-  project:
-  ```
-  LEAK dashboards         HTTP 200, 1 row(s) readable by anon
-  LEAK datasets           HTTP 200, 1 row(s) readable by anon
-  ok   polecat_activity   HTTP 404 — not exposed or does not exist
-  ok   polecat_feedback   HTTP 404 — not exposed or does not exist
-  ```
-  Production passed the same check in the same run, so this is dev-specific.
-  **The two 404s are the diagnosis.** `polecat_activity` / `polecat_feedback` are §6 of
-  `tools/supabase-deploy.sql`; their absence means dev was NOT provisioned from that file. It was
-  stood up either from `supabase-bootstrap.sql` — whose entire posture is the `polecat_anon_all`
-  allow-all policy, exactly the shape observed — or from the connect wizard's generated script,
-  **which is N21 demonstrated on a live database instead of argued from source.** Cross-reference
-  the two: N21 is the product fix, this is the environment fix.
-  **The fix is one paste:** `tools/supabase-deploy.sql` top-to-bottom in the `polecat_dev` SQL
-  editor. Idempotent; it drops the legacy `polecat_anon_all` and `polecat_open_rw` policies BY
-  NAME (PERMISSIVE policies OR together, so one leftover defeats everything tighter beside it),
-  installs the authenticated-only set, and creates the two missing log tables. Then §7 for the
-  first admin. Re-dispatch `rls-verify.yml` to confirm green.
-  **Note the two checks are NOT in conflict**, which is the point of having split them:
-  `tests/rls.mjs` went 81/81 green in the same hour. The FILES are sound; the live dev DATABASE
-  was not built from them. Neither check alone would have told you that.
-- **N25 ★★ [2pt est, 1 slice shipped] — The `/dev/` and `/stage/` previews sign you into
-  PRODUCTION data.** ✓ **SLICE 1 IS SHIPPED — the guard: v911, sw v533 (2026-08-09, steward — see
+- ⛔ **N25 ★★ [2pt est, 1 slice shipped] — The `/dev/` and `/stage/` previews sign you into
+  PRODUCTION data.** **⛔ BLOCKED ON KEVIN, marked 2026-08-10 (grooming pass 4) — and the blocker
+  MOVED, which is why it needed re-measuring rather than re-reading.** The item below says slice 2
+  is "BLOCKED ON N29"; **N29 CLOSED on 2026-08-09** (Kevin ran `tools/supabase-deploy.sql` on the
+  dev project and the anon verify came back clean, 8 tables checked), so the posture precondition
+  the rule at the top of `app/workspaces.js` demands is now SATISFIED for dev. What still blocks it
+  is not a posture — it is two things only Kevin can supply:
+  **(1) the `polecat_dev` project's URL + publishable key.** Shipping the `stage: "dev"` entry means
+  writing them into `app/workspaces.js` beside production's. They exist today only as the
+  `SUPABASE_DEV_URL` / `SUPABASE_DEV_PASSWORD` repo secrets, which `rls-dev.yml` and the promotion
+  workflows can read and **no steward run can** — so the loop cannot obtain them, and inventing or
+  guessing them is not an option on a file whose whole contract is "an entry here is a verified
+  posture". Paste them into this item (the publishable key is publishable — production's sits in
+  the file already) and slice 2(a)'s dev half is a mechanical 1pt.
+  **(2) does `polecat_stage` exist, or does slice 2(a) ship dev-only?** The item notes the stage
+  project "does not exist yet either". So the exact question: **create `polecat_stage` now (and
+  provision it from `tools/supabase-deploy.sql`, the same paste that closed N29), or ship the
+  `dev` entry alone and leave `/stage/` offering Local only until it does?** Either is defensible;
+  the loop must not pick, because option two publishes a half-built stage story.
+  **One stale pointer found in the same check and deliberately NOT fixed here:** the comment in
+  `app/workspaces.js` where the `dev`/`stage` entries would go still says *"polecat_dev's is the
+  open ⛔ N26"* — wrong ID (pass 3 renumbered it N29) and now a wrong claim (N29 is closed). It is a
+  precached file, so correcting a comment costs an `sw.js` CACHE bump plus a changelog entry; it
+  belongs to whichever slice next opens that file for a real reason, which is this one. Whoever
+  takes slice 2(a) must rewrite that comment in the same PR.
+  ✓ **SLICE 1 IS SHIPPED — the guard: v911, sw v533 (2026-08-09, steward — see
   DONE).** A preview no longer offers, restores or accepts the production workspace by ANY route
   (packaged catalog, saved connection inherited from production's shared localStorage, access
   file, hand-typed URL, or the anonymous activity log), packaged entries declare their stage and
@@ -14993,7 +14718,10 @@
   to break prod here would be to REPLACE those two, which nothing in N19–N25 does.
 - ⏳ **PR #689** — **SP-1 ★★ [3pt est, 2 slices shipped] — "Market Coverage" — the new DEFAULT
   sample pack (Kevin, 2026-08-07).** *(Marker added 2026-08-09 by the run that took N7 instead:
-  (c2) is claimed by open PR #689, which is `hold`-labelled for Kevin — don't collide with it.)* ✓ **SLICE (a) IS SHIPPED — the data foundation: v912, sw v534 (2026-08-09,
+  (c2) is claimed by open PR #689, which is `hold`-labelled for Kevin — don't collide with it.)*
+  *(⏳ RE-CHECKED at grooming pass 4, 2026-08-10: #689 is still OPEN, still `hold`, unchanged since
+  2026-08-09 — the marker stands. It and ⛔ N41 are the same decision seen from two sides; answering
+  N41 resolves both.)* ✓ **SLICE (a) IS SHIPPED — the data foundation: v912, sw v534 (2026-08-09,
   steward — see DONE).** The extract script, both Census datasets (1,813 counties, 111.1KB of the
   150KB budget), the pack's connection, and the join job that derives the saturation index, plus
   the async materialization path a committed-CSV pack needs (`Studio.ensurePackDataMaterialized`,
@@ -16103,56 +15831,28 @@
     Settings" tip names one of the four routes, in a precached file — a `sw.js` CACHE bump
     (issue #631) for a tip, so it belongs to whichever slice next touches that file for a real
     reason. The two v922 candidates are still open and still Kevin's calls.
-- ~~**N26 ★★ [1pt] — The admin function's only schema action re-opens a gone-live workspace.**~~
-  ✓ **SHIPPED v917, sw v537 (2026-08-09, steward — see DONE). Est 1pt, took 1.**
-  **The fix taken was NOT the one the spec proposed, and the difference is worth reading before
-  anyone re-opens this:** the spec asked for a NEW posture-preserving `upgrade` action beside
-  `provision`, leaving `provision` unsafe-but-unused. Measuring it first showed the hazard is not
-  confined to the Edge Function — `tools/supabase-bootstrap.sql` carries the same DO block, it is
-  the documented way to add a table or repair grants on an existing project, and
-  `supabase-provision.yml` applies it unattended. A new action in one of the two would have left
-  the other one leaking. So the guard went into the block itself, in both artifacts: the demo
-  allow-all is installed only when the real per-user policies are absent, the DROP stays
-  unconditional, and `provision` becomes the posture-preserving upgrade the item wanted rather
-  than growing a twin.
-  **The item's second half — "wire `supabaseSource.upgradeWorkspace()` to call it" — was measured
-  and deliberately NOT taken, because its goal is already delivered.** N22b slice 2 shipped
-  `polecat_migrate()`, and `upgradeWorkspace()` already routes through it: one admin-gated call,
-  no SQL editor, which was the stated intent ("N16's in-app upgrade becomes one click on Supabase
-  too"). Routing through the Edge Function as well would add a path gated by the deploy-time
-  PROVISION_SECRET the runbook tells you to DISCARD after go-live, needing a deployed function,
-  for workspaces old enough to lack the RPC — which are also old enough that their admin function
-  predates this fix. The rewritten comment at `upgradeWorkspace()` records this so the next reader
-  does not re-derive it. Nothing remains in this item.
-  **(ID confirmed at grooming pass 3, 2026-08-09: `N26` is THIS item. The `polecat_dev` leak
-  was minted as a duplicate `N26` and is now ⛔ N29 at the top of this queue.)**
-  The original spec, kept until the next grooming pass archives it.
-  Found building N16 slice 2 (2026-08-08, steward), which is why that slice does NOT use it —
-  the item's own spec said to upgrade Supabase "via the polecat-admin Edge Function where
-  bound", and it can't be done safely today. **Measured:** the function exposes four fixed
-  actions, and the only one that runs DDL is `provision` → `sql.ts`'s `BOOTSTRAP_DDL`, whose
-  closing `DO $$` block loops every table doing `ENABLE ROW LEVEL SECURITY` + `DROP POLICY IF
-  EXISTS polecat_anon_all` + **`CREATE POLICY polecat_anon_all … USING (true) WITH CHECK
-  (true)`**. That is the legacy demo posture, and Postgres ORs permissive policies together —
-  so calling `provision` on a workspace that has been through **go-live** does not replace the
-  real per-user policies, it adds an allow-all one BESIDE them and the whole workspace becomes
-  anon-readable again. Nothing in the UI would say a thing. `go-live` immediately overwrites the
-  demo posture with `RLS_REAL_SQL`, which is why this has never bitten: `provision` is only ever
-  called on fresh projects today. **Fix:** an additive, posture-PRESERVING action —
-  `upgrade` — that runs the workspace DDL (`CREATE TABLE IF NOT EXISTS` for every table in
-  `WS.WORKSPACE_TABLES`, the `updatedAt` BIGINT widenings, the grants for any new table, the
-  `schema_version` stamp, `NOTIFY pgrst`) and touches **no policy at all**; `provision` keeps its
-  demo posture for the fresh-project path it is actually for. Then wire
-  `supabaseSource.upgradeWorkspace()` to call it when `cfg.adminFnUrl` is bound, keeping the
-  paste as the fallback for the (common) case where the function isn't deployed — and N16's
-  in-app upgrade becomes one click on Supabase too, which was the original intent.
-  **Verify with `tests/rls.mjs`**, which already applies the shipped SQL into throwaway
-  schemas: assert that running the new action AFTER `RLS_REAL_SQL` leaves anon reading ZERO
-  rows on all six workspace tables — the assertion that would fail today if `provision` were
-  used instead. Consider asserting the same about `provision` itself, as a documented tombstone
-  rather than a fix, so nobody re-points an upgrade at it. Related: N20/N21/N22 all touch the
-  same provisioning surface; whoever takes N22 should read this first.
 
+> **📋 RECORDED FOR KEVIN, NOT PROMOTED — grooming pass 4, 2026-08-10.** This sits BELOW the queue
+> on purpose: `docs/BACKLOG.md` says the loop never promotes into ▶ NOW on its own, and pass 2's
+> proposal (PR #623) is still unanswered, so pass 4 proposes no batch. This is one finding the
+> queue would otherwise have lost, because it was recorded inside SP-6's body and SP-6 was archived
+> by this pass.
+>
+> **The choropleth's colour classes are LINEAR only, so any power-law measure paints one colour.**
+> Measured while building SP-6: `t = (v - vmin) / (vmax - vmin)` in `app/studio-charts.js` is the
+> whole class assignment, so federal contract obligations put **407 of 436 congressional districts
+> in the lowest sixth of the range** — 42 of 51 even after a state rollup. SP-1 never hit it because
+> a rate per 10,000 residents is bounded; every unbounded money measure will. The fix is a
+> `classBreaks` opt beside the existing `classes` (quantile or log breaks), which would improve
+> **every** choropleth in the app rather than one pack's, and it is a chart-capability slice of its
+> own — SP-6 slice (b) deliberately declined to smuggle it in and put a ranked list beside the map
+> instead. Estimate if promoted: **★ 2pt**. Full measurement in
+> `docs/BACKLOG-ARCHIVE.md` → grooming pass 4 → the SP-6 entry.
+>
+> Related and also still open, from the same archived entries: **N31** (⛔, above) is the other
+> half of "the app's maps are weaker than its data" — the packs' choropleths have no pan/zoom
+> because they take the default SVG renderer. Both are map questions; answering them together may
+> be cheaper than either alone.
 
 ### 📦 SAMPLE-PACK PROGRAM (Kevin, 2026-08-07) — the reservoir
 
@@ -16160,7 +15860,12 @@
 > packs" weight (≈2 connections · ≈5 datasets · ≥1 job · ≈4 Views · ≈3 dashboards each).
 > **SP-1 is in ▶ NOW** (SP-0 shipped 2026-08-08 and was archived at grooming pass 3, so the
 > program's machinery is done and SP-1 is unblocked); the rest wait here and are promoted a few at a time at
-> grooming — do NOT start one straight from the reservoir. Each is **3pt** (≈3 PRs: extract →
+> grooming — do NOT start one straight from the reservoir.
+> **Program status, pass 4 (2026-08-10):** SP-0 ✓ · SP-6 ✓ COMPLETE (three slices, v963–v965, both
+> archived) · SP-1 ⏳ on `hold` PR #689 for its last slice · **SP-5 is the next one to take** and
+> **SP-13 after it** — Kevin promoted all three money-flow packs himself on 2026-08-09, so those two
+> are directed work, not a reservoir graze. Their ⏫ entries below are the spec; mint each a grammar
+> line in ▶ NOW when its first slice starts, the way SP-6's was. Each is **3pt** (≈3 PRs: extract →
 > workspace content → dashboards/Views/docs) and follows the SP-0 real-data convention.
 >
 > **Kevin's steer, 2026-08-08 — read this before choosing the next promotion batch.** Two
@@ -16464,10 +16169,13 @@
 > - **VIEW BUILDER OVERNIGHT QUEUE** (07-30) — the largest live block.
 > - **FRONTEND QA REPORT** (07-24) · **LIVE-QA QUEUE** (07-27) · **LIVE-FEEDBACK QUEUE**
 >   (07-22, holds LF43 slice 2) — Kevin-captured item queues.
-> - **ONBOARDING & PROVISIONING EPIC** (07-27) — the "Dave" north-star; NOW item **N6** is its
->   acceptance test.
-> - **CONSERVATION INSIGHT PRODUCT PLATFORM** (07-21) — M4.2 · M5 · M6 · M7 open; **M7 is NOW
->   item N2**.
+> - **ONBOARDING & PROVISIONING EPIC** (07-27) — the "Dave" north-star; its acceptance test was
+>   **N6**, which SHIPPED and now lives in `docs/BACKLOG-ARCHIVE.md` (grooming pass 1). *(Pointer
+>   corrected at pass 4, 2026-08-10: it read "NOW item N6", and there is no N6 in NOW to find.)*
+> - **CONSERVATION INSIGHT PRODUCT PLATFORM** (07-21) — M4.2 · M5 · M6 open. **M7 is CLOSED**: it
+>   was NOW item **N2** (real Row-Level Security enforcement), which shipped in four slices and now
+>   lives in `docs/BACKLOG-ARCHIVE.md` (grooming pass 3). *(Pointer corrected at pass 4,
+>   2026-08-10: it read "M7 is NOW item N2", and there is no N2 in NOW to find.)*
 > - **QUALITY TRACKS** (07-21) and the lettered recurring tracks **A · B · C · D · E · F · G ·
 >   H · I · J · K · L · N** — interleave material, plus **Z** (the platform north star).
 > - **PLATFORM MIGRATION** (07-15) and **◇ LATER — shell v2** — both explicitly "do not jump

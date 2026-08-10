@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 965,
+    title: 'The View Builder learns to build a flow, and Federal Contract Awards pins its four Views',
+    ts: '2026-08-10T09:26:14.000Z',
+    items: [
+      '<b>Sankey is now a chart type in the View Builder.</b> A flow was something the app could draw but not build: put the field the money leaves from on <b>Rows</b>, the field it lands on in <b>Columns</b>, and a measure beside it, and you get the ribbons. It reuses the heatmap\'s pivot exactly, so nothing else about the builder changed.',
+      'The <b>Federal Contract Awards</b> pack now pins <b>four Views</b> to go with its dashboards — agency to contractor and agency to industry as real flows, each agency\'s small-business share, and every congressional district by dollars and per resident. Already have the pack? They arrive on your next boot; nothing you have edited is touched.',
+      'These are ordinary View Builder Views, not read-only cards: the billion-dollar floor on each flow is a filter chip you can drag off, and the two derived numbers — the small-business share, dollars per resident — are <b>calculated columns</b> whose formulas are right there on the shelf.',
+    ],
+  },
+  {
     v: 964,
     title: 'Federal Contract Awards gets its dashboards — the flow, the agencies, and where the work lands',
     ts: '2026-08-10T08:27:01.000Z',

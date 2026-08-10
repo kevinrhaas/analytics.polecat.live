@@ -721,12 +721,19 @@
   </ul>
   <p>The <strong>chart strip</strong> above the result switches how it draws: <strong>Table</strong>
   (the full pivot), <strong>Bars</strong>, <strong>Stacked bars</strong>, <strong>Line</strong>,
-  <strong>Stacked area</strong>, <strong>Donut</strong>, <strong>Heatmap</strong>, <strong>Map</strong>,
+  <strong>Stacked area</strong>, <strong>Donut</strong>, <strong>Heatmap</strong>, <strong>Sankey</strong>,
+  <strong>Map</strong>,
   <strong>Scatter</strong>, <strong>Quadrant</strong>, or <strong>KPI</strong>. Charts draw your <em>computed</em> numbers through
   the real dashboard renderer — Bars and Donut chart the first dimension against the first measure
   (COUNT of rows when no measure is picked), and Heatmap lights up when you have a field on Rows plus a
   plain field on Columns, drawing exactly the crosstab as a color matrix. A chart that needs something
   you haven't added yet is simply disabled, with the reason in its tooltip.</p>
+  <p><strong>Sankey</strong> reads the same two shelves as the Heatmap, in flow terms: the field on
+  <strong>Rows</strong> is where the value comes <em>from</em>, the plain field on <strong>Columns</strong>
+  is where it <em>goes</em>, and the measure beside it is the width of the ribbon. So "which agency paid
+  which contractor, and how much" is a Rows field, a Columns field and a SUM — the same pivot the
+  Heatmap draws as a colour matrix, drawn as flows instead. Filter the measure to keep it readable: a
+  diagram with a few dozen ribbons is a picture, one with several hundred is a hairball.</p>
   <p>The chart canvas <strong>fills to the bottom of the screen</strong> by default (like the
   dataset panel next to it) and is resizable: drag the slim bar under it to make it taller or
   shorter, or the bar on its right edge to make it narrower or wider. The size you set sticks
@@ -907,7 +914,11 @@
     <em>Where the Work Lands</em> (the congressional-district map of place of performance, with
     the ranked list beside it — federal contract money is concentrated enough that a map's
     evenly-spaced colour classes put most of the country in one band, which the dashboard says
-    out loud rather than dressing up). Every
+    out loud rather than dressing up). Four pinned <strong>Views</strong> come with them — the two
+    flows as real sankeys, each agency's small-business share, and every district by dollars and
+    per resident — and they are ordinary View Builder Views: the billion-dollar floor on a flow is
+    a filter chip you can drag off, and the two derived numbers are calculated columns whose
+    formulas are on the shelf. Every
     filter behind the numbers — contracts only, one closed fiscal year, the top 25 agencies and
     the top 12 industries and vendors within each — is written down in
     <code>tools/pack-extract/contractawards.mjs</code> and in the pack's

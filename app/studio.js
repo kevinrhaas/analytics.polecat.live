@@ -1257,6 +1257,9 @@
     // Awards while it was slice (a) — the USASpending extracts and the share job, no
     // dashboards — gets the three on boot rather than at a reinstall.
     try { if (Studio.ensureContractAwardsDashboards) Studio.ensureContractAwardsDashboards(); } catch (e) {}
+    // SP-6(c) heal, one slice later and the same shape as SP-1's: an install that
+    // predates the pack's four pinned Views gets them on boot rather than at a reinstall.
+    try { if (Studio.ensureContractAwardsViews) Studio.ensureContractAwardsViews(); } catch (e) {}
   }
   window.__studioReconcilePackDashboards = reconcilePackDashboards; // test hook
 
