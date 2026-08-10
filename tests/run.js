@@ -20031,15 +20031,99 @@ function serve() {
     ok("N43: the link opens THE shared dataset editor on that dataset, with its SQL and its Preview button",
       n43Modal.open && /Edit dataset/.test(n43Modal.title || "") &&
       n43Modal.sql === "select region, total from sales" && n43Modal.hasPreview, JSON.stringify(n43Modal));
+    // N43b: this same save — a CHANGED query on a dataset a live panel is bound to,
+    // never previewed — is now the exact case the save guard is for. It must warn
+    // BEFORE it lands (and this dashboard was never saved to the workspace, so the
+    // guard only sees it through the open-spec binding).
+    const n43bGuard = await page.evaluate(() => {
+      var ov = document.querySelector(".modal-ov");
+      var ta = ov.querySelector(".dsx-sql");
+      ta.value = "select region, total, margin from sales";
+      ta.dispatchEvent(new Event("input", { bubbles: true }));
+      [].slice.call(ov.querySelectorAll(".cx-wiz-foot .btn")).filter(function (b) { return /^Save changes$/.test(b.textContent); })[0].click();
+      var g = ov.querySelector(".dsx-save-guard");
+      var da = window.__STUDIO_STATE.spec.cda.dataAccesses[0];
+      var ws = Studio.Workspace.get("datasets", da.datasetId);
+      return {
+        shown: !!g && !g.hidden,
+        why: g ? (g.querySelector(".dsx-guard-head") || {}).textContent || "" : "",
+        who: g ? (g.querySelector(".dsx-guard-who") || {}).textContent || "" : "",
+        acts: g ? [].slice.call(g.querySelectorAll("[data-dsx-guard]")).map(function (b) { return b.getAttribute("data-dsx-guard"); }).join(",") : "",
+        stillOpen: !!ov.parentNode,
+        notSavedYet: ws && ws.sql === "select region, total from sales",
+        daUntouched: da.sql === "select region, total from sales"
+      };
+    });
+    ok("N43b: saving a CHANGED query that was never run, on a dataset a panel is bound to, warns instead of landing",
+      n43bGuard.shown && n43bGuard.stillOpen && n43bGuard.notSavedYet && n43bGuard.daUntouched, JSON.stringify(n43bGuard));
+    ok("N43b: the warning says WHY (this query has not been run) and WHAT it would reach, by name",
+      /has not been run/.test(n43bGuard.why) && /panel/.test(n43bGuard.who) && /N43 test/.test(n43bGuard.who),
+      JSON.stringify(n43bGuard));
+    ok("N43b: it offers all three ways out — prove it, override it, or go back to the query",
+      n43bGuard.acts === "preview,anyway,edit", JSON.stringify(n43bGuard));
+    // The editor is a tall scrolling form and the guard sits at its foot: measured at
+    // 390×780 it first rendered entirely below the fold, so pressing Save looked like
+    // pressing nothing. A warning you cannot see is the same as no warning.
+    const n43bReach = await page.evaluate(() => {
+      var g = document.querySelector(".dsx-save-guard");
+      var gr = g.getBoundingClientRect();
+      return {
+        inView: gr.top >= 0 && gr.bottom <= window.innerHeight + 1,
+        focused: document.activeElement === g,
+        alert: g.getAttribute("role") === "alert",
+        btns: [].slice.call(g.querySelectorAll("[data-dsx-guard]")).map(function (b) {
+          var r = b.getBoundingClientRect();
+          var hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+          return { h: Math.round(r.height), hit: !!(hit && (hit === b || b.contains(hit))) };
+        })
+      };
+    });
+    ok("N43b: the warning scrolls itself into view, takes focus and announces as an alert — a warning below the fold is no warning at all",
+      n43bReach.inView && n43bReach.focused && n43bReach.alert, JSON.stringify(n43bReach));
+    ok("N43b: all three actions are real tap targets where they render (≥38px tall, nothing painted over them)",
+      n43bReach.btns.length === 3 && n43bReach.btns.every(function (b) { return b.hit && b.h >= 38; }),
+      JSON.stringify(n43bReach));
+    // "Keep editing" is a real dismissal: the guard goes, and nothing is saved.
+    const n43bKeep = await page.evaluate(() => {
+      var ov = document.querySelector(".modal-ov");
+      ov.querySelector('[data-dsx-guard="edit"]').click();
+      var g = ov.querySelector(".dsx-save-guard");
+      var ws = Studio.Workspace.get("datasets", window.__STUDIO_STATE.spec.cda.dataAccesses[0].datasetId);
+      return { hidden: !!g && g.hidden, stillOpen: !!ov.parentNode, wsSql: ws && ws.sql };
+    });
+    ok("N43b: “Keep editing” dismisses the warning without saving and leaves the editor open",
+      n43bKeep.hidden && n43bKeep.stillOpen && n43bKeep.wsSql === "select region, total from sales", JSON.stringify(n43bKeep));
+    // A metadata-only save cannot break a panel, so it must never be questioned.
+    const n43bMeta = await page.evaluate(() => {
+      var ov = document.querySelector(".modal-ov");
+      var ta = ov.querySelector(".dsx-sql");
+      ta.value = "select region, total from sales"; // back to what it opened with
+      ta.dispatchEvent(new Event("input", { bubbles: true }));
+      var name = ov.querySelector("input");
+      name.value = "n43-ds renamed";
+      name.dispatchEvent(new Event("input", { bubbles: true }));
+      [].slice.call(ov.querySelectorAll(".cx-wiz-foot .btn")).filter(function (b) { return /^Save changes$/.test(b.textContent); })[0].click();
+      return { closed: !document.querySelector(".modal-ov") };
+    });
+    ok("N43b: renaming a bound dataset without touching what it RUNS saves straight through — no warning",
+      n43bMeta.closed, JSON.stringify(n43bMeta));
+    // …then reopen and make the real edit, overriding the warning this time.
+    await page.evaluate(() => document.querySelector("#inspBody [data-qpeek-edit]").click());
+    await page.waitForTimeout(250);
     const n43Saved = await page.evaluate(() => {
       var ov = document.querySelector(".modal-ov");
       var ta = ov.querySelector(".dsx-sql");
       ta.value = "select region, total, margin from sales";
       ta.dispatchEvent(new Event("input", { bubbles: true }));
       [].slice.call(ov.querySelectorAll(".cx-wiz-foot .btn")).filter(function (b) { return /^Save changes$/.test(b.textContent); })[0].click();
+      var anyway = ov.querySelector('[data-dsx-guard="anyway"]');
+      if (!anyway) return false;
+      anyway.click();
       return true;
     });
     await page.waitForTimeout(300);
+    ok("N43b: “Save anyway” is a real override — the user stays the authority over their own workspace",
+      n43Saved === true, String(n43Saved));
     const n43After = await page.evaluate(() => {
       var da = window.__STUDIO_STATE.spec.cda.dataAccesses[0];
       var ws = Studio.Workspace.get("datasets", da.datasetId);
@@ -20063,6 +20147,115 @@ function serve() {
     ok("N43: the Query preview repaints with the query just saved, and the DA keeps its id and name",
       /margin/.test(n43After.peek) && n43After.id === n43Setup.daId && n43After.name === n43Setup.daName,
       JSON.stringify(n43After));
+
+    // ---- N43b: the pieces the guard decides on, and the loop it closes ----
+    // (i) the fingerprint — what a save changes about what RUNS, and nothing else.
+    const n43bFp = await page.evaluate(() => {
+      var F = Studio.Datasets.defFingerprint;
+      var base = { connectionId: "c1", kind: "sql", sql: "select a from t", params: [{ key: "p", value: "1" }] };
+      return {
+        cosmetic: F(base) === F(Object.assign({}, base, { name: "new name", desc: "why", tags: ["x"], folder: "Finance", owner: "kevin", private: true })),
+        sql: F(base) !== F(Object.assign({}, base, { sql: "select a, b from t" })),
+        conn: F(base) !== F(Object.assign({}, base, { connectionId: "c2" })),
+        param: F(base) !== F(Object.assign({}, base, { params: [{ key: "p", value: "2" }] })),
+        table: F({ kind: "table", table: "orders" }) !== F({ kind: "table", table: "refunds" })
+      };
+    });
+    ok("N43b: renaming, refiling, retagging or re-describing a dataset does not change what it RUNS — those saves are never questioned",
+      n43bFp.cosmetic, JSON.stringify(n43bFp));
+    ok("N43b: the query, the connection it runs against, a parameter default and a PostgREST table all DO",
+      n43bFp.sql && n43bFp.conn && n43bFp.param && n43bFp.table, JSON.stringify(n43bFp));
+    // (ii) the blast radius — panels and KPIs, across saved dashboards AND the open one,
+    //      counted once when they are the same dashboard.
+    //      The "N43 test" dashboard is still open, with exactly one panel on this dataset.
+    const n43bBind = await page.evaluate((dsId) => {
+      var S = window.__STUDIO_STATE;
+      var openOnly = Studio.Datasets.bindings(dsId);        // open but never saved
+      // save the OPEN dashboard under its own id: the same dashboard, not a second one
+      Studio.Workspace.put("dashboards", { id: S.spec.id, title: S.spec.title, spec: Studio.clone(S.spec) }, { silent: true });
+      var deduped = Studio.Datasets.bindings(dsId);
+      Studio.Workspace.remove("dashboards", S.spec.id, { silent: true });
+      // a DIFFERENT saved dashboard, never opened, with two panels and a KPI on it
+      Studio.Workspace.put("dashboards", { id: "n43b-other", title: "Someone else's dashboard", spec: {
+        cda: { dataAccesses: [{ id: "x", datasetId: dsId }] },
+        panels: [{ chart: { da: "x" } }, { chart: { da: "x" } }, { chart: { da: "unrelated" } }], kpis: [{ da: "x" }]
+      } }, { silent: true });
+      Studio.Workspace.put("dashboards", { id: "n43b-none", title: "Unrelated", spec: {
+        cda: { dataAccesses: [] }, panels: [], kpis: []
+      } }, { silent: true });
+      var both = Studio.Datasets.bindings(dsId);
+      var unbound = Studio.Datasets.bindings("no-such-dataset");
+      Studio.Workspace.remove("dashboards", "n43b-other", { silent: true });
+      Studio.Workspace.remove("dashboards", "n43b-none", { silent: true });
+      Studio.Workspace.notify("*");
+      return { openOnly: openOnly, deduped: deduped, both: both, unbound: unbound };
+    }, n43Setup.dsId);
+    ok("N43b: a dashboard that only exists in the builder still counts — an unsaved canvas is exactly the one you are editing from",
+      n43bBind.openOnly.dashboards === 1 && n43bBind.openOnly.panels === 1, JSON.stringify(n43bBind.openOnly));
+    ok("N43b: a dashboard open in the builder AND saved in the workspace is counted once, not twice",
+      n43bBind.deduped.dashboards === 1 && n43bBind.deduped.panels === 1, JSON.stringify(n43bBind.deduped));
+    ok("N43b: the radius counts panels AND KPIs across every bound dashboard, and ignores the unbound ones",
+      n43bBind.both.dashboards === 2 && n43bBind.both.panels === 4 &&
+      n43bBind.both.names.indexOf("Someone else's dashboard") >= 0 && n43bBind.both.names.indexOf("Unrelated") < 0,
+      JSON.stringify(n43bBind.both));
+    ok("N43b: a dataset nothing reads has an empty blast radius — that save is never questioned",
+      n43bBind.unbound.dashboards === 0 && n43bBind.unbound.panels === 0, JSON.stringify(n43bBind.unbound));
+
+    // (iii) the loop, end to end: change what runs, get warned, PROVE it in one tap, and land.
+    //      A file dataset is the one connector that runs entirely in the browser, so the
+    //      Preview genuinely succeeds here rather than being simulated.
+    const n43bFixA = path.join(__dirname, "fixture-n43b-a.csv");
+    const n43bFixB = path.join(__dirname, "fixture-n43b-b.csv");
+    fs.writeFileSync(n43bFixA, "region,total\nEMEA,120\nAMER,200\n");
+    fs.writeFileSync(n43bFixB, "region,total,margin\nEMEA,120,11\nAMER,200,19\n");
+    const n43bProvenSetup = await page.evaluate(() => {
+      var conn = Studio.Workspace.put("connections", { name: "n43b-files", adapter: "file", cfg: {} });
+      var ds = Studio.Workspace.put("datasets", { name: "n43b-file-ds", connectionId: conn.id, kind: "file",
+        fileName: "a.csv", format: "csv", content: "region,total\nEMEA,120\nAMER,200\n", columns: ["region", "total"] });
+      window.__studioLoad({ title: "N43b proven", panels: [], kpis: [] });
+      window.__studioAddFromWorkspaceDataset(ds.id, "bars");
+      return { connId: conn.id, dsId: ds.id, hasBtn: !!document.querySelector("#inspBody [data-qpeek-edit]") };
+    });
+    ok("N43b: a file-backed View offers the same edit link (it has a real workspace dataset behind it)",
+      n43bProvenSetup.hasBtn, JSON.stringify(n43bProvenSetup));
+    await page.evaluate(() => document.querySelector("#inspBody [data-qpeek-edit]").click());
+    await page.waitForTimeout(250);
+    await page.setInputFiles(".modal .dsx-drop-input", n43bFixB);
+    await page.waitForTimeout(300);
+    const n43bProvenGuard = await page.evaluate(() => {
+      var ov = document.querySelector(".modal-ov");
+      [].slice.call(ov.querySelectorAll(".cx-wiz-foot .btn")).filter(function (b) { return /^Save changes$/.test(b.textContent); })[0].click();
+      var g = ov.querySelector(".dsx-save-guard");
+      return { shown: !!g && !g.hidden, hasPreviewAct: !!ov.querySelector('[data-dsx-guard="preview"]') };
+    });
+    ok("N43b: replacing a file dataset's data is a change to what it RUNS, so it warns too",
+      n43bProvenGuard.shown && n43bProvenGuard.hasPreviewAct, JSON.stringify(n43bProvenGuard));
+    await page.evaluate(() => document.querySelector('[data-dsx-guard="preview"]').click());
+    await page.waitForTimeout(500);
+    const n43bProven = await page.evaluate((ids) => {
+      var ws = Studio.Workspace.get("datasets", ids.dsId);
+      var da = window.__STUDIO_STATE.spec.cda.dataAccesses[0];
+      return {
+        closed: !document.querySelector(".modal-ov"),
+        wsContent: (ws && ws.content) || "",
+        wsCols: ((ws && ws.columns) || []).join(","),
+        lastRunOk: !!(ws && ws.lastRun && ws.lastRun.ok),
+        daContent: (da.dataset && da.dataset.content) || "",
+        daCols: (da.columns || []).join(",")
+      };
+    }, { dsId: n43bProvenSetup.dsId });
+    ok("N43b: “Preview, then save” proves the query and lands the save in one tap — the editor closes, having actually run it",
+      n43bProven.closed && n43bProven.lastRunOk && /margin/.test(n43bProven.wsContent), JSON.stringify(n43bProven));
+    ok("N43b: what the Preview learned reaches the dashboard — the run's columns, and the dashboard's own copy of the data",
+      n43bProven.wsCols === "region,total,margin" && n43bProven.daCols === "region,total,margin" &&
+      /margin/.test(n43bProven.daContent), JSON.stringify(n43bProven));
+    await page.evaluate((ids) => {
+      Studio.Workspace.remove("datasets", ids.dsId, { silent: true });
+      Studio.Workspace.remove("connections", ids.connId, { silent: true });
+      Studio.Workspace.notify("*");
+    }, { dsId: n43bProvenSetup.dsId, connId: n43bProvenSetup.connId });
+    try { fs.unlinkSync(n43bFixA); fs.unlinkSync(n43bFixB); } catch (e) { /* best effort */ }
+
     // restore: drop the scratch rows and put the example spec + selection back for what follows
     await page.evaluate(async (ids) => {
       Studio.Workspace.remove("datasets", ids.dsId, { silent: true });

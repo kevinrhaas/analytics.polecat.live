@@ -6,6 +6,21 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 957,
+    title: 'Changing the query behind a dashboard now tells you what it is about to change',
+    kind: 'feature',
+    ts: '2026-08-10T02:45:44.000Z',
+    items: [
+      'You can now open a View’s dataset straight from the dashboard you are building. The other half of that convenience is the risk it introduced: from a canvas, you often have no idea what <i>else</i> reads the dataset you just rewrote — and the editor would save SQL you had never run, over a query live panels depend on, without a word.',
+      'It now says so first. Change what a dataset <b>runs</b>, on a dataset something is bound to, without having pressed <b>Preview</b> on what you are saving, and a warning appears before the save lands: why it is unproven — never run, or the last Preview failed and what it said — and what it would reach, counted and named. “3 panels in 2 dashboards read this dataset — Revenue by region, Q3 review.”',
+      'The dashboard you have open counts too, even if you have never saved it. That is usually the one you are editing from.',
+      '<b>Preview, then save</b> is one tap: it runs the query, and if it comes back with rows, the save you already asked for goes through. If it fails, you stay in the editor with the error in front of you.',
+      '<b>Save anyway</b> is a real override, not a dare. There are honest reasons to save a query you cannot run right now — the credentials are on another machine, the warehouse is down — and this is your workspace. The warning refuses to be silent; it does not refuse to get out of the way.',
+      'It stays quiet when it has nothing to say. Renaming a dataset, refiling it, retagging it, rewriting its description — none of that changes what runs, so none of it is questioned. Nor is a save you have already previewed, or one on a dataset no dashboard reads yet.',
+      'Eighteen checks hold it: that a changed-and-unproven save warns and does not land, that the warning names the dashboards, that “Keep editing” saves nothing, that a rename passes straight through, that the open dashboard is counted once rather than twice, that the warning scrolls itself into view with three real tap targets, and that “Preview, then save” actually runs the query and carries what it learned back to the dashboard.',
+    ],
+  },
+  {
     v: 956,
     title: 'The View Builder can switch the trend line on and off — and it can hold a Quadrant',
     kind: 'feature',
