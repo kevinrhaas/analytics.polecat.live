@@ -6,6 +6,18 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 973,
+    title: 'Help now describes the command palette the app actually ships',
+    kind: 'fix',
+    ts: '2026-08-10T16:58:29.000Z',
+    items: [
+      'The Help page told you the <b>⌘K / Ctrl-K</b> palette carries an <b>"Add View: &lt;chart type&gt;"</b> command for every chart type. It never has: the palette prints <b>"Add panel: &lt;chart type&gt;"</b>, so the one label the page invited you to type was the one string its search could not find. The page now quotes the label the app prints — along with <b>"Go to …"</b>, <b>"Open sample: …"</b>, <b>"Open dashboard: …"</b> and <b>"Open Help &amp; docs"</b>.',
+      'Every palette row carries a small family tag on the right, and the page published four of the <b>fourteen</b> the palette prints. All fourteen are now listed with what each one holds — including <b>Learn</b> (the welcome tour, the interactive tutorial, the keyboard reference), <b>Manage</b> (clear local data, sign out), <b>Data</b> (a new dataset or connection) and <b>Present</b> (Slideshow, Demo mode), none of which the page had ever mentioned.',
+      'The page had the ranking backwards, too. It credited an empty-box open with putting your <i>frequently</i>-run commands on top; that list is <b>most-recently-run first</b> and nothing else. How often you have run a command counts only once you start typing, and only to separate commands that match your query equally well. Both halves are now stated in the order you meet them.',
+      'A new check runs before anything merges and holds all of it against the palette itself: every family tag it prints, every label the page quotes, and — by running the app\'s own search over the quoted text — whether typing that label really does find the command it names.',
+    ],
+  },
+  {
     v: 972,
     title: 'Help now describes the controls Simple mode really hides',
     kind: 'fix',
