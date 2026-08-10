@@ -1017,6 +1017,17 @@
     { t: "areaStacked", label: "Stacked area" },
     { t: "donut", label: "Donut" },
     { t: "heatmap", label: "Heatmap" },
+    // SP-6(c): Sankey rides HEATMAP's basis exactly — the same way Quadrant
+    // rides scatter's above. Heatmap's basis is the triple [Rows dimension,
+    // Columns dimension, measure], and Studio.newPanel maps a sankey's
+    // cols[0..2] to sourceCol/targetCol/valueCol positionally (model.js), so
+    // "the field on Rows is where the money leaves, the field on Columns is
+    // where it lands, the measure is how much" needs no new pivot and no
+    // bdPanelFor wiring. Before this, a flow was the one thing the app could
+    // DRAW (Studio.CHARTS.sankey, group "Flow") but could not BUILD, so a
+    // pack's flow View had no honest builder-native form — which is what
+    // SP-6's pinned Views needed.
+    { t: "sankey", label: "Sankey" },
     { t: "choropleth", label: "Map" },
     { t: "scatter", label: "Scatter" },
     // N33b: Quadrant rides scatter's basis EXACTLY — Studio.newPanel maps
@@ -1091,6 +1102,13 @@
       if (!st.shelfRows[0] || !bdColsDim(st)) return "Needs a field on Rows and a plain field on Columns";
       return "";
     }
+    if (type === "sankey") {
+      // Same two shelves as the heatmap, said in the units a flow reads in —
+      // the tooltip is where a reader learns which shelf is which end of the
+      // ribbon, so it names them rather than describing the pivot.
+      if (!st.shelfRows[0] || !bdColsDim(st)) return "Needs a source field on Rows and a destination field on Columns";
+      return "";
+    }
     if (type === "scatter" || type === "quadrant") {
       if (!bdFirstDim(st)) return "Needs at least one non-aggregated field on a shelf";
       if (bdMeasures(st).length < 2) return "Needs two measures (aggregated fields)";
@@ -1113,7 +1131,12 @@
       // engine as every other basis with zero new logic.
       return compute(bdEff(st).cols, rows, [m], [], limit);
     }
-    if (type === "heatmap") {
+    if (type === "heatmap" || type === "sankey") {
+      // One basis, two renderers: [Rows dim, Columns dim, measure]. The heatmap
+      // reads it as (row, column, cell); the sankey reads the identical triple
+      // as (source, target, flow) because Studio.newPanel maps cols[0..2] onto
+      // sourceCol/targetCol/valueCol in that order. Keeping them on one line is
+      // the point — two copies of this pivot would be two things to drift.
       return compute(bdEff(st).cols, rows,
         [{ col: st.shelfRows[0].col, agg: null }, { col: bdColsDim(st).col, agg: null }, m], [], limit);
     }
