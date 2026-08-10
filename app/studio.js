@@ -486,7 +486,7 @@
           " (workspace schema v" + Studio.escapeHtml(String(st.backendSchemaVersion)) +
           ", this app reads v" + Studio.escapeHtml(String(st.appSchemaVersion)) + ")." +
           " Edits you make stay in this browser. Reload the page to pick up the update — if it keeps" +
-          " coming back, use Settings → hard reset to clear a stuck offline copy of the app.</span>" +
+          " coming back, use Settings → App → Hard reset to clear a stuck offline copy of the app.</span>" +
           "<button type=\"button\" class=\"sync-loss-x\" title=\"Dismiss until the versions line up\" aria-label=\"Dismiss\">✕</button>";
         b.querySelector(".sync-loss-x").onclick = function () { _verDismissed = true; b.remove(); };
       }
@@ -10175,6 +10175,39 @@
         '<button type="button" class="btn" id="setSignOutBtn">Sign out</button></div>' +
     '</div>';
   }
+  /* N7 — Settings → App → Hard reset. The remedy the read-only schema banner and the Help
+     page have both named since N16, finally built. Its whole job is the OFFLINE COPY of the
+     app: unregister every service-worker registration for this scope and drop every Cache
+     Storage bucket, so the next load goes to the network for everything.
+
+     What it must never do is touch STORAGE. That distinction is the entire reason this is a
+     separate control from ⋯ More → Clear local data: someone whose banner keeps returning has
+     a stale worker, not bad data, and answering them with a workspace wipe would be a far
+     worse remedy than the problem. Nothing below reads or writes localStorage/sessionStorage,
+     and the suite asserts that against real seeded keys rather than trusting this comment.
+
+     Resolves rather than rejects on every path — a browser that refuses one of the two APIs
+     still gets a reload, and the count it reports is what actually happened. */
+  Studio.hardResetApp = function () {
+    var out = { workers: 0, caches: 0 };
+    var jobs = [];
+    if (navigator.serviceWorker && navigator.serviceWorker.getRegistrations) {
+      jobs.push(navigator.serviceWorker.getRegistrations().then(function (regs) {
+        return Promise.all(regs.map(function (r) {
+          return r.unregister().then(function (done) { if (done) out.workers++; }, function () {});
+        }));
+      }, function () {}));
+    }
+    if (window.caches && caches.keys) {
+      jobs.push(caches.keys().then(function (names) {
+        return Promise.all(names.map(function (n) {
+          return caches.delete(n).then(function (done) { if (done) out.caches++; }, function () {});
+        }));
+      }, function () {}));
+    }
+    return Promise.all(jobs).then(function () { return out; }, function () { return out; });
+  };
+
   function renderSettings() {
     var sec = $("#secSettings"); if (!sec) return;
     var groups = [];
@@ -10304,6 +10337,17 @@
           '<div class="set-row-txt"><b>Import settings</b><small>Restore preferences from a previously exported settings file.</small></div>' +
           '<button type="button" class="btn" id="setImportBtn">Import…</button></div>' +
       '</div>' +
+      // N7: the card behind the Settings → App → Hard reset route. Both the read-only schema
+      // banner above and docs/index.html have offered that remedy for a stuck offline
+      // copy since N16, and until now it resolved to nothing — the nearest control was
+      // ⋯ More → Clear local data, which wipes the workspace and is the wrong answer
+      // for a stale service worker. This one touches NO storage: it unregisters the
+      // workers and drops the caches, so the next load fetches the app fresh.
+      '<div class="settings-card"><h2>App</h2>' +
+        '<div class="set-row"><span class="set-row-ic" data-ic="refresh"></span>' +
+          '<div class="set-row-txt"><b>Hard reset</b><small>Clears this browser\'s offline copy of Analytics — its service worker and cached files — and reloads so every file is fetched fresh. Use it if a banner keeps telling you to reload and reloading doesn\'t help. Your workspace, dashboards, datasets and settings are not touched.</small></div>' +
+          '<button type="button" class="btn" id="setHardResetBtn">Hard reset</button></div>' +
+      '</div>' +
       '</div>';
     sec.classList.add("has-content");
     sec.innerHTML = html;
@@ -10392,6 +10436,19 @@
     });
     var expBtn = $("#setExportBtn", sec); if (expBtn) expBtn.onclick = exportSettingsFile;
     var impBtn = $("#setImportBtn", sec); if (impBtn) impBtn.onclick = importSettingsFile;
+    var hardResetBtn = $("#setHardResetBtn", sec);
+    if (hardResetBtn) hardResetBtn.onclick = function () {
+      if (!confirm("Hard reset the app?\n\n" +
+        "This clears this browser's offline copy of Analytics — its service worker and cached " +
+        "files — and reloads so every file is fetched fresh.\n\n" +
+        "Nothing you have made is removed: your workspace, dashboards, datasets, connections " +
+        "and settings all stay exactly as they are.")) return;
+      hardResetBtn.disabled = true;
+      Studio.hardResetApp().then(function (r) {
+        toast("Offline copy cleared (" + r.workers + " worker(s), " + r.caches + " cache(s)) — reloading…");
+        setTimeout(function () { location.reload(); }, 900);
+      });
+    };
     // (Branding controls moved to the Admin section — see wireBrandingCard().)
     syncRailQuick();
   }
@@ -10911,7 +10968,7 @@
                 Studio.Sync.pushNow().then(function () {
                   var st = Studio.Sync.syncState();
                   if (st.pendingEdits || st.status === "error")
-                    toast("⚠ " + opts.name + " saved locally but NOT synced — the backend refused the push (" + (st.lastError || "see Settings → workspace backend") + "). The account will vanish from other devices until sync recovers.", true);
+                    toast("⚠ " + opts.name + " saved locally but NOT synced — the backend refused the push (" + (st.lastError || "see Settings → Workspace backend") + "). The account will vanish from other devices until sync recovers.", true);
                   else toast(opts.name + " synced to the workspace backend");
                 });
               }

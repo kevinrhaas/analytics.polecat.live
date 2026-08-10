@@ -6,6 +6,19 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 986,
+    title: 'Settings → hard reset was a remedy the app told you to use and did not have',
+    kind: 'feature',
+    ts: '2026-08-10T22:10:47.000Z',
+    items: [
+      'When a workspace is newer than the app, the banner tells you to reload — and if reloading keeps bringing it back, it told you to use <b>Settings → hard reset</b>. So did the Help page. There has never been such a control. The nearest thing was <b>⋯ More → Clear local data</b>, which wipes your whole workspace and is the wrong answer to a stuck offline copy.',
+      'Settings now ends with an <b>App</b> card carrying a real <b>Hard reset</b>. It throws away this browser\'s offline copy of Analytics — its service worker and every cached file — and reloads, so the next load fetches everything fresh.',
+      'It removes nothing you have made. Your workspace, dashboards, datasets, connections and settings are all untouched, which is the whole point of it being a different button from Clear local data. The confirmation says so, the row says so, and the test suite proves it against real seeded storage rather than taking anyone\'s word for it.',
+      'Two more routes the app printed have been corrected against the same reading: the welcome hero still sent you to a <b>Settings → Tour</b> card that does not exist (it is the <b>Welcome tour</b> row inside <b>Presentation</b>), and a sync-failure toast lower-cased the <b>Workspace backend</b> card\'s name.',
+      'A new doc-truth check reads every <b>Settings → …</b> route the app itself prints — in banners, toasts, hints and tour cards — and fails the build when one names a card the page does not render, ends on a button that does not exist, or sends you somewhere Help never mentions.',
+    ],
+  },
+  {
     v: 985,
     title: 'Help described three of the eight cards on the Settings page, and sent you to a ninth that does not exist',
     kind: 'fix',

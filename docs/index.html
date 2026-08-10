@@ -551,8 +551,11 @@
       <p><strong>Install it:</strong> the Studio is an installable, offline-capable app — most browsers offer
       "Add to Home Screen"/"Install app" from the address bar. Once installed (or even just visited once), a
       background service worker caches the app shell so it keeps working with no connection; it always
-      prefers a fresh copy over the network first, falling back to the cached one only when offline. "Clear
-      local data" (⋯ More menu) also clears this cache.</p>
+      prefers a fresh copy over the network first, falling back to the cached one only when offline. If that
+      cached copy ever gets stuck — an update banner that keeps coming back however often you reload —
+      <strong>Settings → App → Hard reset</strong> throws it away and fetches everything fresh, without
+      touching anything you have made. "Clear local data" (⋯ More menu) also clears this cache, but it wipes
+      your workspace with it, so reach for the hard reset first.</p>
     </div>
   </div>
 </section>
@@ -2480,7 +2483,7 @@
   knows about, so one push from a stale tab could quietly drop whatever the newer version added.
   Reading is unaffected — the workspace opens and works normally, and anything you change stays in
   this browser. Reload the page to pick up the newer app (and if the banner keeps coming back, use
-  <strong>Settings → hard reset</strong> to clear a stuck offline copy); once the versions line up,
+  <strong>Settings → App → Hard reset</strong> to clear a stuck offline copy); once the versions line up,
   the changes you made in the meantime push up on the next <strong>Refresh</strong>.</p>
   <p><strong>Upgrading an older workspace.</strong> The opposite case — a workspace made by an
   <em>earlier</em> version of Analytics — is not a problem: every change to the workspace shape has
@@ -3058,6 +3061,12 @@
     <li><strong data-set-card="Data">Data</strong> — <strong>Export settings</strong> /
       <strong>Import settings</strong>, described under
       <a href="#backing-up">Backing up your settings</a> below.</li>
+    <li><strong data-set-card="App">App</strong> — <strong>Hard reset</strong>, which throws away
+      this browser's offline copy of Analytics (its service worker and cached files) and reloads so
+      every file is fetched fresh. It is the remedy for an update banner that keeps coming back
+      however often you reload. It removes nothing you have made — your workspace, dashboards,
+      datasets, connections and settings are all untouched — which is what makes it different from
+      <strong>⋯ More → Clear local data</strong>, and the one to try first.</li>
   </ol>
   <p>Three more cards look like Settings cards but live on the <strong>Admin</strong> page
   instead, because they are app-wide rather than yours: <strong>Section access</strong>,
