@@ -6245,6 +6245,247 @@ if (kitLive) {
     "one section said Home-when-featured and another said Explore flat — neither wrong alone, both wrong together");
 }
 
+/* ── 60. The authoring controls Simple mode hides vs the controls it really hides ────────
+   N7. Check 59 holds what Simple mode does to the panel INSPECTOR — which advanced sections
+   go away, how you turn the mode on, what it adds — and it says in its own closing note why
+   it stopped where it did: the authoring controls the mode hides live in CSS
+   (`body.simple-mode …{display:none!important}`), and a SELECTOR is not a name a reader
+   knows a button by. That mapping is hand-written, which is check 21's idiom, so it needed
+   its own slice. This is that slice, and the sentence it holds was wrong in three ways.
+
+   Measured 2026-08-10, before the fix. Help published one sentence: *"The **Data** panel is
+   read-only browse + drag: its **＋ New ▾** button, the add control on **My queries** and the
+   per-query actions are all hidden, as are the **Edit data source** jump link in a panel's
+   Data section and the per-dataset actions on the **Repository** page."*
+   · **The add control is on the wrong group.** `.mine-add` is built by
+     `buildMyDataSources()`, whose header prints **This dashboard’s datasets** — not
+     **My queries**, which is a different group (`buildLibrary()`'s `.lib-samples`) with its
+     own, different per-card actions. Both groups exist, so the sentence read as plausible.
+   · **"the per-query actions" is one phrase for two different sets.** `.da-mine-acts`
+     (Duplicate / Delete, on This dashboard’s datasets) and `.da-acts` (Edit data source /
+     Delete data source, on My queries) are separate controls on separate groups; the page
+     named neither the groups nor the four actions, so a reader who lost the Duplicate button
+     could not confirm from Help that losing it was the mode.
+   · **The Repository claim is false in BOTH directions.** `.repo-ds-acts` — the selector the
+     clause was written about — is hidden by `app/studio.css:718` and rendered by NOTHING:
+     `.repo-ds-card` has no renderer anywhere in `app/`, so the rule is dead CSS. Meanwhile
+     the Repository page's real per-row authoring controls (`repo-edit` = **Quick edit**,
+     `repo-folder-add` = **+ New folder**, and the `dash-bulk-bar` Select bar) are hidden by
+     no rule at all. So Help told a reader in Simple mode that catalog authoring was locked
+     down when it is fully available, and the one control it named had not existed for
+     however long `.repo-ds-card` has been gone.
+
+   Six rules. The hand-written half is the TABLE below — which selector is which control, and
+   which group a reader finds it on; everything else is derived from the CSS, from the
+   functions that build the controls, and from the group labels those functions print:
+   (a) the premise — the hide rules parse, the table's every selector is really hidden (or,
+       for the JS-guarded jump link, really guarded), and Help's two anchors exist;
+   (b) the table covers the CSS both ways — a new `body.simple-mode` hide rule with no table
+       entry fails here rather than going quietly unpublished (the advanced-inspector and
+       chart-gallery selectors are check 59's and checks 2/3/4's, and are named as theirs);
+   (c) live vs dead — a selector nothing renders may not be published as a hidden control, so
+       every bolded name in the list has to be a label or a group the app really prints;
+   (d) each live control is published WITH its group — one bullet naming the control's own
+       labels and the group header it sits under, both in bold, so the two groups cannot be
+       collapsed into one vague phrase again;
+   (e) the count word — every "<n> authoring controls" claim is the live count;
+   (f) the other direction — the catalog pages' authoring controls are hidden by nothing, and
+       the page says so instead of leaving the reader to assume the builder's restriction is
+       app-wide.
+   Measured: (d), (e) and (f) fail on the REAL pre-fix tree, and so does the premise — the page
+   had no such list to hold, which is the honest reading of "one sentence, three errors". (c)
+   could not fail there for the same reason (an absent list bolds nothing), so it was measured
+   on a mutated tree that re-publishes the Repository clause. Every code-side direction was
+   measured too: a hide rule nothing claims, a selector renamed out from under the table, a
+   group header renamed in the app, a control relabelled in BOTH its title and its aria-label
+   (renaming only one correctly changes nothing — the app still prints the name), and Simple
+   mode starting to hide the Repository page's Quick edit, which correctly reddens (b) and (f)
+   together.
+   Deliberately NOT taken here: DELETING the dead `body.simple-mode .repo-ds-acts` rule (and
+   the four `.repo-ds-*` rules above it). `app/studio.css` is precached, so a five-line
+   deletion costs an `sw.js` CACHE bump — issue #631's territory — for dead CSS no user can
+   see. Rule (b) keeps the entry visible as `dead: true` rather than letting it rot unnamed;
+   it belongs to whichever slice next opens that file for a reason of its own. */
+{
+  const acStudio = read("app/studio.js");
+  const acCss = read("app/studio.css").replace(/\/\*[\s\S]*?\*\//g, "");
+  const acIndex = read("app/index.html");
+
+  // The hand-written half. `group` is the header a reader finds the control under; `labels`
+  // are the names the control prints (button text, or the title/aria-label of an icon-only
+  // one). Both are VERIFIED against the app below — this table says what to look for, never
+  // what is true.
+  const AUTHORING = [
+    { sel: "#btnNewDS", where: "html", group: "Data", labels: ["＋ New ▾"] },
+    { sel: ".mine-add", where: "fn", group: "This dashboard’s datasets", labels: ["Create a new data source"] },
+    { sel: ".da-mine-acts", where: "fn", group: "This dashboard’s datasets", labels: ["Duplicate", "Delete"] },
+    { sel: ".da-acts", where: "fn", group: "My queries", labels: ["Edit data source", "Delete data source"] },
+    // Dead CSS: hidden by app/studio.css, rendered by nothing. See the note above.
+    { sel: ".repo-ds-acts", where: "fn", group: null, labels: [] },
+    // Not CSS at all — the panel inspector simply does not build it in Simple mode.
+    { sel: ".edit-src-link", where: "guard", group: "Data", labels: ["Edit data source"] },
+  ];
+  // Held elsewhere, and named here so rule (b) can tell "someone else's" from "unpublished".
+  const NOT_AUTHORING = { ".adv-sect": "check 59", ".adv-chart": "checks 2/3/4", ".cg-label.adv-grp": "checks 2/3/4" };
+  // The Repository page's own authoring controls — rule (f)'s subjects, same idiom.
+  const REPO_KEEPS = [
+    { cls: "repo-edit", label: "Quick edit" },
+    { cls: "repo-folder-add", label: "+ New folder" },
+    { cls: "dash-bulk-bar", label: null },
+  ];
+
+  // ── derived: every selector body.simple-mode hides outright.
+  const acHidden = new Set();
+  for (const m of acCss.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+    if (!/display\s*:\s*none/.test(m[2])) continue;
+    for (const sel of m[1].split(",")) {
+      const g = /^\s*body\.simple-mode\s+(\S[^\s].*?)\s*$/.exec(sel);
+      if (g) acHidden.add(g[1]);
+    }
+  }
+
+  // ── derived: the function that builds a control, and the group label it (or its caller) prints.
+  const unescU = (s) => s.replace(/\\u([0-9a-fA-F]{4})/g, (_, h) => String.fromCharCode(parseInt(h, 16)));
+  const apos = (s) => String(s == null ? "" : s).replace(/[’‘]/g, "'").replace(/\s+/g, " ").trim();
+  const fnAt = (at) => {
+    const start = acStudio.lastIndexOf("\n  function ", at);
+    if (start < 0) return null;
+    const name = /\n {2}function (\w+)/.exec(acStudio.slice(start, start + 80));
+    const brace = acStudio.indexOf("{", acStudio.indexOf("(", start));
+    if (!name || brace < 0) return null;
+    return { name: name[1], body: searchBlockAt(acStudio, brace, "{", "}") };
+  };
+  // A group header is `<span class="nm">Label</span>`; interpolated ones (' + esc(stem) + ')
+  // are a per-item name, not a group, so they are dropped rather than guessed at.
+  const nmOf = (body) => [...body.matchAll(/class="nm">([^<]*)</g)].map((m) => m[1])
+    .filter((s) => !/['"+]/.test(s)).map((s) => apos(unescU(s)));
+  const buildsIt = (e) => {
+    if (e.where === "html") {
+      const at = acIndex.indexOf(e.sel.slice(1));
+      if (at < 0) return null;
+      const aside = acIndex.slice(acIndex.lastIndexOf("<aside", at), acIndex.indexOf("</aside>", at));
+      const h = /<div class="pane-h">[\s\S]*?<span>([^<]+)<\/span>/.exec(aside);
+      return { body: aside, groups: h ? [apos(h[1])] : [], via: "app/index.html" };
+    }
+    const needle = e.where === "guard" ? `"${e.sel.slice(1)}"` : `"${e.sel.replace(/^[.#]/, "")}"`;
+    const at = acStudio.indexOf(needle);
+    if (at < 0) return null;
+    const fn = fnAt(at);
+    if (!fn) return null;
+    // The jump link's group is the inspector SECTION it is appended to, not a library header.
+    if (e.where === "guard") {
+      const sec = [...fn.body.slice(0, fn.body.indexOf(needle)).matchAll(/section\(body, "([^"]+)"/g)].pop();
+      return { body: fn.body, groups: sec ? [apos(sec[1])] : [], via: `${fn.name}()` };
+    }
+    let groups = nmOf(fn.body), via = `${fn.name}()`;
+    if (!groups.length) {
+      // One caller level: a per-card renderer takes its group from the builder that calls it.
+      for (const c of acStudio.matchAll(new RegExp(`\\b${fn.name}\\(`, "g"))) {
+        const up = fnAt(c.index);
+        if (!up || up.name === fn.name) continue;
+        const g = nmOf(up.body);
+        if (g.length) { groups = g; via = `${fn.name}() ← ${up.name}()`; break; }
+      }
+    }
+    return { body: fn.body, groups, via };
+  };
+  const prints = (body, label) => new RegExp(`(?:["']\\s*|>\\s*)${esc(label)}(?![\\w-])`).test(body);
+  const acBuilt = new Map(AUTHORING.map((e) => [e.sel, buildsIt(e)]));
+  const acLive = AUTHORING.filter((e) => acBuilt.get(e.sel));
+
+  // ── Help's two anchors.
+  const acFlat = (s) => apos(s.replace(/<[^>]+>/g, " ").replace(/&amp;/g, "&").replace(/&nbsp;/g, " "));
+  const acBold = (h) => [...h.matchAll(/<strong>([\s\S]*?)<\/strong>/g)].map((m) => acFlat(m[1]));
+  const hidesAt = help.indexOf('<li id="simple-hides">');
+  const keepsAt = help.indexOf('<p id="simple-keeps">');
+  const hidesBlock = hidesAt >= 0 && keepsAt > hidesAt ? help.slice(hidesAt, keepsAt) : "";
+  const keepsBlock = keepsAt >= 0 ? help.slice(keepsAt, help.indexOf("</p>", keepsAt)) : "";
+  const hidesBullets = (() => {
+    const u = hidesBlock.indexOf("<ul>");
+    if (u < 0) return [];
+    return [...hidesBlock.slice(u, hidesBlock.indexOf("</ul>", u)).matchAll(/<li[^>]*>([\s\S]*?)<\/li>/g)].map((m) => m[1]);
+  })();
+
+  // (a) the premise — and the table's own honesty. The labels below are hand-written, so they
+  // are the half most able to go stale: a control relabelled in the app would otherwise leave
+  // rules (c)/(d) happily holding Help to a word nothing prints any more.
+  const acGuarded = /if \(p\.chart\.da && !S\.simpleMode\)/.test(acStudio);
+  const acMisdeclared = AUTHORING.filter((e) => (e.where === "guard" ? !acGuarded : !acHidden.has(e.sel)));
+  const acMislabelled = acLive.filter((e) => !e.labels.every((l) => prints(acBuilt.get(e.sel).body, l)));
+  ok(`app/studio.css: Simple mode's ${AUTHORING.length} authoring controls parsed for check 60 ` +
+    `(${acHidden.size} selector(s) hidden in all)`,
+    acHidden.size >= 5 && !acMisdeclared.length && !acMislabelled.length &&
+      hidesBlock.length > 0 && keepsBlock.length > 0,
+    `in the table but not hidden by the app: ${acMisdeclared.map((e) => e.sel).join(", ") || "(none)"}\n      ` +
+    `in the table under a name the app no longer prints: ` +
+    `${acMislabelled.map((e) => `${e.sel} (${e.labels.join(" / ")})`).join(", ") || "(none)"}\n      ` +
+    `hidden: ${[...acHidden].join(", ")}\n      ` +
+    `<li id="simple-hides"> found: ${hidesBlock.length > 0} · <p id="simple-keeps"> found: ${keepsBlock.length > 0}\n      ` +
+    "the other five rules read these — a renamed selector or control must fail here rather than let them pass over nothing");
+
+  // (b) the table covers the CSS both ways.
+  const acUnclaimed = [...acHidden].filter((s) => !NOT_AUTHORING[s] && !AUTHORING.some((e) => e.sel === s));
+  ok("app/studio.css: every selector Simple mode hides is either an authoring control this check holds or another check's",
+    !acUnclaimed.length,
+    `hidden but claimed by nothing: ${acUnclaimed.join(", ") || "(none)"}\n      ` +
+    `held elsewhere: ${Object.entries(NOT_AUTHORING).map(([s, c]) => `${s} (${c})`).join(", ")}\n      ` +
+    "a control that starts vanishing in Simple mode and is documented nowhere reads as a bug, not as a mode");
+
+  // (c) live vs dead — nothing published that the app does not render.
+  const acDead = AUTHORING.filter((e) => !acBuilt.get(e.sel));
+  const acLegal = new Set(acLive.flatMap((e) => [...e.labels, ...(acBuilt.get(e.sel).groups || [])].map(apos)));
+  const acInvented = acBold(hidesBlock).filter((b) => !acLegal.has(b));
+  ok(`docs/index.html: every name the hidden-controls list bolds is one the app prints (${acLive.length} live control(s), ${acDead.length} dead)`,
+    !acInvented.length,
+    `bolded but not a label or group the app renders: ${acInvented.join(", ") || "(none)"}\n      ` +
+    `dead selectors (hidden by CSS, built by nothing): ${acDead.map((e) => e.sel).join(", ") || "(none)"}\n      ` +
+    `the app prints: ${[...acLegal].join(" · ")}`);
+
+  // (d) each live control is published WITH the group a reader finds it on.
+  const acUnpublished = acLive.filter((e) => {
+    const groups = acBuilt.get(e.sel).groups.map(apos);
+    return !hidesBullets.some((li) => {
+      const bold = acBold(li);
+      return e.labels.every((l) => bold.includes(apos(l))) && groups.some((g) => bold.includes(g));
+    });
+  });
+  ok(`docs/index.html: all ${acLive.length} controls Simple mode hides are published with the group they sit on`,
+    !acUnpublished.length && hidesBullets.length >= acLive.length,
+    `not published as a control + its group: ${acUnpublished.map((e) => `${e.sel} (${(acBuilt.get(e.sel).groups[0] || "?")}: ${e.labels.join(" / ")})`).join(" · ") || "(none)"}\n      ` +
+    `measured: ${acLive.map((e) => `${e.sel} → ${acBuilt.get(e.sel).via} → "${acBuilt.get(e.sel).groups.join('", "')}"`).join("\n        ")}\n      ` +
+    `bullets: ${hidesBullets.length}\n      ` +
+    "two groups collapsed into one phrase is how the add button came to be documented on the wrong one");
+
+  // (e) the count word.
+  const AC_NUM = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten"];
+  const acClaims = [...acFlat(hidesBlock).matchAll(/\b(\d+|[a-z]+)\s+authoring\s+controls?\b/gi)]
+    .filter((m) => /^\d+$/.test(m[1]) || AC_NUM.includes(m[1].toLowerCase()));
+  const acWordOk = (w) => /^\d+$/.test(w) ? Number(w) === acLive.length : AC_NUM.indexOf(w.toLowerCase()) === acLive.length;
+  ok(`docs/index.html: every "<n> authoring controls" claim reads ${acLive.length}`,
+    acClaims.length >= 1 && acClaims.every((m) => acWordOk(m[1])),
+    `claims: ${acClaims.map((m) => `"${m[0]}"`).join(", ") || "(none — the list publishes no count)"}` +
+    ` — the app hides ${acLive.length}`);
+
+  // (f) the other direction: the catalog pages keep theirs, and the page says so.
+  const repoFn = (() => {
+    const at = acStudio.indexOf("\n  function renderRepository()");
+    return at < 0 ? "" : searchBlockAt(acStudio, acStudio.indexOf("{", acStudio.indexOf("(", at)), "{", "}");
+  })();
+  // A class token, not a prefix: `.repo-folder-add` ships as `class="wb-add repo-folder-add"`.
+  const repoBuilt = REPO_KEEPS.filter((r) => new RegExp(`["'\\s]${esc(r.cls)}(?=["'\\s])`).test(repoFn));
+  const repoHiddenNow = REPO_KEEPS.filter((r) => acHidden.has("." + r.cls));
+  const keepsBold = acBold(keepsBlock);
+  const repoUnsaid = repoBuilt.filter((r) => r.label && !keepsBold.includes(apos(r.label)));
+  ok(`docs/index.html: the Repository page's ${repoBuilt.length} authoring controls are hidden by nothing, and the page says so`,
+    repoBuilt.length === REPO_KEEPS.length && !repoHiddenNow.length && keepsBlock.length > 0 &&
+      !repoUnsaid.length && /Repository/.test(keepsBold.join(" ")),
+    `rendered by renderRepository(): ${repoBuilt.map((r) => r.cls).join(", ") || "(none)"}\n      ` +
+    `now hidden in Simple mode: ${repoHiddenNow.map((r) => r.cls).join(", ") || "(none)"}\n      ` +
+    `named in the page's own sentence: ${keepsBold.join(" · ") || "(none)"}` +
+    (repoUnsaid.length ? `\n      unpublished: ${repoUnsaid.map((r) => r.label).join(", ")}` : "") + "\n      " +
+    "Help told a Simple-mode reader that catalog authoring was locked down while every one of these stayed live");
+}
+
 console.log(failed ? `\n✗ doc-truth: ${failed} claim(s) have drifted from the source of truth`
   : "\n✅ doc-truth: every published claim matches the source it describes");
 process.exit(failed ? 1 : 0);

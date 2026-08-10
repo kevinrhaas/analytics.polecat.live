@@ -2856,11 +2856,26 @@
       <strong>Click-through</strong>, <strong>Calculated columns</strong> and
       <strong>Output options</strong>. Nothing is lost — a dashboard that already uses one keeps
       it, and switching back to Advanced mode shows the section again with its settings intact.</li>
-    <li>The <strong>Data</strong> panel is read-only browse + drag: its <strong>＋ New ▾</strong>
-      button, the add control on <strong>My queries</strong> and the per-query actions are all
-      hidden, as are the <strong>Edit data source</strong> jump link in a panel's Data section
-      and the per-dataset actions on the <strong>Repository</strong> page.</li>
+    <li id="simple-hides">The <strong>Data</strong> panel becomes read-only browse + drag, and so
+      does the one link the panel inspector offers out of it. Five authoring controls are hidden,
+      all of them in the Dashboard Builder:
+      <ul>
+        <li>the <strong>Data</strong> panel header's <strong>＋ New ▾</strong> button;</li>
+        <li>the <strong>Create a new data source</strong> button on the
+          <strong>This dashboard’s datasets</strong> group header;</li>
+        <li>that same <strong>This dashboard’s datasets</strong> group's per-card
+          <strong>Duplicate</strong> and <strong>Delete</strong> actions;</li>
+        <li>the <strong>My queries</strong> group's per-card <strong>Edit data source</strong>
+          and <strong>Delete data source</strong> actions;</li>
+        <li>and the <strong>Edit data source</strong> jump link in a panel's
+          <strong>Data</strong> section.</li>
+      </ul></li>
   </ul>
+  <p id="simple-keeps">Nothing outside the builder changes. The workspace catalog pages keep every
+  authoring control in both modes — the <strong>Repository</strong> page still offers
+  <strong>Quick edit</strong> on a row, <strong>+ New folder</strong>, and the Select bulk bar, and
+  Datasets, Connections, Jobs and Views are untouched. Simple mode is a quieter builder, not a
+  read-only app.</p>
   <p>And what it adds, all of it in the builder:</p>
   <ul>
     <li>A <strong>Simple mode is active</strong> note at the top of the dashboard inspector,
