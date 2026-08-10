@@ -6649,6 +6649,133 @@ if (kitLive) {
   }
 }
 
+/* ── 62. the NAME on a Help chart card vs the name the picker prints ─────────
+   Check 2 (the oldest check in this file) holds Help's chart cards to the registry's
+   KEYS — every type has a card, no card invents a type. Nothing has ever held the
+   NAME printed on the card, and seven of the fifty-five had drifted away from the
+   picker's own label: "Parallel coordinates" (picker: "Parallel coords"), "Bar + line
+   (combo)" ("Bar + line"), "Lollipop" ("Lollipop chart"), "Dumbbell" ("Dumbbell
+   chart"), "Bump / ranking" ("Bump chart"), "Marimekko / Mekko" ("Marimekko") and
+   "Ridgeline / joy plot" ("Ridgeline plot").
+
+   That is not a synonyms quibble, because the app WIRES the two together three ways:
+   every gallery card carries an ⓘ link to `docs/index.html#ct-<type>` titled
+   "Docs: <label>" (app/studio.js), so a reader clicks "Docs: Parallel coords" and
+   lands on a card headed "Parallel coordinates"; the gallery's own search box matches
+   label + desc through Studio.catalogSearch, so a name Help publishes that the picker
+   never prints finds NOTHING when typed in; and the Views catalog's chart-type filter
+   pills print the same label (app/views.js `vwChartLabel`). Help even says so itself,
+   in the facets chapter: the pills print "the chart's own name from the gallery" — a
+   sentence that was true of the app and false of this page for seven types.
+
+   The rules below are the check-38→40 idiom (a picker's roster holds the page that
+   documents it), with check 61's probe: a published name must be FINDABLE, not merely
+   spelled right. `ct-kpi` is the one documented extra, exactly as check 2 has it — the
+   KPI tile is a panel kind, not a Studio.CHARTS entry — so rule (a) walks the registry
+   and never reaches it.
+
+   ADOPTED, NOT RIVALLED — two neighbouring derivations already exist and this check
+   deliberately adds neither. Check 50 holds every card to the GROUP the picker files
+   it under (both directions, plus the picker's own grouping as its premise), and check
+   45(d) holds the facets chapter's volunteered chart names to the registry, reading
+   the kpi exception out of `vwChartLabel` itself. Between them the shelf and the pill
+   were covered; the NAME on the card was the gap. */
+{
+  // The registry, entry by entry: the label the picker prints, and the desc it prints
+  // beneath it — the other half of the haystack the gallery's search box matches on.
+  const chartEntries = (() => {
+    const src = read("app/model.js");
+    const at = src.indexOf("Studio.CHARTS = {");
+    if (at < 0) return [];
+    const block = searchBlockAt(src, src.indexOf("{", at), "{", "}");
+    const marks = [...block.matchAll(/\n {4}([A-Za-z_]\w*): \{/g)];
+    return marks.map((m, i) => {
+      const seg = block.slice(m.index, i + 1 < marks.length ? marks[i + 1].index : block.length);
+      return {
+        key: m[1],
+        // `label:  "…"` (two spaces) is as common in this file as one — match on the
+        // 6-space entry-level indent, not on the spacing after the colon.
+        label: (seg.match(/\n {6}label:\s*"([^"]+)"/) || [])[1] || "",
+        desc: (seg.match(/\n {6}desc:\s*"([^"]*)"/) || [])[1] || ""
+      };
+    });
+  })();
+
+  // Help's chart chapter, card by card. The empty `.chart-group` div is part of the
+  // shape (the page styles it), so matching it keeps a stray `chart-name` elsewhere on
+  // the page out of the set.
+  const helpCards = [...help.matchAll(
+    /id="ct-([A-Za-z0-9]+)"><div class="chart-group"><\/div><div class="chart-name">([^<]*)<\/div>/g)]
+    .map((m) => ({ key: m[1], name: m[2].trim() }));
+  const cardByKey = Object.fromEntries(helpCards.map((c) => [c.key, c]));
+
+  // The wiring that makes a card name a promise rather than a caption: the gallery
+  // prints c.label into .lb, and links each card at this page's own per-type anchor.
+  const galleryJs = read("app/studio.js");
+  const galleryPrintsLabel = /<div class="lb">' \+ c\.label \+ '<\/div>/.test(galleryJs);
+  const galleryLinksHere = /docs\/index\.html#ct-" \+ t/.test(galleryJs);
+
+  const introPara = (help.match(/<p>\d+ chart types are available[\s\S]*?<\/p>/) || [""])[0];
+
+  const premise = ok("app/model.js + docs/index.html: the chart registry and Help's chart cards both parse, and the gallery still links each card here by its own label — the premise the rules below measure against",
+    chartEntries.length > 40 && chartEntries.every((e) => e.label && e.desc) &&
+    helpCards.length === chartEntries.length + 1 && galleryPrintsLabel && galleryLinksHere && !!searchKit,
+    `registry entries: ${chartEntries.length} (all with a label and a desc: ${chartEntries.every((e) => e.label && e.desc)}) · ` +
+    `Help cards parsed: ${helpCards.length}, expected ${chartEntries.length + 1} (the types plus the documented ct-kpi)\n      ` +
+    `the gallery prints c.label into .lb: ${galleryPrintsLabel} · links docs/index.html#ct-<type>: ${galleryLinksHere} · ` +
+    `search kit evaluable: ${!!searchKit}\n      ` +
+    "if the card grid or the registry stops parsing in this shape these rules must fail, not pass over nothing");
+
+  if (premise) {
+    // (a) the name a reader arrives at is the name they clicked. Exact, not a
+    //     superset: the ⓘ link's own title IS the picker's label.
+    const misnamed = chartEntries.filter((e) => cardByKey[e.key] && cardByKey[e.key].name !== e.label);
+    ok(`docs/index.html: every chart card is titled with the label the picker prints (${chartEntries.length} types)`,
+      !misnamed.length,
+      misnamed.map((e) => `ct-${e.key}: card "${cardByKey[e.key].name}" vs picker "${e.label}"`).join("\n      ") ||
+      "(none)");
+
+    // (b) the negative half — a card must not wear ANOTHER type's name. A rename that
+    //     swaps two labels satisfies (a) for neither and this rule for both, which is
+    //     the failure a coverage-only rule reads straight past.
+    const labelOwner = new Map(chartEntries.map((e) => [e.label, e.key]));
+    const stolen = helpCards.filter((c) => labelOwner.has(c.name) && labelOwner.get(c.name) !== c.key);
+    ok("docs/index.html: no chart card wears a different chart type's name",
+      !stolen.length,
+      stolen.map((c) => `ct-${c.key} is titled "${c.name}", which is ${labelOwner.get(c.name)}'s label`).join("\n      ") ||
+      "(none)");
+
+    // (c) the probe (check 61's idiom): the intro tells the reader a name here can be
+    //     typed into the gallery's search box, so run it. Names carrying an editorial
+    //     "A / B" alias are probed on each alternative — the registry uses that idiom
+    //     itself ("Line / area"), and half a findable name is still a dead end.
+    const unfindable = [];
+    for (const e of chartEntries) {
+      const c = cardByKey[e.key]; if (!c) continue;
+      for (const alt of [c.name, ...c.name.split("/")].map((s) => s.trim()).filter(Boolean)) {
+        if (!kitFinds(alt, [e.label, e.desc])) unfindable.push(`ct-${e.key}: "${alt}" finds nothing (the picker prints "${e.label}" / "${e.desc}")`);
+      }
+    }
+    ok("docs/index.html: typing a chart card's name into the gallery's search box finds that chart — probed on Studio.catalogSearch",
+      !unfindable.length,
+      [...new Set(unfindable)].join("\n      ") || "(none)");
+
+    // (d) the promise itself. Without it (a)-(c) hold a caption nobody was told to
+    //     trust — the intro has to state that these ARE the picker's names, and name
+    //     the three places the app spends them, or the rules above are a private
+    //     convention rather than something a reader can rely on.
+    const introSays = /the name the picker itself prints/i.test(introPara) &&
+      /ⓘ/.test(introPara) && /filter pill/i.test(introPara) && /Search chart types/i.test(introPara);
+    ok("docs/index.html: the chart chapter states that its card titles are the picker's own names",
+      introSays && !!cardByKey.kpi,
+      `intro paragraph states it — picker: ${/the name the picker itself prints/i.test(introPara)} · ` +
+      `ⓘ docs link: ${/ⓘ/.test(introPara)} · filter pill: ${/filter pill/i.test(introPara)} · ` +
+      `search box: ${/Search chart types/i.test(introPara)}\n      ` +
+      `ct-kpi (the documented extra check 2 carves out) present: ${!!cardByKey.kpi}\n      ` +
+      `intro: ${htmlText(introPara).slice(0, 220) || "(paragraph not found)"}…`);
+  }
+}
+
 console.log(failed ? `\n✗ doc-truth: ${failed} claim(s) have drifted from the source of truth`
   : "\n✅ doc-truth: every published claim matches the source it describes");
 process.exit(failed ? 1 : 0);
