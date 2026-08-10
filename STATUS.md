@@ -135,6 +135,50 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N44 slice 3 — completion narrows to the table after a dot, and reads the query's own aliases
+  (v960, sw v550, 2026-08-10, steward; dev branch; est 3pt, 3 slices spent — ON estimate):** the
+  first ready item in ▶ NOW (N31 is still ⛔ on Kevin; everything above N44 is struck). Slices 1–2
+  built the one editor and adopted it at all nine SQL surfaces; this is part (b), the half the item
+  named as startable — and with it the 3pt estimate is exactly spent.
+  - **The defect it fixes is that completion was FLAT.** `candidates()` poured every column the
+    surface knew, every table, every param, every function and every keyword into one ranked list.
+    That is right while you are typing a bare word and wrong the instant you type a dot: `orders.`
+    is a question about ONE table, and answering it with the union of everything is answering a
+    different question. After this slice a qualified prefix resolves to a single table and offers
+    its columns and nothing else — no keywords, no functions, no columns borrowed from a sibling.
+  - **Aliases were the part that made it worth doing.** Nobody writing a join types the table name
+    twice; they write `FROM orders o` and then `o.`. So the editor reads the query it is sitting in:
+    `aliasMap()` scans FROM/JOIN clauses for `<table> [AS] <alias>` and hands `o` → `orders` to the
+    resolver. It runs over a `stripNoise()` copy that blanks comments and string literals first, so
+    the word "from" inside a literal cannot invent a table, and it skips a trailing KEYWORD so
+    `FROM orders WHERE` does not register an alias called "where". A subquery (`FROM (SELECT …) x`)
+    simply does not match — we cannot know its shape, so `x.` stays silent rather than guessing.
+  - **The honesty rule decided the failure mode, and it is the design decision of the slice.** When
+    the qualifier resolves to nothing — an unknown name, or a known table whose columns the caller
+    could not supply — the popup stays SHUT. Falling back to the flat list was the tempting
+    alternative and it is worse than useless: it looks like an answer about `orders` while being an
+    answer about everything. Same rule the item set for checking ("a green tick that is sometimes
+    wrong is worse than no tick"), applied to completion.
+  - **The schema contract grew by one optional field, not a new API.** A table entry in
+    `{columns, tables, params}` may now carry its own `columns` (the `listSchema()` `{name,type}`
+    shape) and `schema`. Three hosts fill it: the dataset editor and the data-source builder pass
+    through what **Browse schema** loaded, and the **Jobs** SQL step — the surface that knows the
+    most — declares `t` with exactly the columns the pipeline has produced so far. Tables the app
+    only knows the NAME of (DuckDB's `t` in the builder, SQLite's detected table) deliberately carry
+    no columns, so they offer nothing after their dot instead of pasting on the flat union. A
+    `schema.` qualifier resolves too, offering the tables inside it.
+  - **What it did not change.** `accept()` already replaced only the trailing word, so the qualifier
+    the user typed survives untouched with no new code; the flat path is byte-for-byte the same
+    ranking (`rank()` is the old tail of `candidates()`, extracted so both modes rank alike); and
+    the popup now opens on the DOT ALONE, before a letter is typed, because a dot is an explicit
+    request in a way one letter is not.
+  - **Verified:** `NODE_PATH=$(npm root -g) node tests/run.js` green at 390×780 and desktop, zero
+    pageerrors. Nine new checks: the alias reader as a pure function (aliases, `AS`, the
+    keyword-after-table case, "from" inside a string and inside a comment, subqueries), and the
+    popup driven by real typing on the Jobs step — the dot alone opens it on `t`'s columns, only
+    columns are offered, `x.` after `FROM t x` resolves through the alias, an unknown qualifier and
+    `1.` open nothing, the prefix after the dot still filters, and Enter yields `SELECT t.amount`.
+    Help (`docs/index.html`) gained the qualified-completion bullet in the same slice.
 - **N44 slice 2 — the other eight SQL surfaces, and the acceptance list is complete (v959, sw v549,
   2026-08-10, steward; dev branch; est 3pt, 2 slices spent, 1 remains — on estimate):** the first
   ready item in ▶ NOW (N31 is still ⛔ on Kevin; everything above N44 is struck). Slice 1 shipped the
@@ -14407,7 +14451,19 @@
   **Cheap first cut, if this needs splitting:** make the existing Query preview section's SQL
   clickable, opening the dataset editor on that dataset. That alone closes "I can see it's wrong
   and can't get to it" and is most of the value.
-- **N44 ★★ [3pt est, 2 slices shipped — 1 remains] — SQL is edited in plain textareas app-wide.**
+- ⛔ **N44 ★★ [3pt est, 3 slices shipped — the estimate is spent] — SQL is edited in plain textareas
+  app-wide.** **⛔ BLOCKED ON KEVIN, marked 2026-08-10 (steward), and it is the LAST half of the
+  item.** Slices 1–3 shipped the component, its nine adoptions, and qualified completion; what is
+  left is part (a), which the item itself says the loop must not decide. **The exact question:
+  should the editor flag unknown column names, in the ONE narrow case where it can do so honestly —
+  a saved dataset whose columns a Preview actually returned, and whose query has no `SELECT *`?**
+  Outside that case it is a false-positive machine (seven dialects, CTEs, joins, aliases), which is
+  why slice 1 refused the general form under the item's own "do not claim to validate dialect SQL we
+  cannot parse" rule. Yes → it is a 1pt slice on `Studio.sqlLint`'s existing drift check. No → N44
+  is done and can be struck.
+  ✓ **SLICE 3 IS SHIPPED — part (b): v960, sw v550 (2026-08-10, steward — see DONE).** Completion is
+  no longer flat: after a dot it narrows to that table, aliases resolve out of the query's own
+  FROM/JOIN clauses, and an unresolvable qualifier opens nothing rather than falling back.
   ✓ **SLICE 1 IS SHIPPED — the component and its first adoption: v958, sw v548 (2026-08-10,
   steward — see DONE).** `app/sqledit.js` / `Studio.SQLEdit.attach(textarea, opts)` exists,
   enhances a host textarea in place (copying its font/padding/border, so it fits any of the nine
@@ -14429,6 +14485,7 @@
   (host CSS owns layout, the component still restates nothing); and the builder's completer needed
   its own live schema function — chips + browsed tables + declared params, plus `t` for the DuckDB
   kind whose own field label promises it.
+  *(The slice-3 framing below is kept until the next grooming pass archives it.)*
   **SLICE 3 — what slice 1 deliberately did not do. Take (b): it is ready now, and (a) is not.**
   (a) The item asks for "unknown column names
   against the declared columns"; slice 1 refused it as a false-positive machine under the item's own

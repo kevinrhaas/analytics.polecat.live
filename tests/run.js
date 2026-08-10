@@ -20532,6 +20532,103 @@ function serve() {
       JSON.stringify([n44Jobs.colNames, n44Jobs.tbl]));
     ok("N44 (2): enhancing the step's box did not steal its layout row or its oninput (the flex card still gives it full width)",
       !n44Jobs.err && n44Jobs.fullWidth, JSON.stringify(n44Jobs.fullWidth));
+
+    // ---- N44 slice 3: qualified completion ----
+    // Slices 1 and 2 made completion prefix-only and FLAT: every column the surface
+    // knows, from every table, in one list. Slice 3 is the item's part (b) — after a
+    // dot, narrow to the table. Two halves are worth asserting separately: the alias
+    // reader (a pure function, so it can be checked without a popup) and the popup
+    // itself. The honesty rule is under test here too: an unresolvable qualifier must
+    // show NOTHING rather than fall back to the flat list, which would silently
+    // answer a different question than the one the dot asked.
+    console.log("\n• N44 slice 3: table-qualified completion — “t.” and the query's own FROM alias");
+    const n44Alias = await page.evaluate(() => {
+      const A = window.Studio.SQLEdit.aliases;
+      return {
+        basic: A("SELECT * FROM orders o JOIN items i ON 1=1"),
+        as: A("select * from public.orders as ord"),
+        keywordNext: A("SELECT * FROM orders WHERE a=1"),
+        inString: A("SELECT x, ' from fake f ' FROM orders o"),
+        inComment: A("-- from fake f\nSELECT * FROM orders o"),
+        subquery: A("SELECT * FROM (SELECT 1) x")
+      };
+    });
+    ok("N44 (3): the editor reads the query's own FROM/JOIN aliases, so “o.” knows what o is",
+      n44Alias.basic.o === "orders" && n44Alias.basic.i === "items" && n44Alias.as.ord === "public.orders",
+      JSON.stringify(n44Alias));
+    ok("N44 (3): a keyword after the table is not an alias, a “from” inside a string or a comment invents no table, and a subquery stays unknown",
+      !Object.keys(n44Alias.keywordNext).length && n44Alias.inString.o === "orders" &&
+      n44Alias.inComment.o === "orders" && !Object.keys(n44Alias.subquery).length, JSON.stringify(n44Alias));
+
+    const n44QualTa = page.locator(".jobs-step-fields .jobs-sql-box");
+    await page.evaluate(() => {
+      const b = document.querySelector(".jobs-step-fields .jobs-sql-box");
+      b.value = ""; b.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await n44QualTa.click();
+    await n44QualTa.pressSequentially("SELECT t.");
+    await page.waitForTimeout(150);
+    const n44Dot = await page.evaluate(() => {
+      const ac = document.querySelector(".jobs-step-fields .sqe-ac");
+      const opts = ac && !ac.hidden ? [].slice.call(ac.querySelectorAll(".sqe-ac-opt")) : [];
+      const r = ac && !ac.hidden ? ac.getBoundingClientRect() : null;
+      return { open: !!ac && !ac.hidden,
+        names: opts.map((o) => o.querySelector(".sqe-ac-name").textContent),
+        kinds: opts.map((o) => o.querySelector(".sqe-ac-kind").textContent),
+        minTap: opts.length ? Math.min.apply(null, opts.map((o) => o.getBoundingClientRect().height)) : 0,
+        onScreen: r ? r.left >= 0 && r.right <= window.innerWidth : false };
+    });
+    ok("N44 (3): typing the dot alone opens the popup on that table's columns — no prefix, no Ctrl-Space",
+      n44Dot.open && n44Dot.names.indexOf("region") >= 0 && n44Dot.names.indexOf("amount") >= 0,
+      JSON.stringify(n44Dot));
+    ok("N44 (3): after a dot ONLY columns are offered — no keywords, no functions, no other tables",
+      n44Dot.kinds.length > 0 && n44Dot.names.length === n44Dot.kinds.length &&
+      n44Dot.names.every((n) => n === "region" || n === "amount"), JSON.stringify(n44Dot));
+    ok("N44 (3): the qualified popup is a ≥36px tap target and stays on screen (mobile is still the gate)",
+      n44Dot.minTap >= 36 && n44Dot.onScreen, JSON.stringify(n44Dot));
+
+    const n44QualRest = await page.evaluate(async () => {
+      const box = document.querySelector(".jobs-step-fields .jobs-sql-box");
+      const read = () => {
+        const ac = document.querySelector(".jobs-step-fields .sqe-ac");
+        const opts = ac && !ac.hidden ? [].slice.call(ac.querySelectorAll(".sqe-ac-opt")) : [];
+        return { open: !!ac && !ac.hidden, names: opts.map((o) => o.querySelector(".sqe-ac-name").textContent) };
+      };
+      const at = async (v) => {
+        box.value = v; box.selectionStart = box.selectionEnd = v.length;
+        box.sqEdit.complete();
+        await new Promise((r) => setTimeout(r, 40));
+        const r = read(); box.sqEdit.close(); return r;
+      };
+      const aliased = await at("SELECT * FROM t x WHERE x.");
+      const unknown = await at("SELECT whatever.");
+      const number = await at("SELECT 1.");
+      const filtered = await at("SELECT t.am");
+      // accepting writes ONLY the column — the qualifier the user typed stays put
+      box.value = "SELECT t.am"; box.selectionStart = box.selectionEnd = box.value.length;
+      box.sqEdit.complete();
+      await new Promise((r) => setTimeout(r, 40));
+      box.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+      const accepted = box.value;
+      box.sqEdit.close();
+      box.value = "SELECT * FROM t"; box.dispatchEvent(new Event("input", { bubbles: true }));
+      return { aliased, unknown, number, filtered, accepted };
+    });
+    ok("N44 (3): an alias resolves — “x.” after “FROM t x” offers t's columns, which is how a join is actually written",
+      n44QualRest.aliased.open && n44QualRest.aliased.names.indexOf("region") >= 0, JSON.stringify(n44QualRest.aliased));
+    ok("N44 (3): an unresolvable qualifier shows nothing rather than falling back to the flat list",
+      !n44QualRest.unknown.open, JSON.stringify(n44QualRest.unknown));
+    // "1." is a NUMBER, so there is no qualifier there at all — which means the
+    // caret is in ordinary territory and Ctrl-Space still summons the ordinary
+    // flat list. The bug this pins is the opposite one: reading "1" as a table
+    // name and narrowing (or shutting) on it.
+    ok("N44 (3): “1.” is a number, not a qualifier — summoning there gives the ordinary flat list, not a narrowed one",
+      n44QualRest.number.open && n44QualRest.number.names.indexOf("t") >= 0 &&
+      n44QualRest.number.names.indexOf("count") >= 0, JSON.stringify(n44QualRest.number));
+    ok("N44 (3): the prefix after the dot still filters, and accepting replaces only it — the qualifier survives",
+      n44QualRest.filtered.names.join() === "amount" && n44QualRest.accepted === "SELECT t.amount",
+      JSON.stringify([n44QualRest.filtered, n44QualRest.accepted]));
+
     await page.evaluate(function () {
       var x = document.querySelector(".modal-ov .x"); if (x) x.click();
       Studio.Workspace.all("jobs").filter(function (j) { return j.name === "n44-jobs-sql-job"; }).forEach(function (j) { Studio.Workspace.remove("jobs", j.id, { silent: true }); });

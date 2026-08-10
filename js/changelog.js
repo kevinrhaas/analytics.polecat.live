@@ -6,6 +6,20 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 960,
+    title: 'SQL completion narrows to the table after a dot — and it knows your aliases',
+    kind: 'feature',
+    ts: '2026-08-10T04:53:10.000Z',
+    items: [
+      'Type orders. in any SQL box and the completion list becomes that table\'s columns and nothing else — no keywords, no functions, no columns borrowed from a different table.',
+      'Aliases resolve, because the editor reads your own query: write FROM orders o and o. offers the same list. That is the case a join makes you want immediately.',
+      'The list opens on the dot alone, before you type a letter, and taking an entry replaces only the part after the dot — the qualifier you typed stays as you wrote it.',
+      'A schema name works too: public. offers the tables inside it.',
+      'When the name in front of the dot cannot be resolved — an alias for a subquery, a table nobody has browsed — the list stays shut instead of falling back to every column the app has ever seen.',
+      'The Jobs custom-SQL step knows its table exactly, so t. narrows to the columns your pipeline has produced so far.',
+    ],
+  },
+  {
     v: 959,
     title: 'Every SQL box in the app is the real editor now — the wizard’s seven and the Jobs step',
     kind: 'feature',
