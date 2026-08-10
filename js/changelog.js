@@ -6,6 +6,18 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 969,
+    title: 'Where America Moved — the IRS migration pack lands its data foundation',
+    ts: '2026-08-10T13:35:15.000Z',
+    items: [
+      'A new sample pack, <b>Where America Moved</b>, joins the five already on the Settings card — and its data is the part almost nobody demos. Because the IRS matches each year\'s tax returns to the previous year\'s, it can publish not just how many households left one county for another but the <b>aggregate income that left with them</b>. Install it from Settings → Sample packs.',
+      'This first slice is the data foundation: one <b>connection</b> over six <b>datasets</b> — every county\'s arrivals and departures (3,087 of them), the same for the 50 states and DC plus the households that <b>stayed</b>, the 300 largest state-to-state corridors, the biggest county-to-county corridors out of each state, and the outputs of the two prep jobs below. Dashboards and pinned Views follow in the next slices.',
+      'The two <b>jobs</b> are the questions a single-county table can never answer, built as steps you can open and change. One derives each county\'s net position — in households and in dollars — and sets the average income of the people arriving against the people leaving. The other <b>joins</b> each state corridor to the state it left, so a corridor reads as a share of everyone who departed that state, and its movers\' average income can be set against the income of the people who stayed put.',
+      'Three things the pack states rather than smooths over, because they are properties of the source: the unit is a tax return, not a person (a move is a household filing from a new address, US moves only); income is aggregate AGI in <b>thousands of dollars</b>, exactly as published, and every column carrying it says so in its name; and the county and state grains deliberately do not add up, because a county total counts moves within its own state and a state total counts only moves across state lines.',
+      'The data is the IRS\'s own, public domain, and <b>embedded</b> — 134KB of committed CSV re-derived by a script whose every filter is readable, never fetched at runtime, so installing the pack works offline like every other one.',
+    ],
+  },
+  {
     v: 968,
     title: 'Campaign Finance pins its four Views, and brings its own guided tour',
     ts: '2026-08-10T12:37:27.000Z',

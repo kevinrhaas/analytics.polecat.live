@@ -230,6 +230,51 @@
       },
       afterInstall: function () { Studio.ensurePackDataMaterialized("campaignfinance"); }
     },
+    // SP-13, the third of Kevin's three money-flow packs (promoted 2026-08-09) and the one
+    // whose money angle is the part people do not expect: the IRS matches each year's
+    // returns to the previous year's, so it can publish not just how many households moved
+    // between two counties but the AGGREGATE INCOME that moved with them. Committed as CSV
+    // under data/packs/countymigration/ by tools/pack-extract/countymigration.mjs
+    // (docs/PACKS.md is the contract). Slice (a) is the data foundation: the connection,
+    // the four committed tables, and the two jobs that turn them into net position and
+    // corridor share. See the SP-13 (a) block further down for the modelling notes.
+    countymigration: {
+      id: "countymigration",
+      kind: "workspace",
+      folder: "Where America Moved",
+      name: "Where America Moved — who is winning households, and whose income moved with them",
+      // Count-led and ending in "embedded" (the suite's #116 shape check), and it names
+      // every KIND install seeds — connection, datasets, jobs — because doc-truth check 35
+      // rule (a) holds this string and the blurb to the installer separately. No dashboard
+      // count, because slice (a) seeds none; the count arrives with the dashboards.
+      tagline: "6 datasets on 1 connection · 3,087 counties and 51 states · the 300 largest state-to-state corridors · 2 prep jobs · every US household move the IRS published for 2022-2023, and the income that moved with it — real public data, embedded",
+      // Three sentences, which is N40's cap — the card is a decision surface and the
+      // inventory belongs in Help. Count-led and says "embedded" for the suite's #116.
+      blurb: "6 datasets on 1 connection, built from the IRS's own record of where American " +
+        "households moved between 2022 and 2023 — every county's arrivals and departures, the " +
+        "300 largest state-to-state corridors, the biggest county corridors out of each state, " +
+        "and the aggregate income that travelled with all of them. Two prep jobs turn that into " +
+        "the two questions a single-county table can never answer: who is winning households, " +
+        "and are the people arriving richer than the people leaving — with the households that " +
+        "STAYED as the baseline, which is the comparison the data is really for. The data is " +
+        "the IRS's own, public domain and embedded, and it counts tax returns rather than " +
+        "people, so a move here is a household that filed from a new address, US moves only.",
+      source: {
+        kind: "public",
+        name: "IRS Statistics of Income — US Population Migration Data, 2022-2023",
+        url: "https://www.irs.gov/statistics/soi-tax-stats-migration-data",
+        licence: "Public domain (U.S. Government work)",
+        retrieved: "2026-08-10"
+      },
+      // No `seeds`, for the reason SP-1, SP-6 and SP-5 state above: install() writes the
+      // connection synchronously and everything else lands from the CSV a moment later.
+      install: function () { installCountyMigrationConnection(); },
+      data: {
+        files: ["county-migration.csv", "state-migration.csv", "state-flows.csv", "county-pairs.csv"],
+        seed: function (csv) { seedCountyMigrationData(csv); }
+      },
+      afterInstall: function () { Studio.ensurePackDataMaterialized("countymigration"); }
+    },
     // LF2(c)/LF16: the pre-existing generic showcase gallery (governance, platform ops,
     // delivery, finance, marketing, reliability, compliance, feature tour) folded into a
     // toggleable pack the same way Conservation Insight is one — kind:"examples" (below)
@@ -2904,6 +2949,179 @@
     var W = Studio.Workspace;
     return seedCampaignFinanceViews(W, id, campaignFinanceDatasets(W, id)) > 0;
   };
+
+  /* ---- SP-13 (a): Where America Moved — the data foundation --------------------------
+     The pack asks two questions, and the second is the one no single-county table can
+     answer: who is winning households, and are the people arriving richer than the people
+     leaving? That needs the income that MOVED, which is exactly what the IRS matches
+     returns year-over-year to publish. tools/pack-extract/countymigration.mjs is the
+     provenance record; it ships four tables — every county's arrivals and departures, the
+     same for the states plus the households that STAYED, the 300 largest state-to-state
+     corridors, and the biggest county corridors out of each state.
+
+     TWO THINGS TO KNOW BEFORE READING ANY NUMBER HERE, both stated in the extract's notes
+     and both repeated on the datasets so a reader meets them where the rows are:
+     * AGI is THOUSANDS of dollars, as the IRS publishes it. Every column carrying it is
+       named `_agi_k`, and nothing in this file rescales it.
+     * THE TWO GRAINS DO NOT ADD UP, and that is the source's own definition rather than a
+       gap in the extract: a county's total counts every US move including moves within its
+       own state, while a state's total counts only moves ACROSS state lines. Summing the
+       counties of a state and expecting the state row is the one mistake this data invites.
+
+     The two jobs are the pack's data-prep story, and they were chosen for what they let a
+     chart ask rather than for showing off steps:
+     * COUNTY grain, five derives: net households, net income, and the average income of
+       arrivers against leavers — so "who is winning" and "at what income" are columns on
+       one row, which is the whole point of the pack.
+     * STATE grain, a real JOIN: each corridor gains the state it left, so a corridor can
+       be read as a SHARE of that state's departures, and its movers' average income can be
+       set against that state's STAYERS. The stayers only exist at state grain in this
+       source, so the leavers-versus-stayers reading lives here and the county job answers
+       arrivers-versus-leavers instead.
+     The county job deliberately does NOT join the state table: it would multiply nine
+     state columns across 3,087 county rows in a workspace that lives in one localStorage
+     blob, to restate facts the state table already holds at its own grain.
+
+     Everything below the connection is written by seedCountyMigrationData once
+     Studio.ensurePackDataMaterialized has the bytes (the SP-1 convention). */
+  var CM_FOLDER = "Where America Moved";
+  var CM_COUNTIES = "county-migration.csv";
+  var CM_STATES = "state-migration.csv";
+  var CM_STATE_FLOWS = "state-flows.csv";
+  var CM_COUNTY_PAIRS = "county-pairs.csv";
+  var CM_SOURCE_DESC = "IRS Statistics of Income migration data for filing years 2022-2023, " +
+    "extracted by tools/pack-extract/countymigration.mjs and read from files in your browser.";
+  var CM_CONN = { name: "IRS SOI migration files — embedded extracts", adapter: "file", cfg: {}, desc: CM_SOURCE_DESC };
+
+  function installCountyMigrationConnection() {
+    Studio.Workspace.put("connections", Object.assign({}, CM_CONN, { folder: CM_FOLDER, demoPackId: "countymigration" }));
+  }
+  // The pack's own connection, however install left it — looked up rather than threaded
+  // through, because install() and the seed run in different turns (the SP-1 convention).
+  function countyMigrationConnection() {
+    return Studio.Workspace.all("connections").filter(function (r) { return r.demoPackId === "countymigration"; })[0] ||
+      Studio.Workspace.put("connections", Object.assign({}, CM_CONN, { folder: CM_FOLDER, demoPackId: "countymigration" }));
+  }
+
+  // Each job's steps, as a fresh array per call — the same definition seeds the job row AND
+  // pre-computes its output below, so the two can never describe different work.
+  function countyMigrationCountySteps() {
+    return [
+      // Who is winning, in households and in dollars. Both are plain subtractions, so the
+      // sign of the column IS the answer and nothing has to be re-derived to read it.
+      { op: "derive", outCol: "net_returns", a: { col: "in_returns" }, operator: "-", b: { col: "out_returns" } },
+      { op: "derive", outCol: "net_agi_k", a: { col: "in_agi_k" }, operator: "-", b: { col: "out_agi_k" } },
+      // And at what income. Average AGI per household, each side computed the same way, so
+      // the gap between them is a difference of two like numbers rather than a ratio of
+      // totals that a county's SIZE would dominate.
+      { op: "derive", outCol: "arrivers_avg_agi_k", a: { col: "in_agi_k" }, operator: "/", b: { col: "in_returns" } },
+      { op: "derive", outCol: "leavers_avg_agi_k", a: { col: "out_agi_k" }, operator: "/", b: { col: "out_returns" } },
+      { op: "derive", outCol: "income_gap_k", a: { col: "arrivers_avg_agi_k" }, operator: "-", b: { col: "leavers_avg_agi_k" } }
+    ];
+  }
+  function countyMigrationStateSteps(statesDatasetId) {
+    return [
+      // The join the pack exists to show: a corridor gains the whole picture of the state
+      // it left — that state's departures, and its non-migrants. Nothing collides, because
+      // the extract names the corridor's own measures `returns`/`people`/`agi_k` and the
+      // state's `in_*`/`out_*`/`stay_*` (the join drops the right-hand key column).
+      { op: "join", datasetId: statesDatasetId, leftCol: "from_state", rightCol: "state", type: "inner" },
+      // This corridor as a share of everyone who left that state. The state's departures
+      // are divided down to ONE PERCENT first, so the ratio that follows is a plain
+      // division and every intermediate column is a number a reader can name (the SP-1,
+      // SP-5 and SP-6 shape).
+      { op: "derive", outCol: "one_pct_of_state_departures", a: { col: "out_returns" }, operator: "/", b: { value: 100 } },
+      { op: "derive", outCol: "pct_of_state_departures", a: { col: "returns" }, operator: "/", b: { col: "one_pct_of_state_departures" } },
+      // And the comparison the pack is named for, which only this grain can make: the
+      // average income of the households on this corridor against the average income of the
+      // ones who stayed put in the state they left.
+      { op: "derive", outCol: "movers_avg_agi_k", a: { col: "agi_k" }, operator: "/", b: { col: "returns" } },
+      { op: "derive", outCol: "stayers_avg_agi_k", a: { col: "stay_agi_k" }, operator: "/", b: { col: "stay_returns" } },
+      { op: "derive", outCol: "movers_vs_stayers_agi_k", a: { col: "movers_avg_agi_k" }, operator: "-", b: { col: "stayers_avg_agi_k" } }
+    ];
+  }
+
+  function seedCountyMigrationData(csv) {
+    var id = "countymigration", W = Studio.Workspace;
+    var conn = countyMigrationConnection();
+    var tags = ["demo", "migration", "geo"];
+
+    var countiesDs = W.put("datasets", {
+      name: "County arrivals and departures — 2022-2023", connectionId: conn.id,
+      kind: "file", format: "csv", fileName: CM_COUNTIES,
+      content: csv[CM_COUNTIES],
+      columns: ["fips", "county", "state", "in_returns", "in_agi_k", "out_returns", "out_agi_k"],
+      folder: CM_FOLDER, demoPackId: id, tags: tags
+    });
+    var statesDs = W.put("datasets", {
+      name: "State arrivals, departures and the households that stayed — 2022-2023", connectionId: conn.id,
+      kind: "file", format: "csv", fileName: CM_STATES,
+      content: csv[CM_STATES],
+      columns: ["state", "state_name", "in_returns", "in_people", "in_agi_k",
+                "out_returns", "out_people", "out_agi_k", "stay_returns", "stay_people", "stay_agi_k"],
+      folder: CM_FOLDER, demoPackId: id, tags: tags
+    });
+    var stateFlowsDs = W.put("datasets", {
+      name: "The largest state-to-state corridors — 2022-2023", connectionId: conn.id,
+      kind: "file", format: "csv", fileName: CM_STATE_FLOWS,
+      content: csv[CM_STATE_FLOWS],
+      columns: ["from_state", "to_state", "returns", "people", "agi_k"],
+      folder: CM_FOLDER, demoPackId: id, tags: tags.concat(["flow"])
+    });
+    var countyPairsDs = W.put("datasets", {
+      name: "The biggest county-to-county moves out of each state — 2022-2023", connectionId: conn.id,
+      kind: "file", format: "csv", fileName: CM_COUNTY_PAIRS,
+      content: csv[CM_COUNTY_PAIRS],
+      columns: ["from_fips", "from_county", "from_state", "to_fips", "to_county", "to_state",
+                "returns", "people", "agi_k"],
+      folder: CM_FOLDER, demoPackId: id, tags: tags.concat(["flow"])
+    });
+
+    // Both outputs are pre-materialized so there is something to chart before anyone clicks
+    // Run — and computed by running each job's OWN steps through the engine rather than a
+    // hand-kept second copy of the arithmetic, so a Run rewrites them with identical numbers
+    // instead of quietly correcting them (docs/PACKS.md).
+    var countySteps = countyMigrationCountySteps();
+    var countyOut = Studio.runJobSteps(parsePackCsv(csv[CM_COUNTIES]), countySteps, {});
+    var countyOutName = "Counties — net households, net income and the arrivers-versus-leavers gap (job output)";
+    var countyOutDs = W.put("datasets", {
+      name: countyOutName, connectionId: conn.id,
+      kind: "file", format: "csv", fileName: "county_migration_net.csv",
+      content: countyOut.error ? "" : Studio.rowsToCsv(countyOut.columns, countyOut.rows),
+      columns: (countyOut.columns || []).slice(),
+      folder: CM_FOLDER, demoPackId: id, tags: tags.concat(["job-output"])
+    });
+    W.put("jobs", {
+      name: "Derive each county's net position and its arrivers-versus-leavers gap",
+      sourceDatasetId: countiesDs.id,
+      outputDatasetId: countyOutDs.id, outputName: countyOutName,
+      steps: countySteps,
+      folder: CM_FOLDER, demoPackId: id
+    });
+
+    var stateSteps = countyMigrationStateSteps(statesDs.id);
+    var stateCtx = { datasets: {} };
+    stateCtx.datasets[statesDs.id] = parsePackCsv(csv[CM_STATES]);
+    var stateOut = Studio.runJobSteps(parsePackCsv(csv[CM_STATE_FLOWS]), stateSteps, stateCtx);
+    var stateOutName = "State corridors — each one's share of the state it left, and its movers against that state's stayers (job output)";
+    var stateOutDs = W.put("datasets", {
+      name: stateOutName, connectionId: conn.id,
+      kind: "file", format: "csv", fileName: "state_corridor_shares.csv",
+      content: stateOut.error ? "" : Studio.rowsToCsv(stateOut.columns, stateOut.rows),
+      columns: (stateOut.columns || []).slice(),
+      folder: CM_FOLDER, demoPackId: id, tags: tags.concat(["job-output", "flow"])
+    });
+    W.put("jobs", {
+      name: "Join each corridor to the state it left and take its share",
+      sourceDatasetId: stateFlowsDs.id,
+      outputDatasetId: stateOutDs.id, outputName: stateOutName,
+      steps: stateSteps,
+      folder: CM_FOLDER, demoPackId: id
+    });
+
+    return { counties: countiesDs, states: statesDs, stateFlows: stateFlowsDs,
+             countyPairs: countyPairsDs, countyOutput: countyOutDs, stateOutput: stateOutDs };
+  }
 
   // SP-0: registry-driven. This function knows about no pack in particular — an entry
   // that seeds a workspace supplies `install`; one that only gates gallery visibility
