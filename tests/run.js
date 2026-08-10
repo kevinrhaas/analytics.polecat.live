@@ -5932,6 +5932,240 @@ function serve() {
       fca.districtRows === 436 && fca.districtsAllDrawable &&
       fca.rerunReproduces && fca.removedClean && fca.restored, JSON.stringify(fca));
 
+    // ---- SP-6 (b): the pack's three dashboards ---------------------------------
+    // The slice's claim is not "three specs exist" — it is that the FLOW the pack was
+    // extracted for is really drawn, from the pack's own rows, narrowed by rules a reader
+    // can open and move. So every number below is recomputed here from the shipped CSV or
+    // read off a LIVE Studio.Build.runBlob (the #118 path the panels themselves use),
+    // never off the spec that is being checked.
+    //
+    // Two things are worth stating about what this block is really guarding:
+    // * **The agency has to read as a NAME.** The extract leaves the agency name out of
+    //   both flow tables on purpose, so a hero panel bound to the raw vendor table would
+    //   render a sankey of DOD/VA/DHS codes and look almost right. The check therefore
+    //   asserts which dataset the flow DA points at, and that the rows it returns carry a
+    //   readable agency, not merely that a sankey exists.
+    // * **Derived columns are the pack's argument, so they are checked as arithmetic.**
+    //   The small-business share and the per-resident figure are builder CALC columns, not
+    //   extract columns; each is recomputed from its two inputs on every live row.
+    const fcaDash = await page.evaluate(async function () {
+      var W = Studio.Workspace, ID = "contractawards";
+      var wasInstalled = Studio.demoPackInstalled(ID);
+      if (!wasInstalled) Studio.installDemoPack(ID);
+      await Studio.ensurePackDataMaterialized(ID);
+      function dash(name) {
+        return W.all("dashboards").filter(function (r) { return r.demoPackId === ID && (r.spec && r.spec.name) === name; })[0];
+      }
+      var flow = dash("contractawards-flow"), agencies = dash("contractawards-agencies"), districts = dash("contractawards-districts");
+      var out = { wasInstalled: wasInstalled, all3: !!(flow && agencies && districts) };
+      if (!out.all3) return out;
+      var all = [flow, agencies, districts];
+      out.foldered = all.every(function (r) { return r.folder === "Federal Contract Awards"; });
+      // SP-0(b): somebody else's data is credited where the work is READ
+      window.__studioReconcilePackDashboards();
+      var line = Studio.demoPackSourceLine(ID);
+      out.attributed = !!line && all.every(function (r) {
+        return String((W.get("dashboards", r.id).spec || {}).subtitle || "").indexOf(line) >= 0;
+      });
+
+      // Every charted panel and KPI is bound to a builder-blob DA over one of the PACK'S
+      // OWN datasets — nothing here is sample-engine noise.
+      var mine = {};
+      W.all("datasets").filter(function (d) { return d.demoPackId === ID; }).forEach(function (d) { mine[d.id] = d; });
+      out.packDatasets = Object.keys(mine).length;
+      out.bound = true; out.onPackData = true;
+      all.forEach(function (r) {
+        var byId = {};
+        ((r.spec.cda || {}).dataAccesses || []).forEach(function (d) { byId[d.id] = d; });
+        (r.spec.panels || []).forEach(function (p) {
+          if (p.chart.type === "richtext") return;
+          var d = byId[p.chart.da];
+          if (!d || !d.builder || !d.builder.dsId) { out.bound = false; return; }
+          if (!mine[d.builder.dsId]) out.onPackData = false;
+        });
+        (r.spec.kpis || []).forEach(function (k) { if (!byId[k.da]) out.bound = false; });
+      });
+
+      function panel(r, id) { return (r.spec.panels || []).filter(function (p) { return p.id === id; })[0]; }
+      function da(r, id) { return ((r.spec.cda || {}).dataAccesses || []).filter(function (d) { return d.id === id; })[0]; }
+
+      // (1) the hero IS the flow — two real sankeys, not a stacked-bar stand-in
+      var vend = panel(flow, "pfa_vendors"), indu = panel(flow, "pfa_industry");
+      out.vendorSankey = !!vend && vend.chart.type === "sankey" &&
+        vend.chart.map.sourceCol === "agency" && vend.chart.map.targetCol === "vendor" &&
+        vend.chart.map.valueCol === "obligations";
+      out.industrySankey = !!indu && indu.chart.type === "sankey" &&
+        indu.chart.map.sourceCol === "agency_code" && indu.chart.map.targetCol === "industry";
+      // and the agency reads as a NAME because the flow DA points at the JOB'S OUTPUT
+      var jobOut = W.all("datasets").filter(function (d) { return d.demoPackId === ID && (d.tags || []).indexOf("job-output") >= 0; })[0];
+      out.heroReadsJobOutput = !!jobOut && da(flow, "vfa_flow_vendor").builder.dsId === jobOut.id;
+
+      // (2) the floors are real filters over live rows, and they really narrow
+      var flowAll = await Studio.Build.runBlob(da(flow, "vfa_flow_all").builder);
+      var flowBig = await Studio.Build.runBlob(da(flow, "vfa_flow_vendor").builder);
+      out.flowAllRows = flowAll ? flowAll.rows.length : 0;
+      out.flowBigRows = flowBig ? flowBig.rows.length : 0;
+      out.flowLive = !!(flowAll && flowAll.live && flowBig && flowBig.live);
+      var floor = Number(da(flow, "vfa_flow_vendor").builder.filters[0].min);
+      out.vendorFloor = floor;
+      if (flowBig) {
+        var iAg = flowBig.cols.indexOf("agency"), iOb = flowBig.cols.indexOf("obligations");
+        out.flowObeysFloor = iOb >= 0 && flowBig.rows.every(function (r) { return Number(r[iOb]) >= floor; });
+        // the sankey's source labels are agency NAMES, so a code would fail this
+        out.flowNamesAgencies = iAg >= 0 && flowBig.rows.every(function (r) { return /[a-z]/.test(String(r[iAg])) && String(r[iAg]).length > 4; });
+      }
+      out.flowIsARealSubset = out.flowBigRows > 0 && out.flowBigRows < out.flowAllRows;
+
+      // the concentrated-relationships table means what its title says
+      var dom = await Studio.Build.runBlob(da(flow, "vfa_dominant").builder);
+      var domMin = Number(da(flow, "vfa_dominant").builder.filters[0].min);
+      out.dominantRows = dom ? dom.rows.length : 0;
+      if (dom) {
+        var iP = dom.cols.indexOf("pct_of_agency");
+        out.dominantObeysRule = iP >= 0 && dom.rows.length > 0 &&
+          dom.rows.every(function (r) { return Number(r[iP]) >= domMin; });
+      }
+
+      // (3) the small-business share is a CALC column, and it is real arithmetic
+      var agBlob = da(agencies, "vfg_agencies").builder;
+      out.sbIsACalc = (agBlob.calcs || []).some(function (c) { return c.name === "small_business_pct"; });
+      var agRun = await Studio.Build.runBlob(agBlob);
+      out.agencyRows = agRun ? agRun.rows.length : 0;
+      if (agRun) {
+        var iT = agRun.cols.indexOf("total_obligations"), iS = agRun.cols.indexOf("small_business_obligations"),
+          iPct = agRun.cols.indexOf("small_business_pct");
+        out.sbColumnPresent = iPct >= 0;
+        out.sbChecks = iPct >= 0 && agRun.rows.every(function (r) {
+          var want = (Number(r[iS]) / Number(r[iT])) * 100, got = Number(r[iPct]);
+          return isFinite(got) && got >= 0 && got <= 100 && Math.abs(got - want) < 1e-9;
+        });
+      }
+
+      // (4) the districts dashboard draws on the app's congressional-district scale,
+      // and its per-resident column is arithmetic too
+      var map1 = panel(districts, "pfd_map"), scat = panel(districts, "pfd_scatter");
+      out.cdScale = !!map1 && map1.chart.type === "choropleth" && map1.chart.opts.scale === "cd" &&
+        map1.chart.map.idCol === "district_id" && map1.chart.map.valueCol === "obligations";
+      // the map cannot carry a power law on linear class breaks, so the ranked list and
+      // the population-vs-dollars scatter are the reading — they are part of the claim
+      out.districtBars = !!panel(districts, "pfd_bars");
+      out.districtScatter = !!scat && scat.chart.type === "scatter" && scat.chart.map.xCol === "population";
+      var dRun = await Studio.Build.runBlob(da(districts, "vfd_all").builder);
+      out.districtRows = dRun ? dRun.rows.length : 0;
+      if (dRun) {
+        var iO = dRun.cols.indexOf("obligations"), iPop = dRun.cols.indexOf("population"), iPer = dRun.cols.indexOf("dollars_per_resident");
+        // NOT `> 0`: three districts are genuinely NEGATIVE (money deobligated from
+        // earlier awards outran what was newly obligated there), which is a real feature
+        // of contract accounting and one the dashboard's own note states. A check that
+        // demanded positivity here would be asserting the data is something it is not.
+        out.perResidentChecks = iPer >= 0 && dRun.rows.every(function (r) {
+          var want = Number(r[iO]) / Number(r[iPop]), got = Number(r[iPer]);
+          return isFinite(got) && Math.abs(got - want) < 1e-9;
+        });
+        out.negativeDistricts = dRun.rows.filter(function (r) { return Number(r[iPer]) < 0; }).length;
+      }
+
+      // (5) the copy states the pack's own totals, recomputed here from the shipped CSV
+      var totalsDs = W.all("datasets").filter(function (d) { return d.demoPackId === ID && (d.fileName || "").indexOf("agency-totals") >= 0; })[0];
+      var lines = String(totalsDs.content || "").trim().split("\n"), head = lines.shift().split(",");
+      var ti = head.indexOf("total_obligations"), si = head.indexOf("small_business_obligations");
+      var total = 0, sb = 0;
+      lines.forEach(function (l) { var c = l.split(","); total += Number(c[ti]); sb += Number(c[si]); });
+      var pct = (Math.round((sb / total) * 1000) / 10).toFixed(1);
+      out.figures = { total: total, sb: sb, pct: pct, agencies: lines.length };
+      var note = panel(flow, "pfa_note").chart.opts.content;
+      var billions = function (n) { return "$" + (Math.round(n / 1e8) / 10).toLocaleString() + "B"; };
+      out.copyStatesTheData = note.indexOf(billions(total)) >= 0 && note.indexOf(billions(sb)) >= 0 &&
+        note.indexOf(pct + "%") >= 0 && note.indexOf("**" + lines.length + "** agencies") >= 0;
+
+      // the district note makes two numeric claims — the concentration and the negative
+      // districts — and both are recomputed here from the shipped rows
+      var distDs = W.all("datasets").filter(function (d) { return d.demoPackId === ID && (d.fileName || "").indexOf("district") >= 0; })[0];
+      var dLines = String(distDs.content || "").trim().split("\n"), dHead = dLines.shift().split(",");
+      var oi = dHead.indexOf("obligations");
+      var dVals = dLines.map(function (l) { return Number(l.split(",")[oi]); }).sort(function (a, b) { return b - a; });
+      var dTotal = dVals.reduce(function (a, v) { return a + v; }, 0);
+      var topTen = dVals.slice(0, 10).reduce(function (a, v) { return a + v; }, 0);
+      out.districtFigures = { n: dVals.length, neg: dVals.filter(function (v) { return v < 0; }).length,
+        topTenPct: ((topTen / dTotal) * 100).toFixed(0) };
+      var dNote = panel(districts, "pfd_note").chart.opts.content;
+      out.districtCopyStatesTheData = dNote.indexOf("**" + dVals.length + "**") >= 0 &&
+        dNote.indexOf("**" + out.districtFigures.topTenPct + "%**") >= 0 &&
+        dNote.indexOf("**" + out.districtFigures.neg + "** districts come out NEGATIVE") >= 0;
+
+      return out;
+    });
+    ok("SP-6(b): the Federal Contract Awards pack seeds its three dashboards — the flow hero (agency→contractor and agency→industry sankeys plus the contractors that took a tenth or more of the agency that paid them), the agencies-and-small-business view, and the congressional-district map — all foldered, all crediting USASpending in their subtitles, every panel and KPI bound to a builder blob over one of the pack's own datasets",
+      fcaDash.all3 && fcaDash.foldered && fcaDash.attributed && fcaDash.bound && fcaDash.onPackData &&
+      fcaDash.vendorSankey && fcaDash.industrySankey && fcaDash.heroReadsJobOutput &&
+      fcaDash.cdScale && fcaDash.districtBars && fcaDash.districtScatter, JSON.stringify(fcaDash));
+    ok("SP-6(b): the flow really is the pack's own live rows under a rule you can move — running the saved blobs returns every kept agency-vendor pair, the hero's billion-dollar floor is a genuine narrowing that every returned row obeys, its source labels are agency NAMES (the join, not the raw code table), the concentrated-relationships table returns only shares at or above its own floor, and both derived columns (small-business share, dollars per resident) recompute exactly from their two inputs on every row",
+      fcaDash.flowLive && fcaDash.flowAllRows === 300 && fcaDash.flowIsARealSubset &&
+      fcaDash.flowObeysFloor && fcaDash.flowNamesAgencies && fcaDash.dominantObeysRule &&
+      fcaDash.sbIsACalc && fcaDash.sbColumnPresent && fcaDash.sbChecks &&
+      fcaDash.agencyRows === 25 && fcaDash.districtRows === 436 && fcaDash.perResidentChecks &&
+      fcaDash.negativeDistricts === fcaDash.districtFigures.neg &&
+      fcaDash.copyStatesTheData && fcaDash.districtCopyStatesTheData, JSON.stringify(fcaDash));
+
+    // The heal: a workspace that installed the pack at slice (a) — USASpending data, no
+    // dashboards — gets them on boot reconcile without a reinstall; a second run is a no-op.
+    const fcaHeal = await page.evaluate(function () {
+      var W = Studio.Workspace, names = ["contractawards-flow", "contractawards-agencies", "contractawards-districts"];
+      names.forEach(function (n) {
+        W.all("dashboards").filter(function (r) { return (r.spec && r.spec.name) === n; })
+          .forEach(function (r) { W.remove("dashboards", r.id, { silent: true }); });
+      });
+      W.notify("dashboards");
+      var healed = Studio.ensureContractAwardsDashboards();
+      var back = names.every(function (n) { return W.all("dashboards").some(function (r) { return (r.spec && r.spec.name) === n; }); });
+      var again = Studio.ensureContractAwardsDashboards();
+      return { healed: healed, back: back, idempotent: again === false };
+    });
+    ok("SP-6(b): the boot heal re-seeds the three Federal Contract Awards dashboards into a slice-(a) install and is idempotent on a healthy one",
+      fcaHeal.healed && fcaHeal.back && fcaHeal.idempotent, JSON.stringify(fcaHeal));
+
+    // And it RENDERS. A sankey with an unmapped column does not throw — it draws the
+    // toolkit's "No flows" placeholder and looks like an empty panel, which is exactly the
+    // failure a spec-shape check cannot see. So load the hero and count ribbons.
+    await page.evaluate(function () {
+      var W = Studio.Workspace;
+      var hero = W.all("dashboards").filter(function (r) { return (r.spec && r.spec.name) === "contractawards-flow"; })[0];
+      window.__studioLoad(Studio.clone(hero.spec));
+    });
+    await page.waitForTimeout(3000);
+    const fcaRender = await page.evaluate(function () {
+      var d = document.querySelector("#preview").contentDocument;
+      function panelOf(id) {
+        return Array.prototype.filter.call(d.querySelectorAll("[data-panel-id]"), function (n) { return n.getAttribute("data-panel-id") === id; })[0];
+      }
+      // one <path> per ribbon (the nodes are <rect>s and the captions are <text>), so the
+      // count IS the number of flows that survived the panel's floor
+      function ribbons(id) { var p = panelOf(id); return p ? p.querySelectorAll("svg path").length : 0; }
+      // the toolkit's "No flows" placeholder — an unmapped column renders THIS, not an error
+      function emptyState(id) { var p = panelOf(id); return !!(p && p.querySelector(".empty")); }
+      return {
+        vendorRibbons: ribbons("pfa_vendors"), industryRibbons: ribbons("pfa_industry"),
+        anyEmpty: emptyState("pfa_vendors") || emptyState("pfa_industry"),
+        tableRows: (function () { var p = panelOf("pfa_dominant"); return p ? p.querySelectorAll("tbody tr").length : 0; }()),
+        note: !!d.querySelector(".sr-richtext"),
+        kpis: d.querySelectorAll("#kpis .kpi").length,
+        kpiValues: Array.prototype.map.call(d.querySelectorAll("#kpis .kpi .v"), function (n) { return n.textContent.trim(); }),
+        cards: d.querySelectorAll("#content .card").length,
+        err: /Could not load|Render error|No query bound/.test((d.querySelector("#content") || {}).textContent || "")
+      };
+    });
+    ok("SP-6(b): the flow hero actually draws — 4 KPIs with real values, 4 panels, a ribbon per kept flow in both sankeys (not the toolkit's \"No flows\" placeholder, which is what an unmapped column renders instead of an error), the concentrated-relationships table populated and the method note rendered, with no panel-level error",
+      fcaRender.cards === 4 && !fcaRender.anyEmpty && !fcaRender.err &&
+      fcaRender.vendorRibbons >= 27 && fcaRender.industryRibbons >= 32 &&
+      fcaRender.tableRows > 0 && fcaRender.note &&
+      fcaRender.kpis === 4 && fcaRender.kpiValues.length === 4 &&
+      fcaRender.kpiValues.every(function (v) { return v && v !== "—" && v !== "0"; }),
+      JSON.stringify(fcaRender));
+    // hand the workspace back the way this block found it (the SP-1(b) convention) —
+    // Federal Contract Awards is not in DEFAULT_INSTALLED, so leaving it installed would
+    // change the row counts every later catalog check reads
+    if (!fcaDash.wasInstalled) await page.evaluate(function () { Studio.removeDemoPack("contractawards"); });
+
     // ---- SP-1 (b): the pack's three dashboards ---------------------------------
     // The claim this slice makes is not "three specs exist" — it is that what a reader
     // sees is the pack's OWN Census rows, narrowed by filters they can open and move.

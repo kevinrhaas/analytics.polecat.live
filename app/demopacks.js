@@ -142,23 +142,26 @@
     // on 2026-08-09 ("some where the money is going"), and it is the program's only source of a
     // genuine origin→destination table, which is what sankey and marimekko want and what every
     // pack before it had to fake.
-    // Slice (a) — this one — is the data foundation: the connection, the four datasets, and the
-    // job that turns a vendor's raw obligations into a share of the agency that paid them.
-    // Slices (b) and (c) add the dashboards and the pinned Views that read it.
+    // Slice (a) was the data foundation: the connection, the four datasets, and the job that
+    // turns a vendor's raw obligations into a share of the agency that paid them. Slice (b)
+    // added the three dashboards that read it (the flow hero, the agencies, the districts).
+    // Slice (c) adds the pinned Views.
     contractawards: {
       id: "contractawards",
       kind: "workspace",
       folder: "Federal Contract Awards",
       name: "Federal Contract Awards — where the money goes",
-      // No dashboard count in either string, deliberately: slice (a) seeds none, and
-      // doc-truth check 35 (b) holds every count claimed here to a number the pack really
-      // produces. Slice (b) adds the dashboards and the count in the same PR.
-      tagline: "4 datasets on 1 connection · 25 agencies · $778B of FY2025 contracts · 600 agency→industry and agency→vendor flows · 436 congressional districts · a vendor-share job — real public data, embedded",
-      blurb: "4 datasets of real federal contract spending: what the 25 largest agencies bought " +
-        "in FY2025, the industries and vendors they bought it from, and the congressional " +
-        "districts the work landed in. A prep job joins each vendor to its agency's total, so " +
-        "you can read one contractor's haul as a share of the agency that paid it. The data is " +
-        "USASpending.gov's, public domain and embedded on 1 connection: no credentials to enter.",
+      // The dashboard count arrived with slice (b); doc-truth check 35 (b) holds every
+      // count claimed here to a number the pack really produces, and rule (a) requires
+      // both strings to name every KIND the installer seeds — dashboards included, now
+      // that it seeds them.
+      tagline: "3 dashboards on 4 datasets and 1 connection · 25 agencies · $778B of FY2025 contracts · 600 agency→industry and agency→vendor flows · 436 congressional districts · a vendor-share job — real public data, embedded",
+      blurb: "3 dashboards over 4 datasets of real federal contract spending: where the money " +
+        "flows from agency to industry and contractor, who the 25 largest agencies are and how " +
+        "much of their spending reaches a small business, and the congressional districts the " +
+        "work landed in. A prep job joins each vendor to its agency's total, so you can read one " +
+        "contractor's haul as a share of the agency that paid it. The data is USASpending.gov's, " +
+        "public domain and embedded on 1 connection: no credentials to enter.",
       source: {
         kind: "public",
         name: "USASpending.gov — federal contract awards, FY2025",
@@ -675,12 +678,19 @@
   // string), so a panel that shows a SUBSET of a pack dataset narrows it through the
   // same code path the editor would, rather than shipping a second, hand-cut copy of
   // the rows. Omitted = every row, exactly as the three CONS-1 callers expect.
-  function curatedDA(id, name, dsId, cols, filters) {
+  // `calcs` (optional, SP-6(b)) are the builder's own calculated columns — a name and a
+  // formula the View Builder would have written. A DA that needs a ratio the extract does
+  // not ship gets it this way rather than through a rolled-up shelf, because a rollup
+  // renames the column to "SUM obligations" and a chart bound to that name is reading a
+  // label instead of a measure. A calc keeps the reader's name for the number, and it is
+  // still a real calc row: open the View and the formula is right there to edit.
+  function curatedDA(id, name, dsId, cols, filters, calcs) {
     return { id: id, name: name, kind: "sql", sql: "", query: "",
       columns: cols.slice(), params: [], authored: true,
       builder: { dsKind: "ws", dsId: dsId, chartType: "table",
         shelfCols: cols.map(function (c) { return { col: c, agg: null }; }),
-        shelfRows: [], filters: (filters || []).slice(), calcs: [], shelfColor: [], paletteKey: "", mapScale: "" } };
+        shelfRows: [], filters: (filters || []).slice(), calcs: (calcs || []).slice(),
+        shelfColor: [], paletteKey: "", mapScale: "" } };
   }
   // (1) "OpTIS Cover Crop Trends" — the two side-by-side county maps (sequential
   // green + diverging orange->green change), the by-type stacked area, and the
@@ -1431,7 +1441,7 @@
       columns: ["agency_code", "agency", "total_obligations", "small_business_obligations"],
       folder: FCA_FOLDER, demoPackId: id, tags: tags
     });
-    W.put("datasets", {
+    var industryDs = W.put("datasets", {
       name: "Agency spend by industry — FY2025 (NAICS)", connectionId: conn.id,
       kind: "file", format: "csv", fileName: FCA_INDUSTRY,
       content: csv[FCA_INDUSTRY],
@@ -1445,7 +1455,7 @@
       columns: ["agency_code", "vendor", "vendor_uei", "obligations"],
       folder: FCA_FOLDER, demoPackId: id, tags: tags.concat(["flow"])
     });
-    W.put("datasets", {
+    var districtsDs = W.put("datasets", {
       name: "Contract spend by congressional district — FY2025", connectionId: conn.id,
       kind: "file", format: "csv", fileName: FCA_DISTRICTS,
       content: csv[FCA_DISTRICTS],
@@ -1479,7 +1489,384 @@
       steps: steps,
       folder: FCA_FOLDER, demoPackId: id
     });
+
+    // SP-6 (b): the dashboards read the job's output and the extract tables together, so
+    // they are seeded here — the moment those rows exist — rather than in install(),
+    // which runs a turn earlier with nothing to chart yet (the SP-1 convention).
+    seedContractAwardsDashboards(W, id, {
+      totals: totalsDs, industry: industryDs, districts: districtsDs, output: outputDs
+    }, new Date().toISOString());
   }
+
+  /* ---- SP-6 (b): the pack's three dashboards ----------------------------------------
+     The pack's question is "where does federal contract money go?", and it has three
+     honest answers depending on what you mean by "where":
+
+       1. WHERE THE MONEY GOES (the hero) — the FLOW itself, which is the reason this
+          pack exists. Two sankeys: agency → vendor (over the job's output, so the
+          agency reads as a NAME and each flow carries its share of the agency) and
+          agency → industry. Below them, the contractors that took a tenth or more of
+          the agency that paid them.
+       2. WHO SPENDS IT — the 25 agencies by size, and the one policy question already
+          in the data: how much of each agency's spending reached a small business.
+       3. WHERE THE WORK LANDS — the congressional-district map. This is the app's `cd`
+          scale getting real data for the first time; every one of the 436 ids is
+          asserted drawable against vendor/geo/us-cd-albers.json by the suite.
+
+     Two conventions carried from SP-1, for the same reasons:
+     * every charted panel is bound to a builder-blob DA over one of the pack's OWN
+       datasets (curatedDA), so #118's live re-run feeds the panels the REAL rows;
+     * a panel that shows a SUBSET narrows it with the builder's own filter grammar
+       rather than a hand-cut second dataset — open the View and the rule is right there.
+
+     THE ITEM SAID THIS PACK HAD NO SANKEY TO DRAW WITH. Measured, that is wrong:
+     `Studio.CHARTS.sankey` has existed all along (app/model.js, group "Flow",
+     sourceCol/targetCol/valueCol) and is in Studio.WIDE_CHART_TYPES. So the hero is the
+     real flow diagram the data was extracted for, and no new chart type rides in on a
+     pack slice — which is exactly what the item asked to avoid, by the other route. */
+  // Seeding order, and it matters: the hero is LAST so it is the newest row and tops a
+  // recency-sorted list (the CONS-2/CONS-3 convention SP-1 also follows).
+  var FCA_DASHBOARDS = ["contractawards-districts", "contractawards-agencies", "contractawards-flow"];
+  // Three floors, all about READABILITY rather than significance — the same kind of
+  // constant (and the same disclosure) as SP-1's MC_BIG_COUNTY/MC_SHORTLIST_BAR. A
+  // sankey of all 300 agency→vendor pairs is a hairball, and every panel that applies
+  // one says so in its own subtitle, in the units the reader is looking at.
+  //
+  // The flow floor was MEASURED rather than picked: a sankey lays its nodes out with an
+  // 11px gap between them, so the readable limit is the node COUNT, not the flow count.
+  // At $1B the vendor side has 36 destinations and their labels collide; at $2B it has
+  // 25 and the industry side has 20, which each panel's height then gives ~26px apiece.
+  var FCA_FLOW_FLOOR = 2e9;        // both sankeys: 27 of 300 vendor flows, 32 of 300 industry flows
+  var FCA_DOMINANT_PCT = 10;       // "took a tenth or more of the agency that paid it" (20 rows)
+  var FCA_DISTRICT_BAR = 5e9;      // districts big enough to read as bars (32 of 436)
+
+  // The pack's own headline figures, derived from the shipped rows at seed time rather
+  // than typed in — the SP-1 rule. A re-extract that moves the numbers re-seeds copy that
+  // is still true, and the suite recomputes these independently and demands they agree.
+  function contractAwardsFigures(totals) {
+    var cols = (totals && totals.columns) || [], rows = (totals && totals.rows) || [];
+    var iTot = cols.indexOf("total_obligations"), iSb = cols.indexOf("small_business_obligations");
+    var total = 0, sb = 0;
+    rows.forEach(function (r) { total += Number(r[iTot]) || 0; sb += Number(r[iSb]) || 0; });
+    return {
+      agencies: rows.length,
+      total: total,
+      smallBusiness: sb,
+      // one decimal, because it is quoted in the copy: "22.5% of the year" is the honest
+      // precision for a share of three-quarters of a trillion dollars.
+      smallBusinessPct: total ? Math.round((sb / total) * 1000) / 10 : 0
+    };
+  }
+  // The district table's own figures, on the same rule: measured from the shipped rows,
+  // never typed in. `topTenPct` and `negative` are the two facts the dashboard's copy
+  // makes claims about, so they are counted here rather than remembered from an extract.
+  function contractAwardsDistrictFigures(districts) {
+    var cols = (districts && districts.columns) || [], rows = (districts && districts.rows) || [];
+    var iOb = cols.indexOf("obligations");
+    var vals = rows.map(function (r) { return Number(r[iOb]) || 0; }).sort(function (a, b) { return b - a; });
+    var total = vals.reduce(function (a, v) { return a + v; }, 0);
+    var topTen = vals.slice(0, 10).reduce(function (a, v) { return a + v; }, 0);
+    return {
+      districts: rows.length,
+      negative: vals.filter(function (v) { return v < 0; }).length,
+      topTenPct: total ? (topTen / total) * 100 : 0
+    };
+  }
+  // "$778.1B" — the pack quotes big dollars a lot, and a reader should never have to
+  // count digits to compare two of them.
+  function fcaBillions(n) { return "$" + (Math.round(n / 1e8) / 10).toLocaleString() + "B"; }
+  // The small-business share as a percentage OF THE AGENCY, as a builder calc column —
+  // the extract ships the two dollar figures and deliberately not their ratio, because a
+  // ratio is a derivation and this pack's whole argument is that derivations are visible.
+  var FCA_SB_PCT_CALC = { name: "small_business_pct", formula: "[small_business_obligations] / [total_obligations] * 100" };
+  var FCA_PER_RESIDENT_CALC = { name: "dollars_per_resident", formula: "[obligations] / [population]" };
+
+  // (1) the hero: the flow, which is what the pack was extracted to draw.
+  function contractAwardsFlowSpec(ds, f) {
+    var das = [], panels = [], kpis = [];
+
+    var totalsDa = curatedDA("vfa_totals", "Federal Contract Awards — agency totals",
+      ds.totals.id, ["agency_code", "agency", "total_obligations", "small_business_obligations"]);
+    das.push(totalsDa);
+    kpis.push({ da: totalsDa.id, valueCol: "total_obligations", label: "Contract dollars obligated",
+      fmt: "money", agg: "sum", subtitle: "FY2025, " + f.agencies + " agencies", state: "",
+      info: "The 25 largest awarding agencies, which is 99.97% of the year's contract obligations. Grants, loans and direct payments are not contracts and are not in here." });
+    kpis.push({ da: totalsDa.id, valueCol: "small_business_obligations", label: "Of it, to small business",
+      fmt: "money", agg: "sum", subtitle: f.smallBusinessPct.toFixed(1) + "% of the year", state: "",
+      info: "Counted by re-running the same agency query under USASpending's small-business recipient filter — not by adding up the small firms in the top-12 vendor list, which would under-count every agency." });
+
+    // The flow DAs run over the JOB'S OUTPUT, not the raw vendor table: that is where the
+    // agency has a readable NAME and where each flow carries its share of the agency.
+    var flowAllDa = curatedDA("vfa_flow_all", "Federal Contract Awards — every kept agency-vendor flow",
+      ds.output.id, ["agency", "vendor", "obligations", "pct_of_agency"]);
+    das.push(flowAllDa);
+    kpis.push({ da: flowAllDa.id, valueCol: "obligations", label: "Largest single flow",
+      fmt: "money", agg: "max", subtitle: "one agency to one contractor", state: "",
+      info: "The biggest agency→vendor relationship in the extract, in one year of contract obligations." });
+    kpis.push({ da: flowAllDa.id, valueCol: "pct_of_agency", label: "Largest share of one agency",
+      fmt: "pct", agg: "max", subtitle: "one contractor's cut", state: "",
+      info: "The job divides each vendor's obligations by its agency's own total. This is the highest result — the most concentrated buyer-seller relationship the pack can see." });
+
+    var vendorFlowDa = curatedDA("vfa_flow_vendor", "Federal Contract Awards — agency to vendor, billion-dollar flows",
+      ds.output.id, ["agency", "vendor", "obligations", "pct_of_agency"],
+      [{ col: "obligations", kind: "range", min: String(FCA_FLOW_FLOOR), max: "" }]);
+    das.push(vendorFlowDa);
+    panels.push({ id: "pfa_vendors", section: "Where the money goes",
+      title: "Agency to contractor", span: "full",
+      sub: "flows of " + fcaBillions(FCA_FLOW_FLOOR) + " or more — the band width is the money",
+      info: "One ribbon per agency-vendor pair. The floor is about readability, not significance: all 300 kept pairs at once is a hairball. Open the View and move it.",
+      chart: { type: "sankey", da: vendorFlowDa.id,
+        map: { sourceCol: "agency", targetCol: "vendor", valueCol: "obligations" },
+        opts: { srcCap: "Awarding agency", dstCap: "Contractor", fmt: "money", height: 700 } } });
+
+    var industryDa = curatedDA("vfa_flow_industry", "Federal Contract Awards — agency to industry, the largest flows",
+      ds.industry.id, ["agency_code", "industry", "obligations"],
+      [{ col: "obligations", kind: "range", min: String(FCA_FLOW_FLOOR), max: "" }]);
+    das.push(industryDa);
+    panels.push({ id: "pfa_industry", title: "Agency to industry", span: "full",
+      sub: "the same year by NAICS industry, flows of " + fcaBillions(FCA_FLOW_FLOOR) + " or more",
+      info: "The industry table is the one place the agency reads as a code rather than a name — the extract leaves the name out on purpose, and only the job brings it across.",
+      chart: { type: "sankey", da: industryDa.id,
+        map: { sourceCol: "agency_code", targetCol: "industry", valueCol: "obligations" },
+        opts: { srcCap: "Awarding agency", dstCap: "What it bought", fmt: "money", height: 600 } } });
+
+    var dominantDa = curatedDA("vfa_dominant", "Federal Contract Awards — contractors taking a tenth of their agency",
+      ds.output.id, ["vendor", "agency", "obligations", "pct_of_agency"],
+      [{ col: "pct_of_agency", kind: "range", min: String(FCA_DOMINANT_PCT), max: "" }]);
+    das.push(dominantDa);
+    panels.push({ id: "pfa_dominant", section: "The concentrated relationships",
+      title: "Contractors that took a tenth or more of the agency that paid them", span: "full",
+      sub: "share of the agency's whole contract spend, not of its top-12 list",
+      chart: { type: "table", da: dominantDa.id,
+        map: { cols: [
+          { col: "vendor", label: "Contractor" },
+          { col: "agency", label: "Awarding agency" },
+          { col: "obligations", label: "Obligations", num: true, fmt: "money" },
+          { col: "pct_of_agency", label: "Share of the agency", num: true, fmt: "pct" }
+        ] },
+        opts: { pageSize: 12, freezeHeader: true, density: "comfortable" } } });
+
+    panels.push({ id: "pfa_note", section: "How to read it", title: "What this pack is measuring", span: "full",
+      chart: { type: "richtext", da: null, opts: { content: [
+        "**One year, one kind of spending.** Every dollar here is a FY2025 contract obligation — award types A, B, C and D. Grants, loans and direct payments are a much larger story and none of it is in this pack.",
+        "",
+        "**A flow is a pair, not a total.** The extract keeps the top 12 industries and the top 12 recipients of each agency, so a ribbon is real but the fan out of an agency is not its whole spend. The agency's own total lives in the totals table, which is what the pack's job joins across — and it is why a share here is a share of everything the agency bought, not of the twelve rows beside it.",
+        "",
+        "- Contract obligations, FY2025: **" + fcaBillions(f.total) + "** across **" + f.agencies + "** agencies",
+        "- Of that, to small business: **" + fcaBillions(f.smallBusiness) + "** (**" + f.smallBusinessPct.toFixed(1) + "%**)",
+        "- Drawn above: the agency→vendor and agency→industry flows of **" + fcaBillions(FCA_FLOW_FLOOR) + "** or more — a floor about readability, not importance",
+        "",
+        "*What this is not:* a ranking of contractors. A firm that sells to six agencies appears six times, once per buyer, because the pair is the unit."
+      ].join("\n") } } });
+
+    return {
+      id: "contractawards-flow", name: "contractawards-flow",
+      title: "Where the Money Goes",
+      subtitle: "Federal contract dollars from the agency that obligated them to the contractor and the industry that received them",
+      dashboardTheme: "polecat",
+      panels: panels, kpis: kpis, filters: [],
+      cda: { connections: [], dataAccesses: das }
+    };
+  }
+
+  // (2) who spends it, and the one policy question already in the data.
+  function contractAwardsAgenciesSpec(ds, f) {
+    var das = [], panels = [], kpis = [];
+    var agencyDa = curatedDA("vfg_agencies", "Federal Contract Awards — agencies and their small-business share",
+      ds.totals.id, ["agency", "agency_code", "total_obligations", "small_business_obligations", "small_business_pct"],
+      [], [FCA_SB_PCT_CALC]);
+    das.push(agencyDa);
+    kpis.push({ da: agencyDa.id, valueCol: "total_obligations", label: "The largest buyer",
+      fmt: "money", agg: "max", subtitle: "one agency, one year", state: "",
+      info: "Defense is most of this pack. Every other agency is read against it." });
+    kpis.push({ da: agencyDa.id, valueCol: "total_obligations", label: "The median agency",
+      fmt: "money", agg: "median", subtitle: "of " + f.agencies + " agencies", state: "",
+      info: "The middle of the 25 largest awarding agencies — a reminder of how skewed the top of this list is." });
+    kpis.push({ da: agencyDa.id, valueCol: "small_business_pct", label: "Small-business share",
+      fmt: "pct", agg: "median", subtitle: "the median agency", state: "",
+      info: "Each agency's small-business obligations divided by its own total. Computed as a calculated column on this View — open it and the formula is on the shelf." });
+    kpis.push({ da: agencyDa.id, valueCol: "small_business_obligations", label: "To small business",
+      fmt: "money", agg: "sum", subtitle: f.smallBusinessPct.toFixed(1) + "% of the year", state: "",
+      info: "Every small-business contract dollar of the 25 agencies, not only the ones in the top-12 vendor lists." });
+
+    panels.push({ id: "pfg_size", section: "Who spends it",
+      title: "Contract obligations by agency", span: "full",
+      sub: "FY2025, the 25 largest awarding agencies",
+      info: "A log scale would flatter the small agencies. This is linear on purpose: the shape of federal contracting IS one agency.",
+      chart: { type: "bars", da: agencyDa.id, map: { labelCol: "agency", valueCol: "total_obligations" },
+        opts: { horizontal: true, sortBars: true, showValues: false, fmt: "money", height: 520 } } });
+
+    panels.push({ id: "pfg_sbshare", section: "How much of it reaches a small business",
+      title: "Small-business share of each agency's contract spend", span: "full",
+      sub: "the same 25 agencies, ordered by share rather than size — a different list entirely",
+      info: "The share is this View's own calculated column: small_business_obligations ÷ total_obligations. USASpending counts the numerator with its own small-business recipient filter.",
+      chart: { type: "bars", da: agencyDa.id, map: { labelCol: "agency", valueCol: "small_business_pct" },
+        opts: { horizontal: true, sortBars: true, showValues: true, fmt: "pct", height: 520 } } });
+
+    panels.push({ id: "pfg_scatter", title: "Does size predict the share?", span: 2,
+      sub: "one dot per agency: what it spends against how much of it went to small business",
+      info: "If the biggest buyers were also the ones reaching small business, the dots would climb. They do not.",
+      chart: { type: "scatter", da: agencyDa.id,
+        map: { labelCol: "agency", xCol: "total_obligations", yCol: "small_business_pct" },
+        opts: { trend: true, fmt: "abbr", xLabel: "Contract obligations, FY2025",
+          yLabel: "Small-business share (%)", height: 380 } } });
+
+    panels.push({ id: "pfg_note", title: "Where these two numbers come from", span: 2,
+      chart: { type: "richtext", da: null, opts: { content: [
+        "**Two queries, not one.** The agency total and its small-business figure are the same USASpending question asked twice — the second time with the small-business recipient filter on. Summing the small firms out of the top-12 vendor list would have been cheaper and would have under-counted every agency, because most small-business dollars are spread below the twelfth-largest recipient.",
+        "",
+        "**The share is derived here, in the open.** The extract ships two dollar figures and deliberately not their ratio; the percentage on this dashboard is a calculated column on the View, so you can see the formula, change it, or plot something else against it.",
+        "",
+        "- Across all " + f.agencies + " agencies: **" + fcaBillions(f.smallBusiness) + "** of **" + fcaBillions(f.total) + "** (**" + f.smallBusinessPct.toFixed(1) + "%**)",
+        "",
+        "*A caution:* \"small business\" is a size standard that varies by NAICS industry, so a share is not directly comparable between an agency that buys aircraft and one that buys office services."
+      ].join("\n") } } });
+
+    return {
+      id: "contractawards-agencies", name: "contractawards-agencies",
+      title: "Who Spends It",
+      subtitle: "The 25 largest awarding agencies by contract obligations, and how much of each one's spending reached a small business",
+      dashboardTheme: "polecat",
+      panels: panels, kpis: kpis, filters: [],
+      cda: { connections: [], dataAccesses: das }
+    };
+  }
+
+  // (3) where the work lands — the app's congressional-district scale, on real data.
+  //
+  // ONE map, deliberately, and the ranked list beside it — because the measurement that
+  // came out of building this dashboard is that a US congressional-district choropleth
+  // CANNOT carry this measure on its own. The renderer's class breaks are LINEAR
+  // (app/studio-charts.js: t = (v - vmin) / (vmax - vmin)), federal contract money is a
+  // power law, and the two do not meet: 407 of the 436 districts fall in the lowest sixth
+  // of the range, so six colour classes render as one. SP-1 never hit this because a rate
+  // per 10,000 residents is bounded; a dollar total is not.
+  //
+  // The response is not to hide the map or to invent a flattering index — it is to say
+  // what the map is evidence FOR (a concentration this extreme) and to put the reading
+  // you cannot get from it directly underneath. Quantile or log class breaks would fix
+  // the chart properly and would be a real improvement to the choropleth for everyone;
+  // that is a chart-capability slice of its own, not something to smuggle in on a pack.
+  function contractAwardsDistrictsSpec(ds, d) {
+    var das = [], panels = [], kpis = [];
+    var districtDa = curatedDA("vfd_all", "Federal Contract Awards — contract spend by congressional district",
+      ds.districts.id, ["district_id", "district", "state", "obligations", "population", "dollars_per_resident"],
+      [], [FCA_PER_RESIDENT_CALC]);
+    das.push(districtDa);
+    kpis.push({ da: districtDa.id, valueCol: "obligations", label: "Obligated in a district",
+      fmt: "money", agg: "sum", subtitle: d.districts + " districts", state: "",
+      info: "Place of performance — where the work happens, not where the contractor is headquartered. Slightly less than the national total: the territories' at-large delegations are left out because the map has no geometry for them." });
+    kpis.push({ da: districtDa.id, valueCol: "obligations", label: "The busiest district",
+      fmt: "money", agg: "max", subtitle: "one district, one year", state: "",
+      info: "Contract work concentrates hard around the agencies that buy it." });
+    kpis.push({ da: districtDa.id, valueCol: "obligations", label: "The median district",
+      fmt: "money", agg: "median", subtitle: "the middle of " + d.districts, state: "",
+      info: "Read this against the busiest district beside it — the gap between the two is the finding this dashboard is about." });
+    kpis.push({ da: districtDa.id, valueCol: "dollars_per_resident", label: "Per resident",
+      fmt: "money", agg: "median", subtitle: "the median district", state: "",
+      info: "This View's own calculated column: obligations ÷ population. It is a way to read the map, not a payment to anybody." });
+
+    panels.push({ id: "pfd_map", section: "Where the work lands",
+      title: "Contract obligations by congressional district", span: "full",
+      sub: "place of performance, FY2025 — and a distribution so concentrated that one colour covers most of the country",
+      info: "The colour classes are evenly spaced between the smallest and largest district, so a handful of districts hold the whole top of the scale. That is what the map is showing you; the ranked list below is how you read the rest of it.",
+      chart: { type: "choropleth", da: districtDa.id,
+        map: { idCol: "district_id", valueCol: "obligations" },
+        opts: { scale: "cd", fmt: "money", agg: "sum", classes: 6, height: 460 } } });
+
+    var bigDa = curatedDA("vfd_big", "Federal Contract Awards — the biggest districts",
+      ds.districts.id, ["district", "state", "obligations"],
+      [{ col: "obligations", kind: "range", min: String(FCA_DISTRICT_BAR), max: "" }]);
+    das.push(bigDa);
+    panels.push({ id: "pfd_bars", section: "The map's top class, spread out",
+      title: "Districts with " + fcaBillions(FCA_DISTRICT_BAR) + " or more of contract work", span: "full",
+      sub: "the filter is on the View — open it and move the floor",
+      info: "Everything here is inside the darkest band or two of the map above. The bars are the only place their differences are visible at all.",
+      chart: { type: "bars", da: bigDa.id, map: { labelCol: "district", valueCol: "obligations" },
+        opts: { horizontal: true, sortBars: true, showValues: false, fmt: "money", height: 520 } } });
+
+    panels.push({ id: "pfd_scatter", section: "Why the map looks like that",
+      title: "Every district, by residents and by dollars", span: 2,
+      sub: "one dot per district — districts hold roughly equal populations, so the whole spread is money",
+      info: "The near-vertical wall on the left is the point: equal-population districts, wildly unequal contract work.",
+      chart: { type: "scatter", da: districtDa.id,
+        map: { labelCol: "district", xCol: "population", yCol: "obligations" },
+        opts: { trend: false, fmt: "abbr", xLabel: "Residents", yLabel: "Contract obligations", height: 380 } } });
+
+    panels.push({ id: "pfd_note", title: "Place of performance, and what it hides", span: 2,
+      chart: { type: "richtext", da: null, opts: { content: [
+        "**This map is about work, not headquarters.** USASpending records a primary place of performance for each award, and that is what these districts are keyed on. A contractor registered in one state doing the work in another shows up where the work is.",
+        "",
+        "**One place per award is a simplification the source makes, not one this pack adds.** A contract performed across several districts still lands on one, so a district with a large facility carries work that spilled well past its boundary.",
+        "",
+        "- Districts drawn: **" + d.districts + "**, the full House delegation of the 50 states and the District of Columbia",
+        "- The ten busiest districts take **" + d.topTenPct.toFixed(0) + "%** of the year's district-level contract work between them",
+        "- **" + d.negative + "** districts come out NEGATIVE: money deobligated from earlier awards exceeded what was newly obligated there. That is a real feature of contract accounting, not a data error, and it is left in",
+        "- Not drawn: the at-large delegations of American Samoa, Guam, the Northern Mariana Islands, Puerto Rico and the US Virgin Islands — **0.6%** of the year's contract dollars, stated here rather than silently missing, because the app's map has no geometry for them"
+      ].join("\n") } } });
+
+    return {
+      id: "contractawards-districts", name: "contractawards-districts",
+      title: "Where the Work Lands",
+      subtitle: "Federal contract obligations by congressional district — place of performance, and how few districts carry most of it",
+      dashboardTheme: "polecat",
+      panels: panels, kpis: kpis, filters: [],
+      cda: { connections: [], dataAccesses: das }
+    };
+  }
+
+  // Idempotent by dashboard name (the CONS-1 convention SP-1 also follows), so it is safe
+  // from the seed, from the boot heal, and from a workspace where someone deleted one.
+  function seedContractAwardsDashboards(W, id, ds, now) {
+    if (!ds || !ds.totals || !ds.industry || !ds.districts || !ds.output) return 0;
+    // Both figure sets are read back off the rows that were just written, rather than
+    // taken as arguments: the seed path and the boot heal then cannot disagree about what
+    // the pack says about itself.
+    var f = contractAwardsFigures(parsePackCsv(ds.totals.content));
+    var d = contractAwardsDistrictFigures(parsePackCsv(ds.districts.content));
+    if (!f.agencies || !f.total || !d.districts) return 0; // nothing to state honestly, so state nothing
+    var specs = {
+      "contractawards-districts": contractAwardsDistrictsSpec(ds, d),
+      "contractawards-agencies": contractAwardsAgenciesSpec(ds, f),
+      "contractawards-flow": contractAwardsFlowSpec(ds, f)
+    };
+    var added = 0;
+    FCA_DASHBOARDS.forEach(function (name) {
+      var have = W.all("dashboards").some(function (r) {
+        return r.demoPackId === id && (r.name === name || (r.spec && r.spec.name) === name);
+      });
+      if (have) return;
+      var spec = specs[name];
+      W.put("dashboards", {
+        name: name, title: spec.title, ts: now, spec: spec,
+        folder: FCA_FOLDER, demoPackId: id
+      });
+      added++;
+    });
+    return added;
+  }
+
+  // The boot heal (studio.js reconcilePackDashboards): a workspace that installed the
+  // pack when it was slice (a) — data but no dashboards — gets them without a reinstall,
+  // and so does one where a dashboard was deleted. Returns false when there is nothing to
+  // do, including the legitimate "data hasn't materialized yet" case: the seed path above
+  // writes the dashboards itself the moment the datasets exist.
+  Studio.ensureContractAwardsDashboards = function () {
+    var id = "contractawards";
+    if (!Studio.demoPackInstalled(id)) return false;
+    var W = Studio.Workspace;
+    var mine = W.all("datasets").filter(function (d) { return d.demoPackId === id && d.content; });
+    function byFile(part) {
+      return mine.filter(function (d) { return (d.fileName || "").indexOf(part) >= 0; })[0];
+    }
+    var ds = {
+      totals: byFile("agency-totals"), industry: byFile("agency-industry"),
+      districts: byFile("district"),
+      output: mine.filter(function (d) { return (d.tags || []).indexOf("job-output") >= 0; })[0]
+    };
+    if (!ds.totals || !ds.industry || !ds.districts || !ds.output) return false;
+    return seedContractAwardsDashboards(W, id, ds, new Date().toISOString()) > 0;
+  };
 
   // SP-0: registry-driven. This function knows about no pack in particular — an entry
   // that seeds a workspace supplies `install`; one that only gates gallery visibility

@@ -898,7 +898,16 @@
     contract spend by congressional district, and the output of the prep <strong>job</strong> that
     joins a vendor to its agency's total so one contractor's haul reads as a share of the agency
     that paid it. The two flow tables carry the agency <em>code</em> and not its name on purpose:
-    bringing the readable name and the agency total across is exactly what the job is for. Every
+    bringing the readable name and the agency total across is exactly what the job is for. On top
+    of them sit three <strong>dashboards</strong> in a <strong>Federal Contract Awards</strong>
+    folder: <em>Where the Money Goes</em> (two sankey flow diagrams — agency to contractor and
+    agency to industry — plus the contractors that took a tenth or more of the agency that paid
+    them), <em>Who Spends It</em> (the 25 agencies by size, and the very different ordering you
+    get when you rank them by how much of their spending reached a small business), and
+    <em>Where the Work Lands</em> (the congressional-district map of place of performance, with
+    the ranked list beside it — federal contract money is concentrated enough that a map's
+    evenly-spaced colour classes put most of the country in one band, which the dashboard says
+    out loud rather than dressing up). Every
     filter behind the numbers — contracts only, one closed fiscal year, the top 25 agencies and
     the top 12 industries and vendors within each — is written down in
     <code>tools/pack-extract/contractawards.mjs</code> and in the pack's
