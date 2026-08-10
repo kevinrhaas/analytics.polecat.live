@@ -8549,6 +8549,129 @@ if (kitLive) {
   }
 }
 
+/* ── 75. the ⌘K palette drives controls that EXIST, and offers the safe remedy ───────────────
+   N7. Check 74 asked whether a route the app PRINTS resolves; this asks the same question of
+   the routes the app WIRES. `app/palette.js` is built on one promise, written into its own
+   header: every command "simply drives an existing control (clicks a real button…), so it
+   reuses all existing wiring and can never drift out of sync with the app." That is true of
+   the mechanism and false of the id — a `click("x")` for an `x` that has been renamed or
+   deleted is a silent no-op, and the palette row still renders, still ranks, still highlights.
+
+   Measured 2026-08-10, before the fix — two findings, one of each kind:
+   · **`Add text / annotation panel` clicked `btnAddText`, an id deleted on 2026-07-14.** The
+     ¶ Text button moved out of the Data-panel header into the canvas empty state (`#cesText`)
+     because it creates a PANEL; the suite even asserts the old id is gone
+     (`oldHeaderBtnGone`). The palette entry was never repointed, so for ~4 weeks ⌘K → that
+     command did nothing at all — no error, no toast, no panel.
+   · **The palette reached `Clear local data…` and not the hard reset.** v986 had just built
+     `Settings → App → Hard reset` for the stuck-offline-copy failure mode precisely because
+     ⋯ More → Clear local data — which WIPES the workspace — was the wrong answer to it. With
+     only the destructive one in the palette, the remedy you should try first was absent from
+     the keyboard surface and the one you should try last was a keystroke away.
+
+   Sources of truth. The registry is EVALUATED, check 61's idiom (the `run` bodies only
+   dereference their helpers when called, so the literal stands alone), and each command's
+   wiring is read back off its own function source — both idioms it uses: the `click("<id>")`
+   helper and a `#id`-anchored `querySelector`. The inventory it is checked against is every
+   id the app can render: `id="…"` across `app/*.html` and the markup `app/*.js` builds as
+   strings. Three rules:
+   (a) every control id a command drives is one the app really renders. This is the general
+       rule, and the one `btnAddText` fails;
+   (b) the remedy PAIR ships together, safe one first, in one family. The two ids are named
+       here rather than derived, and that is deliberate: "this button wipes your workspace and
+       that one does not" is a product fact about consequences, not a shape any parse can read
+       out of the source. What the rule derives around them is everything else — the family
+       word from the commands' own `hint`, the order from the registry's own index;
+   (c) the safe command's label NAMES the control it drives, so someone who read
+       `Settings → App → Hard reset` in the banner and reached for ⌘K instead types the same
+       words. A trailing ellipsis is the palette's own idiom for "this will ask first" and is
+       stripped before the comparison.
+
+   Deliberately not held: the dynamic builders (`navCommands` and friends) mint commands from
+   live DOM they hold a reference to and click THAT node, so there is no id to resolve — check
+   61 already reads their label prefixes. Rule (a) covers the static registry, which is where
+   every hand-written id lives. */
+{
+  const pal = read("app/palette.js");
+
+  // The static registry, evaluated exactly as check 61 evaluates it.
+  const cmds = (() => {
+    const at = pal.indexOf("var COMMANDS = [");
+    if (at < 0) return null;
+    try {
+      const arr = new Function("return " + searchBlockAt(pal, pal.indexOf("[", at), "[", "]") + ";")();
+      return Array.isArray(arr) && arr.every((c) => c && typeof c.label === "string" &&
+        typeof c.hint === "string" && typeof c.run === "function") ? arr : null;
+    } catch { return null; }
+  })();
+
+  // What a command drives, read off its own source: the registry's `click("<id>")` helper and
+  // any `#id`-anchored selector. Both are hand-written ids, which is what makes them driftable.
+  const drivenBy = (c) => {
+    const src = String(c.run);
+    return [...new Set([
+      ...[...src.matchAll(/\bclick\(\s*"([\w-]+)"\s*\)/g)].map((m) => m[1]),
+      ...[...src.matchAll(/["'`]#([A-Za-z][\w-]*)/g)].map((m) => m[1]),
+    ])];
+  };
+  const wired = (cmds || []).map((c) => ({ label: c.label, hint: c.hint, ids: drivenBy(c) }))
+    .filter((c) => c.ids.length);
+
+  // Every id the app can put in the DOM: static markup plus the markup its JS builds as strings.
+  const appFiles = fs.readdirSync(path.join(ROOT, "app"), { withFileTypes: true })
+    .filter((e) => e.isFile() && /\.(js|html)$/.test(e.name)).map((e) => "app/" + e.name).sort();
+  const realIds = new Set(appFiles.flatMap((f) =>
+    [...read(f).matchAll(/\bid=\\?"([\w-]+)\\?"/g)].map((m) => m[1])));
+
+  // The pair. Named, not derived — see the header: which of two buttons destroys your work is
+  // a fact about consequences, and the source says nothing about that either way.
+  const SAFE = "setHardResetBtn", DESTRUCTIVE = "moreClearData";
+  const cmdFor = (id) => wired.filter((c) => c.ids.includes(id))[0] || null;
+  const safeCmd = cmdFor(SAFE), destructiveCmd = cmdFor(DESTRUCTIVE);
+  // The label the Settings page prints on the safe control, read off the button it renders.
+  const safeLabel = (studioJs.match(/id="setHardResetBtn"[^>]*>([^<]+)<\/button>/) || [, ""])[1].trim();
+
+  const palPremise = ok(`app/palette.js: the palette's wiring parsed for check 75 ` +
+    `(${cmds ? cmds.length : 0} static command(s), ${wired.length} of them driving a named ` +
+    `control, against ${realIds.size} id(s) the app renders)`,
+    !!cmds && cmds.length >= 20 && wired.length >= 8 && realIds.size >= 50 && !!safeLabel,
+    `registry evaluated: ${!!cmds} · Settings' own label for the safe control: ` +
+    `"${safeLabel || "(unparsed)"}"\n      ` +
+    `driven ids: ${wired.flatMap((c) => c.ids).join(", ") || "(none)"}\n      ` +
+    "an empty parse would let all three rules below pass while measuring nothing");
+
+  if (palPremise) {
+    // (a) the general rule: a command that clicks a ghost is a row that does nothing.
+    const dead = wired.flatMap((c) => c.ids.filter((id) => !realIds.has(id))
+      .map((id) => `"${c.label}" → #${id}`));
+    ok(`app/palette.js: all ${wired.flatMap((c) => c.ids).length} control id(s) the palette drives are controls the app renders`,
+      !dead.length,
+      `commands wired to nothing: ${dead.join(" · ")}\n      ` +
+      "a click() on a missing id throws nothing and shows nothing — the palette row renders, " +
+      "ranks and highlights exactly as it would if it worked, which is how btnAddText survived " +
+      "four weeks after the button it names was deleted");
+
+    // (b) the pair, in the order you should try them.
+    const iSafe = wired.indexOf(safeCmd), iDestructive = wired.indexOf(destructiveCmd);
+    ok("app/palette.js: the palette reaches the SAFE remedy wherever it reaches the destructive one, first and in the same family",
+      !destructiveCmd || (!!safeCmd && safeCmd.hint === destructiveCmd.hint && iSafe < iDestructive),
+      `safe (#${SAFE}): ${safeCmd ? `"${safeCmd.label}" [${safeCmd.hint}]` : "(NOT IN THE PALETTE)"}\n      ` +
+      `destructive (#${DESTRUCTIVE}): ${destructiveCmd ? `"${destructiveCmd.label}" [${destructiveCmd.hint}]` : "(absent)"}\n      ` +
+      "Hard reset drops the offline copy and touches no storage; Clear local data wipes the " +
+      "workspace. Offering only the second from the keyboard puts the destructive remedy one " +
+      "keystroke away and leaves the one it should be tried before reachable through Settings alone");
+
+    // (c) and it calls the control what the control calls itself.
+    const palLabel = safeCmd ? safeCmd.label.replace(/[….]+$/, "").trim() : "";
+    ok(`app/palette.js: the safe remedy's command names the control it drives ("${safeLabel}")`,
+      !!safeCmd && palLabel === safeLabel,
+      `the palette prints "${safeCmd ? safeCmd.label : "(no command)"}" · Settings prints "${safeLabel}"\n      ` +
+      "the banner and Help both spell this remedy out as Settings → App → Hard reset, so the " +
+      "words someone types into ⌘K are the words that route ends on — a rename on either side " +
+      "that skips the other makes the palette unfindable by the only name anyone has been given");
+  }
+}
+
 console.log(failed ? `\n✗ doc-truth: ${failed} claim(s) have drifted from the source of truth`
   : "\n✅ doc-truth: every published claim matches the source it describes");
 process.exit(failed ? 1 : 0);

@@ -6,6 +6,19 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 987,
+    title: 'Two ⌘K commands: one clicked a button deleted four weeks ago, and the safe remedy was missing',
+    kind: 'fix',
+    ts: '2026-08-10T22:41:18.000Z',
+    items: [
+      'The command palette is built on one promise — every command clicks a real control, so it can never drift out of sync with the app. That is true of the mechanism and it was not true of two of the ids.',
+      '<b>⌘K → Add text / annotation panel</b> did nothing. The <b>¶ Text</b> button moved out of the Data panel\'s header into the canvas empty state on 14 July, because it creates a panel and belongs with the canvas; the palette kept clicking the old id. Clicking an id that is not there throws nothing and shows nothing, so the row rendered, ranked and highlighted exactly as it would if it worked. It adds a text panel again.',
+      'The palette also reached <b>Clear local data…</b> and not the hard reset. Those two are not alternatives: <b>Settings → App → Hard reset</b> drops this browser\'s stale copy of the app and touches nothing you have made, while Clear local data wipes the whole workspace. Offering only the second from the keyboard put the destructive remedy one keystroke away and left the one you should try first reachable through Settings alone.',
+      '<b>⌘K → Hard reset…</b> now sits directly above it in the same <b>Manage</b> family, and it answers the problem as well as the name — type "stuck", "offline copy", "service worker" or "reload" and it comes up.',
+      'A new doc-truth check reads every control id the palette wires itself to and fails the build when one of them is not something the app renders — so the next deleted button breaks the build instead of quietly breaking a command. It also holds the two remedies together, in that order.',
+    ],
+  },
+  {
     v: 986,
     title: 'Settings → hard reset was a remedy the app told you to use and did not have',
     kind: 'feature',

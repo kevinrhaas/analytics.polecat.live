@@ -135,6 +135,60 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N7 — two ⌘K commands drove controls that were not there (v987, sw v563, 2026-08-10, steward;
+  dev branch; est 1pt, took 1 — ON estimate):** 🔁 N7 was again the only takeable item in ▶ NOW
+  (N31, N44, N41 and N25 all ⛔ on Kevin; SP-1 ⏳ on `hold` PR #689), and v986's pass had left a
+  named candidate: the palette reached **Clear local data…** and not the hard reset v986 had just
+  built. Check 74 asked whether a route the app PRINTS resolves; this slice asked the same question
+  of the routes the app WIRES.
+  **The pairing, as named.** `⌘K → Hard reset…` now sits directly above `Clear local data…` in the
+  same **Manage** family, driving `#setHardResetBtn` through `goSec("settings")` — the same
+  click-a-real-control wiring the destructive entry already used. Its keywords answer the PROBLEM
+  as well as the name (*stuck*, *offline copy*, *service worker*, *reload*, *banner*), because the
+  reader who needs it is describing a symptom, not looking up a feature. The two are not
+  alternatives — Hard reset touches no storage, Clear local data wipes the workspace — so having
+  only the second in the palette put the destructive remedy one keystroke away and left the one it
+  should be tried before reachable through Settings alone.
+  **And writing the rule found a second command that was already broken, which is the better half
+  of this slice.** The note asked for a rule holding "the pairing"; a rule over two hand-named ids
+  is transcription, so it was written as the general form — every control id the registry drives
+  must be one the app actually renders — and it failed on the pre-fix tree for a command nobody was
+  looking at. **`Add text / annotation panel` clicked `btnAddText`, deleted on 2026-07-14** when
+  ¶ Text moved out of the Data-panel header into the canvas empty state (`#cesText`) because it
+  creates a panel; the suite even asserts the old id is gone (`oldHeaderBtnGone`) and the palette
+  was never repointed. **Measured live, not inferred:** the row rendered, ranked and highlighted,
+  and `spec.panels.length` went **6 → 6**. A `click()` on a missing id throws nothing and shows
+  nothing, so four weeks of use looked identical to it working. `app/palette.js`'s own header has
+  claimed since Track N that a command "clicks a real button… and can never drift out of sync with
+  the app" — true of the mechanism, and silent about the id.
+  **Doc-truth check 75.** The registry is EVALUATED (check 61's idiom) and each command's wiring is
+  read back off its own function source, both idioms it uses — the `click("<id>")` helper and a
+  `#id`-anchored `querySelector` — against every id the app can render (`id="…"` across `app/*.html`
+  plus the markup `app/*.js` builds as strings; 334 ids, 17 driven). Premise + three rules: (a) no
+  command drives an id the app does not render; (b) the safe remedy ships wherever the destructive
+  one does, first and in the same family; (c) the safe command's label is the control's own label,
+  ellipsis stripped, so ⌘K answers to the words the banner and Help both print. **The two ids in
+  (b) are named rather than derived, deliberately** — which of two buttons destroys your work is a
+  fact about consequences and no parse can read it out of the source; everything around them (the
+  family word, the order) is derived. **(a) and (b) fail on the real pre-fix tree**; five more
+  directions were measured on mutated trees (order reversed, family changed, palette label drifted,
+  button renamed, registry unparseable), each failing its own rule and only its own.
+  **Verification.** 7 new suite checks at 390×780 → 1280×900 in their own browser context, because
+  the command ends on a real `confirm()` and a stray accept would unregister the service worker out
+  from under the rest of the suite: Playwright's default dismiss is itself the assertion — the
+  command must reach the button's own handler and then not go through with it, and the dialog's
+  text is the proof of arrival. All 7 fail on the pre-fix tree (6 of them; the seventh is the
+  zero-pageerrors walk) and pass on this one. Dev gate green.
+  **One pre-existing red, found by running the full suite and fixed here because it is the same
+  defect one file over.** `tests/run.js` asserted the Settings page renders **8** cards, in two
+  hand-kept places — v986 added the ninth (**App**) and left both counts behind, so `dev` has been
+  failing the STAGE gate since yesterday and the nightly promotion would have rolled this work back
+  with it. Corrected to 9 and measured (`Account · Workspace backend · Appearance · Mode ·
+  Presentation · Dashboard defaults · Sample packs · Data · App`), which is exactly the list
+  doc-truth check 73 derives from `renderSettings()` — the assertion was stale, not the app, so
+  nothing was weakened. The pattern is worth naming: v986 shipped on the LIGHT dev gate, which does
+  not run `tests/run.js`, and left a stale assertion and a stale palette id on the same day.
+  **Named for the next N7 slice:** the palette still calls a View a **panel** — see the N7 list.
 - **N7 — `Settings → hard reset` was a remedy the app told you to use and did not have (v986,
   sw v562, 2026-08-10, steward; dev branch; est 1pt, took 1 — ON estimate):** 🔁 N7 was again the
   only takeable item in ▶ NOW (N31, N44, N41 and N25 all ⛔ on Kevin; SP-1 ⏳ on `hold` PR #689),
@@ -17404,7 +17458,7 @@
     still printed **`Settings → Tour`**, the exact route v985 had just deleted from Help, and a
     sync toast lower-cased **Workspace backend**. Check 73 (d)'s upper-case carve-out is gone with
     it. The two v922 candidates are still open and still Kevin's calls.
-  * **Measured in the v986 pass and NOT taken, so the next run does not re-derive it — and it is
+  * ~~**Measured in the v986 pass and NOT taken, so the next run does not re-derive it — and it is
     the named candidate for the next N7 slice.** `app/palette.js` reaches **Clear local data…**
     (⌘K → "Clear local data…", which clicks `#moreClearData`) and does NOT reach the hard reset —
     so the destructive remedy is one keystroke away and the non-destructive one it should be tried
@@ -17412,7 +17466,31 @@
     resolves "⌘K → X" against `app/palette.js`'s command labels, so a `Hard reset…` command that
     navigates to Settings and clicks `#setHardResetBtn` is the same wiring the Clear-local-data
     entry already uses, and the pairing could be held by a rule rather than remembered. It is a
-    code slice with an `sw.js` bump, which is why v986 did not widen into it.
+    code slice with an `sw.js` bump, which is why v986 did not widen into it.~~ ✓ **SHIPPED
+    v987, sw v563 (2026-08-10 — see DONE), and writing the rule found a SECOND command that was
+    already broken.** The pairing landed as named — `Hard reset…` sits directly above
+    `Clear local data…` in **Manage**, reached by the problem as well as the name. But the check
+    the note asked for could not stop at those two ids without being a transcription, so it was
+    written as the general rule — *every* control id the registry drives must be one the app
+    renders — and it failed on the pre-fix tree for a command nobody was looking at:
+    **`Add text / annotation panel` clicked `btnAddText`, an id deleted on 2026-07-14** when ¶ Text
+    moved to the canvas empty state (`#cesText`). Measured live, not inferred: the palette row
+    rendered, ranked and highlighted, and `spec.panels.length` went 6 → 6. Doc-truth **check 75**,
+    premise + three rules; two fail on the real pre-fix tree and five more directions were measured
+    on mutated trees. The palette's own header had claimed the opposite for a year — *"clicks a real
+    button… can never drift out of sync with the app"* — which is true of the mechanism and says
+    nothing about the id.
+  * **Measured in the v987 pass and NOT taken, so the next run does not re-derive it — and it is
+    the named candidate for the next N7 slice.** The palette still calls a View a **panel**.
+    `Add text / annotation panel` drives a button whose own label reads **¶ Add a text View**, and
+    `chartTypeCommands` mints `"Add panel: " + label` — the LF52/LF57 widget→View rename swept the
+    controls and left the palette's copy behind, which is the exact shape of the v875/v876 pair one
+    surface over. **The two halves split the same way those did, and only one is self-contained:**
+    `Add text / annotation panel` is quoted nowhere in `docs/index.html` (measured), so it is a
+    palette-only edit; `"Add panel: <chart type>"` is quoted verbatim in Help under check 61's own
+    label rule, so renaming it moves two documents and the check with them. Doc-truth check 75
+    holds the WIRING, not the wording — a rule over the noun would be check 14's move, one surface
+    over.
 
 > **📋 RECORDED FOR KEVIN, NOT PROMOTED — grooming pass 4, 2026-08-10.** This sits BELOW the queue
 > on purpose: `docs/BACKLOG.md` says the loop never promotes into ▶ NOW on its own, and pass 2's
