@@ -6,6 +6,18 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 966,
+    title: 'A new sample pack: who funds federal politics',
+    ts: '2026-08-10T10:56:21.000Z',
+    items: [
+      '<b>Campaign Finance</b> is a new sample pack in <b>Settings → Sample packs</b>, and the third built on real public data. It carries the Federal Election Commission\'s own record of itemized individual contributions for the closed 2023-24 election cycle — $6.5 billion of them, 46 million contributions — embedded in the app rather than fetched, so installing it needs no credentials and no network.',
+      'Seven tables answer “who gave, and to whom” from seven directions: by <b>donor state</b>, by <b>occupation</b> and by <b>employer</b> (the top 200 of each), by <b>month</b>, by the <b>size of the cheque</b> from under $50 to the per-election limit, the <b>fifty largest recipient committees</b>, and every donor state each of those committees drew from. That last one is a true flow — state → committee — with the giving and the receiving on the same row.',
+      'The pack ships a prep <b>job</b>, not a pre-joined table. The flow table carries a committee id and nothing readable; the job brings across the committee\'s name, its party, the seat it is contesting and its own cycle total, then derives each state\'s <b>share of the committee it gave to</b> — and, for the committees that have a seat to be home to, the share that came from <b>outside</b> the state the candidate is running in.',
+      '<b>Two things the pack says out loud rather than leaving you to find.</b> This source is <b>itemized</b> giving only — a committee reports a donor once their cycle total passes $200 and reports everything under that as one lump — so the small contributions in it are small gifts from donors who crossed that line, not the small-dollar donor universe. And every recipient committee is counted, not just the campaigns: the two sides raised through different plumbing, and filtering to candidate committees would have drawn a landslide that did not happen. Which kind of committee received the money is a column you can group by instead.',
+      '<b>No donor names and no addresses.</b> Every table in the pack is an aggregate, so there is no name column to carry one; the FEC\'s bulk file has no street address in it to begin with. Every filter behind the numbers — individuals only, receipts only, memo rows dropped, one closed cycle — is written down in the pack\'s <b>SOURCE.json</b> and its extract script, and the source, licence and retrieval date are on the pack card.',
+    ],
+  },
+  {
     v: 965,
     title: 'The View Builder learns to build a flow, and Federal Contract Awards pins its four Views',
     ts: '2026-08-10T09:26:14.000Z',

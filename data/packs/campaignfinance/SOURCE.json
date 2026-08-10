@@ -1,0 +1,65 @@
+{
+  "pack": "campaignfinance",
+  "source": {
+    "kind": "public",
+    "name": "Federal Election Commission — individual contributions, 2023-2024 cycle",
+    "url": "https://www.fec.gov/data/browse-data/?tab=bulk-data",
+    "licence": "Public domain (U.S. Government work)",
+    "retrieved": "2026-08-10"
+  },
+  "notes": [
+    "FEC bulk downloads for the 2023-2024 election cycle (indiv24, cm24, cn24), a CLOSED cycle — the files are frozen, so a re-run of this extract reproduces these bytes",
+    "Contributions from INDIVIDUALS only (ENTITY_TP = IND), receipt types 15, 15E and 15J, positive amounts only. Refunds are dropped rather than netted, so these are dollars raised, not dollars kept",
+    "Memo rows (MEMO_CD = X) are dropped: they restate money itemized elsewhere in the same report and keeping them would double-count",
+    "EVERY recipient committee is counted, not just the campaigns. Restricting recipients to candidate committees measures the plumbing rather than the money: the Trump operation raised through joint fundraising committees that transfer onward (Trump 47, $349M; Trump National Committee JFC, $290M) while the Harris operation's earmarked money was itemized directly against the campaign, so that filter shows Harris For President at $390M and no Trump campaign at all. committee_type carries the distinction instead",
+    "Each dollar is counted once: a joint fundraiser's transfers to its participants are committee-to-committee rows rather than individual ones, and the participants' restatements of the original donors are memo rows. The conduits appear only as recipients of contributions to their own committees (ActBlue $33.9M, WinRed $7.4M, together 0.6% of the total) because the money they pass through is itemized by the committee that ultimately received it",
+    "ITEMIZED CONTRIBUTIONS ONLY. A committee itemizes a donor once their cycle total passes $200; everything below that is reported as an unitemized lump and is absent from this source entirely. The small-dollar rows here are therefore small GIFTS from itemized donors, not the small-dollar donor universe",
+    "NO DONOR NAMES, and no street addresses: every table is an aggregate (by state, committee, occupation, employer, month, size band), and the FEC bulk file carries no street address in the first place — city, state and ZIP are its finest geography",
+    "Donor geography is the contributor's own reported state; rows without a two-letter state are excluded from the state and committee-state tables and counted here",
+    "The committee-state flow table covers the top 50 committees by itemized individual receipts, which is 56.76% of the cycle's; the rest are excluded to stay inside the pack's 150KB budget",
+    "committee-state.csv carries the committee ID and no readable name: the name, kind, party, office and totals live once in committees.csv and the pack's job is what joins them. is_home_state is the one fact denormalized into it, because the job engine derives arithmetic and cannot compare two strings — it is 0 for every committee with no seat (a joint fundraiser, a party committee, a PAC), so the out-of-state reading applies to the rows with an office_state",
+    "The top 200 occupations and top 200 employers by dollars. Both are free text typed by the filer, upper-cased with punctuation and whitespace collapsed and nothing more — so \"SELF-EMPLOYED\" and \"SELF EMPLOYED\" merge, while \"SELF\", \"RETIRED\" and \"NOT EMPLOYED\" stay apart: a synonym table would be an editorial judgement the extract cannot defend. Blanks and the \"information requested\" family are excluded",
+    "Monthly rows cover 2023-01 to 2024-12; 5,952 kept rows carry a transaction date outside it (filer typos reach the 1990s and the 2080s) and are excluded from that table only",
+    "Party is the committee's own FEC registration, falling back to its candidate's affiliation, folded to DEM, REP and OTH — DFL and DNL are the Minnesota and North Dakota Democratic parties' registered names and count as DEM. A committee that registers no party is left BLANK rather than called \"other\": most joint fundraisers register none",
+    "committee_type is the FEC's own designation and type codes (joint fundraising committee, leadership PAC, candidate committee, party committee, independent-expenditure committee, hybrid PAC, PAC)",
+    "Amounts are rounded to whole dollars"
+  ],
+  "files": [
+    {
+      "name": "committee-state.csv",
+      "bytes": 69366,
+      "rows": 2658
+    },
+    {
+      "name": "committees.csv",
+      "bytes": 4413,
+      "rows": 50
+    },
+    {
+      "name": "employers.csv",
+      "bytes": 6128,
+      "rows": 200
+    },
+    {
+      "name": "monthly.csv",
+      "bytes": 6864,
+      "rows": 167
+    },
+    {
+      "name": "occupations.csv",
+      "bytes": 5348,
+      "rows": 200
+    },
+    {
+      "name": "size-bands.csv",
+      "bytes": 2671,
+      "rows": 49
+    },
+    {
+      "name": "state-donors.csv",
+      "bytes": 3099,
+      "rows": 67
+    }
+  ],
+  "script": "tools/pack-extract/campaignfinance.mjs"
+}

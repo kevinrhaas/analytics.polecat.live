@@ -1,0 +1,168 @@
+month,committee_type,contributions,amount
+2023-01,Candidate committee,91517,15533218
+2023-01,Hybrid PAC,39611,1803517
+2023-01,Joint fundraising committee,75450,13110528
+2023-01,Leadership PAC,2832,1054390
+2023-01,PAC,38534,15345846
+2023-01,Party committee,38021,9924835
+2023-02,Candidate committee,104323,27270100
+2023-02,Hybrid PAC,42803,1867755
+2023-02,Independent-expenditure committee,71,2513
+2023-02,Joint fundraising committee,62169,27580997
+2023-02,Leadership PAC,2266,1120733
+2023-02,PAC,78293,20543134
+2023-02,Party committee,69461,16385948
+2023-03,Candidate committee,150448,59461609
+2023-03,Hybrid PAC,108094,9445709
+2023-03,Independent-expenditure committee,84,5317
+2023-03,Joint fundraising committee,112723,63563801
+2023-03,Leadership PAC,3557,2210437
+2023-03,PAC,144168,31937480
+2023-03,Party committee,107017,21067881
+2023-04,Candidate committee,160502,32810075
+2023-04,Hybrid PAC,62834,2629273
+2023-04,Independent-expenditure committee,72,3150
+2023-04,Joint fundraising committee,135208,35984188
+2023-04,Leadership PAC,3709,1072679
+2023-04,PAC,158878,25866485
+2023-04,Party committee,126295,16764224
+2023-05,Candidate committee,192906,47569215
+2023-05,Hybrid PAC,87989,10528638
+2023-05,Independent-expenditure committee,240,27431
+2023-05,Joint fundraising committee,126462,35436500
+2023-05,Leadership PAC,5315,1499929
+2023-05,PAC,207091,25831931
+2023-05,Party committee,165864,18917491
+2023-06,Candidate committee,237570,77358020
+2023-06,Hybrid PAC,125479,12674073
+2023-06,Independent-expenditure committee,238,19164
+2023-06,Joint fundraising committee,163675,66557858
+2023-06,Leadership PAC,6683,1930650
+2023-06,PAC,282846,37055652
+2023-06,Party committee,180812,21608379
+2023-07,Candidate committee,252885,40074187
+2023-07,Hybrid PAC,229261,7239692
+2023-07,Independent-expenditure committee,19,35233
+2023-07,Joint fundraising committee,187118,22871776
+2023-07,Leadership PAC,7867,1048719
+2023-07,PAC,274850,23897345
+2023-07,Party committee,185721,16761464
+2023-08,Candidate committee,292710,49507364
+2023-08,Hybrid PAC,279915,7607332
+2023-08,Independent-expenditure committee,2,340
+2023-08,Joint fundraising committee,315770,43094561
+2023-08,Leadership PAC,9486,1322863
+2023-08,PAC,307568,25666390
+2023-08,Party committee,218220,20354358
+2023-09,Candidate committee,325587,76495745
+2023-09,Hybrid PAC,270284,8408580
+2023-09,Independent-expenditure committee,9,40564
+2023-09,Joint fundraising committee,209305,69086350
+2023-09,Leadership PAC,10177,2239619
+2023-09,PAC,350109,30175873
+2023-09,Party committee,250504,20358646
+2023-10,Candidate committee,341047,49170961
+2023-10,Hybrid PAC,265139,7083204
+2023-10,Independent-expenditure committee,1,480
+2023-10,Joint fundraising committee,222355,38470714
+2023-10,Leadership PAC,11221,1790955
+2023-10,PAC,382525,28872963
+2023-10,Party committee,272781,19918369
+2023-11,Candidate committee,352284,63702971
+2023-11,Hybrid PAC,248069,6952302
+2023-11,Independent-expenditure committee,3,7750
+2023-11,Joint fundraising committee,204060,45522043
+2023-11,Leadership PAC,11466,1645695
+2023-11,PAC,419428,27828571
+2023-11,Party committee,280364,18956462
+2023-12,Candidate committee,392261,95891322
+2023-12,Hybrid PAC,250236,8370510
+2023-12,Independent-expenditure committee,1,423
+2023-12,Joint fundraising committee,223911,64002513
+2023-12,Leadership PAC,13182,3015584
+2023-12,PAC,471019,43468411
+2023-12,Party committee,290451,21851291
+2024-01,Candidate committee,434746,66057635
+2024-01,Hybrid PAC,61203,4522220
+2024-01,Independent-expenditure committee,4,615000
+2024-01,Joint fundraising committee,164859,52749993
+2024-01,Leadership PAC,4279,1882690
+2024-01,PAC,43631,19043000
+2024-01,Party committee,74287,18862895
+2024-02,Candidate committee,499349,87195907
+2024-02,Hybrid PAC,96046,5243223
+2024-02,Independent-expenditure committee,5,303055
+2024-02,Joint fundraising committee,219700,74417897
+2024-02,Leadership PAC,6049,2430277
+2024-02,PAC,90791,24736080
+2024-02,Party committee,123673,25770357
+2024-03,Candidate committee,537963,123297094
+2024-03,Hybrid PAC,156413,6650023
+2024-03,Independent-expenditure committee,70,5402000
+2024-03,Joint fundraising committee,260505,139465594
+2024-03,Leadership PAC,9650,3267104
+2024-03,PAC,166127,35635415
+2024-03,Party committee,213963,34477446
+2024-04,Candidate committee,497853,83004412
+2024-04,Hybrid PAC,191520,6334586
+2024-04,Independent-expenditure committee,71,3297
+2024-04,Joint fundraising committee,406649,114694738
+2024-04,Leadership PAC,10321,2717138
+2024-04,PAC,189576,30055523
+2024-04,Party committee,223098,28160525
+2024-05,Candidate committee,586221,95105036
+2024-05,Hybrid PAC,239692,7683222
+2024-05,Independent-expenditure committee,107,2131
+2024-05,Joint fundraising committee,558800,177041861
+2024-05,Leadership PAC,16625,3316303
+2024-05,PAC,259795,31691621
+2024-05,Party committee,223691,30215638
+2024-06,Candidate committee,698587,124925963
+2024-06,Hybrid PAC,313955,10057032
+2024-06,Independent-expenditure committee,184,14598
+2024-06,Joint fundraising committee,531871,187599760
+2024-06,Leadership PAC,41103,7959828
+2024-06,PAC,301021,34774577
+2024-06,Party committee,259950,33681437
+2024-07,Candidate committee,1113110,158790646
+2024-07,Hybrid PAC,503410,17036906
+2024-07,Independent-expenditure committee,137,31087
+2024-07,Joint fundraising committee,998746,221287486
+2024-07,Leadership PAC,47420,7646253
+2024-07,PAC,362788,33227726
+2024-07,Party committee,382813,54317069
+2024-08,Candidate committee,1348322,177670866
+2024-08,Hybrid PAC,604076,16849433
+2024-08,Independent-expenditure committee,206,28549
+2024-08,Joint fundraising committee,1193591,293733881
+2024-08,Leadership PAC,62144,10398542
+2024-08,PAC,398996,32746742
+2024-08,Party committee,436591,56207341
+2024-09,Candidate committee,1735923,236719942
+2024-09,Hybrid PAC,824389,20745885
+2024-09,Independent-expenditure committee,805,316494
+2024-09,Joint fundraising committee,1423044,375375914
+2024-09,Leadership PAC,101038,15182545
+2024-09,PAC,461484,42099986
+2024-09,Party committee,464360,65523816
+2024-10,Candidate committee,2661428,295591198
+2024-10,Hybrid PAC,1389741,30394479
+2024-10,Independent-expenditure committee,17885,2704007
+2024-10,Joint fundraising committee,2194280,357956810
+2024-10,Leadership PAC,174056,19335405
+2024-10,PAC,610879,42297535
+2024-10,Party committee,710333,82373584
+2024-11,Candidate committee,622595,50279930
+2024-11,Hybrid PAC,680828,10360961
+2024-11,Independent-expenditure committee,7326,492609
+2024-11,Joint fundraising committee,849785,58144900
+2024-11,Leadership PAC,62526,6442475
+2024-11,PAC,541220,33626441
+2024-11,Party committee,423045,23916399
+2024-12,Candidate committee,78815,7877053
+2024-12,Hybrid PAC,321780,5106861
+2024-12,Independent-expenditure committee,4003,119426
+2024-12,Joint fundraising committee,496328,21829739
+2024-12,Leadership PAC,24627,1890382
+2024-12,PAC,481802,35382332
+2024-12,Party committee,321386,15042157
