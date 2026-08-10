@@ -1247,6 +1247,7 @@
   }
   function wsDatasetCard(ds, q) {
     var c = el("div", "da");
+    c.setAttribute("data-ws-ds", ds.id); // N42: so the selection ring can find this card again
     c.draggable = true;
     var conn = Studio.Workspace.get("connections", ds.connectionId);
     var src = conn && Studio.sourceById(conn.adapter);
@@ -1265,6 +1266,7 @@
       e.dataTransfer.setData("text/plain", JSON.stringify({ wsDataset: ds.id }));
       e.dataTransfer.effectAllowed = "copy";
     });
+    if (selectedWsDatasetId() === ds.id) c.classList.add("da-mine-sel");
     return c;
   }
   // Import a workspace dataset into the spec as a self-contained data access
@@ -1446,6 +1448,7 @@
   // table folds into "+N" instead of stretching the card into a wall.
   function myDACard(da) {
     var c = el("div", "da da-mine");
+    c.setAttribute("data-da-id", da.id); // N42: so the selection ring can find this card again
     var isCompound = Studio.isCompoundDA(da);
     var shortKind = isCompound ? (da.compoundType === "union" ? "UNION" : "JOIN") : ((da.kind || "sql").split(".")[0]).toUpperCase();
 
@@ -1502,7 +1505,7 @@
       var freshEl = el("div", "da-mine-fresh"); freshEl.textContent = daFreshnessLabel(da.id);
       c.appendChild(freshEl);
     }
-    if (S.selection && S.selection.kind === "da" && S.selection.id === da.id) c.classList.add("da-mine-sel");
+    if (selectedDaId() === da.id) c.classList.add("da-mine-sel");
     return c;
   }
 
@@ -2542,8 +2545,62 @@
   }
 
   /* ---------- selection + inspector ---------- */
-  function select(sel) { S.selection = sel; renderInspector(); highlightPreview(); }
-  function selectDashboard() { S.selection = null; renderInspector(); highlightPreview(); }
+  function select(sel) { S.selection = sel; renderInspector(); highlightPreview(); highlightLibrarySelection(true); }
+  function selectDashboard() { S.selection = null; renderInspector(); highlightPreview(); highlightLibrarySelection(false); }
+
+  // N42 (Kevin, 2026-08-09): "if you select a panel you should see the dataset
+  // selected/highlighted on the left for the panel… so you can tell which one from the
+  // list." The binding was always there — a panel names its data access in chart.da and
+  // a KPI in k.da — the Data pane just never asked. This is the single answer used by
+  // BOTH the build-time class (myDACard / wsDatasetCard) and the live repaint below, so
+  // a card rebuilt mid-session can't disagree with one that was already on screen.
+  function selectedDaId() {
+    var sel = S.selection; if (!sel) return null;
+    if (sel.kind === "da") return sel.id || null;
+    if (sel.kind === "panel") { var p = panelById(sel.id); return (p && p.chart && p.chart.da) || null; }
+    if (sel.kind === "kpi") { var k = (S.spec.kpis || [])[sel.index]; return (k && k.da) || null; }
+    return null; // header/filter — and a rich-text panel has no da, so nothing lights up
+  }
+  // The workspace dataset a spec data access was imported FROM (dsToDA keeps the link via
+  // datasetId), so the shared "Datasets" group answers the same question as the
+  // dashboard's own copy rather than staying dark next to it.
+  function selectedWsDatasetId() {
+    var daId = selectedDaId(); if (!daId) return null;
+    var da = Studio.daById(S.spec, daId);
+    return (da && da.datasetId) || null;
+  }
+  // Repaint only the Data pane's selection ring. buildLibrary() would also do it, but it
+  // rebuilds the entire pane — discarding scroll position, the search box's place and
+  // every group's open state — and selection changes on every click in the canvas.
+  function highlightLibrarySelection(scroll) {
+    var list = $("#libList"); if (!list) return;
+    var daId = selectedDaId(), dsId = selectedWsDatasetId(), hit = null;
+    $$("[data-da-id],[data-ws-ds]", list).forEach(function (c) {
+      var on = (!!daId && c.getAttribute("data-da-id") === daId) ||
+               (!!dsId && c.getAttribute("data-ws-ds") === dsId);
+      c.classList.toggle("da-mine-sel", on);
+      if (on && !hit) hit = c;
+    });
+    if (scroll && hit) revealLibCard(hit);
+  }
+  // A highlight you cannot see is half an answer: the card's group may be collapsed and
+  // the pane scrolls. Open the ancestor groups WITHOUT persisting them (this is a peek
+  // driven by the canvas, not the user's own collapse choice, so their layout comes back
+  // on the next rebuild), and scroll only when the card is genuinely out of view — so
+  // clicking from panel to panel never yanks the pane around for no reason.
+  function revealLibCard(card) {
+    var grp = card.closest(".lib-mine, .lib-cda, .lib-samples");
+    while (grp) {
+      grp.classList.add("open");
+      grp = grp.parentElement ? grp.parentElement.closest(".lib-mine, .lib-cda, .lib-samples") : null;
+    }
+    var list = $("#libList");
+    var cr = card.getBoundingClientRect(), lr = list.getBoundingClientRect();
+    if (!cr.height && !cr.width) return; // still hidden (pane closed) — nothing to scroll to
+    if (cr.top < lr.top || cr.bottom > lr.bottom) {
+      list.scrollTop += (cr.top - lr.top) - Math.max(0, (lr.height - cr.height) / 2);
+    }
+  }
 
   function renderInspector() {
     var body = $("#inspBody"); body.innerHTML = "";

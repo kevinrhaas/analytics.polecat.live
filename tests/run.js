@@ -24727,6 +24727,90 @@ function serve() {
     ok("deleting from My Data Sources removes the DA", delDAClicked && daAfterDel === daAfterDup - 1, daAfterDup + "→" + daAfterDel);
 
 
+    // ---- N42: selecting a View rings ITS dataset in the Data pane ----
+    console.log("\n• N42: the Data pane follows the canvas selection");
+
+    // Driven the way a user drives it: the dashboard inspector lists every View and every
+    // KPI, and clicking a row runs the same select() the canvas and the preview iframe call.
+    const n42Load = async () => {
+      await page.evaluate(async () => {
+        const spec = await fetch("data/examples/studio-cost.studio.json").then((r) => r.json());
+        window.__studioLoad(spec);
+      });
+      await page.waitForTimeout(250);
+    };
+    const n42ClickRow = (secRe, idx) => page.evaluate((a) => {
+      var h = [].slice.call(document.querySelectorAll("#inspBody .insp-sec h4"))
+        .filter(function (x) { return new RegExp(a.secRe, "i").test(x.textContent); })[0];
+      if (!h) return false;
+      var rows = [].slice.call(h.closest(".insp-sec").querySelectorAll(".row-item"));
+      if (!rows[a.idx]) return false;
+      rows[a.idx].click();
+      return true;
+    }, { secRe: secRe, idx: idx });
+    const n42Lit = () => page.evaluate(() => [].slice.call(document.querySelectorAll("#libList .da-mine-sel"))
+      .map(function (c) { return c.getAttribute("data-da-id"); }));
+
+    await n42Load();
+    const n42Want1 = await page.evaluate(() => window.__STUDIO_STATE.spec.panels[1].chart.da);
+    const n42Clicked1 = await n42ClickRow("Panels", 1);
+    const n42Lit1 = await n42Lit();
+    ok("N42: clicking a View rings ITS dataset card in the Data pane",
+      n42Clicked1 && n42Lit1.length === 1 && n42Lit1[0] === n42Want1,
+      "want " + n42Want1 + ", lit " + JSON.stringify(n42Lit1));
+
+    // The ring must MOVE with the selection, not accumulate one card per click.
+    await n42Load();
+    const n42Want2 = await page.evaluate(() => window.__STUDIO_STATE.spec.panels[4].chart.da);
+    await n42ClickRow("Panels", 4);
+    const n42Lit2 = await n42Lit();
+    ok("N42: the ring moves with the selection instead of accumulating",
+      n42Lit2.length === 1 && n42Lit2[0] === n42Want2 && n42Want2 !== n42Want1,
+      "want " + n42Want2 + ", lit " + JSON.stringify(n42Lit2));
+
+    // A KPI carries the same binding on k.da, so it answers the same question.
+    await n42Load();
+    const n42WantK = await page.evaluate(() => window.__STUDIO_STATE.spec.kpis[0].da);
+    const n42ClickedK = await n42ClickRow("KPI tiles", 0);
+    const n42LitK = await n42Lit();
+    ok("N42: selecting a KPI rings the dataset it reads from",
+      n42ClickedK && n42LitK.length === 1 && n42LitK[0] === n42WantK,
+      "want " + n42WantK + ", lit " + JSON.stringify(n42LitK));
+
+    // The item's first detail: a View with NO bound dataset rings nothing at all, rather
+    // than falling back to the first card in the list.
+    await n42Load();
+    await page.evaluate(() => { window.__STUDIO_STATE.spec.panels[0].chart.da = ""; });
+    await n42ClickRow("Panels", 0);
+    const n42LitNone = await n42Lit();
+    ok("N42: a View with no bound dataset highlights nothing (not the first card)",
+      n42LitNone.length === 0, JSON.stringify(n42LitNone));
+
+    // The item's second detail: a highlight you cannot see is half an answer, so a collapsed
+    // group is opened far enough for the card to have a box on screen.
+    await n42Load();
+    const n42Revealed = await page.evaluate(() => {
+      var grp = document.querySelector("#libList .lib-mine:not(.lib-wsds):not(.lib-analyses):not(.lib-demopacks)");
+      if (grp) grp.classList.remove("open");
+      return !!grp;
+    });
+    await n42ClickRow("Panels", 2);
+    const n42Reveal = await page.evaluate(() => {
+      var da = window.__STUDIO_STATE.spec.panels[2].chart.da;
+      var card = document.querySelector('#libList [data-da-id="' + da + '"]');
+      var grp = document.querySelector("#libList .lib-mine:not(.lib-wsds):not(.lib-analyses):not(.lib-demopacks)");
+      return { open: !!grp && grp.classList.contains("open"), lit: !!card && card.classList.contains("da-mine-sel"),
+               visible: !!card && card.getBoundingClientRect().height > 0 };
+    });
+    ok("N42: a collapsed Data-pane group opens so the highlighted card is actually visible",
+      n42Revealed && n42Reveal.open && n42Reveal.lit && n42Reveal.visible, JSON.stringify(n42Reveal));
+
+    // Escape deselects (studio.js's own shortcut) — and the ring goes with the selection.
+    await page.keyboard.press("Escape");
+    await page.waitForTimeout(120);
+    const n42LitCleared = await n42Lit();
+    ok("N42: deselecting clears the Data-pane ring", n42LitCleared.length === 0, JSON.stringify(n42LitCleared));
+
 
     // ---- assisted column + parameter tooling (slice 4) ----
     console.log("\n• assisted column + parameter tooling");
