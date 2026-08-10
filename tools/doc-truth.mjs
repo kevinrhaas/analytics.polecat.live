@@ -8055,6 +8055,147 @@ if (kitLive) {
   }
 }
 
+/* ── 72. what a feedback report CARRIES vs the chapter that promises to say ──────────────
+   N7, and the one chapter on the page whose own title makes the promise: "Sending feedback
+   (and what gets recorded)". Every check in this family so far has asked whether Help names
+   the controls the app renders; this one asks whether it names the DATA the app sends, which
+   is the same question with a privacy answer instead of a navigation one.
+
+   Measured 2026-08-10, before the fix:
+   · **The chapter named four of the nine fields a report carries.** `Studio.Activity.feedback`
+     (`app/activity.js`) sends `gotrue_id` + `username` beside the typed kind/message, and a
+     `context` block built by `ctx()`: `section`, `dashboard`, `dashboardTitle`, `route`,
+     `version`, `viewport` and a 160-char `ua`. Help listed "your account name, the section you
+     were on, the open dashboard (if any), and the app version" — so the sign-in id, the route,
+     the window size and the **browser's user-agent string** were unpublished.
+   · **And the paragraph BELOW it read as the denial.** The anonymous-trail paragraph is the
+     one place the page discusses route/referrer/viewport/IP/UA, and it is scoped to
+     `polecat_activity` rows — so a reader comparing the two chapters would fairly conclude
+     that a feedback report is the smaller payload. It is the larger one.
+
+   Sources of truth, both app-side and both derived, never listed here: the `send("polecat_
+   feedback", { … })` row literal, minus the fields built from `feedback()`'s OWN parameters
+   (so what the reader typed is never counted as captured context), with its `context:` pair
+   expanded into `ctx()`'s keys — the initializer's plus every `c.<key> =` the body adds. Three
+   rules:
+   (a) the `#feedback-context` paragraph marks every captured field with `data-fb-field`, both
+       directions — a field the app starts sending is undocumented until someone writes a phrase
+       for it, and a phrase for a field the app stopped sending fails just as loudly;
+   (b) each mark carries real prose, not the key echoed back (a rule (a) can be satisfied
+       mechanically, and a reader learns nothing from `ua`);
+   (c) the kinds the dialog offers, both directions, in their own span — the pick-a-kind list is
+       the sentence a fifth kind would silently falsify.
+
+   `ctx(extra)`'s caller-supplied `extra` is deliberately NOT held: the one caller
+   (`openFeedbackModal`) passes none, so there is nothing static to derive, and a rule over an
+   empty parameter would measure nothing. */
+{
+  const activity = read("app/activity.js");
+
+  // Brace-match the block/literal opening at or after `from` — the idiom checks 19/22 use, kept
+  // local because this is the only place that needs it on a second file.
+  const braced = (src, from) => {
+    const open = src.indexOf("{", from);
+    if (open < 0) return "";
+    let depth = 0;
+    for (let i = open; i < src.length; i++) {
+      if (src[i] === "{") depth++;
+      else if (src[i] === "}" && --depth === 0) return src.slice(open, i + 1);
+    }
+    return "";
+  };
+  // `key: expr` pairs at the literal's own top level — commas inside a nested call, array or
+  // object belong to that nesting, not to this list.
+  const topPairs = (lit) => {
+    const body = lit.slice(1, -1);
+    const out = [];
+    let depth = 0, start = 0;
+    for (let i = 0; i <= body.length; i++) {
+      const ch = body[i];
+      if (ch === "{" || ch === "(" || ch === "[") depth++;
+      else if (ch === "}" || ch === ")" || ch === "]") depth--;
+      if (i === body.length || (ch === "," && depth === 0)) {
+        const m = body.slice(start, i).trim().match(/^(\w+)\s*:\s*([\s\S]+)$/);
+        start = i + 1;
+        if (m) out.push({ key: m[1], expr: m[2].trim() });
+      }
+    }
+    return out;
+  };
+
+  // ctx()'s keys: the initializer's, plus every one the body goes on to assign.
+  const ctxAt = activity.indexOf("function ctx(");
+  const ctxBody = ctxAt < 0 ? "" : braced(activity, ctxAt);
+  const ctxInit = ctxBody ? braced(ctxBody, ctxBody.indexOf("var c =")) : "";
+  const ctxKeys = new Set([
+    ...topPairs(ctxInit).map((p) => p.key),
+    ...[...ctxBody.matchAll(/\bc\.(\w+)\s*=/g)].map((m) => m[1]),
+  ]);
+
+  // The row, and the split between what the reader TYPED and what the app captured: a pair
+  // whose expression is built from feedback()'s own parameters is the former.
+  const fbParams = ((activity.match(/feedback:\s*function\s*\(([^)]*)\)/) || [, ""])[1])
+    .split(",").map((s) => s.trim()).filter(Boolean);
+  const rowLit = braced(activity, activity.indexOf('send("polecat_feedback"'));
+  const captured = new Set();
+  for (const p of topPairs(rowLit)) {
+    if (/\bctx\s*\(/.test(p.expr)) { ctxKeys.forEach((k) => captured.add(k)); continue; }
+    if (!fbParams.some((param) => new RegExp(`\\b${param}\\b`).test(p.expr))) captured.add(p.key);
+  }
+
+  // The dialog's own kind list, by the stem before its explanatory dash.
+  const kindsAt = studioJs.indexOf('kSel.id = "fbKind"');
+  const kinds = kindsAt < 0 ? [] : [...studioJs.slice(kindsAt, kindsAt + 800).matchAll(/\["(\w+)", "([^"]+)"\]/g)]
+    .map((m) => m[2].split("—")[0].trim());
+
+  const premise = ok("app/activity.js + app/studio.js: the feedback payload parsed for check 72 " +
+    `(${captured.size} captured field(s): ${[...captured].join(", ") || "(none)"}; kinds: ${kinds.join(" / ") || "(none)"})`,
+    captured.size >= 6 && captured.has("username") && ctxKeys.size >= 5 && kinds.length >= 3 &&
+      fbParams.includes("message") && !captured.has("message"),
+    `ctx() keys: ${[...ctxKeys].join(", ") || "(unparsed)"} · feedback() params: ${fbParams.join(", ") || "(unparsed)"}\n      ` +
+    "an empty parse would pass both rules below while measuring nothing, and this rule is the " +
+    "one that notices the day `message` stops being read as something the user typed");
+
+  if (premise) {
+    // (a) completeness, both directions.
+    const block = (help.match(/<p id="feedback-context">([\s\S]*?)<\/p>/) || [, null])[1];
+    const marked = block === null ? null
+      : [...block.matchAll(/<strong data-fb-field="(\w+)">([\s\S]*?)<\/strong>/g)]
+        .map((m) => ({ key: m[1], text: m[2].replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim() }));
+    const undocumented = marked === null ? [] : [...captured].filter((k) => !marked.some((x) => x.key === k));
+    const invented = marked === null ? [] : marked.filter((x) => !captured.has(x.key)).map((x) => x.key);
+    ok(`docs/index.html: #feedback-context names all ${captured.size} field(s) a feedback report carries, and no others`,
+      marked !== null && !undocumented.length && !invented.length,
+      marked === null ? "docs/index.html has no <p id=\"feedback-context\"> — the chapter's own title promises "
+        + `"what gets recorded" and the app sends ${captured.size} fields with every report`
+        : `sent, not documented: ${undocumented.join(", ") || "(none)"}\n      ` +
+          `documented, not sent: ${invented.join(", ") || "(none)"}\n      ` +
+          "the chapter below this one publishes route/viewport/UA for the ANONYMOUS trail, so a " +
+          "field missing here does not read as an omission — it reads as a promise that it is not collected");
+
+    // (b) a mark is only documentation if it says something.
+    const bare = (marked || []).filter((x) => !x.text || x.text.toLowerCase() === x.key.toLowerCase());
+    ok("docs/index.html: every #feedback-context field is described in words, not just tagged",
+      !bare.length,
+      `tagged with no prose of their own: ${bare.map((x) => x.key).join(", ")}\n      ` +
+      "rule (a) can be satisfied by echoing the key, and \"ua\" tells a reader nothing");
+
+    // (c) the kinds, both directions, in their own span so the prose around them cannot
+    // satisfy or fail it (check 71 (c)'s idiom).
+    const kindBlock = (help.match(/<span id="feedback-kinds">([\s\S]*?)<\/span>/) || [, null])[1];
+    const kindSaid = kindBlock === null ? null
+      : [...kindBlock.matchAll(/<strong>([\s\S]*?)<\/strong>/g)].map((m) => m[1].trim());
+    ok(`docs/index.html: #feedback-kinds names the ${kinds.length} kind(s) the dialog offers (${kinds.join(", ")})`,
+      kindSaid !== null && !kinds.filter((k) => !kindSaid.includes(k)).length &&
+        !kindSaid.filter((k) => !kinds.includes(k)).length,
+      kindSaid === null ? "docs/index.html has no <span id=\"feedback-kinds\">"
+        : `offered, not named: ${kinds.filter((k) => !kindSaid.includes(k)).join(", ") || "(none)"}\n      ` +
+          `named, not offered: ${kindSaid.filter((k) => !kinds.includes(k)).join(", ") || "(none)"}\n      ` +
+          "the picker is the first thing the dialog asks for, so its list is the one sentence a " +
+          "new kind falsifies without touching another word on the page");
+  }
+}
+
 console.log(failed ? `\n✗ doc-truth: ${failed} claim(s) have drifted from the source of truth`
   : "\n✅ doc-truth: every published claim matches the source it describes");
 process.exit(failed ? 1 : 0);

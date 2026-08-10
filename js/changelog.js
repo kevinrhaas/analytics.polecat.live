@@ -6,6 +6,18 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 984,
+    title: 'Help now lists everything a feedback report sends, not four of the nine things',
+    kind: 'fix',
+    ts: '2026-08-10T21:24:33.000Z',
+    items: [
+      'The Help chapter called <b>Sending feedback (and what gets recorded)</b> named four pieces of context — your account name, the section, the open dashboard, the app version. A report actually carries nine: those four plus your sign-in id, the open dashboard\'s title, the route in your address bar, your window size, and your browser\'s user-agent string.',
+      'The paragraph underneath made it worse than a plain omission. It publishes route, referrer and viewport for the anonymous activity trail, so the shorter list above read as a promise that a feedback report collects less. It collects more, and now the chapter says so — every field, in one place, with the reassurance that nothing else goes with it: not the contents of the page you were on, and none of your workspace data.',
+      'The kinds the dialog offers (Bug, Feature, Comment, Question) are now published as a list held to the dialog itself, so a fifth one can never appear in the app and not in Help.',
+      'Both lists are now derived rather than transcribed: a new doc-truth check reads the feedback payload out of the app\'s own code and fails the build if the chapter falls behind it in either direction.',
+    ],
+  },
+  {
     v: 983,
     title: 'Help sent you looking for a viewer button that was renamed months ago',
     kind: 'fix',
