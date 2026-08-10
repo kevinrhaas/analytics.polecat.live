@@ -6,6 +6,18 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 954,
+    title: 'A brand-new workspace promised twelve showcase dashboards and shipped none of them',
+    kind: 'fix',
+    ts: '2026-08-10T00:26:06.000Z',
+    items: [
+      'The Data Management & Governance pack is installed by default, so nobody ever clicks Install on it — and materialising a pack’s dashboards only ever happened on that click. A fresh browser therefore opened on a Settings card offering to Remove a pack of twelve showcase dashboards, and a Dashboards list holding one. Reloading never fixed it; the only way to get them was to remove the pack and add it back.',
+      'A fresh workspace now seeds them at boot, so the twelve arrive with everything else. Existing workspaces that were missing them pick them up on their next visit.',
+      'They are seeded exactly once, on purpose: a showcase dashboard you delete stays deleted rather than reappearing every time you open the app. Removing the pack still takes all twelve away, and adding it back still brings them back.',
+      'With those dashboards finally real, a long-standing dud surfaced on the Interactive Feature Showcase: its “Run Status” filter was wired to nothing, so changing it never moved a chart. It is gone. The “Data Source” filter beside it is genuinely connected and stays.',
+    ],
+  },
+  {
     v: 953,
     title: 'Pick a View in the builder and its dataset lights up in the Data panel',
     kind: 'polish',

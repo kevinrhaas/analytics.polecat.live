@@ -7224,6 +7224,13 @@ function serve() {
 
     await page.evaluate(function () { window.__studioShellSetSection("settings"); });
     await page.waitForTimeout(150);
+    // N39: datamanagement is default-installed and is now materialized AT BOOT, so its
+    // dashboards legitimately exist before this install. Snapshot the count first — the
+    // regression guard below asserts installing conservation leaves it UNCHANGED, which is
+    // the property that always mattered and is strictly stronger than the old "=== 0".
+    const lf43DmBefore = await page.evaluate(function () {
+      return Studio.Workspace.all("dashboards").filter(function (r) { return r.demoPackId === "datamanagement"; }).length;
+    });
     await page.click('[data-demopack="conservation"]');
     await page.waitForFunction(function () {
       return Studio.Workspace.all("dashboards").filter(function (r) { return r.demoPackId === "conservation" && r.sourceFile; }).length >= 8;
@@ -7252,7 +7259,7 @@ function serve() {
       return Studio.Workspace.all("dashboards").filter(function (r) { return r.demoPackId === "datamanagement"; }).length;
     });
     ok("LF43: installing one pack does NOT incidentally materialize a different, merely-default-installed pack's dashboards",
-      lf43NoSideEffect === 0, String(lf43NoSideEffect));
+      lf43NoSideEffect === lf43DmBefore, "after=" + lf43NoSideEffect + " before=" + lf43DmBefore);
     await page.evaluate(function () { window.__studioShellSetSection("dashboards"); });
     await page.waitForTimeout(200);
     const lf43InDashboards = await page.evaluate(function () {
@@ -7267,6 +7274,49 @@ function serve() {
     });
     ok("LF43: re-running materialization while already installed is idempotent (no duplicate rows)",
       lf43ReInstallNoDupe === 8, String(lf43ReInstallNoDupe));
+
+    /* N39 (Kevin live, 2026-08-09, fresh incognito): "i dont see all those dashboards or
+       datasets or views or connections, they are missing". `datamanagement` is in
+       DEFAULT_INSTALLED, so a brand-new workspace has it installed WITHOUT an install click —
+       and the only callers of ensurePackExamplesMaterialized were that click and the
+       provisioning path. Measured before the fix, on a fresh profile: 0 of 12 materialized on
+       first boot and still 0 after a reload, so the Settings card promised "12 showcase
+       dashboards" over a Dashboards list holding one self-registered boot spec.
+       Two properties, and the second is why this is seeded once rather than every boot. */
+    const n39 = await page.evaluate(async function () {
+      var W = Studio.Workspace;
+      // simulate a brand-new workspace for this pack: drop its rows AND its seed stamp
+      W.all("dashboards").filter(function (r) { return r.demoPackId === "datamanagement"; })
+        .forEach(function (r) { W.remove("dashboards", r.id, { silent: true }); });
+      W.setMeta("packExamplesSeeded_datamanagement", "");
+      W.notify("dashboards");
+      var before = W.all("dashboards").filter(function (r) { return r.demoPackId === "datamanagement"; }).length;
+      await window.__studioSeedDefaultPackExamples();
+      var after = W.all("dashboards").filter(function (r) { return r.demoPackId === "datamanagement"; }).length;
+      var stamped = !!W.meta().packExamplesSeeded_datamanagement;
+      // now delete one and re-run the seeder: the stamp must stop it coming back
+      var victim = W.all("dashboards").filter(function (r) { return r.demoPackId === "datamanagement"; })[0];
+      var victimFile = victim.sourceFile;
+      W.remove("dashboards", victim.id);
+      await window.__studioSeedDefaultPackExamples();
+      var afterDelete = W.all("dashboards").filter(function (r) { return r.demoPackId === "datamanagement"; }).length;
+      var resurrected = W.all("dashboards").some(function (r) { return r.sourceFile === victimFile; });
+      // Put the workspace back the way this check found it: the deletion above is the
+      // POINT of the second assertion, but leaving it behind would hand every later check a
+      // pack that is quietly one dashboard short — which is exactly what LF16's own count
+      // reads a few hundred checks downstream.
+      W.setMeta("packExamplesSeeded_datamanagement", "");
+      await window.__studioSeedDefaultPackExamples();
+      var restored = W.all("dashboards").filter(function (r) { return r.demoPackId === "datamanagement"; }).length;
+      return { before: before, after: after, stamped: stamped, afterDelete: afterDelete,
+               resurrected: resurrected, restored: restored };
+    });
+    ok("N39: a default-installed examples pack materializes its dashboards with no install click — the case a fresh workspace is always in",
+      n39.before === 0 && n39.after === 12 && n39.stamped, JSON.stringify(n39));
+    ok("N39: seeded ONCE — a showcase dashboard you delete stays deleted instead of returning on the next boot",
+      n39.afterDelete === 11 && !n39.resurrected, JSON.stringify(n39));
+    ok("N39: and this check leaves the pack whole again, so nothing downstream inherits its deletion",
+      n39.restored === 12, JSON.stringify(n39));
 
     // Kevin (2026-07-30): pack dashboards lead with their OWN name and install into
     // a pack folder — a grid of "Conservation Insight — …" cards read as identical rows.
@@ -7385,20 +7435,32 @@ function serve() {
     ok("LF16: all 12 Data Management examples are visible in the gallery while the pack is installed (default)",
       dmGalleryOn.every(Boolean), JSON.stringify(dmGalleryOn));
 
+    /* N39 re-measure: this check used to assert datamanagement owned NO workspace rows at
+       all, before OR after removal — which was only ever true because a default-installed
+       pack never materialized its dashboards (the bug N39 fixes). What LF16 actually cares
+       about is that this is an EXAMPLES-kind pack: it owns dashboards and nothing else, no
+       connections/datasets/Views/jobs like a workspace-kind pack, and removing it takes its
+       dashboards and its flag with it. Asserted per-table now, which is stricter than the
+       old single total. */
     const dmRemove = await page.evaluate(function () {
-      function tagged(id) {
-        return ["connections", "datasets", "analyses", "dashboards", "jobs"].reduce(function (n, t) {
+      function tagged(id, tables) {
+        return tables.reduce(function (n, t) {
           return n + Studio.Workspace.all(t).filter(function (r) { return r.demoPackId === id; }).length;
         }, 0);
       }
-      var before = tagged("datamanagement");
+      var NON_DASH = ["connections", "datasets", "analyses", "jobs"];
+      var beforeDash = tagged("datamanagement", ["dashboards"]);
+      var beforeOther = tagged("datamanagement", NON_DASH);
       window.__studioDemoPacks.remove("datamanagement");
-      var after = tagged("datamanagement");
+      var afterDash = tagged("datamanagement", ["dashboards"]);
+      var afterOther = tagged("datamanagement", NON_DASH);
       window.__studioRenderHome();
-      return { before: before, after: after, installed: Studio.demoPackInstalled("datamanagement") };
+      return { beforeDash: beforeDash, beforeOther: beforeOther, afterDash: afterDash,
+               afterOther: afterOther, installed: Studio.demoPackInstalled("datamanagement") };
     });
-    ok("LF16: removing the datamanagement pack writes/deletes NO workspace rows (a pure gallery-visibility toggle) and clears the installed flag",
-      dmRemove.before === 0 && dmRemove.after === 0 && !dmRemove.installed, JSON.stringify(dmRemove));
+    ok("LF16: the datamanagement pack owns dashboards and nothing else — no connections/datasets/Views/jobs — and removing it takes all of them plus the installed flag",
+      dmRemove.beforeDash === 12 && dmRemove.beforeOther === 0 &&
+      dmRemove.afterDash === 0 && dmRemove.afterOther === 0 && !dmRemove.installed, JSON.stringify(dmRemove));
 
     const dmGalleryOff = await page.evaluate(function (files) {
       var have = window.__studioVisibleExampleFiles();
@@ -18408,7 +18470,15 @@ function serve() {
       ifr.remove();
       return result;
     });
-    ok("Z13 showcase: both dashboard filters render as selects (Data Source / Run Status)", showcase.filterSelects === 2, JSON.stringify(showcase));
+    /* N39: this dashboard shipped TWO filters and now ships one. "Run Status" was answered by
+       nothing — its options DA was used by no panel, and no panel-used DA declared a `status`
+       param — so moving it changed nothing on screen. FILTERS-1's sweep caught it the moment
+       N39 made these dashboards real. The count is updated because the CONTENT deliberately
+       changed, not to make a check pass: "Data Source" is genuinely wired to two panel DAs, so
+       the showcase still demonstrates filtering. If the second filter should come back, it needs
+       WIRING (a panel DA that declares `status` over data that has one) — restoring the JSON
+       alone would just re-add a dead control and re-break the sweep. */
+    ok("Z13 showcase: the dashboard's one wired filter (Data Source) renders as a select", showcase.filterSelects === 1, JSON.stringify(showcase));
     ok("Z13 showcase: target line overlay renders on the Revenue Trend panel", showcase.targetLine >= 1, JSON.stringify(showcase));
     ok("Z13 showcase: reference band overlay renders on the Quarterly Budget panel", showcase.refBand >= 1, JSON.stringify(showcase));
     ok("Z13 showcase: period highlight overlay renders on the Revenue Trend panel", showcase.periodHighlight >= 1, JSON.stringify(showcase));
