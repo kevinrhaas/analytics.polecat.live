@@ -8944,15 +8944,18 @@
     };
   }
   // LF42 slice 3: consolidate backend config so Settings' "Switch backend" reuses
-  // whatever the Admin "Backends" card already has registered, instead of making
-  // you re-type credentials for a database an admin already set up. No registered
-  // backends → same one-click behavior as before (straight to the blank wizard).
+  // whatever is already saved (Admin → Workspaces; the card was "Backends" until
+  // N36 slice 2), instead of making you re-type credentials for a database an
+  // admin already set up. Nothing saved → same one-click behavior as before
+  // (straight to the blank wizard). The BUTTON keeps the word backend on
+  // purpose: it acts on the Settings card's state — where this workspace's
+  // catalog lives — while the rows it lists are workspaces.
   function openSwitchBackendPicker() {
     var list = getAdminBackends();
     if (!list.length) { openBackendWizard(); return; }
     modal("Switch workspace backend", function (b) {
       var intro = el("p", "cx-wiz-intro");
-      intro.textContent = "Connect to a backend an admin has already registered, or enter new connection details.";
+      intro.textContent = "Connect to a workspace that is already saved on this device, or enter new connection details.";
       b.appendChild(intro);
       var rows = el("div", "cx-list");
       list.forEach(function (r) {
@@ -9278,15 +9281,40 @@
      mints a local override that shadows the shipped one. It lives in its own
      small map keyed by entry id.
 
-     Slice 2 is the RENAME (this card still says "Backends", both surfaces named
-     as they were), which is only safe now that there is one list to name. */
+     N36 slice 2 — THE RENAME (2026-08-10). The card is "Workspaces" now, and so
+     is every noun on it that means a saved, credentialed destination: the add/
+     edit wizard, its name field, the remove confirmation, the empty state, the
+     user editor's "Assigned workspace" picker, and Settings' Switch-workspace-
+     backend picker copy. What deliberately did NOT change: the rail tooltip and
+     Settings' card still say "Workspace backend — Local (this browser)", because
+     that names a STATE (where is this workspace stored right now), not a list
+     entry; and no storage key, id or identifier moved — `provisioning.backendId`
+     is persisted user data on every account, and renaming a field to improve a
+     label would be a data migration for a word.
+
+     Two things slice 1 left for this slice to DECIDE rather than inherit:
+     (1) Admin still lists the browser's SAVED entries only, NOT
+     `STUDIO_WS_STORE.packaged()`. Three of the card's five actions — Edit,
+     Remove, and the per-row test record — are meaningless or actively wrong on a
+     shipped entry: writing to one mints a local override that shadows the
+     packaged original, which is the exact failure `lastTest` was kept out of the
+     entry to avoid. So the card names the packaged ones in its intro instead of
+     pretending they do not exist, which is what the rename actually owed them.
+     (2) Settings' manager panel still renders `list()` (valid only), so a
+     half-configured entry is still never offered as somewhere to sign in — that
+     is what `valid()` is for. The honest half is on THIS card: such a row now
+     carries a "not configured" badge, because a list that claims to be the
+     sign-in list has to say which of its rows the sign-in screen won't show. */
   var ADMIN_BK_LEGACY_KEY = "studio-admin-backends",     // pre-N36; kept, never wiped
       ADMIN_BK_MERGED_KEY = "studio-admin-backends-merged",
       ADMIN_BK_TESTS_KEY  = "studio-admin-backend-tests";
   function wsStore() { return window.STUDIO_WS_STORE || null; }
   function bkEntry(r) { return { id: r.id, label: r.name, sourceId: r.adapter, cfg: r.cfg || {} }; }
-  function bkRow(w, tests) {
+  function bkRow(w, tests, S) {
     return { id: w.id, label: w.label, name: w.label, adapter: w.sourceId, cfg: w.cfg || {},
+      // N36 slice 2: "may be OFFERED at sign-in" — the store's own valid(), read
+      // here so the card can say which of its rows the picker will not show.
+      configured: !!(S && S.valid && S.valid(w)),
       lastTest: (tests && tests[w.id]) || null };
   }
   function migrateAdminBackends() {
@@ -9313,7 +9341,7 @@
     if (!S) return lsGet(ADMIN_BK_LEGACY_KEY, []);   // workspaces.js absent: the old store still answers
     migrateAdminBackends();
     var tests = lsGet(ADMIN_BK_TESTS_KEY, {}) || {};
-    return S.customs().map(function (w) { return bkRow(w, tests); });
+    return S.customs().map(function (w) { return bkRow(w, tests, S); });
   }
   function saveAdminBackend(row) {
     var S = wsStore(); if (!S) return;
@@ -9360,6 +9388,10 @@
         '<span class="cx-ic" style="color:' + esc(src.accent || "var(--brand)") + '"></span>' +
         '<span class="cx-name"><b>' + esc(r.name) + '</b><small>' + esc(src.label || r.adapter) + '</small></span>' +
         (active ? '<span class="cx-badge admin">active</span>' : "") +
+        // N36 slice 2: this list IS the sign-in picker's list, so a row the
+        // picker will not offer has to say so on its face rather than just
+        // going quietly missing over there.
+        (r.configured ? "" : '<span class="cx-badge" data-bk-unconfigured="' + esc(r.id) + '" title="No address saved yet, so the sign-in screen’s Workspace picker cannot offer it. Edit it to finish.">not configured</span>') +
         (assigned ? '<span class="cx-badge" data-bk-assigned="' + esc(r.id) + '">' + assigned + (assigned === 1 ? " user" : " users") + '</span>' : "") +
         '<span class="cx-actions">' +
           '<button type="button" class="btn" data-bk-test="' + esc(r.id) + '">Test</button>' +
@@ -9368,15 +9400,23 @@
           '<button type="button" class="btn" data-bk-del="' + esc(r.id) + '" aria-label="Delete ' + esc(r.name) + '">✕</button>' +
         '</span></div>';
     }).join("");
-    return '<div class="settings-card"><h2>Backends</h2>' +
-      '<p class="ws-card-intro">Pre-register the databases this workspace can connect to — Turso, Supabase, or Firebase — so switching later is a click, not re-typed credentials. Registering a backend here does not connect it: use <b>Connect</b> below (or Settings → Workspace backend) to make one active. ' +
+    return '<div class="settings-card"><h2>Workspaces</h2>' +
+      // N36 slice 2: the rename. A workspace is the named, credentialed database
+      // this app syncs to — the same noun the sign-in screen and Settings use.
+      // "Backend" survives only where it names a STATE ("Workspace backend —
+      // Local (this browser)"), never a row in this list.
+      '<p class="ws-card-intro">Save the databases this app can work in — Turso, Supabase, or Firebase — under a name, with credentials, so switching later is a click, not re-typed credentials. Saving a workspace here does not connect it: use <b>Connect</b> below (or Settings → Workspace backend) to start working in one. ' +
         // N36 slice 1: say the convergence out loud — this list and the sign-in
         // screen's Workspace picker are now the same saved list, in both
         // directions, and someone registering a credentialed database should
         // know it becomes selectable at sign-in.
-        'This is the same saved list the sign-in screen’s <b>Workspace</b> picker offers and Settings → Workspace backend manages, so anything registered here can be signed into, and a workspace saved there can be assigned to a user here.</p>' +
-      (rows ? '<div class="cx-list">' + rows + '</div>' : '<div class="cx-empty">No backends registered yet.</div>') +
-      '<div class="repo-io"><button type="button" class="btn primary" id="bkNewBtn">+ Add backend</button></div>' +
+        'This is the same saved list the sign-in screen’s <b>Workspace</b> picker offers and Settings → Workspace backend manages, so anything saved here can be signed into, and a workspace saved there can be assigned to a user here. ' +
+        // N36 slice 2 decision (1): Admin manages the browser's SAVED entries,
+        // not the ones packaged with the app — say that, rather than let the new
+        // heading imply a completeness the card does not have.
+        'The workspaces <em>packaged with this app</em> are offered at sign-in too, but are not managed here — they ship with the build.</p>' +
+      (rows ? '<div class="cx-list">' + rows + '</div>' : '<div class="cx-empty">No workspaces saved in this browser yet.</div>') +
+      '<div class="repo-io"><button type="button" class="btn primary" id="bkNewBtn">+ Add workspace</button></div>' +
     '</div>';
   }
   function wireBackendsCard(sec) {
@@ -9402,7 +9442,7 @@
         if (!r) return;
         // N36 slice 1: one list means one removal. Say where else it disappears
         // from, because it is now also the sign-in screen's picker entry.
-        if (!window.confirm('Remove backend "' + r.name + '"? It is forgotten here, in Settings → Workspace backend, and in the sign-in screen\'s Workspace picker — the database itself is untouched.')) return;
+        if (!window.confirm('Remove workspace "' + r.name + '"? It is forgotten here, in Settings → Workspace backend, and in the sign-in screen\'s Workspace picker — the database itself is untouched.')) return;
         removeAdminBackend(id);
         toast("Removed " + r.name);
         renderAdmin();
@@ -9433,10 +9473,10 @@
   // The registration wizard (add/edit only — no probe/classify, unlike
   // openBackendWizard's connect flow): pick an adapter from the same
   // remote-meta-capable set → name + credential fields with an inline Test →
-  // Save into the local admin backend list.
+  // Save into the one saved-workspace list.
   function openBackendConfigWizard(existing) {
     var presetSrc = existing ? Studio.sourceById(existing.adapter) : null;
-    modal(existing ? "Edit backend" : "Add backend", function (b) {
+    modal(existing ? "Edit workspace" : "Add workspace", function (b) {
       function step2(adapter) {
         b.innerHTML = "";
         var head = el("div", "cx-wiz-head");
@@ -9445,9 +9485,9 @@
         head.appendChild(ic); head.appendChild(ttl); b.appendChild(head);
         var form = el("div", "cx-wiz-form");
         var nameRow = el("label", "cx-field");
-        nameRow.innerHTML = '<span>Backend name</span>';
+        nameRow.innerHTML = '<span>Workspace name</span>';
         var nameInp = el("input"); nameInp.type = "text"; nameInp.value = existing ? existing.name : adapter.label;
-        nameInp.placeholder = "e.g. Prod Supabase";
+        nameInp.placeholder = "e.g. Acme (production)";
         nameRow.appendChild(nameInp); form.appendChild(nameRow);
         var inputs = {};
         (adapter.fields || []).forEach(function (f) {
@@ -9468,7 +9508,7 @@
         var result = el("div", "cx-test-result"); b.appendChild(result);
         var foot = el("div", "cx-wiz-foot");
         var testBtn = el("button", "btn"); testBtn.type = "button"; testBtn.textContent = "Test connection";
-        var saveBtn = el("button", "btn primary"); saveBtn.type = "button"; saveBtn.textContent = existing ? "Save changes" : "Add backend";
+        var saveBtn = el("button", "btn primary"); saveBtn.type = "button"; saveBtn.textContent = existing ? "Save changes" : "Add workspace";
         foot.appendChild(testBtn); foot.appendChild(saveBtn); b.appendChild(foot);
         function cfg() {
           var o = {};
@@ -9488,7 +9528,7 @@
         };
         saveBtn.onclick = function () {
           var name = nameInp.value.trim();
-          if (!name) { nameInp.focus(); result.className = "cx-test-result bad"; result.textContent = "Give the backend a name first."; return; }
+          if (!name) { nameInp.focus(); result.className = "cx-test-result bad"; result.textContent = "Give the workspace a name first."; return; }
           var row = existing || { id: Studio.Workspace.uid("bk") };
           row.name = name; row.adapter = adapter.id; row.cfg = cfg();
           // N36 slice 1: save() replaces by id, so add and edit are the same call
@@ -9502,7 +9542,7 @@
       }
       if (presetSrc) { step2(presetSrc); return; }
       var intro = el("p", "cx-wiz-intro");
-      intro.textContent = "Pick a backend to register. You can register several and connect to whichever one you need later.";
+      intro.textContent = "Pick the kind of database this workspace lives in. You can save several and connect to whichever one you need later.";
       b.appendChild(intro);
       var grid = el("div", "cx-src-grid");
       Studio.remoteMetaSources().forEach(function (src) {
@@ -10358,8 +10398,8 @@
     var adminBackendsByRow = getAdminBackends();
     var rows = users.map(function (u) {
       var lastAdmin = u.role === "admin" && adminCount <= 1;
-      // LF42 slice 2: name the backend this account is assigned to, if any
-      // (mirrors the "N users" badge the Backends card shows per row).
+      // LF42 slice 2: name the workspace this account is assigned to, if any
+      // (mirrors the "N users" badge the Workspaces card shows per row).
       var assignedBk = u.provisioning && u.provisioning.backendId &&
         adminBackendsByRow.filter(function (r) { return r.id === u.provisioning.backendId; })[0];
       return '<div class="cx-row" data-usr-id="' + esc(u.u) + '">' +
@@ -10763,18 +10803,21 @@
       ddBtnRow.appendChild(ddCopyBtn); ddBtnRow.appendChild(ddClearBtn);
       ddRow.appendChild(ddBtnRow); ddRow.appendChild(ddStatus);
       form.appendChild(ddRow);
-      // LF42 slice 2: assign a specific registered backend (from the Backends
-      // card) to this user. Recorded on their provisioning blob the same way as
-      // theme/pack, but — unlike theme/pack — NOT auto-applied at first sign-in:
-      // connecting to a backend can adopt/overwrite a whole workspace, which
-      // isn't safe to do silently. This is metadata a later slice (consolidated
-      // config UI / server selection) can act on. Only shown once the admin has
-      // registered at least one backend (no empty facet, same convention as the
+      // LF42 slice 2: assign a specific saved workspace (from the Workspaces
+      // card) to this user, recorded on their provisioning blob the same way as
+      // theme/pack. #103 AUTO-BACKEND made it REAL — applyAssignedBackend()
+      // connects it at sign-in, silently on a fresh device and behind the
+      // "Welcome!" dialog on one that already carries work. Only shown once at
+      // least one workspace is saved (no empty facet, same convention as the
       // folder/tag chip filters elsewhere).
+      // N36 slice 2: the hint below used to end "Recorded for reference —
+      // connecting a device to it is still a manual step", which was true of
+      // LF42 and false since #103; Help had already said the opposite. Renaming
+      // the noun without fixing that would have shipped a tidier lie.
       var bSel = null;
       var adminBackends = getAdminBackends();
       if (adminBackends.length) {
-        var bRow = el("label", "cx-field"); bRow.innerHTML = "<span>Assigned backend</span>";
+        var bRow = el("label", "cx-field"); bRow.innerHTML = "<span>Assigned workspace</span>";
         bSel = el("select"); bSel.id = "usrEditBackend";
         var bNone = el("option"); bNone.value = ""; bNone.textContent = "Don't set — leave as-is";
         bSel.appendChild(bNone);
@@ -10784,7 +10827,7 @@
         });
         if (existing && existing.provisioning && existing.provisioning.backendId) bSel.value = existing.provisioning.backendId;
         bRow.appendChild(bSel);
-        var bHint = el("small", "cx-hint"); bHint.textContent = "Which registered backend (Admin → Backends) this account belongs to. Recorded for reference — connecting a device to it is still a manual step.";
+        var bHint = el("small", "cx-hint"); bHint.textContent = "Which saved workspace (Admin → Workspaces) this account belongs to. Its connection details travel with the account and are connected at sign-in — silently on a brand-new device, and after a confirmation on one that already holds work.";
         bRow.appendChild(bHint);
         form.appendChild(bRow);
       }

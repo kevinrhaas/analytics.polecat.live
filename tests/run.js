@@ -23731,13 +23731,15 @@ function serve() {
     // empty by default
     const lf42Empty = await gp42.evaluate(function () {
       window.__studioShellSetSection("admin"); window.__studioRenderAdmin();
-      var card = [].slice.call(document.querySelectorAll(".settings-card")).filter(function (c) { return /^Backends$/.test((c.querySelector("h2") || {}).textContent || ""); })[0];
-      return { found: !!card, empty: card && /No backends registered/.test(card.textContent) };
+      // N36 slice 2: the card is "Workspaces" now (it was "Backends" through
+      // LF42 and N36 slice 1) — same card, same actions, renamed noun.
+      var card = [].slice.call(document.querySelectorAll(".settings-card")).filter(function (c) { return /^Workspaces$/.test((c.querySelector("h2") || {}).textContent || ""); })[0];
+      return { found: !!card, empty: card && /No workspaces saved in this browser yet/.test(card.textContent) };
     });
-    ok("LF42: Admin gains a Backends card, empty by default", lf42Empty.found && lf42Empty.empty, JSON.stringify(lf42Empty));
+    ok("LF42: Admin gains a Workspaces card, empty by default", lf42Empty.found && lf42Empty.empty, JSON.stringify(lf42Empty));
 
-    // + Add backend: pick Turso, name it, fill creds, inline Test, Save — stored
-    // as a named row in the local backend list (not yet connected).
+    // + Add workspace: pick Turso, name it, fill creds, inline Test, Save —
+    // stored as a named row in the one saved-workspace list (not yet connected).
     const lf42Added = await gp42.evaluate(async function (port) {
       window.__studioOpenBackendConfigWizard();
       await new Promise(function (r) { setTimeout(r, 80); });
@@ -23757,12 +23759,12 @@ function serve() {
         if (result && result.textContent) break;
       }
       var testOk = result && /Connection works/.test(result.textContent);
-      var saveBtn = [].slice.call(document.querySelectorAll(".cx-wiz-foot .btn")).filter(function (b) { return /Add backend/.test(b.textContent); })[0];
+      var saveBtn = [].slice.call(document.querySelectorAll(".cx-wiz-foot .btn")).filter(function (b) { return /Add workspace/.test(b.textContent); })[0];
       saveBtn.click();
       await new Promise(function (r) { setTimeout(r, 80); });
       return { testOk: testOk, stored: window.__studioAdminBackends.list(), modalGone: !document.querySelector(".modal-ov") };
     }, PORT);
-    ok("LF42: Add-backend wizard tests the connection inline and saves a named row to the local backend list",
+    ok("LF42: Add-workspace wizard tests the connection inline and saves a named row to the one saved-workspace list",
       lf42Added.testOk && lf42Added.modalGone && lf42Added.stored.length === 1 &&
       lf42Added.stored[0].name === "Test Turso" && lf42Added.stored[0].adapter === "turso" && lf42Added.stored[0].cfg.url.indexOf("/__turso") >= 0,
       JSON.stringify(lf42Added));
@@ -23778,7 +23780,7 @@ function serve() {
         hasActiveBadge: !!row.querySelector(".cx-badge.admin")
       };
     });
-    ok("LF42: the Backends list shows the new row with its adapter label and a Connect action (not active yet)",
+    ok("LF42: the Workspaces list shows the new row with its adapter label and a Connect action (not active yet)",
       lf42Listed && lf42Listed.name === "Test Turso" && lf42Listed.adapterLbl === "Turso" && lf42Listed.hasConnect && !lf42Listed.hasActiveBadge,
       JSON.stringify(lf42Listed));
 
@@ -23969,9 +23971,9 @@ function serve() {
     await gpN36.close();
 
     // ---- LF42 slice 2: per-user backend assignment ----
-    // No backends registered right now (the block above just deleted its one row)
-    // — Add user must NOT show "Assigned backend" (no empty facet, same
-    // convention as the folder/tag chip filters elsewhere).
+    // Nothing saved right now (the block above just deleted its one row) — Add
+    // user must NOT show "Assigned workspace" (no empty facet, same convention
+    // as the folder/tag chip filters elsewhere).
     const lf42s2NoBackends = await gp42.evaluate(function () {
       window.__studioOpenUserEditor();
       var has = !!document.getElementById("usrEditBackend");
@@ -24029,7 +24031,7 @@ function serve() {
       var usrBadges = usrRow ? [].slice.call(usrRow.querySelectorAll(".cx-badge")).map(function (b) { return b.textContent; }) : [];
       return { bkBadge: bkRow && bkRow.textContent, usrBadges: usrBadges };
     });
-    ok("LF42 slice 2: the Backends card shows a '1 user' count badge, and the assigned account shows '→ Prod Supabase' on the Users list",
+    ok("LF42 slice 2: the Workspaces card shows a '1 user' count badge, and the assigned account shows '→ Prod Supabase' on the Users list",
       lf42s2Badges.bkBadge === "1 user" && lf42s2Badges.usrBadges.indexOf("→ Prod Supabase") >= 0,
       JSON.stringify(lf42s2Badges));
 
@@ -24262,6 +24264,121 @@ function serve() {
     ok("#103: connectAdopt's skipIfEmpty guard refuses to adopt an empty remote read over local data — no wipe, no error state",
       a103Guard.rejected && a103Guard.emptyFlag && a103Guard.sentinelSurvived && a103Guard.statusNotError,
       JSON.stringify(a103Guard));
+
+    /* ---- N36 slice 2: THE RENAME — "Backends" is "Workspaces" everywhere the
+       noun means a saved, credentialed destination, and "backend" survives only
+       where it names the STATE (Settings' "Workspace backend — Local (this
+       browser)"). These checks hold BOTH ends: the new noun is on screen, and
+       the state phrase was not collateral damage. ------------------------- */
+    console.log("\n• N36 slice 2: Admin's Backends card is Workspaces");
+    await gp42.evaluate(function () {
+      window.__seedBackends([
+        { id: "n36r-ok", name: "Acme (production)", adapter: "turso", cfg: { url: "https://acme.example.co", token: "t" } },
+        { id: "n36r-half", name: "Half-typed", adapter: "supabase", cfg: {} },
+      ]);
+      window.__studioShellSetSection("admin"); window.__studioRenderAdmin();
+    });
+    const n36Card = await gp42.evaluate(function () {
+      var card = [].slice.call(document.querySelectorAll(".settings-card")).filter(function (c) { return /^Workspaces$/.test((c.querySelector("h2") || {}).textContent || ""); })[0];
+      if (!card) return { found: false };
+      var txt = card.textContent || "";
+      // Every remaining "backend" on this card must be the STATE phrase
+      // "Workspace backend" (the Settings card it points at). A bare one is a
+      // row-noun the rename missed.
+      var strays = (txt.replace(/Workspace backend/g, "").match(/backends?/gi) || []);
+      return {
+        found: true,
+        addBtn: (document.getElementById("bkNewBtn") || {}).textContent,
+        strays: strays,
+        namesPackaged: /packaged with this app/.test(txt),
+        rows: document.querySelectorAll("[data-bk-id]").length
+      };
+    });
+    ok("N36 slice 2: the Admin card is titled Workspaces, its button says + Add workspace, and no stray 'backend' names a row on it",
+      n36Card.found && n36Card.addBtn === "+ Add workspace" && n36Card.strays.length === 0 &&
+      n36Card.namesPackaged && n36Card.rows === 2, JSON.stringify(n36Card));
+
+    // Decision (2), made honest on the card: an entry with no address is KEPT
+    // and editable here (slice 1's storable-vs-valid split) but the sign-in
+    // picker cannot offer it — so the row says so rather than going quietly
+    // missing over there.
+    const n36Unconfigured = await gp42.evaluate(function () {
+      return {
+        badgeOnHalf: !!document.querySelector('[data-bk-unconfigured="n36r-half"]'),
+        badgeText: (document.querySelector('[data-bk-unconfigured="n36r-half"]') || {}).textContent,
+        badgeOnOk: !!document.querySelector('[data-bk-unconfigured="n36r-ok"]'),
+        offered: window.STUDIO_WS_STORE.list().map(function (w) { return w.id; }),
+        kept: window.__studioAdminBackends.list().map(function (r) { return r.id; }).sort()
+      };
+    });
+    ok("N36 slice 2: a workspace with no address carries a 'not configured' badge — kept and editable here, never offered at sign-in",
+      n36Unconfigured.badgeOnHalf && n36Unconfigured.badgeText === "not configured" && !n36Unconfigured.badgeOnOk &&
+      n36Unconfigured.offered.indexOf("n36r-half") < 0 && n36Unconfigured.offered.indexOf("n36r-ok") >= 0 &&
+      JSON.stringify(n36Unconfigured.kept) === JSON.stringify(["n36r-half", "n36r-ok"]),
+      JSON.stringify(n36Unconfigured));
+
+    const n36Wizard = await gp42.evaluate(async function () {
+      window.__studioOpenBackendConfigWizard();
+      await new Promise(function (r) { setTimeout(r, 80); });
+      var addTitle = (document.querySelector(".modal-h") || {}).textContent;
+      var srcCard = [].slice.call(document.querySelectorAll(".cx-src-card")).filter(function (c) { return c.querySelector("b").textContent === "Turso"; })[0];
+      srcCard.click();
+      await new Promise(function (r) { setTimeout(r, 80); });
+      var out = {
+        addTitle: addTitle,
+        nameLabel: (document.querySelector(".cx-wiz-form .cx-field span") || {}).textContent,
+        saveBtn: (document.querySelector(".cx-wiz-foot .btn.primary") || {}).textContent
+      };
+      document.querySelector(".modal-ov .x").click();
+      await new Promise(function (r) { setTimeout(r, 60); });
+      window.__studioOpenBackendConfigWizard(window.__studioAdminBackends.list().filter(function (r) { return r.id === "n36r-ok"; })[0]);
+      await new Promise(function (r) { setTimeout(r, 80); });
+      out.editTitle = (document.querySelector(".modal-h") || {}).textContent;
+      document.querySelector(".modal-ov .x").click();
+      return out;
+    });
+    ok("N36 slice 2: the add/edit wizard says workspace too — 'Add workspace' / 'Edit workspace', and the name field is 'Workspace name'",
+      n36Wizard.addTitle === "Add workspace" && n36Wizard.editTitle === "Edit workspace" &&
+      n36Wizard.nameLabel === "Workspace name" && n36Wizard.saveBtn === "Add workspace",
+      JSON.stringify(n36Wizard));
+
+    const n36UserField = await gp42.evaluate(function () {
+      window.__studioOpenUserEditor();
+      var sel = document.getElementById("usrEditBackend");
+      var lbl = sel && sel.closest(".cx-field") && sel.closest(".cx-field").querySelector("span");
+      var hint = sel && sel.closest(".cx-field") && sel.closest(".cx-field").querySelector(".cx-hint");
+      var out = { label: lbl && lbl.textContent, hint: hint && hint.textContent };
+      document.querySelector(".modal-ov .x").click();
+      return out;
+    });
+    ok("N36 slice 2: the user editor's picker is 'Assigned workspace', and its hint no longer claims the assignment is manual (#103 made it real)",
+      n36UserField.label === "Assigned workspace" && /Admin → Workspaces/.test(n36UserField.hint || "") &&
+      !/still a manual step/.test(n36UserField.hint || "") && /connected at sign-in/.test(n36UserField.hint || ""),
+      JSON.stringify(n36UserField));
+
+    // The STATE keeps its word. Settings' card is still "Workspace backend" —
+    // renaming it would have made the rail read "workspace workspace".
+    const n36State = await gp42.evaluate(function () {
+      window.__studioShellSetSection("settings"); window.__studioRenderWorkspaceBackendCard();
+      var card = [].slice.call(document.querySelectorAll(".settings-card")).filter(function (c) { return /^Workspace backend$/.test((c.querySelector("h2") || {}).textContent || ""); })[0];
+      return { found: !!card, switchBtn: (document.getElementById("wsSwitchBtn") || {}).textContent };
+    });
+    ok("N36 slice 2: Settings' card is still 'Workspace backend' — the rename took the row noun, not the state",
+      n36State.found && /backend/i.test(n36State.switchBtn || ""), JSON.stringify(n36State));
+
+    const n36Switch = await gp42.evaluate(async function () {
+      document.getElementById("wsSwitchBtn").click();
+      await new Promise(function (r) { setTimeout(r, 150); });
+      var out = { title: (document.querySelector(".modal-h") || {}).textContent,
+        intro: (document.querySelector(".modal-ov .cx-wiz-intro") || {}).textContent };
+      document.querySelector(".modal-ov .x").click();
+      return out;
+    });
+    ok("N36 slice 2: the Switch-backend picker keeps the state word in its title and calls its rows workspaces",
+      n36Switch.title === "Switch workspace backend" && /already saved on this device/.test(n36Switch.intro || ""),
+      JSON.stringify(n36Switch));
+
+    await gp42.evaluate(function () { window.__seedBackends([]); });
 
     await gp42.close();
 

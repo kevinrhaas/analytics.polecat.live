@@ -2495,35 +2495,40 @@
   <h3>Force the welcome tour at next sign-in</h3>
   <p>The same Add/Edit user form has a <strong>"Show the welcome tour at their next sign-in"</strong> checkbox. Normally the welcome tour appears only the very first time a <em>browser</em> visits the app — so if someone's device has already seen it (or you're re-testing an account), a fresh sign-in shows no tour at all. Check this box and the account's very next sign-in opens the welcome tour anyway, on any device. It's <strong>one-shot</strong>: the flag resets itself the moment the tour is shown, so later sign-ins go straight in as usual. Re-check it any time you want to force it again. (Anyone can also replay the tour themselves whenever they like from the Home page's "Take the tour" card.)</p>
 
-  <h3>Managing multiple backends (admin)</h3>
-  <p>The Admin page's <strong>Backends</strong> card pre-registers backends — Turso, Supabase, or
-  Firebase — under a name, with credentials, ahead of connecting to any of them. Registering is
-  just remembering for later: it does not sync, mirror, or connect anything by itself.</p>
+  <h3>Managing multiple workspaces (admin)</h3>
+  <p>The Admin page's <strong>Workspaces</strong> card saves the databases this app can work in —
+  Turso, Supabase, or Firebase — under a name, with credentials, ahead of connecting to any of them.
+  Saving one is just remembering it for later: it does not sync, mirror, or connect anything by
+  itself. (The card was called <em>Backends</em> until the two lists became one; "backend" now names
+  only the <em>state</em> — <em>Workspace backend — Local (this browser)</em> — never a row in this
+  list.)</p>
   <ul>
-    <li><strong>+ Add backend</strong> — pick the adapter and fill in the same fields the connect
-      wizard uses; <strong>Test</strong> checks credentials without connecting.</li>
-    <li>Each registered backend has <strong>Edit</strong>/<strong>Test</strong>/delete, plus a
+    <li><strong>+ Add workspace</strong> — pick the kind of database and fill in the same fields the
+      connect wizard uses; <strong>Test</strong> checks credentials without connecting.</li>
+    <li>Each saved workspace has <strong>Edit</strong>/<strong>Test</strong>/delete, plus a
       <strong>Connect</strong> button running the exact Settings → Workspace backend flow. Only
       the currently-connected one is active (an <strong>active</strong> badge shows which); a
-      backend with users assigned shows a count badge like "2 users".</li>
-    <li>Once one is registered, <strong>Switch backend</strong> in Settings offers this list first
+      workspace with users assigned shows a count badge like "2 users".</li>
+    <li>Once one is saved, <strong>Switch backend</strong> in Settings offers this list first
       — one-click connect, or "Enter connection details manually" for something new.</li>
   </ul>
-  <p><strong>It is one list.</strong> The backends registered here, the workspaces you save at the
+  <p><strong>It is one list.</strong> The workspaces saved here, the workspaces you save at the
   sign-in screen, and the entries Settings → Workspace backend manages are all the same saved list —
-  so a backend registered in Admin can be signed into from the <strong>Workspace</strong> picker, and a
+  so a workspace saved in Admin can be signed into from the <strong>Workspace</strong> picker, and a
   workspace someone saved (or imported from an access file) at sign-in can be assigned to a user
   here without re-typing its credentials. Removing an entry in either place removes it in both; the
-  database itself is never touched. A backend you registered but never finished configuring is kept
-  and still editable here — it simply is not offered at sign-in, since it cannot yet say where it
-  points.</p>
-  <p>Once at least one backend is registered, the Add/Edit user form (same "Per-user provisioning defaults" area above) also gains an <strong>Assigned backend</strong> picker naming which registered backend that account belongs to — shown back on their row in the Users list too (<code>→ Backend name</code>).</p>
-  <p><strong>The assignment is real: it connects at sign-in.</strong> Assigning a backend stores its
+  database itself is never touched. A workspace you started but never finished configuring is kept
+  and still editable here — it carries a <strong>not configured</strong> badge and is simply not
+  offered at sign-in, since it cannot yet say where it points. The workspaces
+  <em>packaged with the app</em> are offered at sign-in as well, but are not managed on this card:
+  they ship with the build.</p>
+  <p>Once at least one workspace is saved, the Add/Edit user form (same "Per-user provisioning defaults" area above) also gains an <strong>Assigned workspace</strong> picker naming which saved workspace that account belongs to — shown back on their row in the Users list too (<code>→ Workspace name</code>).</p>
+  <p><strong>The assignment is real: it connects at sign-in.</strong> Assigning a workspace stores its
   connection details <em>with the account</em>, so they travel wherever the account signs in. On a
-  brand-new device (nothing user-made stored locally) the app connects to the assigned backend
+  brand-new device (nothing user-made stored locally) the app connects to the assigned workspace
   automatically — no setup, nothing to type. On a device that already carries local work, the app
   asks first, since switching adopts the workspace and replaces what's stored locally; declining is
-  remembered per backend, so sign-in never nags. And if the backend reads back <em>empty</em> — the
+  remembered per workspace, so sign-in never nags. And if it reads back <em>empty</em> — the
   signature of a locked-down (per-user security) database that needs its own sign-in — the app
   refuses to adopt it over your local data and points you at the sign-in screen's Workspace picker
   instead, which handles that case properly.</p>
