@@ -135,6 +135,66 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **SP-6 slice (c) — the pack's four pinned Views, and the View Builder learns to build a flow
+  (v965, sw v555, 2026-08-10, steward; dev branch; est 3pt total, 3 of 3 slices spent — ON
+  estimate, SP-6 complete):** the first ready item in ▶ NOW. N31 is ⛔ on Kevin (the map-controls
+  decision), N44 is ⛔ and its estimate is spent, N35/N37/N34/N33a/N33b/N32/N42/N43a/N43b/N36/N40
+  are struck, N41 is a Kevin decision the loop may not take — so SP-6 (c), the slice the (b) entry
+  itself named as next, is what was ready.
+  **What shipped — the four Views.** Seeded from the same `seed(csv)` turn that writes the
+  datasets, and healed onto existing installs by `Studio.ensureContractAwardsViews` (wired into
+  studio.js's `reconcilePackDashboards` beside SP-1's), so a workspace that installed slice (a) or
+  (b) picks them up on its next boot with no reinstall. Authored exactly the SP-1 way —
+  `Studio.Build.compute` for the basis, `Studio.newPanel` over its head — so a seeded View and one
+  saved by hand in the builder are the same shape and open in the same editor.
+  * **agency → contractor** (the hero, seeded LAST so it leads Home's newest-first pinned shelf), a
+    real sankey over the JOB'S OUTPUT so the source end reads as an agency NAME;
+  * **agency → industry**, the same shape over the raw extract, where the agency is deliberately a
+    CODE — the extract leaves the name out and only the job brings it across, which the View's own
+    copy says rather than hides;
+  * **the small-business share of each agency**, as bars, with the ratio a **calc column** on the
+    View (the extract ships two dollar figures and not their ratio on purpose);
+  * **every congressional district** by dollars and per resident, as a table — because the reading
+    the map cannot give (see the open finding below) is exactly the one a table can.
+  **What the slice had to build, and why it is the same unit rather than a second one.** A pinned
+  flow View needs an editor to open in, and the View Builder had no Sankey: `BD.chartType` would
+  have been set to a type the strip does not contain, and the preview would have drawn the
+  toolkit's "No flows" placeholder — the silent, lossy round trip N33 exists to prevent. So
+  **Sankey is now a builder chart type**, and it cost three touch points because it rides the
+  HEATMAP's basis exactly: heatmap's `[Rows dim, Columns dim, measure]` triple IS a flow's
+  `(source, target, value)`, and `Studio.newPanel` already maps a sankey's `cols[0..2]` onto
+  `sourceCol/targetCol/valueCol` positionally. That is N33b's Quadrant-rides-scatter move, applied
+  again — one basis, two renderers, no parallel pivot to drift.
+  **One honest limit, stated rather than papered over:** the measure column of a rolled-up basis is
+  named by the pivot ("SUM obligations"), so that is what these Views' columns are called. It is
+  the same label the builder writes for a View you save yourself; a seeded View that quietly used a
+  prettier name would be the odd one out.
+  **The (b) finding is still open and still unranked** — the choropleth's LINEAR class breaks
+  against a power-law measure (407 of 436 districts in the lowest sixth). It is written into the
+  SP-6 item for Kevin to rank at the next grooming pass, not promoted on the loop's authority.
+  **Verified:** four new suite checks — the spec shape (four builder-native, pinned, foldered Views
+  over the pack's own datasets; the flows mapped positionally off their basis; the hero on the job
+  output and the industry flow on the raw extract; both calc columns; `state` left non-numeric; the
+  hero seeded last); the LIVE `Studio.Build.runBlob` rows (a flow per billion-dollar pair, every
+  one over the View's own floor and labelled with an agency name, the 25 agencies with their share
+  recomputed from the two shipped dollar figures on every row, all 436 districts); the boot heal
+  and its idempotence; and a real builder round trip — the strip offers Sankey, the seeded View
+  loads AS a sankey with it selected, its shelves read source → destination → measure, the basis is
+  the flow triple rather than a crosstab, and the preview draws real ribbons. `#117 (2)`'s
+  chart-strip roster check was updated with the new type rather than relaxed.
+  **Verification actually run, stated precisely:** the full dev gate green in the foreground
+  (`tools/validate.mjs`, `tools/changelog-check.js`, `tools/doc-truth.mjs`, `tools/dev-smoke.mjs`
+  at 390×780 + desktop, zero pageerrors), and `tests/run.js` green through **2,948 of ~3,338
+  checks** — every pack, View Builder, chart-strip, mobile-390px and uncaught-error check among
+  them — before the runner's 10-minute per-command ceiling cut the process off in the tail
+  (dashboard theming, chart options, command palette, forecasting; nothing this slice touches).
+  The remaining checks are what the nightly `promote-to-stage` full suite exists to run, with its
+  45-minute budget and auto-rollback. **doc-truth earned its keep on this one:** it failed the
+  gate because the pack's Help entry, tagline and blurb still said "3 dashboards" and never said
+  "View" — a pack that seeds Views while its card talks only about dashboards under-sells itself,
+  and all three now name them.
+  Files: app/build.js, app/demopacks.js, app/studio.js, docs/index.html, tests/run.js,
+  js/changelog.js, sw.js, STATUS.md. **NEXT: SP-6 is complete — the next ready item in ▶ NOW.**
 - **SP-6 slice (b) — the pack's three dashboards, and the flow it was extracted to draw
   (v964, sw v554, 2026-08-10, steward; dev branch; est 3pt total, 2 of 3 slices spent — ON
   estimate):** the first ready item in ▶ NOW again — N31 is ⛔ on Kevin, N35/N37/N34/N33a/N33b/
@@ -14475,8 +14535,23 @@
 > SP-5 and SP-13 still live in the reservoir with their ⏫ markers; give each a line here when its
 > first slice starts, the way this one did.
 
-- **SP-6 ★★ [3pt est, 2 slices shipped] — "Federal Contract Awards" — where federal contract money
-  goes (Kevin, promoted 2026-08-09: *"some where the money is going"*).** ✓ **SLICE (a) IS SHIPPED —
+- ~~**SP-6 ★★ [3pt est, 3 slices shipped — ON estimate] — "Federal Contract Awards" — where federal
+  contract money goes (Kevin, promoted 2026-08-09: *"some where the money is going"*).**~~
+  ✓ **COMPLETE — SLICE (c) SHIPPED v965, sw v555 (2026-08-10, steward — see DONE).** The four pinned
+  Views (the two flows, the small-business share, every district), healed onto existing installs by
+  `Studio.ensureContractAwardsViews`. Getting them there needed one thing the item did not foresee:
+  a flow was drawable but not BUILDABLE, so **Sankey is now a View Builder chart type**, riding the
+  heatmap's `[Rows, Columns, measure]` basis read as (source, target, flow) — the same
+  share-an-existing-basis move N33b made for Quadrant. Without it the pack's hero View would have
+  opened as a table, which is precisely the lossy class N33 closed.
+  **The finding below is still OPEN and still not the loop's to rank** — it is proposed to Kevin at
+  the next grooming pass, not promoted: **the choropleth's colour classes are LINEAR only**
+  (`t = (v - vmin) / (vmax - vmin)` in `app/studio-charts.js`), so any power-law measure paints one
+  colour — federal contract obligations put **407 of 436 districts in the lowest sixth of the range**
+  (42 of 51 after a state rollup). Quantile or log class breaks (a `classBreaks` opt beside
+  `classes`) would fix every choropleth in the app, and it is a chart-capability slice of its own.
+  *(Original text kept until the next grooming pass archives it.)*
+  ✓ **SLICE (a) IS SHIPPED —
   the data foundation: v963, sw v553 (2026-08-10, steward — see DONE).** The extract script, four
   committed USASpending.gov datasets (FY2025 contracts: 25 agencies, 600 agency→industry and
   agency→vendor flow rows, 436 congressional districts — 49.6KB of the 150KB budget), the pack's
@@ -14493,7 +14568,7 @@
   "Flow", `sourceCol`/`targetCol`/`valueCol`, and already in `Studio.WIDE_CHART_TYPES`). So the
   hero is the real flow diagram, and no chart-type build rode in on the pack slice — by the other
   route than the one the item expected.
-  **What remains:**
+  **What remained, and is now shipped:**
   **(c) the pinned Views** — authored the SP-1 way (`Studio.Build.compute` → `Studio.newPanel`),
   seeded from the same `seed(csv)` call, each paired with an ensure-function so a workspace that
   installed slice (a) or (b) picks them up at boot with no reinstall. The dashboards' DAs are the

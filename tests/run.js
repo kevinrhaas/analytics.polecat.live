@@ -6161,6 +6161,169 @@ function serve() {
       fcaRender.kpis === 4 && fcaRender.kpiValues.length === 4 &&
       fcaRender.kpiValues.every(function (v) { return v && v !== "—" && v !== "0"; }),
       JSON.stringify(fcaRender));
+    // ---- SP-6 (c): the four pinned Views, and the flow the builder can now hold ----
+    // A dashboard is READ; a View is OPENED and changed. So these checks are about that
+    // difference: the four are hand-saveable View Builder blobs over the pack's OWN
+    // datasets, their cards draw the live rows through the same runBlob path the panels
+    // use, and — the part this slice had to build — a sankey View is a sankey when you
+    // open it. Before this the builder had no such type, so a pack-authored flow had no
+    // honest editor to land in; the type now rides the heatmap's [Rows, Columns,
+    // measure] basis, read as (source, target, flow).
+    console.log("\n• SP-6(c): the pack's four pinned Views, and Sankey as a builder type");
+    const fcaViews = await page.evaluate(async function () {
+      var W = Studio.Workspace, ID = "contractawards";
+      var rows = W.all("analyses").filter(function (a) { return a.demoPackId === ID; });
+      var byDa = {}; rows.forEach(function (r) { if (r.da) byDa[r.da.id] = r; });
+      var vendor = byDa["fcav_flow_vendor"], industry = byDa["fcav_flow_industry"],
+        share = byDa["fcav_sb_share"], districts = byDa["fcav_districts"];
+      var four = [vendor, industry, share, districts];
+      var mine = {};
+      W.all("datasets").filter(function (d) { return d.demoPackId === ID; })
+        .forEach(function (d) { mine[d.id] = d; });
+      var jobOut = W.all("datasets").filter(function (d) {
+        return d.demoPackId === ID && (d.tags || []).indexOf("job-output") >= 0;
+      })[0];
+      var out = {
+        count: rows.length,
+        allFound: four.every(Boolean),
+        allPinned: rows.every(function (r) { return r.pinned === true; }),
+        allFoldered: rows.every(function (r) { return r.folder === "Federal Contract Awards"; }),
+        // builder-native: a real blob, over one of the PACK's datasets (not a Quick-Views
+        // snapshot and not a blob pointing at somebody else's rows)
+        allBuilderNative: rows.every(function (r) {
+          return !!(r.builder && r.da && r.da.builder && r.chart) &&
+            r.builder.dsKind === "ws" && !!mine[r.builder.dsId];
+        }),
+        types: four.map(function (r) { return r && r.chartType; }).join(","),
+        // Home sorts pinned Views newest-first, so the hero flow has to be seeded last
+        firstOnHome: W.all("analyses").filter(function (a) { return a.pinned; })
+          .sort(function (a, b) { return (b.updatedAt || 0) - (a.updatedAt || 0); })
+          .filter(function (a) { return a.demoPackId === ID; })
+          .map(function (a) { return a.da && a.da.id; })[0]
+      };
+      if (!out.allFound) return out;
+      // the sankey's three roles are mapped POSITIONALLY off the basis head — the measure
+      // column of a rolled-up basis is a synthesized "SUM obligations" label, so a
+      // name-guessing mapping would be reading a label instead of a measure
+      out.vendorMap = [vendor.chart.map.sourceCol, vendor.chart.map.targetCol, vendor.chart.map.valueCol].join(">");
+      out.vendorHead = vendor.da.columns.join(">");
+      out.industryMap = [industry.chart.map.sourceCol, industry.chart.map.targetCol, industry.chart.map.valueCol].join(">");
+      // the hero reads the JOB'S OUTPUT, which is the only table where the agency has a
+      // name; the industry flow reads the raw extract, where it is deliberately a code
+      out.heroReadsJobOutput = !!jobOut && vendor.builder.dsId === jobOut.id;
+      out.industryReadsExtract = industry.builder.dsId !== (jobOut || {}).id;
+      // the two derived numbers are calc columns ON the View — open it and the formula
+      // is on the shelf, which is this pack's whole argument about derivations
+      out.shareCalc = (share.builder.calcs || []).map(function (c) { return c.name; }).join(",");
+      out.districtCalc = (districts.builder.calcs || []).map(function (c) { return c.name; }).join(",");
+      // newPanel's table default would mark `state` numeric; the declared columns win
+      out.stateNotNumeric = !districts.chart.map.cols.filter(function (c) { return c.col === "state"; })[0].num;
+
+      var res = await Promise.all(four.map(function (r) { return Studio.Build.runBlob(r.builder); }));
+      out.rowCounts = res.map(function (x) { return x ? x.rows.length : -1; });
+      out.allLive = res.every(function (x) { return !!(x && x.live); });
+      var vRun = res[0], floor = Number(vendor.builder.filters[0].min);
+      out.vendorFloor = floor;
+      if (vRun) {
+        // the basis IS the triple, in flow order: [source, target, value]
+        out.vendorCols = vRun.cols.join(">");
+        out.vendorObeysFloor = vRun.rows.length > 0 && vRun.rows.every(function (r) { return Number(r[2]) >= floor; });
+        out.vendorNamesAgencies = vRun.rows.every(function (r) { return /[a-z]/.test(String(r[0])) && String(r[0]).length > 4; });
+      }
+      var sRun = res[2];
+      if (sRun) {
+        // the share really is arithmetic over the two shipped dollar figures, recomputed
+        // here from the pack's own CSV rather than trusted
+        var totalsDs = W.all("datasets").filter(function (d) {
+          return d.demoPackId === ID && (d.fileName || "").indexOf("agency-totals") >= 0;
+        })[0];
+        var lines = String(totalsDs.content || "").trim().split("\n"), head = lines.shift().split(",");
+        var ai = head.indexOf("agency"), ti = head.indexOf("total_obligations"), si = head.indexOf("small_business_obligations");
+        var want = {};
+        lines.forEach(function (l) { var c = l.split(","); want[c[ai]] = (Number(c[si]) / Number(c[ti])) * 100; });
+        out.shareChecks = sRun.rows.length > 0 && sRun.rows.every(function (r) {
+          var w = want[String(r[0])];
+          return w != null && isFinite(Number(r[1])) && Math.abs(Number(r[1]) - w) < 1e-9;
+        });
+      }
+      return out;
+    });
+    ok("SP-6(c): the pack pins four builder-native Views over its own datasets — the two flows, the small-business share and every district — all pinned and foldered, the flows' source/target/value mapped positionally off their basis, the hero reading the JOB'S OUTPUT (so an agency is a name) while the industry flow reads the raw extract (where it is a code), both derived numbers carried as calc columns on the View, the district table's `state` left non-numeric, and the hero seeded last so it leads Home's newest-first shelf",
+      fcaViews.count === 4 && fcaViews.allFound && fcaViews.allPinned && fcaViews.allFoldered &&
+      fcaViews.allBuilderNative && fcaViews.types === "sankey,sankey,bars,table" &&
+      fcaViews.vendorMap === fcaViews.vendorHead && fcaViews.vendorMap === "agency>vendor>SUM obligations" &&
+      fcaViews.industryMap === "agency_code>industry>SUM obligations" &&
+      fcaViews.heroReadsJobOutput && fcaViews.industryReadsExtract &&
+      fcaViews.shareCalc === "small_business_pct" && fcaViews.districtCalc === "dollars_per_resident" &&
+      fcaViews.stateNotNumeric && fcaViews.firstOnHome === "fcav_flow_vendor",
+      JSON.stringify(fcaViews));
+    ok("SP-6(c): running the four saved blobs returns the LIVE basis, not a stored copy — a flow per billion-dollar pair (every one of them over the View's own floor and labelled with an agency NAME), the 25 agencies with their share recomputed from the two shipped dollar figures on every row, and all 436 districts",
+      fcaViews.allLive && fcaViews.vendorCols === "agency>vendor>SUM obligations" &&
+      fcaViews.vendorObeysFloor && fcaViews.vendorNamesAgencies &&
+      fcaViews.rowCounts && fcaViews.rowCounts[0] >= 20 && fcaViews.rowCounts[1] >= 20 &&
+      fcaViews.rowCounts[2] === 25 && fcaViews.rowCounts[3] === 436 && fcaViews.shareChecks,
+      JSON.stringify(fcaViews));
+
+    // The heal, same shape as the dashboards' one slice earlier: an install that predates
+    // the Views gets them on boot reconcile, and a second run is a no-op.
+    const fcaViewHeal = await page.evaluate(function () {
+      var W = Studio.Workspace;
+      W.all("analyses").filter(function (a) { return a.demoPackId === "contractawards"; })
+        .forEach(function (a) { W.remove("analyses", a.id, { silent: true }); });
+      W.notify("analyses");
+      var healed = Studio.ensureContractAwardsViews();
+      var back = W.all("analyses").filter(function (a) { return a.demoPackId === "contractawards"; }).length;
+      var again = Studio.ensureContractAwardsViews();
+      return { healed: healed, back: back, idempotent: again === false };
+    });
+    ok("SP-6(c): the boot heal re-seeds the four Federal Contract Awards Views into an install that predates them and is idempotent on a healthy one",
+      fcaViewHeal.healed && fcaViewHeal.back === 4 && fcaViewHeal.idempotent, JSON.stringify(fcaViewHeal));
+
+    // And the half that made the Views possible: OPEN one in the View Builder. A type the
+    // builder does not know falls back to a table and the flow is gone, which is exactly
+    // the lossy class N33 was about — so this asserts the type survives, the strip offers
+    // it, the shelves read as source/target/measure, and the preview draws real ribbons.
+    const fcaBuild = await page.evaluate(async function () {
+      var W = Studio.Workspace, out = {};
+      function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+      var vendor = W.all("analyses").filter(function (a) {
+        return a.demoPackId === "contractawards" && a.da && a.da.id === "fcav_flow_vendor";
+      })[0];
+      if (!vendor) return { err: "flow view missing" };
+      window.__studioRenderBuild();
+      await sleep(60);
+      out.stripHasSankey = !!document.querySelector('#bdCharts [data-bd-ct="sankey"]');
+      window.__studioBuild.load(vendor.id);
+      await sleep(900);
+      var B = window.__studioBuild.state;
+      out.type = B.chartType;
+      out.shelves = [(B.shelfRows[0] || {}).col, (B.shelfCols[0] || {}).col,
+        (B.shelfCols[1] || {}).col + ":" + (B.shelfCols[1] || {}).agg].join(">");
+      out.sankeyOn = !!document.querySelector('#bdCharts [data-bd-ct="sankey"].on');
+      // the basis the editor computes for it is the flow triple, not a crosstab
+      out.basis = (function () {
+        var b = window.__studioBuild.chartBasis("sankey", B);
+        return b ? b.head.join(">") : "";
+      }());
+      // and it DRAWS — poll the preview frame for ribbons rather than sleeping a fixed
+      // amount (the srcdoc swap is async and debounced)
+      var ifr = document.querySelector("#secBuild iframe.bd-ifr"), doc = null;
+      for (var i = 0; i < 120; i++) {
+        try { doc = ifr && ifr.contentDocument; } catch (e) { doc = null; }
+        if (doc && doc.querySelectorAll("svg path").length) break;
+        await sleep(50);
+      }
+      out.previewRibbons = doc ? doc.querySelectorAll("svg path").length : -1;
+      out.previewEmpty = !!(doc && doc.querySelector("#content .empty"));
+      Studio.Build.newView(); // leave the builder clean for the later flow tests
+      return out;
+    });
+    ok("SP-6(c): a pack-authored flow OPENS as a flow — Sankey is in the builder's chart strip, the seeded View loads as `sankey` with it selected, its shelves read source (Rows) → destination (Columns) → measure, the basis is the flow triple rather than a crosstab, and the preview draws real ribbons instead of the toolkit's \"No flows\" placeholder",
+      !fcaBuild.err && fcaBuild.stripHasSankey && fcaBuild.type === "sankey" && fcaBuild.sankeyOn &&
+      fcaBuild.shelves === "agency>vendor>obligations:sum" &&
+      fcaBuild.basis === "agency>vendor>SUM obligations" &&
+      fcaBuild.previewRibbons > 0 && !fcaBuild.previewEmpty, JSON.stringify(fcaBuild));
+
     // hand the workspace back the way this block found it (the SP-1(b) convention) —
     // Federal Contract Awards is not in DEFAULT_INSTALLED, so leaving it installed would
     // change the row counts every later catalog check reads
@@ -15535,9 +15698,11 @@ function serve() {
     });
     // N33b added Quadrant to the roster — and it is disabled here for exactly the same
     // reason Scatter is (one measure on the shelf, both need two), which is the point of
-    // making them share a basis rather than growing a parallel one.
-    ok("#117 (2): the chart strip offers Table/Bars/Stacked bars/Line/Stacked area/Donut/Heatmap/Map/Scatter/Quadrant/KPI, heatmap enabled with a Rows dim + a Columns dim, scatter AND quadrant disabled (only one measure on the shelf), KPI enabled (needs no dimension, just the one measure already there)",
-      bdChart.strip.join(",") === "table,bars,stacked,line,areaStacked,donut,heatmap,choropleth,scatter:off,quadrant:off,kpi", JSON.stringify(bdChart));
+    // making them share a basis rather than growing a parallel one. SP-6(c) added Sankey
+    // the same way, sharing the HEATMAP's basis — so it sits beside it and is enabled on
+    // exactly the shelves the heatmap needs (a Rows dim + a plain Columns dim).
+    ok("#117 (2): the chart strip offers Table/Bars/Stacked bars/Line/Stacked area/Donut/Heatmap/Sankey/Map/Scatter/Quadrant/KPI, heatmap AND sankey enabled with a Rows dim + a Columns dim (they share one basis), scatter AND quadrant disabled (only one measure on the shelf), KPI enabled (needs no dimension, just the one measure already there)",
+      bdChart.strip.join(",") === "table,bars,stacked,line,areaStacked,donut,heatmap,sankey,choropleth,scatter:off,quadrant:off,kpi", JSON.stringify(bdChart));
     ok("#117 (2): picking Bars renders the COMPUTED basis through the real dashboard renderer (buildHtml + DASHKIT_MOCK iframe)",
       bdChart.barsIframe && bdChart.mock && bdChart.basisDA && bdChart.basisMeasure, JSON.stringify(bdChart));
     ok("#117 (2): Heatmap renders too, and saving with a chart selected stamps the type on the View + builder blob",

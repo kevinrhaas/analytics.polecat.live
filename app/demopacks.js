@@ -155,13 +155,13 @@
       // count claimed here to a number the pack really produces, and rule (a) requires
       // both strings to name every KIND the installer seeds — dashboards included, now
       // that it seeds them.
-      tagline: "3 dashboards on 4 datasets and 1 connection · 25 agencies · $778B of FY2025 contracts · 600 agency→industry and agency→vendor flows · 436 congressional districts · a vendor-share job — real public data, embedded",
-      blurb: "3 dashboards over 4 datasets of real federal contract spending: where the money " +
-        "flows from agency to industry and contractor, who the 25 largest agencies are and how " +
-        "much of their spending reaches a small business, and the congressional districts the " +
-        "work landed in. A prep job joins each vendor to its agency's total, so you can read one " +
-        "contractor's haul as a share of the agency that paid it. The data is USASpending.gov's, " +
-        "public domain and embedded on 1 connection: no credentials to enter.",
+      tagline: "3 dashboards · 4 Views pinned to Home · 4 datasets on 1 connection · 25 agencies · $778B of FY2025 contracts · 600 agency→industry and agency→vendor flows · 436 congressional districts · a vendor-share job — real public data, embedded",
+      blurb: "3 dashboards and 4 pinned Views over 4 datasets of real federal contract spending: " +
+        "where the money flows from agency to industry and contractor, who the 25 largest agencies " +
+        "are and how much of their spending reaches a small business, and the congressional " +
+        "districts the work landed in. A prep job joins each vendor to its agency's total, so you " +
+        "can read one contractor's haul as a share of the agency that paid it. The data is " +
+        "USASpending.gov's, public domain and embedded on 1 connection: no credentials to enter.",
       source: {
         kind: "public",
         name: "USASpending.gov — federal contract awards, FY2025",
@@ -1493,9 +1493,12 @@
     // SP-6 (b): the dashboards read the job's output and the extract tables together, so
     // they are seeded here — the moment those rows exist — rather than in install(),
     // which runs a turn earlier with nothing to chart yet (the SP-1 convention).
-    seedContractAwardsDashboards(W, id, {
-      totals: totalsDs, industry: industryDs, districts: districtsDs, output: outputDs
-    }, new Date().toISOString());
+    var seededDs = { totals: totalsDs, industry: industryDs, districts: districtsDs, output: outputDs };
+    seedContractAwardsDashboards(W, id, seededDs, new Date().toISOString());
+    // SP-6 (c): and the pinned Views, from the same turn and for the same reason — the
+    // rows they are computed over exist only now. Last, so the Views are the newest rows
+    // in the workspace and lead Home's pinned shelf.
+    seedContractAwardsViews(W, id, seededDs);
   }
 
   /* ---- SP-6 (b): the pack's three dashboards ----------------------------------------
@@ -1851,21 +1854,196 @@
   // and so does one where a dashboard was deleted. Returns false when there is nothing to
   // do, including the legitimate "data hasn't materialized yet" case: the seed path above
   // writes the dashboards itself the moment the datasets exist.
-  Studio.ensureContractAwardsDashboards = function () {
-    var id = "contractawards";
-    if (!Studio.demoPackInstalled(id)) return false;
-    var W = Studio.Workspace;
+  // The pack's four datasets as the seed path names them, found in a workspace rather
+  // than threaded through — the same lookup both boot heals need, so it is written once.
+  // Returns null unless all four are present WITH content: a half-materialized pack has
+  // nothing honest to chart, and both callers treat that as "nothing to do", not an error.
+  function contractAwardsDatasets(W, id) {
     var mine = W.all("datasets").filter(function (d) { return d.demoPackId === id && d.content; });
     function byFile(part) {
       return mine.filter(function (d) { return (d.fileName || "").indexOf(part) >= 0; })[0];
     }
     var ds = {
       totals: byFile("agency-totals"), industry: byFile("agency-industry"),
-      districts: byFile("district"),
+      districts: byFile("district-awards"),
       output: mine.filter(function (d) { return (d.tags || []).indexOf("job-output") >= 0; })[0]
     };
-    if (!ds.totals || !ds.industry || !ds.districts || !ds.output) return false;
+    return (ds.totals && ds.industry && ds.districts && ds.output) ? ds : null;
+  }
+
+  Studio.ensureContractAwardsDashboards = function () {
+    var id = "contractawards";
+    if (!Studio.demoPackInstalled(id)) return false;
+    var W = Studio.Workspace;
+    var ds = contractAwardsDatasets(W, id);
+    if (!ds) return false;
     return seedContractAwardsDashboards(W, id, ds, new Date().toISOString()) > 0;
+  };
+
+  /* ---- SP-6 (c): the pack's four pinned Views ----------------------------------------
+     A dashboard is a finished argument; a View is the thing you open and change. SP-1
+     established the convention and this pack follows it exactly: author each View the
+     way `bdSave` would — compute the basis with the pure `Studio.Build.compute`, then
+     `Studio.newPanel` over the resulting columns — so a seeded View and one saved by
+     hand in the View Builder are the same shape and open in the same editor. Only the
+     basis HEAD is read here; the rows a pinned card draws come from
+     `Studio.Build.runBlob` against the live dataset on every render (#118), which is
+     why a subset is expressed as the View's OWN filter rather than a second, hand-cut
+     dataset — open it and the rule is right there on the shelf to move.
+
+     THE FOUR are the four readings the dashboards are built out of: the two flows
+     (which is what this pack was extracted for), the small-business share, and the
+     districts. Two of them are sankeys, and that is what made this slice touch the
+     builder: a flow was drawable but not BUILDABLE, so a pack-authored sankey View had
+     no honest editor to open in. Sankey now rides the heatmap's basis in
+     `app/build.js` — [Rows dimension, Columns dimension, measure] read as
+     (source, target, flow) — which is the same "share an existing basis rather than
+     grow a parallel one" move N33b made for Quadrant, and it means these two Views
+     open, edit and re-save as themselves instead of degrading to a table.
+
+     One honest limit, stated rather than hidden: the measure column of a rolled-up
+     basis is named by the pivot ("SUM obligations"), so that is what these Views'
+     columns are called. It is the same label the builder writes for a View you save
+     yourself — a seeded View that quietly used a prettier name would be the odd one
+     out, and the number underneath is the same either way. */
+  function contractAwardsViewDefs(ds) {
+    var floorNote = fcaBillions(FCA_FLOW_FLOOR);
+    return [
+      {
+        // The hero, and the one View in the app that opens on a real origin→destination
+        // table. The floor is the dashboards' own FCA_FLOW_FLOOR — a READABILITY floor,
+        // not a significance one, and here it is a filter chip one drag from gone.
+        key: "flow_vendor", dsId: ds.output.id,
+        name: "Federal Contract Awards — agency to contractor, flows of " + floorNote + " or more",
+        chartType: "sankey",
+        shelfRows: [{ col: "agency" }],
+        shelfCols: [{ col: "vendor", agg: null }, { col: "obligations", agg: "sum" }],
+        filters: [{ col: "obligations", kind: "range", min: String(FCA_FLOW_FLOOR), max: "" }],
+        opts: { srcCap: "Awarding agency", dstCap: "Contractor", fmt: "money", height: 520 }
+      },
+      {
+        // Over the RAW industry table, so the source end reads as an agency CODE — the
+        // extract leaves the name out on purpose and only the pack's job brings it
+        // across. Naming that here is the difference between a limitation and a bug.
+        key: "flow_industry", dsId: ds.industry.id,
+        name: "Federal Contract Awards — agency to industry, flows of " + floorNote + " or more",
+        chartType: "sankey",
+        shelfRows: [{ col: "agency_code" }],
+        shelfCols: [{ col: "industry", agg: null }, { col: "obligations", agg: "sum" }],
+        filters: [{ col: "obligations", kind: "range", min: String(FCA_FLOW_FLOOR), max: "" }],
+        opts: { srcCap: "Awarding agency", dstCap: "What it bought", fmt: "money", height: 460 }
+      },
+      {
+        // The share is the pack's argument that derivations should be visible: the
+        // extract ships two dollar figures and deliberately not their ratio, so the
+        // percentage is a CALC COLUMN on this View — open it and the formula is there.
+        key: "sb_share", dsId: ds.totals.id,
+        name: "Federal Contract Awards — small-business share of each agency's spend",
+        chartType: "bars",
+        shelfRows: [],
+        shelfCols: [{ col: "agency", agg: null }, { col: FCA_SB_PCT_CALC.name, agg: "avg" }],
+        calcs: [FCA_SB_PCT_CALC],
+        opts: { horizontal: true, sortBars: true, showValues: true, fmt: "pct", height: 460 }
+      },
+      {
+        // Every district, not the map's top class — because the finding the map cannot
+        // show (a linear colour scale over a power law) is exactly the one a sortable
+        // table can. Dollars per resident is the second calc column, for the same
+        // reason as the share above.
+        key: "districts", dsId: ds.districts.id,
+        name: "Federal Contract Awards — every congressional district, by dollars and per resident",
+        chartType: "table",
+        shelfRows: [],
+        shelfCols: ["district", "state", "obligations", "population", FCA_PER_RESIDENT_CALC.name]
+          .map(function (c) { return { col: c, agg: null }; }),
+        calcs: [FCA_PER_RESIDENT_CALC],
+        tableCols: [
+          { col: "district", label: "District" },
+          { col: "state", label: "State" },
+          { col: "obligations", label: "Obligations", num: true, fmt: "money" },
+          { col: "population", label: "Residents", num: true, fmt: "abbr" },
+          { col: FCA_PER_RESIDENT_CALC.name, label: "Per resident", num: true, fmt: "money" }
+        ],
+        opts: { pageSize: 12, freezeHeader: true, density: "comfortable" }
+      }
+    ];
+  }
+  // The pivot a given chart type's basis is actually computed from — chartBasis's own
+  // rule, mirrored here because the seed runs without a builder state to ask. Only the
+  // two shapes this pack uses are covered, and the sankey one is the interesting case:
+  // its basis is the flat triple [source, target, measure], NOT a crosstab, so the Rows
+  // field is folded into the Columns pivot exactly the way app/build.js does it.
+  function contractAwardsBasisShelf(def) {
+    if (def.chartType === "sankey") {
+      return [{ col: def.shelfRows[0].col, agg: null }].concat(def.shelfCols);
+    }
+    return def.shelfCols;
+  }
+  function contractAwardsViewRow(def, table) {
+    var blob = {
+      dsKind: "ws", dsId: def.dsId, chartType: def.chartType,
+      shelfCols: Studio.clone(def.shelfCols), shelfRows: Studio.clone(def.shelfRows || []),
+      filters: Studio.clone(def.filters || []), calcs: Studio.clone(def.calcs || []),
+      shelfColor: [], paletteKey: "", mapScale: ""
+    };
+    // Calc columns first — a shelf can name one, so the basis has to be computed over the
+    // EFFECTIVE columns (bdEff's rule), not the raw CSV's. Over the UNFILTERED rows on
+    // purpose, the same as SP-1: a filter changes which rows come back, never which
+    // columns do, and only the head is wanted here (the rows are runBlob's job).
+    var eff = Studio.applyCalcCols(table.columns, table.rows, (def.calcs || []).map(function (c) {
+      return { name: c.name, formula: c.formula, type: "Numeric" };
+    }));
+    var basis = Studio.Build.compute(eff.cols, eff.rows, contractAwardsBasisShelf(def), []);
+    if (!basis || basis.head.length < 2) return null;
+    var da = { id: "fcav_" + def.key, name: def.name, kind: "sql", sql: "", query: "",
+      columns: basis.head.slice(), params: [], authored: true };
+    da.builder = Studio.clone(blob);
+    var p = Studio.newPanel(def.chartType, da);
+    // newPanel's table default marks every column after the first numeric and titleizes
+    // its label — right for an ad-hoc pivot, wrong for `state`. Declared columns win.
+    if (def.tableCols) p.chart.map.cols = Studio.clone(def.tableCols);
+    if (def.opts) Object.keys(def.opts).forEach(function (k) { p.chart.opts[k] = def.opts[k]; });
+    return {
+      name: def.name, folder: FCA_FOLDER, demoPackId: "contractawards",
+      pinned: true, panelTitle: "", chartType: def.chartType, paletteKey: "",
+      da: da, builder: Studio.clone(blob), chart: p.chart
+    };
+  }
+  // Idempotent by View name, the convention every seeder in this file uses, so it is safe
+  // from the seed, from the boot heal, and in a workspace where someone deleted one.
+  function seedContractAwardsViews(W, id, ds) {
+    if (!ds) return 0;
+    var tables = {};
+    var have = {};
+    W.all("analyses").forEach(function (r) { if (r.demoPackId === id) have[r.name] = true; });
+    var added = 0;
+    // Seeded in REVERSE of the reading order above: Home sorts pinned Views newest-first,
+    // so the agency→contractor flow has to be the last row written to lead the shelf (the
+    // CONS-2/CONS-3 convention the dashboards are seeded by too).
+    contractAwardsViewDefs(ds).slice().reverse().forEach(function (def) {
+      if (have[def.name]) return;
+      // Parsed once per dataset, not once per View — two of the four share a table.
+      if (!tables[def.dsId]) {
+        var row = W.get("datasets", def.dsId);
+        tables[def.dsId] = parsePackCsv((row && row.content) || "");
+      }
+      var t = tables[def.dsId];
+      if (!t || !t.rows.length) return;
+      var view = contractAwardsViewRow(def, t);
+      if (!view) return;
+      W.put("analyses", view);
+      added++;
+    });
+    return added;
+  }
+  // The boot heal, paired with ensureContractAwardsDashboards above and for the same
+  // reason: a workspace that installed the pack at slice (a) or (b) gets the Views
+  // without a reinstall. False when there is nothing to do.
+  Studio.ensureContractAwardsViews = function () {
+    var id = "contractawards";
+    if (!Studio.demoPackInstalled(id)) return false;
+    var W = Studio.Workspace;
+    return seedContractAwardsViews(W, id, contractAwardsDatasets(W, id)) > 0;
   };
 
   // SP-0: registry-driven. This function knows about no pack in particular — an entry
