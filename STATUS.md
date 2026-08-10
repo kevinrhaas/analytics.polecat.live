@@ -135,6 +135,45 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N40 — a pack card's description is three sentences again, not an inventory (v962, sw v552,
+  2026-08-10, steward; dev branch; est 1pt, took 1 — ON estimate):** the first ready item in ▶ NOW
+  (N31 and N44 are ⛔ on Kevin; N35/N37/N34/N33a/N33b/N32/N42/N43a/N43b/N36 are struck, and SP-1 is
+  ⏳ on the `hold`-labelled PR #689). Kevin, 2026-08-09: *"those descriptions should be 2-3 sentences
+  at most."*
+  **Both offenders, measured before and after.** Conservation Insight: 352ch, one 32-word opening
+  sentence that named all six dashboards by title. Market Coverage: 654ch, **one 100-word sentence**
+  that re-stated the tagline's counts and then inventoried both Census datasets column by column
+  ("population, households, median age, median household income, education… all industries,
+  restaurants and bars, grocers"). Both are now three sentences with the same shape: what the pack is
+  for, what it seeds, where the data comes from. Data Management was already three sentences and was
+  **not touched** — the item said so, and re-writing copy that is already right is how you break a
+  count nobody re-checked.
+  **What the rewrite had to keep, because the item is right that this copy is under contract**, and
+  all of it still holds: every count (6/4/8/2 and 3/4/2/1,813/1), every seeded KIND named in words
+  (doc-truth check 35 rule (a) — dashboard, View, dataset, connection, job), the count-led opening
+  digit and the word "embedded" (#116), the "no credentials to enter" promise, and the source credit,
+  which is not in the blurb at all: `demoPackSourceLine()` renders it from the `source` record, so
+  `tools/validate.mjs`'s `docs/PACKS.md` contract was never at risk from a copy edit. Worth stating
+  plainly because the item implied otherwise.
+  **Where the deleted words went, rather than being lost:** Help's *Sample packs* section already
+  carries the full inventory — the six Conservation dashboard titles, the Census columns, the
+  cross-filter behaviour — in far more detail than a card ever could, and doc-truth check 34 holds
+  that section to the installer. So the card is the decision surface and Help is the reference, and
+  the blurb had been trying to be both. `docs/index.html` therefore needed no edit in this slice,
+  which is the reason to say so here rather than leave it looking skipped.
+  **The check the item did not ask for, and the reason it is the durable half.** #116 read the
+  blurbs' SHAPE (starts with a digit, says "embedded", no "turn it off") and nothing read their
+  LENGTH — so the 2026-07-31 PACK-BLURB trim, whose own code comment says *"keep it concise — half
+  the words"*, had already been undone once by ordinary growth. A new `N40` check now asserts every
+  registered pack's blurb is 1–3 sentences, iterating `Studio.DEMO_PACKS` rather than the two ids
+  #116 names, so a twelfth pack inherits the budget by construction. Sentence terminators are counted
+  as `[.!?]` followed by whitespace or end-of-string, which is why "1,813" and
+  "per-10,000-residents" do not miscount.
+  **Verified:** `tools/validate.mjs`, `tools/changelog-check.js`, `node tools/doc-truth.mjs` (all 4
+  of check 35's rules re-read the new strings — kinds, dashboard counts, the default-install
+  sentence, and the "nothing to connect" prohibition), `tools/dev-smoke.mjs` at 390×780 + desktop,
+  and the full `tests/run.js` suite including the new N40 check. sw bumped v551→v552 because
+  `app/demopacks.js` is precached.
 - **N36 slice 2 — the rename: Admin's "Backends" card is "Workspaces", and "backend" now names only
   a state (v961, sw v551, 2026-08-10, steward; dev branch; est 2pt, 2 slices spent — ON estimate):**
   the first ready item in ▶ NOW (N31 and N44 are both ⛔ on Kevin; N35/N37/N34/N33a/N33b/N32/N42/
@@ -14605,8 +14644,14 @@
   now hold. The "where backend still earns its keep" paragraph at the foot of this item is the
   constraint the rename must respect.
   *(Original text kept until the next grooming pass archives it.)* Kevin, 2026-08-09, on the Admin card:
-- **N40 ★ [1pt] — the sample-pack blurbs are paragraphs where two or three sentences would do.**
-  Kevin, 2026-08-09, as an aside to the N39 report: *"those descriptions should be 2-3 sentences
+- ~~**N40 ★ [1pt] — the sample-pack blurbs are paragraphs where two or three sentences would do.**~~
+  ✓ **SHIPPED v962, sw v552 (2026-08-10, steward — see DONE).** Both offenders are three sentences
+  and every count, kind and promise the item told me to keep is still stated; Data Management's was
+  already three and was left alone, as the item said. The one thing the item did not ask for and the
+  slice added anyway: a suite check on the sentence budget over EVERY registered pack, because #116
+  read the blurbs' shape and nothing read their length — which is how they grew back into paragraphs
+  in the first place.
+  *(Original text kept until the next grooming pass archives it.)* Kevin, 2026-08-09, as an aside to the N39 report: *"those descriptions should be 2-3 sentences
   at most."* Measured: Conservation Insight's `blurb` is 4 lines of source and one 60-word
   sentence; **Market Coverage's is a single 100-word sentence** with five em-dash clauses and
   three nested lists, which is the one on screen when he said it. Data Management's is already

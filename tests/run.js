@@ -7272,7 +7272,10 @@ function serve() {
         themeSmall: themeSmall,
         intro: intro,
         consBlurb: (packs.conservation || {}).blurb || "",
-        dmBlurb: (packs.datamanagement || {}).blurb || ""
+        dmBlurb: (packs.datamanagement || {}).blurb || "",
+        // N40: every registered pack, not the two named above — a new pack gets the
+        // sentence budget by construction rather than by someone remembering to add it.
+        allBlurbs: Object.keys(packs).map(function (k) { return { id: k, blurb: packs[k].blurb || "" }; })
       };
     });
     ok("#112: the Color-theme description is a short one-liner (drops the verbose per-theme walkthrough)",
@@ -7285,6 +7288,22 @@ function serve() {
       /^\d/.test(copyTweaks.consBlurb) && /embedded/i.test(copyTweaks.consBlurb) &&
       /^\d/.test(copyTweaks.dmBlurb) && /embedded/i.test(copyTweaks.dmBlurb) && !/turn it off/i.test(copyTweaks.dmBlurb),
       JSON.stringify(copyTweaks));
+    // N40 (Kevin, 2026-08-09): "those descriptions should be 2-3 sentences at most." #116
+    // above reads the blurb's SHAPE (count-led, honest about embedded data) and nothing read
+    // its LENGTH, so both workspace packs had drifted back into paragraphs — Market Coverage's
+    // was a single 100-word sentence. The budget is stated as sentences because that is what
+    // Kevin asked for, and a sentence cap is what stops the "one more clause" drift a character
+    // cap invites. Terminators are counted as [.!?] followed by whitespace or end-of-string, so
+    // "1,813" and "per-10,000-residents" are not miscounted; no blurb uses a period inside an
+    // abbreviation, and one that wanted to would be worth re-reading anyway.
+    const blurbSentences = copyTweaks.allBlurbs.map(function (p) {
+      return { id: p.id, n: (p.blurb.match(/[.!?](\s|$)/g) || []).length, len: p.blurb.length };
+    });
+    ok(`N40: every sample-pack blurb is at most 3 sentences (${blurbSentences.map((b) => `${b.id} ${b.n}s/${b.len}ch`).join(" · ")})`,
+      blurbSentences.length >= 3 && blurbSentences.every((b) => b.n >= 1 && b.n <= 3),
+      JSON.stringify(blurbSentences) +
+      " — the card is a decision surface, not the inventory; the full contents of a pack belong in " +
+      "Help's Sample packs section, and its counts belong in the tagline");
     const dpLibGone = await page.evaluate(function () { return !document.querySelector(".lib-demopacks"); });
     ok("DECLUTTER-1: the Sample-packs group no longer renders in the builder's Data panel — Settings' pack cards are the one install/remove surface",
       dpLibGone, String(dpLibGone));
