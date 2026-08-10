@@ -1821,22 +1821,48 @@
       var qSection = el("div", "dsb-qsec");
       wrap.appendChild(qSection);
 
-      // LF63 slice 3 — live SQL sanity hints (Studio.sqlLint): a passive warning strip
-      // under the query editor that re-checks on every keystroke and whenever the
-      // declared-columns chips change. Deliberately shape/balance checks only — the
-      // Preview/Test buttons stay the real "does it actually run" verification.
-      var lintBox = el("div", "dsb-lint"); lintBox.hidden = true;
-      wrap.appendChild(lintBox);
-      function runLint() {
-        var issues = Studio.sqlLint(draft.query, draft.columns);
-        lintBox.hidden = !issues.length;
-        lintBox.innerHTML = issues.map(function (i) {
-          return '<div class="dsb-lint-row">' + esc(i.msg) + "</div>";
-        }).join("");
+      // LF63 slice 3 shipped these findings as a separate `.dsb-lint` strip under the
+      // query editor. N44 slice 2 adopts app/sqledit.js on this builder's query boxes,
+      // and that component renders the SAME Studio.sqlLint findings on its own status
+      // line directly under the field — so the strip is REMOVED rather than stacked on
+      // a second copy of itself. Unchanged: the findings, their wording, the
+      // declared-columns drift check, and that they re-run on every keystroke (the
+      // editor's own input handler) AND whenever the column chips change (renderCols
+      // still calls runLint, which now just repaints the editor).
+      var curSql = null;                       // the editor attached to the kind on screen
+      function runLint() { if (curSql) curSql.refresh(); }
+
+      // N44 slice 2 — what this builder's completer knows about. The same three
+      // sources the dataset editor's field uses, read live through a function and
+      // none of them fetched for completion: the declared column chips (which
+      // "Detect from query" and every adapter's Test-connection button already
+      // fill in), whatever "Browse schema" has loaded this session, and the query's
+      // own declared parameters. A brand-new source with nothing tested and nothing
+      // browsed therefore offers keywords and functions and invents nothing —
+      // these boxes run BEFORE a connection is saved, so that is the honest floor.
+      var dsbTables = [];
+      function dsbSchema() {
+        var cols = draft.columns.slice();
+        dsbTables.slice(0, 40).forEach(function (t) {
+          (t.columns || []).forEach(function (c) { if (cols.length < 400) cols.push(c); });
+        });
+        var tables = dsbTables.map(function (t) {
+          return { name: t.schema && t.schema !== "public" ? t.schema + "." + t.name : t.name, schema: t.schema || "" };
+        });
+        function addTable(name) {
+          if (!name) return;
+          for (var i = 0; i < tables.length; i++) if (tables[i].name === name) return;
+          tables.push({ name: name });
+        }
+        // the two in-browser engines name their own table: DuckDB aliases the file as
+        // "t" (the field's label says so), and SQLite-WASM opens the detected table.
+        if (draft.kind === "duckdb") addTable("t");
+        addTable(draft.tableName);
+        return {
+          columns: cols, tables: tables,
+          params: draft.params.map(function (p) { return p.name; }).filter(Boolean)
+        };
       }
-      qSection.addEventListener("input", function (e) {
-        if (e.target && e.target.classList && e.target.classList.contains("dsb-query")) runLint();
-      });
 
       // 4 — columns (detect + edit chips)
       var colsBox = el("div", "dsb-chips");
@@ -1949,6 +1975,7 @@
           panel.innerHTML = '<div class="cx-schema-status">Loading schema…</div>';
           adapter.listSchema(getCfg()).then(function (r) {
             btn.disabled = false;
+            dsbTables = (r && r.tables) || [];   // N44 slice 2: the same load also feeds the SQL completer
             Studio.Connections.renderSchemaPanel(panel, r, function (pickedKind, name, schemaName) {
               var ta = getTa(); if (!ta) return;
               var text = pickedKind === "table" && schemaName && schemaName !== "public" ? schemaName + "." + name : name;
@@ -2550,6 +2577,19 @@
           // SQL Builder accordion: available for SQL kind to assist with SELECT generation (G1)
           qSection.appendChild(renderSQLBuilder(qTa));
           detectBtn.style.display = "";
+        }
+        // N44 slice 2 — the seven per-adapter query boxes above are all the SAME
+        // editor the dataset editor got in slice 1, adopted in ONE place rather
+        // than seven. attach() enhances the textarea in place, so each branch keeps
+        // its own oninput (which is what writes draft.query), its placeholder, the
+        // date-token and Browse-schema insert buttons, the SQL Builder's generated
+        // SELECT — and every test that queries ".dsb-query". The adapter branches
+        // deliberately learn nothing about the editor.
+        curSql = null;
+        if (Studio.SQLEdit) {
+          $$(".dsb-query", qSection).forEach(function (ta) {
+            curSql = Studio.SQLEdit.attach(ta, { schema: dsbSchema, declaredColumns: draft.columns });
+          });
         }
       }
       function syncType() { renderQSection(); }

@@ -14963,14 +14963,17 @@ function serve() {
       await new Promise((r) => setTimeout(r, 80));
       const m = document.querySelector(".modal .dsb"); if (!m) return { err: "modal missing" };
       const setVal = (elm, v) => { elm.value = v; elm.dispatchEvent(new Event("input", { bubbles: true })); };
-      const lint = m.querySelector(".dsb-lint");
-      const out = { emptyHidden: lint.hidden };
-      // typing a broken query surfaces the strip live
+      // N44 slice 2 — these findings now live on the shared editor's own status line
+      // under the field; the separate `.dsb-lint` strip is gone rather than doubled.
+      // The BEHAVIOUR under test is unchanged, only the element that carries it.
+      const lint = m.querySelector(".sqe-status");
+      const out = { emptyHidden: lint.hidden, oldStripGone: !m.querySelector(".dsb-lint") };
+      // typing a broken query surfaces the finding live
       setVal(m.querySelector(".dsb-query"), "SELECT a FROM (t");
       await new Promise((r) => setTimeout(r, 20));
       out.brokenShown = !lint.hidden;
       out.brokenMsg = lint.textContent;
-      // fixing it hides the strip again
+      // fixing it hides it again
       setVal(m.querySelector(".dsb-query"), "SELECT a AS a FROM t");
       await new Promise((r) => setTimeout(r, 20));
       out.fixedHidden = lint.hidden;
@@ -14983,10 +14986,12 @@ function serve() {
       m.closest(".modal-ov").remove();
       return out;
     });
-    ok("LF63 (3): the builder's lint strip stays hidden when clean, surfaces live on a broken query, and clears when fixed",
+    ok("LF63 (3): the builder's SQL findings stay hidden when clean, surface live on a broken query, and clear when fixed",
       lintLive.emptyHidden && lintLive.brokenShown && /parenthes/i.test(lintLive.brokenMsg) && lintLive.fixedHidden, JSON.stringify(lintLive));
-    ok("LF63 (3): adding a column chip the query never mentions re-surfaces the strip (used-columns validation)",
+    ok("LF63 (3): adding a column chip the query never mentions re-surfaces the finding (used-columns validation)",
       lintLive.driftShown, JSON.stringify(lintLive));
+    ok("N44 (2): those findings are reported ONCE — the old .dsb-lint strip is gone, not stacked under the editor's status line",
+      lintLive.oldStripGone, JSON.stringify(lintLive));
 
     // ---- #117 slice 1: the View Builder (Build section) ----
     console.log("\n• #117 slice 1: View Builder");
@@ -20399,6 +20404,150 @@ function serve() {
       /orders/.test(n44Accept.afterInsert) && n44Accept.painted && !n44Accept.popupAfterInsert, JSON.stringify(n44Accept));
     await page.evaluate(() => { const x = document.querySelector(".modal-ov .x"); if (x) x.click(); });
     await page.waitForTimeout(200);
+
+    // ---- N44 slice 2: the same editor on the remaining eight surfaces ----
+    // Slice 1 shipped the component and adopted it at the dataset editor. The item's
+    // acceptance list is the other eight: the seven per-adapter query boxes in the
+    // data-source builder and the Jobs SQL step. What is worth asserting is exactly
+    // the thing "one component adopted everywhere" claims — that every adapter
+    // branch gets it without any branch knowing about it, that each surface offers
+    // the schema IT can honestly offer, and that the builder now reports a finding
+    // once rather than twice.
+    console.log("\n• N44 slice 2: the shared SQL editor on the builder's seven boxes + the Jobs step");
+    const n44Kinds = await page.evaluate(async () => {
+      document.getElementById("ndDashQuery").click();
+      await new Promise((r) => setTimeout(r, 120));
+      const m = document.querySelector(".modal .dsb");
+      if (!m) return { err: "modal missing" };
+      const cards = [].slice.call(m.querySelectorAll(".dsb-type"));
+      const out = [];
+      for (let i = 0; i < cards.length; i++) {
+        cards[i].click();
+        await new Promise((r) => setTimeout(r, 60));
+        const ta = m.querySelector(".dsb-query");
+        const name = cards[i].querySelector(".tx b").textContent.trim();
+        out.push({
+          name,
+          box: !!ta,
+          enhanced: !!(ta && ta.sqEdit),
+          overlay: !!(ta && ta.closest(".sqe") && ta.closest(".sqe").querySelector(".sqe-hl")),
+          status: !!(ta && ta.closest(".sqe").parentNode.querySelector(".sqe-status")),
+          // the branch's own placeholder and oninput survive being enhanced in place
+          placeholder: !!(ta && ta.placeholder),
+          oneStatus: m.querySelectorAll(".sqe-status").length
+        });
+      }
+      return { cards: cards.length, out };
+    });
+    ok("N44 (2): all seven per-adapter query boxes in the data-source builder are the shared editor, enhanced in place",
+      !n44Kinds.err && n44Kinds.cards === 7 && n44Kinds.out.length === 7 &&
+      n44Kinds.out.every((k) => k.box && k.enhanced && k.overlay && k.status && k.placeholder),
+      JSON.stringify(n44Kinds));
+    ok("N44 (2): switching source type rebuilds the box and leaves exactly ONE findings line behind, not one per kind visited",
+      !n44Kinds.err && n44Kinds.out.every((k) => k.oneStatus === 1), JSON.stringify(n44Kinds.out.map((k) => k.oneStatus)));
+
+    const n44Complete = await page.evaluate(async () => {
+      const m = document.querySelector(".modal .dsb");
+      if (!m) return { err: "modal missing" };
+      m.querySelectorAll(".dsb-type")[0].click();        // back to the built-in SQL kind
+      await new Promise((r) => setTimeout(r, 60));
+      // a declared column chip is something the builder genuinely knows
+      const addCol = m.querySelector(".dsb-addcol");
+      addCol.value = "region";
+      addCol.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+      await new Promise((r) => setTimeout(r, 40));
+      const ta = m.querySelector(".dsb-query");
+      ta.value = "SELECT reg";
+      ta.selectionStart = ta.selectionEnd = ta.value.length;
+      ta.sqEdit.complete();
+      await new Promise((r) => setTimeout(r, 40));
+      const ac = m.querySelector(".sqe-ac");
+      const opts = ac && !ac.hidden ? [].slice.call(ac.querySelectorAll(".sqe-ac-opt")) : [];
+      const res = {
+        open: !!ac && !ac.hidden,
+        names: opts.map((o) => o.querySelector(".sqe-ac-name").textContent),
+        kinds: opts.map((o) => o.querySelector(".sqe-ac-kind").textContent),
+        minTap: opts.length ? Math.min.apply(null, opts.map((o) => o.getBoundingClientRect().height)) : 0
+      };
+      ta.sqEdit.close();
+      m.closest(".modal-ov").remove();
+      return res;
+    });
+    ok("N44 (2): the builder's completer offers the declared column chips — the schema this surface actually has",
+      !n44Complete.err && n44Complete.open && n44Complete.names.indexOf("region") === 0 &&
+      n44Complete.kinds[0] === "column" && n44Complete.minTap >= 36, JSON.stringify(n44Complete));
+
+    await page.evaluate(function () {
+      window.__studioShellSetSection("jobs");
+      var conn = Studio.Workspace.put("connections", { name: "n44-jobs-sql-conn", adapter: "file", cfg: {} });
+      var ds = Studio.Workspace.put("datasets", { name: "n44-jobs-sql-ds", connectionId: conn.id, kind: "file",
+        format: "csv", content: "region,amount\nIA,2\n", columns: ["region", "amount"] });
+      var job = Studio.Workspace.put("jobs", { name: "n44-jobs-sql-job", sourceDatasetId: ds.id,
+        steps: [{ op: "sql", query: "SELECT * FROM t" }] });
+      window.__studioOpenJobEditor(job);
+    });
+    await page.waitForTimeout(250);
+    const n44Jobs = await page.evaluate(async () => {
+      const box = document.querySelector(".jobs-step-fields .jobs-sql-box");
+      if (!box) return { err: "sql step box missing" };
+      const wrap = box.closest(".sqe");
+      const status = wrap && wrap.parentNode.querySelector(".sqe-status");
+      const before = box.value;
+      box.value = "SELECT reg";
+      box.selectionStart = box.selectionEnd = box.value.length;
+      box.sqEdit.complete();
+      await new Promise((r) => setTimeout(r, 40));
+      const ac = document.querySelector(".jobs-step-fields .sqe-ac");
+      const opts = ac && !ac.hidden ? [].slice.call(ac.querySelectorAll(".sqe-ac-opt")) : [];
+      const colNames = opts.map((o) => o.querySelector(".sqe-ac-name").textContent);
+      box.sqEdit.close();
+      // and the one table the step really does run against
+      box.value = "SELECT * FROM ";
+      box.selectionStart = box.selectionEnd = box.value.length;
+      box.sqEdit.complete();
+      await new Promise((r) => setTimeout(r, 40));
+      const ac2 = document.querySelector(".jobs-step-fields .sqe-ac");
+      const tbl = ac2 && !ac2.hidden
+        ? [].slice.call(ac2.querySelectorAll(".sqe-ac-opt"))
+          .filter((o) => o.querySelector(".sqe-ac-kind").textContent === "table")
+          .map((o) => o.querySelector(".sqe-ac-name").textContent)
+        : [];
+      box.sqEdit.close();
+      // the step's own oninput is what saves — enhancing must not have replaced it
+      box.value = "SELECT amount FROM t";
+      box.dispatchEvent(new Event("input", { bubbles: true }));
+      const wide = wrap ? Math.round(wrap.getBoundingClientRect().width) : 0;
+      const rowWide = wrap ? Math.round(wrap.parentNode.getBoundingClientRect().width) : 0;
+      return {
+        savedBefore: before, enhanced: !!box.sqEdit, wrapped: !!wrap, hasStatus: !!status,
+        colNames, tbl, fullWidth: wide > 0 && rowWide - wide < 4,
+        stepQuery: (Studio.Workspace.all("jobs").filter((j) => j.name === "n44-jobs-sql-job")[0] || {}).steps
+      };
+    });
+    ok("N44 (2): the Jobs SQL step is the shared editor too, wrapped in place with its saved query intact",
+      !n44Jobs.err && n44Jobs.enhanced && n44Jobs.wrapped && n44Jobs.hasStatus &&
+      n44Jobs.savedBefore === "SELECT * FROM t", JSON.stringify(n44Jobs));
+    ok("N44 (2): the Jobs completer knows what that step can see — the pipeline's incoming columns and the DuckDB table “t”",
+      !n44Jobs.err && n44Jobs.colNames.indexOf("region") >= 0 && n44Jobs.tbl.indexOf("t") >= 0,
+      JSON.stringify([n44Jobs.colNames, n44Jobs.tbl]));
+    ok("N44 (2): enhancing the step's box did not steal its layout row or its oninput (the flex card still gives it full width)",
+      !n44Jobs.err && n44Jobs.fullWidth, JSON.stringify(n44Jobs.fullWidth));
+    await page.evaluate(function () {
+      var x = document.querySelector(".modal-ov .x"); if (x) x.click();
+      Studio.Workspace.all("jobs").filter(function (j) { return j.name === "n44-jobs-sql-job"; }).forEach(function (j) { Studio.Workspace.remove("jobs", j.id, { silent: true }); });
+      Studio.Workspace.all("datasets").filter(function (d) { return d.name === "n44-jobs-sql-ds"; }).forEach(function (d) { Studio.Workspace.remove("datasets", d.id, { silent: true }); });
+      Studio.Workspace.all("connections").filter(function (c) { return c.name === "n44-jobs-sql-conn"; }).forEach(function (c) { Studio.Workspace.remove("connections", c.id, { silent: true }); });
+      Studio.Workspace.notify("*");
+      window.__studioShellSetSection("studio");
+    });
+    await page.waitForTimeout(250);
+    // put the panel selection back for whatever runs next (same restore the N43b block uses)
+    await page.evaluate(() => {
+      var rows = [].slice.call(document.querySelectorAll("#inspBody .row-item"));
+      var pr = rows.filter(function (r) { var ic = r.querySelector(".ri-icon"); return ic && ic.textContent !== "◧" && ic.textContent !== "⛃"; });
+      if (pr[0]) pr[0].click();
+    });
+    await page.waitForTimeout(150);
 
     // ---- N-DATA: "Auto-arrange" — one-click panel reflow (pure function + UI wiring) ----
     console.log("\n• N-DATA: Auto-arrange panel layout");
