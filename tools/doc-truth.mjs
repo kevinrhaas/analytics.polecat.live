@@ -9159,6 +9159,166 @@ if (kitLive) {
   }
 }
 
+/* ── 79. README.md's own copy for the thing on a dashboard — check 78's move one document over ─
+   N7, and the last leg of the check 14 → 15 → 76 → 77 → 78 walk. Check 78 held the APP's copy
+   to the app's own markup and its header called the app "the widest offender"; it is scoped to
+   `app/*.js`, which leaves the repo's FRONT DOOR answering to nothing on this word.
+
+   Measured 2026-08-11, before the fix — README still walks the builder in the retired noun:
+   · the Direct manipulation list, six item-uses in five bullets (`README.md:139-144`) — "drag a
+     panel by its header", "drop between any panels", "a panel's right edge", "a panel title",
+     "click any panel or KPI";
+   · and the three-pane ASCII diagram at the top of the page (`README.md:17`), where the
+     Inspector column reads "panel /KPI / dashboard)" — the one occurrence a reader meets before
+     any prose at all. (Its missing "(" is fixed with it; the column is still 15 cells wide.)
+   Every `Data panel` use in the same document is a PANE and was already correct, which is why
+   this is a noun rule and not a sweep.
+
+   THE LINE IS CHECK 78'S, read from the same markup — not restated here, because two documents
+   that hold each other decide nothing. A pane is a panel (`app/index.html` says so in the
+   attributes a reader is read to); a thing on a dashboard is a View, and has been since
+   LF52/LF57. The two nouns come from `addTextPanel()` alone, exactly as check 78 derives them,
+   so this check cannot drift away from that one: `spec.panels` gives the retired word, the
+   function's own toast gives the rendered one.
+
+   WHAT COUNTS AS README'S COPY, and both halves of it are derived rather than chosen:
+   · a ```lang fence is a COMMAND the reader types (`bash`), so it is stripped;
+   · a bare ``` fence is a DIAGRAM the reader reads — the pane box and the file tree — so it
+     stays, which is what puts the diagram above inside the rule;
+   · an inline `code` span is check 15's <code> idiom in markdown, so it is exempt — and that
+     exemption is what lets the spec key keep its name in prose without an allow-list.
+
+   `SPEC.md` IS NOT SWEPT WITH IT, and rule (c) is why the distinction is safe to make. That
+   page defines the FILE FORMAT, where `panels` is the key an author writes and check 45 (b)
+   already holds it both directions against `emptySpec()`. Rule (c) states the boundary instead
+   of trusting it: the word may appear there only as the key — fenced, backticked, or in a line
+   documenting a real spec key — so a future run cannot quietly grow README-style prose in the
+   retired noun one file over and call it the schema.
+
+   Three rules, the check 77/78 shape plus the boundary:
+   (a) every `panel(s)` in README's copy is a pane phrase, or it is the retired noun;
+   (b) the negative half — no overshoot: a sweep must not rename the panes ("Data View");
+   (c) SPEC.md's uses are the KEY, not the noun.
+
+   Measured: (a) fails on the real pre-fix tree at all six sites above; (b) on a mutated tree
+   ("out of the Data View onto the canvas"); (c) on a mutated tree (one sentence of README-shaped
+   prose appended to SPEC.md). The code-side direction is the PREMISE's, not rule (a)'s, and
+   deliberately so — check 78 does the same: strip the Data pane out of the app's markup and the
+   tab roster and the premise refuses to run rather than turning README's correct "Data panel"
+   into a finding. Measured both ways (the toast stops naming the rendered noun; the app stops
+   naming a Data pane). */
+{
+  const addTextSrc79 = (() => {
+    const at = studioJs.indexOf("function addTextPanel(");
+    return at < 0 ? "" : searchBlockAt(studioJs, studioJs.indexOf("{", at), "{", "}");
+  })();
+  const specKey79 = (addTextSrc79.match(/spec\.(\w+)\.push\(/) || [])[1] || "";        // "panels"
+  const retired79 = specKey79.replace(/s$/, "");                                       // "panel"
+  const toast79 = (addTextSrc79.match(/toast\("([^"]*?)\s+added\b/) || [])[1] || "";
+  const rendered79 = (toast79.match(/\b[A-Z][a-z]+\b(?!.*\b[A-Z][a-z]+\b)/) || [])[0] || "";
+  const NOUN79 = retired79 ? new RegExp(`^${retired79}s?$`, "i") : /$^/;
+
+  // ── the pane vocabulary, off the same two sources check 78 reads: the mobile tab roster and
+  //    the shell markup's own readable attributes. Re-derived rather than shared, because a
+  //    document rule that reached into another check's block would break the day that block is
+  //    edited — but derived from the SAME literals, so the two cannot disagree.
+  const paneTabs79 = [...fnBody(studioJs, "setupMobileTabs")
+    .matchAll(/\{\s*id:\s*"\w+",\s*label:\s*"([^"]+)"/g)].map((m) => m[1]);
+  const panePhrases79 = new Set(paneTabs79.map((l) => l.toLowerCase() + " " + retired79));
+  const words79 = (s) => s.replace(/[’']/g, "'").match(/[A-Za-z][A-Za-z'-]*/g) || [];
+  const shell79 = read("app/index.html").replace(/<!--[\s\S]*?-->/g, " ");
+  const harvest79 = (text) => {
+    const w = words79(text);
+    w.forEach((tok, i) => {
+      if (NOUN79.test(tok.replace(/'s$/, "")) && i > 0) panePhrases79.add(w[i - 1].toLowerCase() + " " + retired79);
+    });
+  };
+  harvest79(shell79.replace(/<[^>]*>/g, " "));
+  [...shell79.matchAll(/\b(?:title|aria-label|placeholder)="([^"]*)"/g)].forEach((m) => harvest79(m[1]));
+
+  // ── README's copy: commands out, diagrams in, inline code exempt. Line by line, so a report
+  //    names the sentence and so a phrase never pairs across a line break it does not span.
+  const proseLines79 = (md) => md
+    .replace(/^```[a-zA-Z][\w+-]*\n[\s\S]*?^```/gm, (m) => m.replace(/[^\n]/g, " "))   // commands
+    .replace(/`[^`\n]*`/g, " ")                                                        // check 15's idiom
+    .split("\n");
+  const readmeLines79 = proseLines79(read("README.md"));
+  const specLines79 = read("SPEC.md").split("\n");
+
+  const premise79 = ok(`README.md: the page parsed for check 79 (${readmeLines79.length} line(s), ` +
+    `${panePhrases79.size} pane phrase(s))`,
+    !!retired79 && !!rendered79 && retired79 !== rendered79 && rendered79 === savedNoun &&
+      paneTabs79.length >= 3 && panePhrases79.has("data " + retired79) &&
+      readmeLines79.length > 100 && specLines79.length > 50 &&
+      readmeLines79.some((l) => /Direct manipulation/.test(l)),
+    `retired "${retired79 || "?"}" (spec.${specKey79 || "?"}) · rendered "${rendered79 || "?"}" ` +
+    `(addTextPanel's toast, and check 14's "${savedNoun}")\n      ` +
+    `pane phrases: ${[...panePhrases79].sort().join(" · ") || "(none)"}\n      ` +
+    "the nouns and the panes are check 78's own literals — this check adds a document, not a " +
+    "source of truth");
+
+  if (premise79) {
+    // (a) README's word for a thing on a dashboard.
+    const strayReadme79 = [];
+    readmeLines79.forEach((line, i) => {
+      const w = words79(line);
+      w.forEach((tok, j) => {
+        if (!NOUN79.test(tok.replace(/'s$/, ""))) return;
+        const before = j > 0 ? w[j - 1].toLowerCase() : "";
+        if (before && panePhrases79.has(before + " " + retired79)) return;
+        strayReadme79.push(`README.md:${i + 1}: "${line.trim().slice(0, 110)}"`);
+      });
+    });
+    ok(`README.md: the page calls a thing on a dashboard a "${rendered79}" — "${retired79}" only where the app's markup names a pane`,
+      !strayReadme79.length,
+      `${[...new Set(strayReadme79)].join("\n      ") || "(none)"}\n      ` +
+      `the panes: ${[...panePhrases79].sort().join(" · ")}\n      ` +
+      `checks 76-78 retired this noun in the palette, in Help and in the app itself; the repo's ` +
+      `own front page was the document none of them read`);
+
+    // (b) the negative half: the panes are NOT Views. Check 78 (b), one document over.
+    const overshoot79 = [];
+    readmeLines79.forEach((line, i) => {
+      paneTabs79.forEach((lab) => {
+        if (new RegExp(`\\b${esc(lab)}\\s+${esc(rendered79)}s?\\b`).test(line)) {
+          overshoot79.push(`README.md:${i + 1}: "${line.trim().slice(0, 110)}" — "${lab}" is a pane, not a ${rendered79}`);
+        }
+      });
+    });
+    ok(`README.md: no pane of the builder (${paneTabs79.join(", ")}) is renamed to a "${rendered79}"`,
+      !overshoot79.length,
+      `${[...new Set(overshoot79)].join("\n      ") || "(none)"}\n      ` +
+      "the cheap way to satisfy rule (a) is to replace the word everywhere, which renames the " +
+      "panes with it — the pane box at the top of the page is where that would show first");
+
+    // (c) the boundary: SPEC.md documents the KEY, so the word lives there in key context only.
+    //     `emptySpec()` names the key (check 45 (b) holds it both directions); a line documenting
+    //     one of its keys in backticks is the only place prose may carry the word.
+    const specKeys79 = new Set(Object.keys(M.emptySpec()));
+    const strayspec79 = [];
+    let fenced79 = false, keyUses79 = 0;
+    specLines79.forEach((line, i) => {
+      if (/^\s*```/.test(line)) { fenced79 = !fenced79; return; }
+      const ticks = [...line.matchAll(/`([^`\n]+)`/g)].map((m) => m[1]);
+      const bare = line.replace(/`[^`\n]*`/g, " ");
+      if (fenced79 || ticks.some((t) => new RegExp(`\\b${esc(specKey79)}\\b`).test(t))) {
+        if (new RegExp(`\\b${esc(retired79)}s?\\b`, "i").test(line)) keyUses79++;
+        if (fenced79) return;
+      }
+      if (!new RegExp(`\\b${esc(retired79)}s?\\b`, "i").test(bare)) return;
+      if (ticks.some((t) => [...specKeys79].some((k) => new RegExp(`\\b${esc(k)}\\b`).test(t)))) { keyUses79++; return; }
+      strayspec79.push(`SPEC.md:${i + 1}: "${line.trim().slice(0, 110)}"`);
+    });
+    ok(`SPEC.md: the word is the spec KEY there (${keyUses79} use(s) in key context), never README's prose noun`,
+      !strayspec79.length && keyUses79 > 0,
+      `${strayspec79.join("\n      ") || "(none outside key context)"}\n      ` +
+      `key uses found: ${keyUses79}\n      ` +
+      `"${specKey79}" is the key an author writes and check 45 (b) holds it against emptySpec() ` +
+      `both directions — so SPEC.md keeps the word, and this rule is the boundary that says ` +
+      `where it may keep it rather than leaving the exemption implied`);
+  }
+}
+
 console.log(failed ? `\n✗ doc-truth: ${failed} claim(s) have drifted from the source of truth`
   : "\n✅ doc-truth: every published claim matches the source it describes");
 process.exit(failed ? 1 : 0);
