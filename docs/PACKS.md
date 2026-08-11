@@ -95,8 +95,8 @@ Two consequences worth knowing:
   loss. Return `false` when there is nothing to do, including while the CSV has not
   materialized yet (the materialize path seeds them itself).
 
-A pack's **Views** are not its dashboards' panels again: a dashboard is read, a View
-is opened and changed. Author them the way `bdSave` does — compute the basis with the
+A pack's pinned **Views** are not the Views on its dashboards again: a dashboard is
+read, a View is opened and changed. Author them the way `bdSave` does — compute the basis with the
 pure `Studio.Build.compute`, then `Studio.newPanel` over the resulting columns — so a
 seeded View and a hand-saved one are the same shape and open in the same editor. Only
 the basis HEAD is authored; the rows come from `Studio.Build.runBlob` at render time,
@@ -136,7 +136,8 @@ write, so the data and its registry entry can never describe different sources.
 | licensed data is in `THIRD-PARTY-NOTICES.md` | `tools/validate.mjs` |
 | ANY non-synthetic data (`public` too) is in `THIRD-PARTY-NOTICES.md` | `tools/doc-truth.mjs` check 47 |
 | every file `data.files` names exists and is precached in `sw.js` | `tools/doc-truth.mjs` check 48 |
-| this file's own claims match the registry it governs | `tools/doc-truth.mjs` check 48 |
+| this file's own claims match the registry it governs — including the packs it names by folder, on the side their `source.kind` puts them | `tools/doc-truth.mjs` check 48 |
+| this file's prose uses the app's own nouns (a chart on a dashboard is a **View**) | `tools/doc-truth.mjs` check 48 |
 | the source line reaches the Settings card and pack dashboards' subtitles | `tests/run.js` |
 
 ## Adding a real-data pack (the checklist)
