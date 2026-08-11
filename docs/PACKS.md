@@ -138,6 +138,7 @@ write, so the data and its registry entry can never describe different sources.
 | every file `data.files` names exists and is precached in `sw.js` | `tools/doc-truth.mjs` check 48 |
 | this file's own claims match the registry it governs — including the packs it names by folder, on the side their `source.kind` puts them | `tools/doc-truth.mjs` check 48 |
 | this file's prose uses the app's own nouns (a chart on a dashboard is a **View**) | `tools/doc-truth.mjs` check 48 |
+| every entry point, helper and constant this file names — written with an open paren or without one — resolves in the code | `tools/doc-truth.mjs` check 48 |
 | the source line reaches the Settings card and pack dashboards' subtitles | `tests/run.js` |
 
 ## Adding a real-data pack (the checklist)

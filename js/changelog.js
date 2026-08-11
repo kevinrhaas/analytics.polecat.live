@@ -6,6 +6,17 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 993,
+    title: 'The pack contract now has to mean every function name it prints',
+    kind: 'polish',
+    ts: '2026-08-11T01:54:53.000Z',
+    items: [
+      '<b>docs/PACKS.md</b> is the contract an author follows to ship a sample pack, and it hands you names to type: the entry points that materialize a pack\'s data, the helper a seeded View is authored the way of, the constants a CSV has to be listed in. The guard that holds this page could only read a name written with an open paren directly inside its backticks, so it checked three of them and let the rest through unread.',
+      'It reads all nineteen now. A name is resolved by the shape it is written in, because the code uses more than one: an assignment, a member of an object built somewhere else entirely, a closure inside one adapter file, a key of a registry entry, a constant in the service worker. Every one of them resolves today, which is why this is a check and not a repair.',
+      'The part that keeps it honest: a span the resolver cannot classify is reported by name rather than quietly skipped. A rule that shrugs at a shape it does not know is a rule that stops testing the day someone writes the next one.',
+    ],
+  },
+  {
     v: 992,
     title: 'The pack contract was the last document calling a View a panel',
     kind: 'fix',
