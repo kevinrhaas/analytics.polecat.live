@@ -911,9 +911,9 @@
         var named = bound.names.slice(0, 3).join(", ") +
           (bound.names.length > 3 ? " and " + (bound.names.length - 3) + " more" : "");
         // A dataset can be in a dashboard's data pane without anything on the canvas
-        // drawing it yet — say which of the two it is rather than "0 panels".
+        // drawing it yet — say which of the two it is rather than "0 Views".
         who.textContent = bound.panels
-          ? bound.panels + (bound.panels === 1 ? " panel" : " panels") + " in " + dashes + " read this dataset — " + named + "."
+          ? bound.panels + (bound.panels === 1 ? " View" : " Views") + " in " + dashes + " read this dataset — " + named + "."
           : dashes + " hold this dataset, with nothing drawn from it yet — " + named + ".";
         guard.appendChild(who);
         var acts = el("div", "dsx-guard-acts");

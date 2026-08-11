@@ -1558,7 +1558,7 @@
     if (da.name) metaBits.push('<span class="da-name-txt">' + esc(da.name) + "</span>");
     if (usage.total > 0) {
       var up = [];
-      if (usage.panels) up.push(usage.panels + " panel" + (usage.panels !== 1 ? "s" : ""));
+      if (usage.panels) up.push(usage.panels + " View" + (usage.panels !== 1 ? "s" : ""));
       if (usage.kpis) up.push(usage.kpis + " KPI" + (usage.kpis !== 1 ? "s" : ""));
       metaBits.push('<span class="da-usage-inline">↪ ' + up.join(" \xB7 ") + "</span>");
     }
@@ -2899,7 +2899,7 @@
 
       k8.appendChild(k8Tip("gear", "Configure your chart",
         "Click a View on the canvas to select it, then choose a chart type and bind your data columns in the inspector."));
-      k8.appendChild(k8Tip("plus", "Add more panels or KPIs",
+      k8.appendChild(k8Tip("plus", "Add more Views or KPIs",
         "Drag more queries from the Data panel onto the canvas to expand your dashboard."));
       k8.appendChild(k8Tip("download", "Export when ready",
         "Use Export ▾ in the toolbar to download a self-contained HTML file you can host anywhere.",
@@ -3163,13 +3163,13 @@
     autoArrangeBtn.id = "dashAutoArrange";
     autoArrangeBtn.textContent = "Auto-arrange";
     autoArrangeBtn.onclick = function () {
-      if (!(sp.panels || []).length) { toast("No panels to arrange yet."); return; }
+      if (!(sp.panels || []).length) { toast("No Views to arrange yet."); return; }
       sp.panels = Studio.autoArrange(sp.panels);
       renderInspector(); refreshPreview();
-      toast("Panels auto-arranged.");
+      toast("Views auto-arranged.");
     };
     sec.appendChild(field("Layout", autoArrangeBtn,
-      "Reflows panels into a balanced grid: tables/text/flow diagrams go full-width, everything else keeps a single column, and panels sharing a tag are grouped together."));
+      "Reflows Views into a balanced grid: tables/text/flow diagrams go full-width, everything else keeps a single column, and Views sharing a tag are grouped together."));
 
     // ★★ Visual refresh (A): Dashboard theme — swaps the WHOLE token system (bg/panel/text
     // hierarchy + brand + series) in one pick, distinct from the finer Accent color/Header
@@ -3205,7 +3205,7 @@
       refreshPreview(); renderInspector();
     };
     dtRow.appendChild(customSw);
-    sec.appendChild(field("Dashboard theme", dtRow, "Swaps the whole look (background, panels, text, brand + series colors) in one pick — Accent color/Series palette below still layer on top. Custom lets you author your own from 4 seed colors per mode."));
+    sec.appendChild(field("Dashboard theme", dtRow, "Swaps the whole look (background, cards, text, brand + series colors) in one pick — Accent color/Series palette below still layer on top. Custom lets you author your own from 4 seed colors per mode."));
 
     if (sp.dashboardTheme === "custom") {
       if (!sp.customTheme) sp.customTheme = Studio.clone(Studio.DEFAULT_CUSTOM_THEME_SEED);
@@ -3351,7 +3351,7 @@
       };
       palRow.appendChild(sw);
     });
-    sec.appendChild(field("Series palette", palRow, "Swap the chart series color palette (all panels)"));
+    sec.appendChild(field("Series palette", palRow, "Swap the chart series color palette (all Views)"));
 
     // KPIs
     var ks = section(body, "KPI tiles", function () { addFromCurrentOrPrompt("kpi"); }, null, "builder", "grid");
@@ -3396,7 +3396,7 @@
     // for an exported dashboard's own runtime — this one is a builder-to-builder handoff.
     var shSec = section(body, "Share this dashboard", null, null, "exporting", "link");
     var shHint = el("div", "hint");
-    shHint.textContent = "Copies a link that reopens this exact dashboard (panels, KPIs, filters, style) in the Studio builder — handy for handing off a work-in-progress with no file attachment.";
+    shHint.textContent = "Copies a link that reopens this exact dashboard (Views, KPIs, filters, style) in the Studio builder — handy for handing off a work-in-progress with no file attachment.";
     shSec.appendChild(shHint);
     var shBtn = el("button", "btn"); shBtn.style.cssText = "margin-top:6px;width:100%;justify-content:center";
     setIconBtn(shBtn, "link", "Copy shareable link");
@@ -3439,7 +3439,7 @@
     // Panels (reorderable) with tag-based filter bar
     // _tagFilter holds the currently-active tag (string) or null (show all panels).
     var allTags = Studio.allTags(sp);
-    var ps = section(body, "Panels (" + sp.panels.length + ")", null, null, null, "layers");
+    var ps = section(body, "Views (" + sp.panels.length + ")", null, null, null, "layers");
     // Tag filter bar — only shown when at least one panel has tags
     if (allTags.length) {
       var tfBar = el("div"); tfBar.className = "tag-filter-bar";
@@ -3547,7 +3547,7 @@
         p.tags = raw.length ? raw : undefined;
         renderListsOnly(); // refresh panel list so tag chips update
       });
-      sec.appendChild(field("Tags", tagInp, "Group panels by topic (comma-separated). Filter by tag in the dashboard inspector panel list."));
+      sec.appendChild(field("Tags", tagInp, "Group Views by topic (comma-separated). Filter by tag in the dashboard inspector’s View list."));
     })();
     // Per-panel accent color: a colored left border that visually differentiates panels
     // by topic or domain. Native <input type="color"> with a "Clear" button to reset.
@@ -3562,10 +3562,10 @@
       acClr.className = "rm"; acClr.style.cssText += ";font-size:11px;padding:2px 9px;min-width:0;height:auto;line-height:1.5";
       acClr.onclick = function () { p.accentColor = ""; acInp.value = "#005bb5"; acInp.style.opacity = "0.38"; refreshPreview(); };
       acW.appendChild(acInp); acW.appendChild(acClr);
-      sec.appendChild(field("Panel accent", acW, "Adds a colored left border — great for differentiating panels by topic or business domain"));
+      sec.appendChild(field("View accent", acW, "Adds a colored left border — great for differentiating Views by topic or business domain"));
     })();
     sec.appendChild(field("Section header", input(p.section || "", function (v) { p.section = v.trim(); refreshPreview(); }),
-      "Group consecutive panels under a labeled row divider (leave blank to place in the previous section)"));
+      "Group consecutive Views under a labeled row divider (leave blank to place in the previous section)"));
     sec.appendChild(field("Provenance caption", input(p.src, function (v) { p.src = v; refreshPreview(); })));
     var acts = el("div"); acts.style.cssText = "display:flex;gap:8px;margin-top:2px";
     var dup = el("button", "btn-wide"); setIconBtn(dup, "duplicate", "Duplicate"); dup.onclick = function () { duplicatePanel(p.id); };
@@ -3744,7 +3744,7 @@
         refreshPreview();
       });
       rtSec.appendChild(rtTa);
-      body.appendChild(noteEl("info", "Text panels have no data binding — they render as-is in the live preview and Dashboard Framework export. Use full-width span for best results."));
+      body.appendChild(noteEl("info", "Text Views have no data binding — they render as-is in the live preview and Dashboard Framework export. Use full-width span for best results."));
       return; // skip DA / options / interaction sections for text panels
     }
 
@@ -3844,7 +3844,7 @@
           refreshPreview();
         }, "param name broadcast on click")
       ));
-      xfSec.appendChild(noteEl("info", "Click a bar, donut slice, or treemap tile to set this parameter across all panels whose data source declares a matching parameter name. Click the same element again to clear. Only bars, donut, and treemap emit. Leave blank to disable."));
+      xfSec.appendChild(noteEl("info", "Click a bar, donut slice, or treemap tile to set this parameter across all Views whose data source declares a matching parameter name. Click the same element again to clear. Only bars, donut, and treemap emit. Leave blank to disable."));
     }
 
     // Animation: per-panel entrance animation toggle + speed control.
@@ -3904,7 +3904,7 @@
         refreshPreview();
       });
     });
-    dlSec.appendChild(noteEl("info", "Shows a small download-image / download-data / export-as-HTML affordance on the panel itself (on hover). Export-as-HTML is builder-only (never appears in the published dashboard itself). Turn any off for panels that shouldn't be exportable that way."));
+    dlSec.appendChild(noteEl("info", "Shows a small download-image / download-data / export-as-HTML affordance on the View itself (on hover). Export-as-HTML is builder-only (never appears in the published dashboard itself). Turn any off for Views that shouldn't be exportable that way."));
 
     // Target line: horizontal dashed reference marker overlaid on any chart.
     // Positioned as a % from the top of the chart body (0=top, 100=bottom).
@@ -4503,7 +4503,7 @@
           // name rather than letting the panel quietly render an empty axis.
           if (r.removedColumns.length) {
             toast("Saved — but this query no longer returns " + r.removedColumns.join(", ") +
-              ". Check the panels mapped to it.", true);
+              ". Check the Views mapped to it.", true);
           }
         });
       };
@@ -4856,7 +4856,7 @@
       toast("Header hidden — re-enable it from Dashboard → Header.");
     };
     sec.appendChild(delBtn);
-    sec.appendChild(noteEl("info", "Logo, link, and light/dark are configured from the Dashboard panel (click '‹ Dashboard' above)."));
+    sec.appendChild(noteEl("info", "Logo, link, and light/dark are configured from the Dashboard inspector (click '‹ Dashboard' above)."));
   }
 
   /* ---------- chart-type change / rebind ---------- */
@@ -4904,7 +4904,7 @@
       S.spec.filters.forEach(function (ff) { if (ff.da === oldId) ff.da = nid; });
       if (S.selection) S.selection.id = nid;
       buildLibrary();
-    }), "Used to bind panels, KPIs and filters to this query"));
+    }), "Used to bind Views, KPIs and filters to this query"));
     sec.appendChild(field("Name / description", input(da.name || "", function (v) { da.name = v; buildLibrary(); })));
     sec.appendChild(field("Kind", select2pairs(Studio.DA_KINDS.map(function (k) { return [k.id, k.label]; }), da.kind || "sql", function (v) { da.kind = v; renderInspector(); })));
 
@@ -6309,7 +6309,7 @@
   // work" view (the assignment control lives in the one place that also lists workbooks).
   function recentCardHtml(r, pinned, wbOpts) {
     var sp = r.spec || {}, panels = (sp.panels || []).length, kpis = (sp.kpis || []).length;
-    var meta = panels + " panel" + (panels === 1 ? "" : "s") + (kpis ? " · " + kpis + " KPI" + (kpis === 1 ? "" : "s") : "");
+    var meta = panels + " View" + (panels === 1 ? "" : "s") + (kpis ? " · " + kpis + " KPI" + (kpis === 1 ? "" : "s") : "");
     var thumb = Studio.makeThumbnail(sp, S.theme, defaultDashboardTheme());
     var title = sp.title || sp.name || "Untitled";
     var wbSelect = "";
@@ -6514,7 +6514,7 @@
           var sp = r.spec, title = sp.title || sp.name || "Untitled";
           return '<div class="home-feat' + (isHero ? " home-feat-hero" : "") + '" data-home-feat="' + esc(r.id) + '">' +
             '<div class="home-feat-h"><span class="home-feat-title">' + (isHero ? '<span class="home-hero-badge">Hero</span>' : "") + '<b>' + esc(title) + '</b></span>' +
-            '<span>' + (sp.panels || []).length + " panels" + ((sp.kpis || []).length ? " \u00b7 " + sp.kpis.length + " KPIs" : "") + "</span></div>" +
+            '<span>' + (sp.panels || []).length + " Views" + ((sp.kpis || []).length ? " \u00b7 " + sp.kpis.length + " KPIs" : "") + "</span></div>" +
             '<div class="home-feat-frame" data-feat-frame="' + esc(r.id) + '"></div>' +
             '<button type="button" class="home-feat-open" data-feat-open="' + esc(r.id) + '" aria-label="Open ' + esc(title) + '"></button></div>';
         }
@@ -7455,7 +7455,7 @@
   function dashListRowHtml(r, pinned, matchedCol, selectMode, selected) {
     var sp = r.spec || {}, panels = (sp.panels || []).length, kpis = (sp.kpis || []).length;
     var title = sp.title || sp.name || "Untitled";
-    var meta = [sp.name || "", panels + " panel" + (panels === 1 ? "" : "s") + (kpis ? " · " + kpis + " KPI" + (kpis === 1 ? "" : "s") : "")]
+    var meta = [sp.name || "", panels + " View" + (panels === 1 ? "" : "s") + (kpis ? " · " + kpis + " KPI" + (kpis === 1 ? "" : "s") : "")]
       .filter(Boolean).join(" · ");
     var when = r.ts ? Studio.fmtWhen(r.ts) : "";
     // LF59 (2): same select-mode checkbox as the tile view (recentCardHtml) — a leading
@@ -7741,7 +7741,7 @@
     Studio.Workspace.all("dashboards").filter(isVisibleToMe).forEach(function (r) {
       var sp = r.spec || {}, n = (sp.panels || []).length;
       rows.push({ type: "dashboard", id: r.id, title: sp.title || sp.name || "Untitled",
-        meta: n + " panel" + (n === 1 ? "" : "s"), folder: r.folder || "", ts: r.ts ? (Date.parse(r.ts) || 0) : 0 });
+        meta: n + " View" + (n === 1 ? "" : "s"), folder: r.folder || "", ts: r.ts ? (Date.parse(r.ts) || 0) : 0 });
     });
     Studio.Workspace.all("datasets").filter(isDatasetVisibleToMe).forEach(function (d) {
       var src = Studio.Datasets.adapterOf(d);
@@ -9762,10 +9762,10 @@
       ic: function () { return "undo"; },
       on: function () { return restoreUnsavedEnabled(); },
       set: function () { setRestoreUnsavedEnabled(!restoreUnsavedEnabled()); toast(restoreUnsavedEnabled() ? "Restore unsaved work is on" : "Restore unsaved work is off"); } },
-    { grp: "Mode", id: "panels", t: "Open the builder with side panels", d: "Open the Dashboard Builder with the Data and Inspector panels already open. Off by default — the builder opens clean, and you pop the panels open when you need them.",
+    { grp: "Mode", id: "panels", t: "Open the builder with side panes", d: "Open the Dashboard Builder with the Data and Inspector panes already open. Off by default — the builder opens clean, and you pop the panes open when you need them.",
       ic: function () { return "layers"; },
       on: function () { return studioPanelsOpenDefault(); },
-      set: function () { setStudioPanelsOpenDefault(!studioPanelsOpenDefault()); applyStudioPanelsDefault(); toast(studioPanelsOpenDefault() ? "The builder will open with both panels open" : "The builder will open clean — panels closed"); } },
+      set: function () { setStudioPanelsOpenDefault(!studioPanelsOpenDefault()); applyStudioPanelsDefault(); toast(studioPanelsOpenDefault() ? "The builder will open with both panes open" : "The builder will open clean — panes closed"); } },
     { grp: "Presentation", id: "demo", t: "Demo mode", d: "Simulate a live-refreshing data feed — great for stakeholder demos.",
       ic: function () { return "refresh"; },
       on: function () { return !!S.demoMode; },
@@ -10275,7 +10275,7 @@
             Studio.SUBTITLE_STYLES.map(function (p) { return '<option value="' + esc(p[0]) + '"' + (defaultSubtitleStyle() === p[0] ? " selected" : "") + '>' + esc(p[1]) + '</option>'; }).join("") +
           '</select></div>' +
         '<div class="set-row"><span class="set-row-ic" data-ic="palette"></span>' +
-          '<div class="set-row-txt"><b>Default dashboard theme</b><small>Seeds every new blank dashboard\'s whole-look theme (background, panels, text, brand + series colors — same picker as the per-dashboard Dashboard theme field). Polecat is the house default; Classic Blue keeps the original look.</small></div>' +
+          '<div class="set-row-txt"><b>Default dashboard theme</b><small>Seeds every new blank dashboard\'s whole-look theme (background, cards, text, brand + series colors — same picker as the per-dashboard Dashboard theme field). Polecat is the house default; Classic Blue keeps the original look.</small></div>' +
           '<select id="setDefaultDashboardThemeSel" class="set-sel">' +
             Studio.DASHBOARD_THEMES.map(function (p) { return '<option value="' + esc(p.key) + '"' + ((defaultDashboardTheme() || "classic") === p.key ? " selected" : "") + '>' + esc(p.label) + '</option>'; }).join("") +
           '</select></div>' +
@@ -11015,7 +11015,7 @@
     if (!saved || !saved.name) return;
     var rPanels = (saved.panels || []).length, rKpis = (saved.kpis || []).length, rFilters = (saved.filters || []).length;
     var rParts = [];
-    if (rPanels) rParts.push(rPanels + " panel" + (rPanels === 1 ? "" : "s"));
+    if (rPanels) rParts.push(rPanels + " View" + (rPanels === 1 ? "" : "s"));
     if (rKpis) rParts.push(rKpis + " KPI" + (rKpis === 1 ? "" : "s"));
     if (rFilters) rParts.push(rFilters + " filter" + (rFilters === 1 ? "" : "s"));
     var rSumHtml = rParts.length ? ' <span class="rb-sum">(' + esc(rParts.join(" · ")) + ')</span>' : "";
@@ -11262,7 +11262,7 @@
   // shipped story belongs in What's new, not What's next.
   var WHATS_NEXT = [
     { title: "Faster preview updates", note: "The dashboard preview re-renders only what changed instead of rebuilding the whole board on every edit.", status: "next" },
-    { title: "The same search everywhere", note: "The Data panel, the inspector and the chart gallery pick up the catalog panels' search rules, so one query behaves the same everywhere.", status: "next" },
+    { title: "The same search everywhere", note: "The Data panel, the inspector and the chart gallery pick up the catalogs' search rules, so one query behaves the same everywhere.", status: "next" },
     { title: "One delete confirmation", note: "Every delete asks the same way, names what else goes with it, and offers Undo.", status: "planned" },
     { title: "Charts that answer the keyboard", note: "Keyboard focus on a bar, slice or tile shows the same tooltip a mouse hover does — inside exported dashboards too.", status: "planned" },
     { title: "Dashboards that follow your theme", note: "An optional third render mode so a dashboard can open in the reader's light or dark theme instead of the author's fixed choice.", status: "exploring" },
@@ -11461,12 +11461,12 @@
   function panelIndex(id) { var i = -1; S.spec.panels.forEach(function (p, ix) { if (p.id === id) i = ix; }); return i; }
   function duplicatePanel(id) {
     var i = panelIndex(id); if (i < 0) return;
-    var dup = Studio.clone(S.spec.panels[i]); dup.id = Studio.uid("p"); dup.title = (dup.title || "Panel") + " copy";
-    S.spec.panels.splice(i + 1, 0, dup); select({ kind: "panel", id: dup.id }); refreshPreview(); toast("Panel duplicated");
+    var dup = Studio.clone(S.spec.panels[i]); dup.id = Studio.uid("p"); dup.title = (dup.title || "View") + " copy";
+    S.spec.panels.splice(i + 1, 0, dup); select({ kind: "panel", id: dup.id }); refreshPreview(); toast("View duplicated");
   }
   function deletePanel(id) {
     var i = panelIndex(id); if (i < 0) return;
-    S.spec.panels.splice(i, 1); selectDashboard(); refreshPreview(); toast("Panel removed");
+    S.spec.panels.splice(i, 1); selectDashboard(); refreshPreview(); toast("View removed");
   }
   // LF25(c): snapshot a Studio panel into the same "analyses" workspace table Explore's
   // xpSave writes — the library then feeds BOTH directions (Explore → Studio via
@@ -11729,7 +11729,7 @@
 
   function openSlideshow() {
     _ssPanels = (S.spec && S.spec.panels) || [];
-    if (!_ssPanels.length) { toast("No panels to show"); return; }
+    if (!_ssPanels.length) { toast("No Views to show"); return; }
     _ssIdx = 0;
 
     // Outer overlay (fullscreen dark background)
@@ -11738,10 +11738,10 @@
 
     // Header bar: Prev · panel title + counter · Next · Close
     var hdr = document.createElement("div"); hdr.className = "ss-hdr";
-    var prevBtn = document.createElement("button"); prevBtn.className = "ss-nav ss-prev"; prevBtn.setAttribute("aria-label", "Previous panel (← key)"); prevBtn.textContent = "◀";
+    var prevBtn = document.createElement("button"); prevBtn.className = "ss-nav ss-prev"; prevBtn.setAttribute("aria-label", "Previous View (← key)"); prevBtn.textContent = "◀";
     var titleEl = document.createElement("span"); titleEl.className = "ss-title";
     var counter = document.createElement("span"); counter.className = "ss-counter";
-    var nextBtn = document.createElement("button"); nextBtn.className = "ss-nav ss-next"; nextBtn.setAttribute("aria-label", "Next panel (→ key)"); nextBtn.textContent = "▶";
+    var nextBtn = document.createElement("button"); nextBtn.className = "ss-nav ss-next"; nextBtn.setAttribute("aria-label", "Next View (→ key)"); nextBtn.textContent = "▶";
     var closeBtn = document.createElement("button"); closeBtn.className = "mode-exit ss-close"; closeBtn.setAttribute("aria-label", "Exit slideshow (Esc)");
     closeBtn.appendChild(Studio.icon("close", 13)); closeBtn.appendChild(document.createTextNode(" Exit slideshow"));
     hdr.appendChild(prevBtn); hdr.appendChild(titleEl); hdr.appendChild(counter); hdr.appendChild(nextBtn); hdr.appendChild(closeBtn);
@@ -11873,7 +11873,7 @@
     if (!sp.panels.length && !sp.kpis.length) { toast("No chartable queries in " + stem, true); return; }
     if (!confirmReplaceUnsavedQuickBuild("building a starter from “" + Studio.titleize(stem) + "”")) return;
     S.spec = sp; S.selection = null; syncHeader(); renderInspector(); refreshPreview();
-    toast("Scaffolded " + sp.panels.length + " panels from " + stem);
+    toast("Scaffolded " + sp.panels.length + " Views from " + stem);
   }
   window.__studioScaffoldFromStem = scaffoldFromStem; // test hook
 
@@ -11930,7 +11930,7 @@
         ["Escape   (View selected)", "Deselect — return to dashboard inspector"],
         ["Escape   (Focus mode)", "Exit Focus mode — return to builder"],
         ["↗ button on View", "Zoom View to full screen (Escape to close)"],
-        ["?", "Show this keyboard shortcuts panel"],
+        ["?", "Show these keyboard shortcuts"],
         ["Escape", "Close modal or dropdown menu"],
         ["Tab", "Navigate interactive controls"],
         ["Double-click View title", "Rename View inline"]
@@ -13108,7 +13108,7 @@
           try { thumb = Studio.makeThumbnail(sp, S.theme, defaultDashboardTheme()) || ""; } catch (e) {}
           row.innerHTML = '<span class="odp-thumb" aria-hidden="true">' + thumb + '</span>' +
             '<span class="odp-meta"><b>' + esc(labels[r.id]) + '</b>' +
-            '<small>' + esc(sp.name || "") + " · " + panels + " panel" + (panels === 1 ? "" : "s") +
+            '<small>' + esc(sp.name || "") + " · " + panels + " View" + (panels === 1 ? "" : "s") +
             (r.ts ? " · " + new Date(r.ts).toLocaleDateString() : "") + '</small></span>';
           row.onclick = function () { closeAllModals(); openRecent(r.id); };
           row.addEventListener("mousemove", function () { highlight(rows.indexOf(row)); });
@@ -13676,7 +13676,7 @@
     header: [
       "Click the title/subtitle text directly on the canvas to edit it in place.",
       "The ✕ on the header hides the whole banner — handy for embedding just the Views.",
-      "Logo, link, and light/dark are set from the Dashboard panel (click '‹ Dashboard' above)."
+      "Logo, link, and light/dark are set from the Dashboard inspector (click '‹ Dashboard' above)."
     ]
   };
   function quickHelp(parent, type) {

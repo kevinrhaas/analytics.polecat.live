@@ -6,6 +6,19 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 990,
+    title: 'The app was the last place a View was still called a panel',
+    kind: 'fix',
+    ts: '2026-08-11T00:19:21.000Z',
+    items: [
+      'A chart on a dashboard is a <b>View</b>. The palette was renamed two versions ago and Help one version ago — and building that Help check is what showed the app itself was the widest surface still printing the old word. Hovering a chart offered <b>Zoom panel full-screen</b>, <b>Duplicate panel</b> and <b>Delete panel</b>; duplicating one said <b>Panel duplicated</b>; the inspector listed <b>Panels (6)</b>; and every dashboard card, Home tile, search result, recents row and version-history entry counted "6 panels · 2 KPIs".',
+      'All of it now says View — the tooltips, the toasts, the auto-arrange messages, the zoom navigator’s ←/→ buttons, the counts, the builder-note editor’s <b>View: …</b> target list, and the dataset editor’s warning that "3 Views in 2 dashboards read this dataset". The dashboard checker moved with them: an empty dashboard now warns that it "has no Views or KPIs", and a chart with nothing bound is named as the View it is.',
+      'The field you type into moved too, and deliberately: the View Builder’s <b>Panel title</b> is now <b>Title on dashboards</b>. It sits directly under the View’s own <b>Name</b>, so calling it "View title" would have read as the same box twice — this says what it does instead. Nothing you have saved changes.',
+      'The panes keep their own word, because the app’s own markup gives it to them: the <b>Data</b> panel is still the Data panel. What the sweep did fix is the places one word was doing two jobs — the two side panes are panes now, and the theme picker swaps "background, cards, text" rather than "background, panels, text".',
+      'A new check holds the app to it, in both directions: every "panel" the app prints must be a pane its own markup names, and no pane may be renamed to a View. It reads the copy out of HTML attributes too — which is where it found three of the tooltips above hiding from an earlier version of itself.',
+    ],
+  },
+  {
     v: 989,
     title: 'Help was the last document still calling a View a panel',
     kind: 'fix',

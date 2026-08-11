@@ -2100,8 +2100,8 @@
     if (!(spec.panels || []).length) {
       content.innerHTML = isPreview()
         ? '<div class="sr-empty"><div class="sr-empty-ic">▤</div><div class="sr-empty-t">Your dashboard is empty</div>' +
-          '<div class="sr-empty-s">Drag a query from the <b>Data</b> panel onto this canvas — or use a <b>＋ chart</b> chip — to add your first panel.</div></div>'
-        : '<div class="loading">No panels configured yet.</div>';
+          '<div class="sr-empty-s">Drag a query from the <b>Data</b> panel onto this canvas — or use a <b>＋ chart</b> chip — to add your first View.</div></div>'
+        : '<div class="loading">No Views configured yet.</div>';
       return;
     }
     // Group consecutive panels under their optional section label so section-divider
@@ -2173,9 +2173,9 @@
             (function (h, t, id) { t.addEventListener("dblclick", function (e) { e.preventDefault(); e.stopPropagation(); startRename(h, t, id); }); })(h3, titleEl, p.id);
           }
           var rz = document.createElement("div"); rz.className = "sr-resize"; rz.title = "Drag to resize"; card.el.appendChild(rz);
-          var rzh = document.createElement("div"); rzh.className = "sr-resize-h"; rzh.title = "Drag to make this panel taller or shorter"; card.el.appendChild(rzh);
+          var rzh = document.createElement("div"); rzh.className = "sr-resize-h"; rzh.title = "Drag to make this View taller or shorter"; card.el.appendChild(rzh);
           var acts = document.createElement("div"); acts.className = "sr-card-acts";
-          acts.innerHTML = '<button class="sr-act" data-act="zoom" title="Zoom panel full-screen">' + I_MAXIMIZE + '</button><button class="sr-act" data-act="dup" title="Duplicate panel">' + I_DUP + '</button><button class="sr-act" data-act="del" title="Delete panel">' + I_CLOSE + '</button>';
+          acts.innerHTML = '<button class="sr-act" data-act="zoom" title="Zoom View full-screen">' + I_MAXIMIZE + '</button><button class="sr-act" data-act="dup" title="Duplicate View">' + I_DUP + '</button><button class="sr-act" data-act="del" title="Delete View">' + I_CLOSE + '</button>';
           (function (pid) {
             acts.querySelector('[data-act="dup"]').addEventListener("click", function (e) { e.stopPropagation(); post({ type: "panel-dup", id: pid }); });
             acts.querySelector('[data-act="del"]').addEventListener("click", function (e) { e.stopPropagation(); post({ type: "panel-delete", id: pid }); });

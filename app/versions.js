@@ -159,7 +159,7 @@
       body.appendChild(D.field("Note", ta));
       var spec = D.getSpec();
       var targetOpts = [["", "General note (not tied to a View)"]].concat(
-        ((spec && spec.panels) || []).map(function (p) { return [p.id, "Panel: " + (p.title || p.id)]; }));
+        ((spec && spec.panels) || []).map(function (p) { return [p.id, "View: " + (p.title || p.id)]; }));
       body.appendChild(D.field("Pin to", D.select2pairs(targetOpts, draft.panelId, function (v) { draft.panelId = v; })));
       var saveBtn = D.el("button", "btn btn-primary"); saveBtn.style.cssText = "width:100%;justify-content:center;margin-top:8px";
       saveBtn.textContent = existing ? "Save changes" : "Add note";
@@ -312,7 +312,7 @@
       vhList.forEach(function (v) {
         var when = new Date(v.ts).toLocaleString();
         var vp = v.spec || {};
-        var vDetail = (vp.panels || []).length + " panel" + ((vp.panels || []).length === 1 ? "" : "s") +
+        var vDetail = (vp.panels || []).length + " View" + ((vp.panels || []).length === 1 ? "" : "s") +
           ((vp.kpis || []).length ? " · " + (vp.kpis || []).length + " KPI" + ((vp.kpis || []).length === 1 ? "" : "s") : "");
         vhSec.appendChild(D.rowItem("↺", when, vDetail, function () { restoreVersion(v.ts); }, [D.compareBtn(function () { openVersionDiff(v); })], false));
       });
@@ -325,7 +325,7 @@
     } else {
       noteList.forEach(function (n) {
         var panel = n.panelId ? D.panelById(n.panelId) : null;
-        var sub = n.panelId ? ("Pinned to: " + (panel ? (panel.title || panel.id) : "a deleted panel")) : "General note";
+        var sub = n.panelId ? ("Pinned to: " + (panel ? (panel.title || panel.id) : "a deleted View")) : "General note";
         var dot = '<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:' + D.esc(n.color || NOTE_COLORS[0]) + '"></span>';
         var label = n.text.length > 40 ? n.text.slice(0, 40) + "…" : n.text;
         noteSec.appendChild(D.rowItem(dot, label, sub, function () { openNoteEditor(n); }, [D.delBtn(function () { deleteCanvasNote(n.id); }, "note “" + label + "”")], false));

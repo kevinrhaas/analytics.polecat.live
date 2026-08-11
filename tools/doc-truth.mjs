@@ -8999,6 +8999,166 @@ if (kitLive) {
   }
 }
 
+/* ── 78. The APP's own copy for the thing on a dashboard — check 77's move one document over ──
+   N7, and the last leg of the check 14 → 15 → 76 → 77 walk. Check 76 held the ⌘K palette's
+   LABELS to the app's rendered word, check 77 held Help's PROSE to the phrases the app prints —
+   and building check 77's exemption set is what surfaced this: the app itself was the widest
+   offender. v988's "the last surface" was true only of the palette.
+
+   Measured 2026-08-11, before the fix — the retired noun in the copy a reader is shown, across
+   nine modules:
+   · the canvas item's own controls — `Zoom panel full-screen`, `Duplicate panel`,
+     `Delete panel`, `Drag to make this panel taller or shorter` (app/studio-render.js);
+   · its states and toasts — `Panel duplicated`, `Panel removed`, `Panels auto-arranged`,
+     `No panels to arrange yet.`, `Previous panel (← key)`, `No panels configured yet.`, and the
+     default title a duplicate is given (`"Panel" + " copy"`);
+   · the inspector's own section header `Panels (n)` and the field `Panel accent`;
+   · the validator and the completeness checklist — `Dashboard has no panels or KPIs.`,
+     `Panel “…” has no data query bound.`, `Add a panel` (app/model.js);
+   · every COUNT a catalog, Home tile, search row, recents list or version history prints
+     ("6 panels · 2 KPIs"), in six separate places;
+   · the dataset editor's impact warning `3 panels in 2 dashboards read this dataset`
+     (app/datasets.js — the string check 77 had just moved into <code> in Help for want of this
+     slice), and the builder-note editor's `Panel: <title>` one line under its own
+     "not tied to a View" (app/versions.js);
+   · and `Panel title` (app/build.js), the one place the retired noun was the LABEL a reader
+     typed into. That half carried a product question the others did not, and it is answered
+     here deliberately rather than swept: the field is renamed **Title on dashboards**, not
+     "View title", because it sits directly beneath the View's own **Name** field and the two
+     would have read as the same thing. Nothing about the stored `panelTitle` key moves.
+
+   THE LINE, and it is the app's markup that draws it — not a taste call, and not check 77's
+   set (the two documents would otherwise hold each other to a fixpoint and neither could move).
+   A PANE is a panel: app/index.html names its own panes that way in the attributes a reader is
+   read to ("Expand Data panel", "Collapse panel"), and check 77 (b) already exists to stop a
+   word-sweep renaming them. A thing on a DASHBOARD is a View, and has been since LF52/LF57.
+   So: every `panel` the app prints is part of a phrase app/index.html itself prints, or one
+   built from the pane roster setupMobileTabs() renders, or it is drift.
+
+   Three exemptions, each derived rather than chosen:
+   · app/palette.js — check 76 (c) REQUIRES the retired word there, in both directions, for as
+     long as the palette keeps it as a hidden search synonym. Holding it here would make the two
+     checks contradict each other, so the file check 76 owns is named and skipped.
+   · the spec KEY in quotes — app/versions.js prints `Spec must have a "panels" array` at a
+     reader pasting JSON, and `panels` is the key SPEC.md documents. That is check 15's <code>
+     idiom with the only quoting a plain string has, so an occurrence wrapped in double quotes
+     is allowed — and the key it must match is read off addTextPanel(), not listed.
+   · identifiers, CSS custom properties and attribute selectors — check 18's by-shape rule plus
+     a strip of `--custom-props` and `[data-*]`, so `--panel-bg` and `[data-panel-id]` stay.
+
+   Two rules, the same shape as check 77's:
+   (a) every `panel(s)` in the app's own copy is a pane phrase, or it is the retired noun.
+   (b) the negative half — no overshoot. A sweep of this word must not rename the panes: no
+       pane label may be followed by the rendered noun in the app's copy either. */
+{
+  const addTextSrc78 = (() => {
+    const at = studioJs.indexOf("function addTextPanel(");
+    return at < 0 ? "" : searchBlockAt(studioJs, studioJs.indexOf("{", at), "{", "}");
+  })();
+  const specKey78 = (addTextSrc78.match(/spec\.(\w+)\.push\(/) || [])[1] || "";        // "panels"
+  const retired78 = specKey78.replace(/s$/, "");                                       // "panel"
+  const toast78 = (addTextSrc78.match(/toast\("([^"]*?)\s+added\b/) || [])[1] || "";
+  const rendered78 = (toast78.match(/\b[A-Z][a-z]+\b(?!.*\b[A-Z][a-z]+\b)/) || [])[0] || "";
+
+  // ── the pane vocabulary, off the markup that names the panes and the mobile tab roster.
+  const NOUN78 = retired78 ? new RegExp(`^${retired78}s?$`, "i") : /$^/;
+  // A literal that BUILDS markup hides half its copy in attributes — `title="Delete panel"` is
+  // gone the moment tags are stripped — so the readable attributes are added back before the
+  // strip. (Measured: without this, rule (a) misses every one of the canvas item's own
+  // action tooltips, which is where this slice started.)
+  const readable78 = (s) => s.replace(/<[^>]*>/g, " ") + " " +
+    [...s.matchAll(/\b(?:title|aria-label|placeholder|alt)="([^"]*)"/g)].map((m) => m[1]).join(" ");
+  const wordsOf = (s) => readable78(s).replace(/[’']/g, "'").match(/[A-Za-z][A-Za-z'-]*/g) || [];
+  const paneTabs78 = [...fnBody(studioJs, "setupMobileTabs")
+    .matchAll(/\{\s*id:\s*"\w+",\s*label:\s*"([^"]+)"/g)].map((m) => m[1]);
+  const panePhrases78 = new Set(paneTabs78.map((l) => l.toLowerCase() + " " + retired78));
+  const shellMarkup78 = read("app/index.html").replace(/<!--[\s\S]*?-->/g, " ");
+  const harvestPane = (text) => {
+    const w = wordsOf(text);
+    w.forEach((tok, i) => {
+      if (!NOUN78.test(tok.replace(/'s$/, ""))) return;
+      if (i > 0) panePhrases78.add(w[i - 1].toLowerCase() + " " + retired78);
+    });
+  };
+  harvestPane(shellMarkup78.replace(/<[^>]*>/g, " "));
+  [...shellMarkup78.matchAll(/\b(?:title|aria-label|placeholder)="([^"]*)"/g)].forEach((m) => harvestPane(m[1]));
+
+  // ── the app's own copy: check 18's lexer, its by-shape identifier rule, and a strip of the
+  //    two shapes that carry the word without printing it (custom properties, data selectors).
+  const OWNED_BY_76 = "app/palette.js";
+  const COPY_FILES78 = fs.readdirSync(path.join(ROOT, "app"))
+    .filter((f) => f.endsWith(".js")).map((f) => "app/" + f).filter((f) => f !== OWNED_BY_76).sort();
+  const IDENTISH78 = /^[#.]?[a-z][\w.:>[\]="-]*$/;                    // check 18's rule
+  //    A selector-shaped token is stripped only when a CSS delimiter follows it, so ".dk-panel-note{"
+  //    goes and a sentence never does (prose puts a space after its full stops).
+  const deCss78 = (s) => s.replace(/--[a-z][\w-]*/gi, " ").replace(/\[data-[\w-]+/g, " ")
+    .replace(/[.#][A-Za-z][\w-]*(?=[{,>[:;\s]|$)/g, " ");
+  const KEY_QUOTED78 = specKey78 ? new RegExp(`\\\\?"${specKey78}\\\\?"`, "g") : /$^/;
+  const copyLits78 = [];
+  for (const f of COPY_FILES78) {
+    const src = read(f);
+    for (const m of src.matchAll(/\/\*[\s\S]*?\*\/|\/\/[^\n]*|"(?:[^"\\\n]|\\.)*"|'(?:[^'\\\n]|\\.)*'/g)) {
+      const lit = m[0];
+      if (lit[0] !== '"' && lit[0] !== "'") continue;                  // comments are not copy
+      const body = lit.slice(1, -1);
+      if (IDENTISH78.test(body)) continue;
+      const text = deCss78(body.replace(/\\"/g, '"')).replace(KEY_QUOTED78, " ");   // the documented spec key
+      if (!NOUN78.test("x") && !/[A-Za-z]/.test(text)) continue;
+      copyLits78.push({ f, line: src.slice(0, m.index).split("\n").length, body, text });
+    }
+  }
+
+  const premise78 = ok(`app/: the app's own copy parsed for check 78 (${copyLits78.length} literal(s) across ` +
+    `${COPY_FILES78.length} module(s), ${panePhrases78.size} pane phrase(s))`,
+    !!retired78 && !!rendered78 && retired78 !== rendered78 && rendered78 === savedNoun &&
+      paneTabs78.length >= 3 && panePhrases78.has("data " + retired78) &&
+      panePhrases78.size >= 4 && copyLits78.length > 500 &&
+      COPY_FILES78.length >= 8 && !COPY_FILES78.includes(OWNED_BY_76),
+    `retired "${retired78 || "?"}" (spec.${specKey78 || "?"}) · rendered "${rendered78 || "?"}" ` +
+    `(addTextPanel's toast, and check 14's "${savedNoun}")\n      ` +
+    `pane phrases: ${[...panePhrases78].sort().join(" · ") || "(none)"}\n      ` +
+    `panes: ${paneTabs78.join(" · ")} · ${OWNED_BY_76} skipped (check 76 (c) requires the retired word there)\n      ` +
+    "the pane roster IS the exemption — read out of the markup that names the panes, not out of " +
+    "Help, so the two documents cannot hold each other to a fixpoint neither can leave");
+
+  if (premise78) {
+    // (a) the app's word for a thing on a dashboard.
+    const strayApp78 = [];
+    for (const lit of copyLits78) {
+      const w = wordsOf(lit.text);
+      w.forEach((tok, i) => {
+        const parts = tok.split("-");
+        const hitAt = parts.findIndex((p) => NOUN78.test(p.replace(/'s$/, "")));
+        if (hitAt < 0) return;
+        const before = hitAt > 0 ? parts[hitAt - 1] : (i > 0 ? w[i - 1].split("-").pop() : "");
+        if (before && panePhrases78.has(before.toLowerCase() + " " + retired78)) return;
+        strayApp78.push(`${lit.f}:${lit.line}: "${lit.body.replace(/\s+/g, " ").slice(0, 110)}"`);
+      });
+    }
+    ok(`app/: the app calls a thing on a dashboard a "${rendered78}" — "${retired78}" only where its own markup names a pane`,
+      !strayApp78.length,
+      `${[...new Set(strayApp78)].join("\n      ") || "(none)"}\n      ` +
+      `the panes: ${[...panePhrases78].sort().join(" · ")}\n      ` +
+      `LF52/LF57 renamed the object; the copy attached to it kept the old word, so the app was ` +
+      `still teaching the noun both other checks in this family exist to retire`);
+
+    // (b) the negative half: the panes are NOT Views. Check 77 (b), one document over.
+    const overshoot78 = [];
+    for (const lit of copyLits78) {
+      const flat = readable78(lit.text).replace(/\s+/g, " ");
+      paneTabs78.forEach((lab) => {
+        const re = new RegExp(`\\b${esc(lab)}\\s+${esc(rendered78)}s?\\b`, "g");
+        if (re.test(flat)) overshoot78.push(`${lit.f}:${lit.line}: "${flat.slice(0, 110)}" — "${lab}" is a pane, not a ${rendered78}`);
+      });
+    }
+    ok(`app/: no pane of the builder (${paneTabs78.join(", ")}) is renamed to a "${rendered78}"`,
+      !overshoot78.length,
+      `${[...new Set(overshoot78)].join("\n      ") || "(none)"}\n      ` +
+      "the cheap way to satisfy rule (a) is to replace the word everywhere, which renames the " +
+      "panes with it — this is the half of the vocabulary that must NOT move");
+  }
+}
+
 console.log(failed ? `\n✗ doc-truth: ${failed} claim(s) have drifted from the source of truth`
   : "\n✅ doc-truth: every published claim matches the source it describes");
 process.exit(failed ? 1 : 0);
