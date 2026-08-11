@@ -3948,8 +3948,9 @@ ok(`${tpnPath}: every third-party row cites licence text that is in the tree (${
        precached in `sw.js`'s `SHELL_FILES` — rule 1, finally enforced;
    (d) the author's checklist names `sw.js` whenever a registered pack ships committed
        data, so the step (c) now fails on is one the checklist actually tells you to do;
-   (e) the negative half — every repo path and every `Studio.*` entry point the document
-       names resolves in the tree (the check-46 rule, one document over).
+   (e) the negative half — every repo path the document names resolves in the tree (the
+       check-46 rule, one document over). It held the entry points too until rule (h)
+       took them off it, whole.
 
    Two more, added 2026-08-11 (N7), and they are different questions from (a)-(e):
 
@@ -3978,6 +3979,34 @@ ok(`${tpnPath}: every third-party row cites licence text that is in the tree (${
        verbatim — the name a reader sees in the app — so this is a derivation, not a
        list kept here.
 
+   One more, added 2026-08-11 (N7), and it is (e)'s other half done properly:
+
+   (h) THE IDENTIFIERS — every name the contract hands an author, not the ones that
+       happened to be written with an open paren. (e)'s extractor was
+       `/`Studio\.(\w+(?:\.\w+)?)\(/` — the paren INSIDE the backticks — so it read 3 of
+       the ~11 names on the page. `Studio.Build.compute`, `Studio.Build.runBlob`,
+       `Studio.newPanel`, `Studio.runJobSteps` and `Studio.DEMO_PACKS` are written
+       without one and were unheld; so were the four non-`Studio` names the document
+       tells you to COPY — `writePack()`, `bdSave`, `reconcilePackDashboards` and
+       `localfile.js typeCell` — and `sw.js`'s two constants and the entry hooks
+       (`install()`, `seed(csv)`, `afterInstall`). Nineteen spans are held now, and ALL
+       of them resolve today (measured), so this rule is a check rather than a fix: it
+       is the check-46/48(e) rule taken to the identifiers a runbook's reader actually
+       TYPES, and the failure it guards is this family's favourite — a contract that
+       names a function nobody can call.
+
+       A resolver has to know more than one shape, because the code does: `Studio.Build`
+       is an object literal (app/build.js:2396) whose members are keys bound to closures
+       (`runBlob: bdRunBlob`), `Studio.newPanel` is an assignment (app/model.js:2517),
+       `writePack` an `export function` under tools/, `typeCell` a closure inside ONE
+       adapter file, `afterInstall` a key of a registry entry. So each backticked span is
+       CLASSIFIED by shape first and resolved by the rule that shape implies — and a span
+       that is neither prose nor a shape the resolver knows is REPORTED rather than
+       silently skipped, which is the only way a rule like this does not rot one
+       unreadable span at a time. Bare lowercase words are the registry's own keys and
+       the `kind` vocabulary (`folder`, `seeds`, `public`…), held by (a)-(d) and by the
+       entry contract; a bare word counts as a NAME only when it is spelled like one.
+
    Measured: (f) fails on the real pre-fix tree, naming the sentence. Its code side is
    the PREMISE's rather than the rule's — deliberately, the way checks 78 and 79 do it:
    break the derivation and it refuses to run rather than turning a correct "Data panel"
@@ -3987,7 +4016,19 @@ ok(`${tpnPath}: every third-party row cites licence text that is in the tree (${
    three of its directions were measured on mutated trees — a folder renamed in the
    registry (which fails both ways at once, as an uncovered pack AND an invented name),
    a pack moved to the wrong side of the semicolon while the totals still hold, and a
-   name in the document that no pack's folder matches. */
+   name in the document that no pack's folder matches.
+
+   (h) likewise has NO drift today — all nineteen spans resolve, which is the measurement
+   that made it a check and not a fix — so every direction of it was measured on mutated
+   trees instead, six of them: `Studio.Build.runBlob` with its member renamed inside the
+   object literal (the shape (e) could never have read at all); `Studio.newPanel` with its
+   assignment renamed; `localfile.js typeCell` with the closure renamed, and separately
+   with the DOCUMENT pointing at a module that is not there (the two halves report
+   differently on purpose — a moved module is not a moved function); `writePack()` with
+   the export removed from tools/; `bdSave` renamed, the bare-name shape; and an
+   unreadable span added to the document (`Studio::materialize`), which reports the span
+   rather than passing. The GUARD itself is out of the corpus: a name may not resolve
+   against the check that names it. */
 const packsDoc = read("docs/PACKS.md");
 const packsPath = "docs/PACKS.md";
 
@@ -4075,24 +4116,20 @@ ok(`${packsPath}: the author's checklist names sw.js while a pack ships committe
   `names SHELL_FILES: ${/SHELL_FILES/.test(packsChecklist)}\n      ` +
   "the precache step lived in the prose above and in no step of the list an author works through");
 
-// (e) the negative half. Same extractor shape as check 47 (b), and the Studio entry points
-//     this document promises are held the way check 41 holds README's.
+// (e) the negative half. Same extractor shape as check 47 (b): every repo PATH the document
+//     names resolves in the tree. Its other half — the entry points — is rule (h), which
+//     reads all of them rather than the three this extractor could see.
 const packsCited = [...new Set([...packsDoc.matchAll(
   /`((?:app|tools|data|tests|docs|js|supabase|vendor)\/[\w./-]*(?:\/|\.\w{2,5}))`/g)].map((m) => m[1]))]
   .filter((p) => !/<id>/.test(p));
 const packsDangling = packsCited.filter((p) => !fs.existsSync(path.join(ROOT, p)));
-const appSrcAll = fs.readdirSync(path.join(ROOT, "app"))
-  .filter((f) => f.endsWith(".js")).map((f) => read(`app/${f}`)).join("\n");
-const packsApis = [...new Set([...packsDoc.matchAll(/`Studio\.(\w+(?:\.\w+)?)\(/g)].map((m) => m[1]))];
-const packsApiGaps = packsApis.filter((a) => !new RegExp(`Studio\\.${a.replace(".", "\\.")}\\s*=|\\b${a.split(".").pop()}\\s*:\\s*function`).test(appSrcAll));
-ok(`${packsPath}: every repo path and Studio entry point it names resolves (${packsCited.length} path(s), ${packsApis.length} api(s))`,
-  // The floors only assert the extractors found the document at all — set below what the
-  // pre-fix file carried (4 paths, 3 entry points) on purpose, so a legitimate rewording
-  // can never redden this rule. The real assertions are the two emptiness checks.
-  packsCited.length >= 3 && packsApis.length >= 2 && !packsDangling.length && !packsApiGaps.length,
+ok(`${packsPath}: every repo path it names resolves (${packsCited.length} path(s))`,
+  // The floor only asserts the extractor found the document at all — set below what the
+  // pre-fix file carried (4 paths) on purpose, so a legitimate rewording can never redden
+  // this rule. The real assertion is the emptiness check.
+  packsCited.length >= 3 && !packsDangling.length,
   `dangling paths: ${packsDangling.join(", ") || "(none)"}\n      ` +
-  `unresolved entry points: ${packsApiGaps.map((a) => `Studio.${a}()`).join(", ") || "(none)"}\n      ` +
-  "a contract that names a script or a function nobody can find is not executable");
+  "a contract that names a script nobody can find is not executable");
 
 // (f) the noun. Check 78's line, re-derived rather than shared: a rule that reached into
 //     another check's block would break the day that block is edited, and the two cannot
@@ -4185,6 +4222,105 @@ ok(`${packsPath}: the sentence naming the packs names every one of them, on the 
   `the document says synthetic: ${claimed48.synthetic.join(", ") || "(none)"} · real: ${claimed48.real.join(", ") || "(none)"}\n      ` +
   "rule (a) holds the two NUMBERS in this sentence; a pack renamed, or moved across the " +
   "split while the totals happen to hold, leaves them both right and the roster wrong");
+
+// (h) the identifiers. The corpus is every first-party module a reader could be sent to —
+//     tools/ matters as much as app/ here, because half the names this contract hands an
+//     author live in the extract library. The guard itself is excluded on purpose: a name
+//     must resolve against the CODE, never against the check that names it.
+const packsCorpus = (() => {
+  const files = {};
+  const walk = (dir) => {
+    for (const e of fs.readdirSync(path.join(ROOT, dir), { withFileTypes: true })) {
+      const rel = dir + "/" + e.name;
+      if (e.isDirectory()) walk(rel);
+      else if (/\.m?js$/.test(e.name) && rel !== "tools/doc-truth.mjs") files[rel] = read(rel);
+    }
+  };
+  ["app", "tools"].forEach(walk);
+  files["sw.js"] = read("sw.js");
+  return files;
+})();
+const packsCorpusAll = Object.values(packsCorpus).join("\n");
+// One name, every shape this codebase actually uses to define one: a declaration, an
+// assignment (to a function, an arrow, an object or an array — `Studio.DEMO_PACKS = {` is
+// as much a definition as `function writePack(`), an object KEY whose value is a function
+// (`afterInstall: function ()`, `seed: function (csv)`), or a var/let/const binding.
+const packsDefines = (src, name) => new RegExp(
+  `\\bfunction\\s+${name}\\s*\\(` +
+  `|\\b${name}\\s*=\\s*(?:async\\s+)?(?:function\\b|\\(|[[{])` +
+  `|\\b${name}\\s*:\\s*(?:async\\s+)?(?:function\\b|\\()` +
+  `|\\b(?:var|let|const)\\s+${name}\\b`).test(src);
+// A namespace member is a KEY of the object literal the namespace is assigned, because
+// that is how app/build.js writes it — `runBlob: bdRunBlob`, a name bound to a closure
+// defined 250 lines earlier. Nothing about that shape is visible to a "function" rule.
+const packsStudioMember = (ns, member) => {
+  const at = packsCorpusAll.indexOf(`Studio.${ns} = {`);
+  return at >= 0 && new RegExp(`(^|[\\s,{])${member}\\s*:`)
+    .test(braceBlockAt(packsCorpusAll, packsCorpusAll.indexOf("{", at)));
+};
+const packsIdentGaps = [], packsIdentHeld = [], packsIdentUnread = [];
+// Fenced blocks are code the reader copies rather than copy they read (rule (f)'s line),
+// and their contents are not backticked anyway — stripped so the two rules see one document.
+const packsSpanSrc = packsDoc.replace(/^```[a-zA-Z][\w+-]*\n[\s\S]*?^```/gm, "");
+for (const span of [...new Set([...packsSpanSrc.matchAll(/`([^`\n]+)`/g)].map((m) => m[1].trim()))]) {
+  // A placeholder (`Studio.ensure<Pack><Thing>()`, `data/packs/<id>/`) or a wildcard
+  // (`Studio.*`) names a family rather than a function, so there is nothing to resolve.
+  // Matched as a bracket PAIR, not as "contains an angle bracket" — a stray `>` in some
+  // future span must not buy that span a free pass out of the unreadable bucket.
+  if (/<[A-Za-z]\w*>/.test(span) || span.includes("*")) continue;
+  if (/^node\s/.test(span)) continue;                  // a command line — (e) holds the script it names
+  // A code FRAGMENT rather than a name: `kind: "licensed"`, `source: { kind: … }`. Scoped to
+  // the key-value SHAPE (a colon then whitespace, or a brace/quote) rather than "contains a
+  // colon" — `Studio::materialize` is not a fragment, it is a name in a syntax this repo
+  // does not write, and the whole point of the unreadable bucket is to say so out loud.
+  if (/[{}"]/.test(span) || /^[A-Za-z_$][\w.$]*\s*:\s/.test(span)) continue;
+  if (span.includes("/")) continue;                    // a repo path — rule (e)'s
+  if (/^[\w.-]+\.(json|md|csv|txt|sql|html|css|svg|png)$/i.test(span)) continue;  // an artifact, held by (c)/(e)/47
+  let m;
+  if ((m = span.match(/^Studio\.(\w+)(?:\.(\w+))?(?:\([^()]*\))?$/))) {
+    const label = `Studio.${m[1]}${m[2] ? "." + m[2] : ""}`;
+    packsIdentHeld.push(label);
+    if (!(m[2] ? packsStudioMember(m[1], m[2]) : new RegExp(`Studio\\.${m[1]}\\s*=`).test(packsCorpusAll)))
+      packsIdentGaps.push(`${label} — named here, assigned nowhere under app/ or tools/`);
+  } else if ((m = span.match(/^([\w-]+\.m?js)\s+(\w+)$/))) {
+    // The file-qualified shape, and its two halves fail differently on purpose: a missing
+    // FILE is a moved module, a missing function inside a present file is a moved closure.
+    const [, file, name] = m;
+    packsIdentHeld.push(`${file} ${name}`);
+    const hit = Object.entries(packsCorpus).find(([rel]) => rel === file || rel.endsWith("/" + file));
+    if (!hit) packsIdentGaps.push(`${file} — the module it qualifies ${name} with is not in the tree`);
+    else if (!packsDefines(hit[1], name)) packsIdentGaps.push(`${file} ${name} — the module is there, the function is not`);
+  } else if ((m = span.match(/^(\w+)\([^()]*\)$/))) {
+    packsIdentHeld.push(`${m[1]}()`);
+    if (!packsDefines(packsCorpusAll, m[1]))
+      packsIdentGaps.push(`${m[1]}() — named here, defined nowhere under app/ or tools/`);
+  } else if (/^[\w-]+\.m?js$/.test(span)) {
+    packsIdentHeld.push(span);
+    if (!Object.keys(packsCorpus).some((rel) => rel === span || rel.endsWith("/" + span)))
+      packsIdentGaps.push(`${span} — named here, no such module in the tree`);
+  } else if (/^[A-Za-z_$][\w$]*$/.test(span)) {
+    // A bare word is a NAME only when it is spelled like one — an internal capital or a
+    // SCREAMING_SNAKE constant. All-lowercase spans (`folder`, `seeds`, `public`, `false`)
+    // are the registry's keys and the `kind` vocabulary, which (a)-(d) already hold.
+    if (!/[A-Z]/.test(span)) continue;
+    packsIdentHeld.push(span);
+    if (!packsDefines(packsCorpusAll, span))
+      packsIdentGaps.push(`${span} — named here, defined nowhere under app/ or tools/`);
+  } else if (/^[a-z]\w*(?:\.[a-z]\w*)+$/.test(span)) {
+    continue;                                          // `data.files`, `source.kind` — a key PATH into an entry
+  } else {
+    packsIdentUnread.push(span);                       // the shape the resolver could not read
+  }
+}
+ok(`${packsPath}: every name it hands an author resolves in the code (${packsIdentHeld.length}: ${[...new Set(packsIdentHeld)].sort().join(", ")})`,
+  // The floor is well under today's eleven, so a rewording can never redden this rule; the
+  // real assertions are the two emptiness checks. An unreadable span fails BY DESIGN — a
+  // resolver that shrugs at a shape it does not know goes quietly out of date.
+  packsIdentHeld.length >= 8 && !packsIdentGaps.length && !packsIdentUnread.length,
+  `unresolved: ${packsIdentGaps.join("\n      ") || "(none)"}\n      ` +
+  `spans the resolver could not classify: ${packsIdentUnread.map((s) => `\`${s}\``).join(" · ") || "(none)"}\n      ` +
+  "rule (e)'s extractor wanted the open paren inside the backticks, so it read 3 of these; " +
+  "a contract that names a function nobody can call is this family's favourite failure");
 
 /* ── 49. Help's app-bar chrome vs the bar the app renders ───────────────────
    N7, and the check-21 move one paragraph over. Checks 9 and 43 hold Help's rail and

@@ -135,6 +135,52 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N7 — the pack contract's guard read 3 of the 19 names the contract hands an author (v993,
+  NO sw bump, 2026-08-11, steward; dev branch; est 1pt, took 1 — ON estimate):** 🔁 N7 was again
+  the only takeable item in ▶ NOW (N31, N44, N41 and N25 all ⛔ on Kevin; SP-1 ⏳ on `hold`
+  PR #689), and the v992 pass had named this as its candidate, with two instructions attached.
+  **Both were followed literally.** The derivation went into check 48 as rule **(h)**, and
+  rule (e) — whose title has always said *paths* — was NARROWED to paths, so the identifiers
+  have one owner rather than a third of the job in each of two places.
+  **What was actually wrong.** (e)'s extractor was `` /`Studio\.(\w+(?:\.\w+)?)\(/ `` — the open
+  paren INSIDE the backticks — so `docs/PACKS.md` could name a function without one and the gate
+  never looked. It read `Studio.ensurePackDataMaterialized(id)`,
+  `Studio.ensureAllPackDataMaterialized()` and `Studio.packSourceIssues(entry)`, and nothing
+  else: not `Studio.Build.compute`, `Studio.Build.runBlob`, `Studio.newPanel`, `Studio.runJobSteps`
+  or `Studio.DEMO_PACKS`, and not one of the non-`Studio` names the document tells you to COPY —
+  `writePack()`, `bdSave`, `reconcilePackDashboards`, `localfile.js typeCell`. **The v992 note's
+  "~10 identifiers" was low.** Held now: **19 spans**, because the entry hooks (`install()`,
+  `seed(csv)`, `afterInstall`) and `sw.js`'s `SHELL_FILES` / `CACHE_NAME` are names an author
+  types as surely as an entry point is.
+  **All 19 resolve today, which is why this is a check and not a repair** — measured, exactly as
+  the note predicted. The substance is therefore the resolver, and the reason it needed writing
+  is that this codebase defines a name five ways: an assignment (`Studio.newPanel`,
+  `app/model.js:2517`), an object literal (`Studio.DEMO_PACKS`), a MEMBER of one assembled
+  somewhere else and bound to a closure 250 lines earlier (`Studio.Build`'s `runBlob: bdRunBlob`,
+  `app/build.js:2396` — the shape the old extractor could not have read even with the paren), a
+  closure inside ONE adapter file (`localfile.js typeCell`), and an `export function` under
+  `tools/`. So each backticked span is CLASSIFIED by shape and resolved by the rule that shape
+  implies, and the file-qualified form fails in two directions on purpose: a missing module is a
+  moved file, a missing function inside a present one is a moved closure.
+  **The unreadable bucket is the note's second instruction, and it FAILS rather than logs.** A
+  span that is neither prose nor a shape the resolver knows reports itself by name — the only way
+  a rule like this does not rot one span at a time. Making it real meant tightening two
+  exemptions that would each have swallowed an unreadable span whole: a placeholder is now an
+  angle-bracket PAIR (`<id>`, `<Pack>`) rather than "contains an angle bracket", and a code
+  fragment is the key-value SHAPE (`kind: "licensed"`) rather than "contains a colon". Bare
+  lowercase spans stay prose by design — `folder`, `seeds`, `public`, `false` are the registry's
+  keys and the `kind` vocabulary, which (a)-(d) already hold; a bare word counts as a NAME only
+  when it is spelled like one. **The guard itself is out of the corpus**: a name may not resolve
+  against the check that names it.
+  **Verified:** `node tools/doc-truth.mjs` green (399 checks), `node tools/validate.mjs`,
+  `node tools/changelog-check.js`, and `tools/dev-smoke.mjs` at 390×780 + desktop with zero
+  pageerrors. **Six directions measured on mutated trees**, since there was no drift to measure:
+  `Studio.Build.runBlob`'s member renamed inside the literal, `Studio.newPanel`'s assignment
+  renamed, `typeCell` renamed inside `localfile.js`, the document pointed at a module that is not
+  there, `writePack`'s export removed from `tools/`, `bdSave` renamed, and an unreadable span
+  (`` `Studio::materialize` ``) added to the document — which reports the span rather than
+  passing. `docs/PACKS.md`'s own "What is checked, and where" table gained the row, so the
+  contract publishes the rule it is now held to.
 - **N7 — `docs/PACKS.md` was the last first-party document calling a View a panel, and the
   sentence that named the packs answered to nothing (v992, NO sw bump, 2026-08-11, steward; dev
   branch; est 1pt, took 1 — ON estimate):** 🔁 N7 was again the only takeable item in ▶ NOW (N31,
@@ -17862,7 +17908,7 @@
     panel` pane, SPEC.md's six are the spec key under check 45 (b), and the marketing page's one
     is a pane. There is no first-party document left calling a View a panel, so the next N7 slice
     is a different subject — not the next document.
-  * **Measured in the v992 pass and NOT taken, so the next run does not re-derive it — and it is
+  * ~~**Measured in the v992 pass and NOT taken, so the next run does not re-derive it — and it is
     the named candidate for the next N7 slice.** Check 48 (e) resolves every repo PATH and every
     `Studio.*` entry point `docs/PACKS.md` names — but its extractor requires the open paren
     INSIDE the backticks (`/`Studio\.(\w+(?:\.\w+)?)\(/`), so it reads **3 of the ~10 identifiers
@@ -17878,7 +17924,41 @@
     types, and the PUBLISH.md class of failure it guards is the one this family keeps finding: a
     contract that names a function nobody can call. Est 1pt, `docs/` + `tools/` only, no `sw.js`
     bump. **Note for whoever takes it:** the derivation belongs in check 48 beside (e), and it
-    should report the shape it could not resolve rather than silently skipping it.
+    should report the shape it could not resolve rather than silently skipping it.~~ ✓ **SHIPPED
+    v993, NO sw bump (2026-08-11, steward — see DONE), and both of the note's instructions were
+    followed literally.** The rule is **check 48 (h)**, and (e) was NARROWED to the paths its
+    title claims rather than left holding a third of the same job — one derivation each. The
+    note's "~10 identifiers" was low: **nineteen spans are held**, because the entry hooks
+    (`install()`, `seed(csv)`, `afterInstall`) and `sw.js`'s two constants are names an author
+    types too. **All nineteen resolve, so this was a check and not a repair** — as the note
+    predicted — and the interesting half is what a resolver has to know: five SHAPES, because
+    the code defines a name five ways (`Studio.Build`'s members are keys bound to closures 250
+    lines earlier; `typeCell` is a closure inside one adapter; `writePack` an `export function`
+    under `tools/`). **The unreadable bucket is the note's second instruction and it is a FAILING
+    condition, not a log line** — a span that is neither prose nor a shape the resolver knows
+    reports itself by name, which is the only way a rule like this does not rot one span at a
+    time. Two exemptions had to be tightened to make that bucket real: "contains an angle
+    bracket" and "contains a colon" would each have swallowed an unreadable span whole, so a
+    placeholder is now a bracket PAIR and a fragment is the key-value SHAPE. Six directions
+    measured on mutated trees, including the two the old extractor could never have seen.
+  * **Measured in the v993 pass and NOT taken, so the next run does not re-derive it — and it is
+    the named candidate for the next N7 slice.** The obvious move is (h) one document over, and
+    the measurement says it is a bigger slice than it looks: run the same resolver over the other
+    executed documents and `tools/M7-RLS-GOLIVE-RUNBOOK.md` — the PUBLISH.md class, check 46's
+    subject, an operator EXECUTES it against a live security posture — names **11 identifiers of
+    this shape and (h)'s resolver resolves none of the hard ones**: `polecat_is_admin()`,
+    `BOOTSTRAP_DDL`, `RLS_REAL_SQL`, `PROVISION_SECRET`, `SUPABASE_SERVICE_ROLE_KEY`, `gotrueId`,
+    `acctOwner`. **They are not missing — they are in the tree, in three namespaces (h) cannot
+    read**: a SQL function inside a template literal (`polecat_is_admin` is in `app/sources/
+    schema.js` and three more), an Edge-Function const in a **`.ts`** file the corpus excludes by
+    extension (`supabase/functions/polecat-admin/sql.ts`), an env var read through `Deno.env.get`,
+    and a workspace COLUMN — `acctOwner`/`updatedAt` are object properties, and (h)'s definition
+    shapes are all function-or-binding shaped. So the slice is not "point (h) at another file";
+    it is **teaching the resolver those namespaces and only then taking the rule to check 46**,
+    and each namespace needs its own honest resolution rule or the runbook gets a check that
+    green-lights a name nobody can call. `docs/COMPAT.md` (3) and `CLAUDE.md` (1) fall out of the
+    same work; `PUBLISH.md` and `README.md`'s only miss is `CNAME`, a repo FILE their path rules
+    already cover. Est 2pt, `docs/` + `tools/` only, no `sw.js` bump.
 > **📋 RECORDED FOR KEVIN, NOT PROMOTED — grooming pass 4, 2026-08-10.** This sits BELOW the queue
 > on purpose: `docs/BACKLOG.md` says the loop never promotes into ▶ NOW on its own, and pass 2's
 > proposal (PR #623) is still unanswered, so pass 4 proposes no batch. This is one finding the
