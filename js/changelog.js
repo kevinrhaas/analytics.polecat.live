@@ -6,6 +6,18 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 997,
+    title: 'The runbook that tells you how to ship now has to mean every name and every file it prints',
+    kind: 'polish',
+    ts: '2026-08-11T04:42:15.000Z',
+    items: [
+      'The delivery runbook is the page you read to find out how a change actually reaches the live site — which gate runs when, which button ships production, how a bad release gets rolled back. It was the last document here whose names nobody checked.',
+      'It is correct today, so this is a check rather than a repair. What makes it different from the pages checked before it is that it describes the machinery rather than the app, so most of what it hands you to type is a workflow, a gate script or a command — and each of those now resolves against the thing that would have to answer for it. The command it prints for rolling back a release is matched against the automation that really runs it, so a plausible-but-wrong version of that command fails.',
+      'Verifying that turned up a real hole, and closing it is the other half of this change: the page names fifteen files in this repo and nothing had ever checked that any of them exists. A deliberate typo inside one of those filenames passed every check the page had. It does not any more.',
+      'Both halves were proved capable of failing before they shipped — by breaking the code and by breaking the document, in ten different directions.',
+    ],
+  },
+  {
     v: 996,
     title: 'The two pages the front door sends you to now have to mean the names they print',
     kind: 'polish',
