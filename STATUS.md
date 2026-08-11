@@ -135,6 +135,58 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N7 — the two pages the front door forwards to now have to mean the names they print
+  (v996, NO sw bump, 2026-08-11, steward; dev branch; est 2pt, slice 1 of 2 — PIPELINE.md is
+  slice 2):** 🔁 N7 was again the only takeable item in ▶ NOW (N31, N44, N41 and N25 all ⛔ on
+  Kevin; SP-1 ⏳ on `hold` PR #689), and the v995 pass named this as the next slice and drew its
+  own line: **PUBLISH.md and README together, then PIPELINE.md.** Taken exactly there.
+  **Both documents are correct today — 7 spans and 2, zero gaps, zero unreadable — so this is a
+  check, not a repair.** What earned it a slice is WHERE the names live. `PUBLISH.md` is the first
+  document this family has held whose instructions are executed against **GitHub** rather than
+  against this repo's code, so it names three things no amount of reading this codebase's
+  JavaScript can confirm, and the resolver's nine namespaces read none of them:
+  a deployment **environment** (`github-pages` — the thing check 44 (c) already says "refuses
+  every other ref"), which is hyphenated and so was read as "not a JS name" and was none of the
+  four things that branch knew about; a settings-UI **label** (`GitHub Actions`, the Pages source),
+  which no app string can answer for because the screen belongs to GitHub; and a repo **file with
+  no extension** (`CNAME`, named by BOTH documents), which is SCREAMING_SNAKE by shape and so
+  reached the constant rule and failed there.
+  **Each was taught, not exempted, and each resolves against the thing that would have to answer
+  for it:** the environment against the workflow that declares it, the label against the workflow
+  that REQUIRES the setting (deploy.yml's own NOTE — check 44 (a)'s source, so the rule borrows a
+  derivation rather than minting one), the file against the tree, for the same reason the module
+  branch does — "does this file exist" is a different question from "is this name defined".
+  A fourth, `window.STUDIO_STAGE`-shaped namespace came with them: a **global**, which the
+  namespace branch cannot spell because `window` is the platform's namespace and not one of this
+  app's.
+  **The find is the pair the rule holds BACKWARDS.** `PUBLISH.md` § 3 names `app/gate-config.js`
+  and `window.STUDIO_GATE_SHA256` inside a note whose whole job is to say they were DELETED (v852,
+  AUD-09, when the sign-in screen replaced the site-wide passcode). "Every name resolves" is the
+  wrong question for those, and enforcing it would have pushed a true sentence out of the page —
+  the failure mode a check is supposed to prevent, arriving from the check. So a retirement the
+  document DECLARES is held from the other end: the name must **not** resolve, and if it ever comes
+  back the sentence saying it is gone reddens the gate. The declaration is sentence-scoped and
+  shape-derived (the `identPlaceholders` idiom one step further), never an allow-list.
+  **Two exemptions widened, both by shape and both measured:** a key-value fragment written without
+  the space (`caps.data:false`, README) — which had to reject a SECOND colon so `Studio::materialize`
+  stays in the unreadable bucket where it belongs — and typography, a span of one character (`A`
+  records in the DNS table, the `+` chips on the canvas), since nothing this repo defines is one
+  character long.
+  **Where the rules live:** **check 44 (g)** and **check 41 (h)**, each in the check that owns its
+  document — the v995 placement, no new check about identifiers. The four documents already holding
+  this rule are unchanged by the teaching, verified rather than assumed: COMPAT.md 17, CLAUDE.md
+  18, PACKS.md 19, the RLS runbook 24, the same rosters as before.
+  **Eight failure directions measured on mutated trees, four of them from the CODE side** so the
+  rules are shown to read the tree and not the document: (1) deploy.yml declaring a different
+  environment; (2) its NOTE no longer naming the Pages source; (3) `CNAME` leaving the tree (fails
+  BOTH documents at once, which is the right blast radius for a shared name); (4) the deleted
+  global reassigned in `app/gate.js`; (5) the deleted `app/gate-config.js` recreated; (6) a span in
+  a syntax this repo does not write (`Studio::materialize`) — still a FAILING condition, the
+  invariant carried from 48 (h); (7) a live global whose assignment moved out of `window.`; (8)
+  README renaming the extension point it hands you (`Studio.registerSource` → `registerAdapter`).
+  Files: `tools/doc-truth.mjs`, `js/changelog.js`, `STATUS.md`. No `sw.js` bump — nothing precached
+  changed — and `CLAUDE.md`'s LOC figure stayed inside doc-truth's own 10% band. Dev gate green:
+  validate + changelog-check + doc-truth + dev-smoke at 390×780 and desktop, zero pageerrors.
 - **N7 — the two contracts an agent reads before it changes anything now have to mean their names
   (v995, NO sw bump, 2026-08-11, steward; dev branch; est 1pt, took 1):** 🔁 N7 was again the only
   takeable item in ▶ NOW (N31, N44, N41 and N25 all ⛔ on Kevin; SP-1 ⏳ on `hold` PR #689), and
@@ -18135,7 +18187,7 @@
     span (`Studio::materialize`), the attribute dropped from the app, the storage key renamed in the
     app, the promotion minting a different tag, and Help naming an attribute that does not exist.
     **Est 1pt, took 1.**
-    **Measured in this pass and NOT taken, so the next run does not re-derive it — and it is the
+    ~~**Measured in this pass and NOT taken, so the next run does not re-derive it — and it is the
     named candidate for the next N7 slice.** The resolver now reads nine namespaces, so pointing it
     at the remaining documents is finally cheap — and a probe over the four that have no identifier
     rule says the work is real, not a formality: **`PUBLISH.md`** (6 spans, 3 gaps, 1 unreadable),
@@ -18149,7 +18201,53 @@
     glyphs, which are this repo's own vocabulary and not names anyone types at code. Est 2pt —
     PUBLISH.md and README together, then PIPELINE.md — `docs/` + `tools/` only, no `sw.js` bump.
     **Note for whoever takes it:** the count above came from a run, not a reading, and it is the
-    third pass in a row where the previous note's number was low.
+    third pass in a row where the previous note's number was low.~~ ✓ **SLICE 1 SHIPPED as v996,
+    NO sw bump (2026-08-11, steward — see the v996 line below and DONE); PIPELINE.md is slice 2 and
+    is still open.** The note's counts were right this time — the first pass in four where they
+    were — but two of its three CLASSIFICATIONS were wrong, and both mattered: `github-pages` is a
+    deployment ENVIRONMENT, not "a workflow named without its `.yml`" (there is no
+    `github-pages.yml`), and `GitHub Actions` is a settings-UI label, which the note had not
+    spotted at all.
+  * *The two pages the front door forwards to vs the names they print — v996, NO sw bump
+    (2026-08-11 — see DONE).* The candidate above, slice 1 of its 2 points, exactly where the note
+    drew the line: **`PUBLISH.md` (7 spans) and `README.md` (2), all correct today** — a check, not
+    a repair. What earned the slice is that PUBLISH.md is the first document here executed against
+    **GitHub** rather than against this repo's code, so it names things no reading of this
+    codebase's JavaScript can confirm. Three namespaces were taught, each resolving against the
+    thing that would have to answer for it: a deployment **environment** (`github-pages`) against
+    the workflow that declares it; a settings-UI **label** (`GitHub Actions`) against the workflow
+    that REQUIRES the setting — deploy.yml's own NOTE, which is check 44 (a)'s source, so the rule
+    borrows a derivation rather than minting one; and a repo **file with no extension** (`CNAME`,
+    named by both documents) against the tree, the module branch's reasoning one shape over.
+    **The fourth span pair runs the rule BACKWARDS, and it is the find:** § 3's note names
+    `app/gate-config.js` and `window.STUDIO_GATE_SHA256` in a sentence whose whole job is to say
+    they were deleted (v852, AUD-09). "Every name resolves" is the wrong question for those —
+    demanding it would push a TRUE sentence out of the page — so a retirement the document declares
+    is held from the other end: the name must NOT resolve, and if it comes back the note reddens
+    the gate. The declaration is sentence-scoped and shape-derived, the `identPlaceholders` idiom
+    one step further, never an allow-list. Two exemptions were widened in the same pass, both
+    measured: a key-value fragment written without the space (`caps.data:false`) — rejecting a
+    SECOND colon, so `Studio::materialize` stays in the unreadable bucket — and typography, a span
+    of one character (`A` records, the `+` chips). Rules: **check 44 (g)** and **check 41 (h)**,
+    each in the check that owns its document, the v995 placement. **Eight failure directions
+    measured on mutated trees**, four of them from the CODE side.
+    **Measured in this pass and NOT taken, so the next run does not re-derive it — and it is the
+    named candidate for the next N7 slice, because it is this item's own slice 2.**
+    **`docs/PIPELINE.md`: 15 spans, 3 gaps, 1 unreadable** (measured with the taught resolver, not
+    read off the old note — its `window.STUDIO_STAGE` now resolves, which is why the count moved
+    14→15 and the gaps 4→3). The three gaps are the last namespaces and one real question:
+    **`promote-to-prod`** is a WORKFLOW named without its `.yml` — trivially derivable from
+    `.github/workflows/`, and deliberately left here rather than taken early, since PUBLISH.md
+    needed no such span and a roster with no document reading it is a rule that cannot be measured;
+    **`STUDIO_WS_STORE.blockReason()`** is NOT drift and was measured rather than assumed
+    (`app/workspaces.js:141`, exported from the `window.STUDIO_WS_STORE = (function () { … })()`
+    module) — it is a namespace whose base is a GLOBAL bound to an IIFE's return, a shape
+    `identMember` cannot read because it looks for `NAME = {`; and **`localStorage`** is the honest
+    edge, a browser global, where
+    "the platform defines it" is not a claim this repo's tree can answer, so the right move is
+    probably to exempt globals BY SHAPE (a name the app never assigns and never could). The
+    unreadable span is `git revert -m 1`, a command line — the `node …` exemption one tool over.
+    Est 1pt. `docs/` + `tools/` only, no `sw.js` bump.
 > **📋 RECORDED FOR KEVIN, NOT PROMOTED — grooming pass 4, 2026-08-10.** This sits BELOW the queue
 > on purpose: `docs/BACKLOG.md` says the loop never promotes into ▶ NOW on its own, and pass 2's
 > proposal (PR #623) is still unanswered, so pass 4 proposes no batch. This is one finding the

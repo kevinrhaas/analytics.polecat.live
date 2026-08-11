@@ -1170,6 +1170,33 @@ ok(`app/tutorial.js: every tour that walks a catalog names that catalog ROW's ow
    two documents share ONE derivation rather than growing a second copy — the reuse idiom
    checks 28, 46 and 79 already follow.
 
+   Then 2026-08-11 again, for the two documents the FRONT DOOR forwards to (checks 44 (g)
+   and 41 (h)). Those needed three more namespaces and one INVERSION, and what they have in
+   common is that PUBLISH.md is executed against GITHUB rather than against this code:
+
+     · a deployment ENVIRONMENT (`github-pages`) — hyphenated, so the resolver already read
+       it as "not a JS name", and it was none of the four things that branch knew about;
+     · a settings-UI LABEL (`GitHub Actions`, the Pages source) — a label no app string can
+       answer for, because the screen belongs to GitHub. The thing that CAN answer is the
+       workflow that REQUIRES the setting, which is check 44 (a)'s own source;
+     · a repo FILE with no extension (`CNAME`) — SCREAMING_SNAKE by shape, so it reached the
+       constant rule and failed there; it resolves against the tree, the way the module
+       branch does, because "does this file exist" is a different question from "is this
+       name defined";
+     · a GLOBAL (`window.STUDIO_STAGE`) — `window` is the platform's namespace, not one of
+       this app's, so the namespace branch could not spell it;
+     · and the INVERSION: a span the document declares DELETED must NOT resolve. PUBLISH.md
+       § 3 names `app/gate-config.js` and `window.STUDIO_GATE_SHA256` in a sentence whose
+       whole job is to say they went in v852, so "every name resolves" is the wrong question
+       and demanding it would push a true sentence out of the page. Held from the other end
+       instead: if either name comes back, the sentence saying it is gone reddens the gate.
+
+   Two exemptions were widened in the same pass, both by SHAPE and both measured: a
+   key-value fragment written without the space (`caps.data:false`) — rejecting a SECOND
+   colon, so `Studio::materialize` stays in the unreadable bucket where it belongs — and
+   typography, a span of one character (`A` records, the `+` chips), since nothing this
+   repo defines is one character long.
+
    Two invariants carried over from (h) unchanged, because they are what stop a rule like
    this rotting one span at a time:
      · a span that is neither prose nor a shape the resolver knows is REPORTED BY NAME,
@@ -1267,6 +1294,56 @@ const identRefStem = (span) => span.replace(/(?:[A-Z]{2,}|\d+)$/, "");
 // Field labels the app really prints, for the multi-word shape.
 const identAppCopy = Object.entries(identCorpus).filter(([r]) => r.startsWith("app/")).map(([, s]) => s).join("\n")
   + "\n" + read("app/index.html") + "\n" + read("index.html");
+// The workflow YAML, whole — the roster behind the two namespaces PUBLISH.md needs and no
+// document before it did, because it is the only one here whose instructions are executed
+// against GITHUB's settings rather than against this repo's code.
+const identWorkflowYaml = (() => {
+  const dir = ".github/workflows";
+  if (!fs.existsSync(path.join(ROOT, dir))) return "";
+  return fs.readdirSync(path.join(ROOT, dir)).filter((f) => /\.ya?ml$/.test(f))
+    .map((f) => read(dir + "/" + f)).join("\n");
+})();
+// A DEPLOYMENT ENVIRONMENT — `github-pages` is hyphenated, so the resolver reads it as "not
+// a JS name", and it is not one of the four things that branch knew about either. It is a
+// GitHub concept, declared by the workflow that deploys into it, which is exactly the thing
+// that would have to answer for the runbook's claim that it "refuses any other ref".
+const identEnvironments = new Set([
+  ...identWorkflowYaml.matchAll(/^\s*environment:\s*([\w.-]+)\s*$/gm),
+  ...identWorkflowYaml.matchAll(/^\s*environment:\s*\n(?:[^\S\n]*(?:#[^\n]*)?\n)*[^\S\n]*name:\s*([\w.-]+)/gm),
+].map((m) => m[1]));
+// A GLOBAL — `window.STUDIO_GATE_SHA256`, `window.STUDIO_STAGE`. Not a namespace member in
+// the `Studio.x` sense (the resolver's namespace branch is spelled for a Capitalised
+// namespace, and `window` is the platform's), so it needs its own rule: the honest question
+// is whether this app's own code puts the name on the window.
+const identGlobal = (name) => new RegExp(`\\bwindow\\.${name}\\s*=`).test(identAll);
+// A RETIREMENT is declared BY THE DOCUMENT, the placeholder idiom one step further. PUBLISH.md
+// § 3 names `app/gate-config.js` and `window.STUDIO_GATE_SHA256` inside a sentence whose whole
+// job is to say they are GONE (v852, AUD-09) — so "every name resolves" is the wrong question
+// for them and demanding it would push a true sentence out of the document. The rule inverts
+// instead of exempting: a span the document says was deleted must NOT resolve, so if the name
+// ever comes back the note that says it is gone reddens the gate. Sentence-scoped, so the
+// declaration has to be about the span rather than merely near it.
+const identRetired = (doc) => {
+  const out = new Set();
+  for (const sentence of doc.split(/(?<=[.!?])\s+|\n\s*\n/)) {
+    if (!/\b(?:was|were)\s+(?:deleted|retired|removed)\b|\bno readers\b/i.test(sentence)) continue;
+    for (const m of sentence.matchAll(/`([^`]+)`/g)) out.add(m[1].trim().replace(/\s+/g, " "));
+  }
+  return out;
+};
+// Does the tree still answer to this name, in any shape a retired span can take? A file, a
+// global, a namespace member, a binding, a SQL function. Only the retirement rule reads it;
+// the live rules resolve per shape, which reports a MOVED name more precisely than this could.
+const identLives = (span) => {
+  const g = span.match(/^window\.([A-Za-z_$][\w$]*)$/);
+  if (g) return identGlobal(g[1]);
+  if (span.includes("/")) return fs.existsSync(path.join(ROOT, span));
+  const bare = span.replace(/\([^()]*\)$/, "");
+  const ns = bare.match(/^([A-Z]\w*(?:\.\w+)*)\.(\w+)$/);
+  if (ns) return identMember(ns[1], ns[2]);
+  if (!/^[\w.-]+$/.test(bare)) return false;
+  return identTree.has(bare) || identDefines(identAll, bare) || identSqlFn(bare);
+};
 
 // One name, every shape this codebase uses to define one: a declaration, an assignment
 // (to a function, an arrow, an object or an array — `Studio.DEMO_PACKS = {` is as much a
@@ -1308,6 +1385,7 @@ const identPlaceholders = (doc) => new Set([...doc.matchAll(/replace\s+`([^`]+)`
    Returns { held, gaps, unread } — `unread` is the failing bucket. */
 function resolveIdentifiers(doc) {
   const placeholders = identPlaceholders(doc);
+  const retired = identRetired(doc);
   const held = [], gaps = [], unread = [];
   for (const span of identSpans(doc)) {
     // — the exemptions, every one a shape —
@@ -1316,12 +1394,27 @@ function resolveIdentifiers(doc) {
     // as a bracket PAIR so a stray `>` cannot buy a span out of the unreadable bucket.
     if (/<[A-Za-z]\w*>/.test(span) || span.includes("*")) continue;
     if (placeholders.has(span)) continue;                 // the document declared it
+    // The document says this one is GONE, so the rule inverts rather than exempting: the
+    // name must NOT resolve. It runs before every shape below, including the path
+    // exemption, because a deleted FILE coming back is the same broken sentence as a
+    // deleted global coming back.
+    if (retired.has(span)) {
+      held.push(span);
+      if (identLives(span))
+        gaps.push(`${span} — the document says it was deleted, and the tree answers to it again`);
+      continue;
+    }
+    // Typography, not a name: a single character (`A` records, the `+` chips) or a span
+    // with no word character in it at all. Nothing this repo defines is one character long.
+    if (span.length < 2 || !/\w/.test(span)) continue;
     if (/^node\s/.test(span)) continue;                   // a command line — rule (e) holds the script
     // A code FRAGMENT rather than a name: `kind: "licensed"`, `role: "admin"`,
-    // `jsonb_set(data::jsonb,…)`. Scoped to quoting/bracing and the key-value SHAPE
-    // rather than "contains a colon" — `Studio::materialize` is not a fragment, it is a
-    // name in a syntax this repo does not write, and saying so is the point of the bucket.
-    if (/[{}"']/.test(span) || /^[A-Za-z_$][\w.$]*\s*:\s/.test(span)) continue;
+    // `caps.data:false`, `jsonb_set(data::jsonb,…)`. Scoped to quoting/bracing and the
+    // key-value SHAPE rather than "contains a colon" — `Studio::materialize` is not a
+    // fragment, it is a name in a syntax this repo does not write, and saying so is the
+    // point of the bucket, which is why the key-value form has to reject a SECOND colon
+    // rather than merely allow the space README writes without.
+    if (/[{}"']/.test(span) || /^[A-Za-z_$][\w.$]*\s*:(?!:)\s*\S/.test(span)) continue;
     if (span.includes("/")) continue;                     // a repo path — check 46 (e) / 48 (e)
     if (/^[\w.-]+\.(json|md|csv|txt|sql|html|css|svg|png)$/i.test(span)) continue;  // an artifact
     if (/^\.[a-z0-9]+$/.test(span)) continue;             // a bare extension — a file TYPE
@@ -1347,6 +1440,13 @@ function resolveIdentifiers(doc) {
     } else if ((m = span.match(/^([A-Z]\w*(?:\.\w+)*)\.(\w+)(?:\([^()]*\))?$/))) {
       held.push(span.replace(/\([^()]*\)$/, ""));
       if (!identMember(m[1], m[2])) gaps.push(`${span} — namespace member, assigned nowhere under app/, tools/, tests/ or supabase/`);
+    } else if ((m = span.match(/^window\.([A-Za-z_$][\w$]*)$/))) {
+      // A GLOBAL. `window` is the platform's namespace, not one of this app's, so the
+      // namespace branch above cannot read it — and the honest question is narrower than
+      // "is this name bound somewhere": it is whether the app's own code puts it there.
+      held.push(span);
+      if (!identGlobal(m[1]))
+        gaps.push(`${span} — named as a global, and nothing under app/, tools/ or tests/ assigns it to window`);
     } else if ((m = span.match(/^(?:[a-z_]+\.)?([A-Za-z_]\w*)\([^()]*\)$/))) {
       // A call. It resolves as JS **or** as DDL — `install()` is a registry hook,
       // `polecat_is_admin()` exists only as text inside a template literal.
@@ -1354,10 +1454,14 @@ function resolveIdentifiers(doc) {
       if (!identDefines(identAll, m[1]) && !identSqlFn(m[1]))
         gaps.push(`${span} — named here, defined neither in JS nor in any DDL this repo ships`);
     } else if (/^[A-Z][A-Z0-9_]*$/.test(span)) {
-      // SCREAMING_SNAKE: a constant the code binds, or an env var it reads.
+      // SCREAMING_SNAKE: a constant the code binds, an env var it reads — or a FILE, which
+      // is the shape a repo whose front page names `CNAME` and `LICENSE` writes without an
+      // extension for the artifact rules above to recognise. It resolves against the tree
+      // for the same reason the module branch does: "does this file exist" is a different
+      // question from "is this name defined", and both documents here ask the first one.
       held.push(span);
-      if (!identDefines(identAll, span) && !identEnv.has(span))
-        gaps.push(`${span} — neither a binding under app/, tools/, tests/ or supabase/ nor a name the code reads from the environment`);
+      if (!identDefines(identAll, span) && !identEnv.has(span) && !identTree.has(span))
+        gaps.push(`${span} — neither a binding under app/, tools/, tests/ or supabase/, nor a name the code reads from the environment, nor a file in the tree`);
     } else if (/^[a-z][\w]*(?:-[\w]+)+$/.test(span)) {
       // Hyphenated lowercase is not a JS name at all, so it is never one namespace — it is
       // whichever of FOUR the document meant, and each has its own roster derived from the
@@ -1367,10 +1471,11 @@ function resolveIdentifiers(doc) {
       // six spans of this shape resolved in none of them until they were taught.
       held.push(span);
       if (!identActions.has(span) && !identAttrs.has(span) && !identStoreKeys.has(span)
-          && !identRefStems.has(identRefStem(span)))
+          && !identRefStems.has(identRefStem(span)) && !identEnvironments.has(span))
         gaps.push(`${span} — hyphenated, so not a JS name: neither one of the actions ` +
           `polecat-admin gates (${[...identActions].join(", ")}), nor an attribute the app ` +
-          "sets or styles, nor a key it reads from storage, nor a ref any workflow mints");
+          "sets or styles, nor a key it reads from storage, nor a ref any workflow mints, " +
+          `nor a deployment environment any workflow declares (${[...identEnvironments].join(", ") || "none"})`);
     } else if (/^[A-Za-z_$][\w$]*$/.test(span)) {
       // A bare word is a NAME only when it is spelled like one — an internal capital.
       // All-lowercase spans are the registries' own keys, the `kind` vocabulary and SQL
@@ -1381,11 +1486,17 @@ function resolveIdentifiers(doc) {
       if (!identDefines(identAll, span) && !identProp(span))
         gaps.push(`${span} — neither a binding nor a property anything reads or writes`);
     } else if (/^[A-Z][a-z][\w ]*$/.test(span)) {
-      // A multi-word Capitalised span that survived the SQL test is a UI LABEL — the
-      // field an operator hunts for on screen. It has to be copy the app really prints.
+      // A multi-word Capitalised span that survived the SQL test is a UI LABEL — the field
+      // an operator hunts for on screen. It has to be copy this repo really prints, and
+      // that is TWO screens once a runbook is executed against repo settings rather than
+      // against the app: PUBLISH.md § 1's `GitHub Actions` is a value in GitHub's own Pages
+      // UI, which no app string can answer for. The thing that CAN is the workflow that
+      // requires the setting — deploy.yml's NOTE names it, and check 44 (a) already reads
+      // that same file — so a settings label resolves against the workflows or not at all.
       held.push(span);
-      if (!identAppCopy.includes(span))
-        gaps.push(`${span} — named as a control, and no such copy is printed anywhere under app/`);
+      if (!identAppCopy.includes(span) && !identWorkflowYaml.includes(span))
+        gaps.push(`${span} — named as a control, and no such copy is printed anywhere under app/ ` +
+          "nor named by any workflow this repo runs");
     } else if (/^[a-z]\w*(?:\.[a-z]\w*)+$/.test(span)) {
       continue;                                           // `data.files` — a key PATH into an entry
     } else {
@@ -3111,7 +3222,7 @@ ok("docs/index.html: the Color theme intro claims parity with the Dashboard them
      **ⓘ Tour**"). Check 13 fixed the same class of claim across the six tours; the route
      is the ⌘K palette's own Interactive tutorial command.
 
-   Seven rules, every one of them reusing a derivation an earlier check already built —
+   Eight rules, every one of them reusing a derivation an earlier check already built —
    this check adds no new source of truth, it points the existing ones at one more document:
    (a) the connector inventory names every connector the picker offers, by the picker's label;
    (b) it names none the registry does not have, and counts them in words (check 38's shape);
@@ -3122,7 +3233,11 @@ ok("docs/index.html: the Color theme intro claims parity with the Dashboard them
        idiom, with `library` inside a code span exempt BY SHAPE rather than by a list;
    (f) the rail list names exactly the rail's sections, in the rail's order (check 9's
        derivation, order-strict as check 39's is — README prints it as a walk);
-   (g) the tour-reopen route names the command palette's own tutorial label (check 13). */
+   (g) the tour-reopen route names the command palette's own tutorial label (check 13);
+   (h) every NAME the page hands a reader to type resolves — the check-25/42/46 (f)/48 (h)
+       rule, added 2026-08-11 with check 44 (g), since README and PUBLISH.md are the two
+       documents the front door forwards to and neither had an identifier rule. Two spans
+       here, both resolving: a check, not a repair. */
 
 // The document minus its fenced code blocks and inline code spans: prose only. Rules (a)–(c)
 // and (e)–(g) are about sentences a reader trusts, and `app/sources/` or `caps.data` inside
@@ -3279,6 +3394,23 @@ ok(`README.md: the tour-reopen route names the palette's own "${paletteTutorial}
   `the sentence reads: ${tourSentence.replace(/\s+/g, " ").trim() || "(no sentence mentions the welcome tour)"}\n      ` +
   "README said \"reopen via ⓘ Tour\", a control the app has never had — the same class of dead " +
   "route check 13 found eleven times across the tours themselves");
+
+// (h) the identifiers — the check-25 / 42 / 46 (f) / 48 (h) rule, and this is the last of
+// the two documents the FRONT DOOR forwards to (PUBLISH.md is the other, check 44 (g)).
+// README hands a reader few names by design: its inventories are labels, its tree is paths,
+// and the rules above already hold both. What was left over is the handful it hands you to
+// TYPE — `Studio.registerSource`, the extension point the Adapters bullet tells you to call
+// — and the file the Publish section says wires the custom domain. Two spans, both resolving:
+// a check, not a repair, which is the right result for a page this often read.
+const readmeIdents = resolveIdentifiers(readme);
+ok(`README.md: every name it hands a reader resolves in the code (${readmeIdents.held.length}: ${
+    [...new Set(readmeIdents.held)].sort().join(", ")})`,
+  // The floor is the whole roster rather than a fraction of it, because two is small enough
+  // that a broken extraction and an honest empty page look identical — the guard has to be
+  // the count itself here, where COMPAT.md's 12-of-17 could afford the slack.
+  readmeIdents.held.length >= 2 && !readmeIdents.gaps.length && !readmeIdents.unread.length,
+  `unresolved: ${readmeIdents.gaps.join("\n      ") || "(none)"}\n      ` +
+  `spans the resolver could not classify: ${readmeIdents.unread.map((s) => `\`${s}\``).join(" · ") || "(none)"}`);
 
 /* ── 42. CLAUDE.md + the pipeline runbook vs the gates the workflows really run ──
    N7, and check 41's own closing note named it: check 7 holds CLAUDE.md's SIZE figures
@@ -3676,7 +3808,15 @@ ok(`docs/index.html: all ${appAnchors.length} help anchors the app links to reso
    (d) every `tools/…` script the runbook tells you to run exists;
    (e) the tour-reopen route resolves against the command palette (check 13's resolver, one
        document over) and the reset key matches `app/welcome.js`'s own literal;
-   (f) the demo accounts are exactly `app/auth.js`'s first-run SEED, both directions.
+   (f) the demo accounts are exactly `app/auth.js`'s first-run SEED, both directions;
+   (g) every NAME the page hands an operator resolves — added 2026-08-11 with check 41 (h),
+       and this document is where the identifier rule stops being about JavaScript: a
+       runbook executed against GITHUB's settings names a deployment ENVIRONMENT, a
+       settings-UI LABEL only a workflow can answer for, and a repo FILE with no extension,
+       none of which the resolver's earlier nine namespaces could read. Its fourth span pair
+       runs the rule BACKWARDS — § 3's note names `app/gate-config.js` and
+       `window.STUDIO_GATE_SHA256` to say they are GONE, so the check holds them to staying
+       gone rather than demanding a true sentence resolve.
 
    Deliberately NOT held: the retired module's NAME. Rule (d) kills the bullet's actionable
    half (a script that is not there), and the fix removed the name with it, but "no module
@@ -3778,6 +3918,23 @@ ok(`PUBLISH.md: § 3's demo accounts are exactly the ${seedAccounts.length} the 
   `seeded, not in the runbook: ${missingSeed.join(", ") || "(none)"}\n      ` +
   `in the runbook, not seeded: ${straySeed.join(", ") || "(none)"}\n      ` +
   "app/auth.js's SEED is what a fresh browser gets — § 3 is where an operator reads it");
+
+// (g) the identifiers — the check-25 / 42 / 46 (f) / 48 (h) rule, and PUBLISH.md is the
+// document with the strongest claim on it after the RLS runbook: the other page here whose
+// instructions an operator EXECUTES, and against GitHub's settings rather than this repo's
+// code. That is what its three namespaces have in common and why no earlier document needed
+// them — a deployment ENVIRONMENT (`github-pages`, the thing rule (c) says refuses every
+// other ref), a settings-UI LABEL that only a workflow can answer for (`GitHub Actions`,
+// rule (a)'s own subject), and a repo FILE with no extension (`CNAME`, the custom domain).
+// The fourth is the interesting one and it runs the rule BACKWARDS: § 3's note names
+// `app/gate-config.js` and `window.STUDIO_GATE_SHA256` to say they were DELETED (v852,
+// AUD-09), so the check holds them to staying gone. Seven spans, all correct today.
+const publishIdents = resolveIdentifiers(publish);
+ok(`PUBLISH.md: every name it hands an operator resolves — or, where the page says it was ` +
+   `deleted, stays deleted (${publishIdents.held.length}: ${[...new Set(publishIdents.held)].sort().join(", ")})`,
+  publishIdents.held.length >= 5 && !publishIdents.gaps.length && !publishIdents.unread.length,
+  `unresolved: ${publishIdents.gaps.join("\n      ") || "(none)"}\n      ` +
+  `spans the resolver could not classify: ${publishIdents.unread.map((s) => `\`${s}\``).join(" · ") || "(none)"}`);
 
 /* ── 45. SPEC.md vs the spec it publishes ───────────────────────────────────
    N7, and the document check 44's own note named as the last one answering to no rule at
