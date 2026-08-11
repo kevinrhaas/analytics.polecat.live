@@ -6,6 +6,18 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 991,
+    title: 'The repo\'s own front page was the last document walking the builder in the old noun',
+    kind: 'fix',
+    ts: '2026-08-11T00:43:32.000Z',
+    items: [
+      'A chart on a dashboard is a <b>View</b>. The three versions before this one retired the old word from the ⌘K palette, from Help and from the app itself — and each of those checks is scoped to the surface it holds, which left <b>README.md</b>, the first page anyone reads about this project, answering to none of them.',
+      'It described the canvas entirely in the retired noun: drag a panel by its header, drop between any panels, a panel\'s right edge, double-click a panel title, click any panel or KPI. The three-pane diagram at the very top said the inspector edits a "panel /KPI / dashboard" — the one place a reader met the old word before any prose at all. Six sites, all now Views (and the diagram\'s missing bracket is closed).',
+      'The <b>Data panel</b> keeps its name everywhere it appears, because it is a pane and the app\'s own markup calls it that.',
+      'A new check holds the page to the same line the app draws, and states the boundary the sweep must not cross: <b>SPEC.md</b> keeps the word, because there "panels" is the key you write in a dashboard file — so the schema page may print it in key context and nowhere else.',
+    ],
+  },
+  {
     v: 990,
     title: 'The app was the last place a View was still called a panel',
     kind: 'fix',

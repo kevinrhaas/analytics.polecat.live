@@ -135,6 +135,49 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N7 — `README.md` was the last document walking the builder in the retired noun (v991, NO sw
+  bump, 2026-08-11, steward; dev branch; est 1pt, took 1 — ON estimate):** 🔁 N7 was again the
+  only takeable item in ▶ NOW (N31, N44, N41 and N25 all ⛔ on Kevin; SP-1 ⏳ on `hold` PR #689),
+  and the v990 pass had named this as its candidate. The last leg of the check 14 → 15 → 76 → 77
+  → 78 walk: 76 held the ⌘K palette, 77 held Help, 78 held the app itself, and every one of them
+  is scoped to the surface it holds — which left the repo's FRONT PAGE answering to none of them.
+  **Seven sites, in a document nothing had read on this word.** The Direct manipulation list
+  (`README.md:139-144`) described the canvas entirely in the retired noun — "drag a panel by its
+  header", "drop between any panels across rows", "a panel's right edge", "a panel title",
+  "click any panel or KPI" — and the v990 note's six were not all of it: the three-pane ASCII
+  diagram at the TOP of the page (`README.md:17`) had the Inspector column reading
+  *"panel /KPI / dashboard)"*, the one occurrence a reader meets before any prose at all. Its
+  opening bracket had been missing since the diagram was drawn, so the fix closed that too and
+  the column is still 15 cells wide (verified — all six box rows are 64 characters).
+  **Every `Data panel` in the same document was already correct and stays**, which is why this
+  was a noun rule and not a sweep.
+  **Doc-truth check 79**, premise + three rules, and it adds a DOCUMENT rather than a source of
+  truth: both nouns come from `addTextPanel()` alone (the `spec.panels` key gives the retired
+  word, the function's own toast gives the rendered one) and the pane vocabulary is re-derived
+  from check 78's two literals — `setupMobileTabs()`'s roster and `app/index.html`'s readable
+  attributes — so the two checks cannot disagree about where the word is legitimate. What counts
+  as README's copy is derived, not chosen: a ```lang fence is a command the reader types and is
+  stripped, a bare fence is a DIAGRAM the reader reads and stays (which is what put the pane box
+  inside the rule), and an inline `code` span is check 15's `<code>` idiom in markdown.
+  **(c) is the boundary rule, and it is the reason SPEC.md could be left alone safely:** that
+  page defines the file format, where `panels` is the key an author writes and check 45 (b)
+  already holds it both directions against `emptySpec()` — so the word may appear there only in
+  key context (fenced, backticked, or in a line documenting a real key), stated rather than
+  trusted, so a later run cannot grow README-shaped prose one file over and call it the schema.
+  **Measured:** rule (a) fails on the real pre-fix tree at all seven uses across six lines;
+  (b) and (c) on mutated trees ("out of the Data View onto the canvas"; one sentence of
+  README-shaped prose appended to SPEC.md). The code-side direction belongs to the PREMISE, not
+  to rule (a), and deliberately — check 78 behaves the same way: strip the Data pane out of the
+  markup and the tab roster and the check refuses to run rather than turning README's correct
+  "Data panel" into a finding (measured both ways, including the toast losing the rendered noun).
+  **One correction to the v990 note, which is worth carrying because it was a reasonable guess:**
+  it said the rule had a home in check 45 and needed no new check. It does not — 45 is *SPEC.md
+  vs the spec it publishes* and 41 is README's inventories (adapters, exports, the rail walk,
+  the pane's name); neither carries the nouns or the pane vocabulary this rule reads, both of
+  which are check 78's. Files: `README.md`, `tools/doc-truth.mjs`, `js/changelog.js`, `STATUS.md`.
+  No precached file changed, so no `sw.js` bump (and issue #631's territory stays untouched).
+  NEXT: `docs/PACKS.md:98` is the one remaining site in any first-party document — see the
+  candidate note at the foot of the N7 list, with the clean documents named.
 - **N7 — the APP was the last place a View was still called a panel (v990, sw v565,
   2026-08-11, steward; dev branch; est 1pt, took 1 — ON estimate):** 🔁 N7 was again the only
   takeable item in ▶ NOW (N31, N44, N41 and N25 all ⛔ on Kevin; SP-1 ⏳ on `hold` PR #689), and
@@ -17726,7 +17769,7 @@
     neither could leave; **rule (a) fails on the real pre-fix tree, 72 sites**, with four more
     directions measured on mutated trees. Help moved in the same PR (11 sentences + the `<code>`
     quote) because check 77 reads its exemption out of the app's copy.
-  * **Measured in the v990 pass and NOT taken, so the next run does not re-derive it — and it is
+  * ~~**Measured in the v990 pass and NOT taken, so the next run does not re-derive it — and it is
     the named candidate for the next N7 slice.** Check 78 is scoped to `app/*.js`, which leaves
     the repo's own front door: **`README.md` walks the builder in the retired noun** — "drop on
     the canvas to add a panel", "any panels", "a panel" — six item-uses in its Dashboard Builder
@@ -17737,7 +17780,30 @@
     them:** that page defines the file format, where `panels` is the key an author writes, and
     check 45 holds its key table against `emptySpec()` both directions — so the slice has to
     tell the key from the noun, which is the same distinction check 78 already draws with the
-    quoted-key exemption. Pure derivation, one document, no `sw.js` bump.
+    quoted-key exemption. Pure derivation, one document, no `sw.js` bump.~~ ✓ **SHIPPED v991, NO
+    sw bump (2026-08-11, steward — see DONE), and the note's own "the rule has a home" was the one
+    thing it got wrong.** Check 45 is *SPEC.md vs the spec it publishes* and check 41 is README's
+    inventories; neither carries the pane vocabulary or the two nouns this rule needs, both of
+    which live in check 78's derivation — so the walk gained its next leg, **check 79**, rather
+    than a rider on a check about something else. The note's six sites were right and there was a
+    seventh it had not seen, in the place a reader meets first: the three-pane ASCII diagram at
+    the top of the page said the inspector edits a *"panel /KPI / dashboard)"* — and its opening
+    bracket had been missing since the diagram was drawn. **SPEC.md was not swept, and rule (c)
+    says so out loud** rather than leaving the exemption implied: the word may appear there only
+    as the key — fenced, backticked, or in a line documenting a real `emptySpec()` key — so a
+    later run cannot grow README-shaped prose one file over and call it the schema.
+  * **Measured in the v991 pass and NOT taken, so the next run does not re-derive it — and it is
+    the named candidate for the next N7 slice.** The sweep of every remaining first-party document
+    found exactly **one** more site, and it is a good one: **`docs/PACKS.md:98`** — *"A pack's
+    **Views** are not its dashboards' panels again"* — a sentence whose whole job is to draw the
+    View/dashboard distinction, drawing it in the noun the last four slices retired. `CLAUDE.md`,
+    `PUBLISH.md`, `docs/COMPAT.md`, `docs/PIPELINE.md` and `docs/BACKLOG.md` are clean (0
+    occurrences each, measured), and the marketing page's one use — `index.html:70`'s alt text,
+    "the data and inspector panels" — is CORRECT: both are panes. So the remainder is one sentence
+    in one document, and the document already has a check: **48** (`docs/PACKS.md` vs the packs it
+    governs) is where the rule belongs, reusing check 79's derivation the way 79 reuses 78's. Pure
+    derivation, no `sw.js` bump. It is small enough that whoever takes it should pair it with the
+    next candidate below it rather than spend a whole slice on one line.
 > **📋 RECORDED FOR KEVIN, NOT PROMOTED — grooming pass 4, 2026-08-10.** This sits BELOW the queue
 > on purpose: `docs/BACKLOG.md` says the loop never promotes into ▶ NOW on its own, and pass 2's
 > proposal (PR #623) is still unanswered, so pass 4 proposes no batch. This is one finding the

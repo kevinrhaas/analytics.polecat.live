@@ -14,7 +14,7 @@ that runs anywhere.
 ```
 ┌──────────────┬───────────────────────────────┬───────────────┐
 │  Data panel  │         Live preview          │   Inspector   │
-│ (datasets +  │  (the real dashboard, in an   │  panel /KPI / │
+│ (datasets +  │  (the real dashboard, in an   │  (View /KPI / │
 │  queries)    │   iframe — preview == export) │  dashboard)   │
 └──────────────┴───────────────────────────────┴───────────────┘
 ```
@@ -136,12 +136,12 @@ Generate the deployable `.html` from a `.studio.json` without the browser (reuse
 ```
 
 ## Direct manipulation
-- **Reorder (any row):** drag a panel by its header (⠿ grip); an insertion caret + cursor ghost show
-  where it'll land — drop between any panels across rows, or past the end.
-- **Resize:** drag a panel's right edge to change its column span (snaps 1 → … → full, live).
-- **Rename:** double-click a panel title on the canvas to edit it in place.
+- **Reorder (any row):** drag a View by its header (⠿ grip); an insertion caret + cursor ghost show
+  where it'll land — drop between any Views across rows, or past the end.
+- **Resize:** drag a View's right edge to change its column span (snaps 1 → … → full, live).
+- **Rename:** double-click a View's title on the canvas to edit it in place.
 - **Add:** drag a dataset or a saved query out of the Data panel onto the canvas, or use the `+` chips.
-- **Select/edit:** click any panel or KPI to open it in the inspector.
+- **Select/edit:** click any View or KPI to open it in the inspector.
 - **New ▾ → auto-build:** scaffold a full starter dashboard (KPIs + a chart per query) from any
   query set in one click, then tweak.
 
