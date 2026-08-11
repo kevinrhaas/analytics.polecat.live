@@ -3949,7 +3949,45 @@ ok(`${tpnPath}: every third-party row cites licence text that is in the tree (${
    (d) the author's checklist names `sw.js` whenever a registered pack ships committed
        data, so the step (c) now fails on is one the checklist actually tells you to do;
    (e) the negative half — every repo path and every `Studio.*` entry point the document
-       names resolves in the tree (the check-46 rule, one document over). */
+       names resolves in the tree (the check-46 rule, one document over).
+
+   Two more, added 2026-08-11 (N7), and they are different questions from (a)-(e):
+
+   (f) THE NOUN — the last leg of the check 14 → 15 → 76 → 77 → 78 → 79 walk. Those
+       retired "panel" as the name of a thing on a dashboard from the ⌘K palette, from
+       Help, from the app's own copy and from README; each is scoped to the surface it
+       holds, and the sweep of every remaining first-party document found exactly ONE
+       site left. It is here, and it is a good one: **`docs/PACKS.md`'s "A pack's Views
+       are not its dashboards' panels again"** — a sentence whose whole job is to draw
+       the View/dashboard distinction, drawing it in the retired noun. (`CLAUDE.md`,
+       `PUBLISH.md`, `docs/COMPAT.md`, `docs/PIPELINE.md` and `docs/BACKLOG.md` carry
+       zero occurrences; the marketing page's one use is a pane and correct.) The line
+       is check 78's, re-derived here the way 79 re-derives it rather than reached for
+       across blocks — a pane is a panel because `app/index.html` says so in the
+       attributes a reader is read to; a thing on a dashboard is a View. Backticks are
+       check 15's <code> idiom, which is what lets this document keep `Studio.newPanel`
+       and a `spec.panels` key in its prose without an allow-list, and a ```js fence is
+       code the reader copies rather than copy they read.
+   (g) THE NAMES — the half (a) leaves open, and it is the same shape as every other
+       "the count is held, the roster is not" gap this family has closed. (a) holds
+       "two of the six shipped packs" against the registry's arithmetic; the SAME
+       sentence then names all six in a parenthetical, on the two sides of the
+       synthetic/real split, and nothing read those words. Rename a pack's folder, or
+       move one across the split while the totals happen to hold, and (a) still passes
+       on a sentence that has gone wrong. The names are the registry's `folder` values
+       verbatim — the name a reader sees in the app — so this is a derivation, not a
+       list kept here.
+
+   Measured: (f) fails on the real pre-fix tree, naming the sentence. Its code side is
+   the PREMISE's rather than the rule's — deliberately, the way checks 78 and 79 do it:
+   break the derivation and it refuses to run rather than turning a correct "Data panel"
+   into a finding (measured twice on mutated trees — the toast stops naming the rendered
+   noun, and the function both literals are read from is renamed). (g) has NO drift
+   today; it is the rule that keeps the sentence true as the program grows, and all
+   three of its directions were measured on mutated trees — a folder renamed in the
+   registry (which fails both ways at once, as an uncovered pack AND an invented name),
+   a pack moved to the wrong side of the semicolon while the totals still hold, and a
+   name in the document that no pack's folder matches. */
 const packsDoc = read("docs/PACKS.md");
 const packsPath = "docs/PACKS.md";
 
@@ -4055,6 +4093,98 @@ ok(`${packsPath}: every repo path and Studio entry point it names resolves (${pa
   `dangling paths: ${packsDangling.join(", ") || "(none)"}\n      ` +
   `unresolved entry points: ${packsApiGaps.map((a) => `Studio.${a}()`).join(", ") || "(none)"}\n      ` +
   "a contract that names a script or a function nobody can find is not executable");
+
+// (f) the noun. Check 78's line, re-derived rather than shared: a rule that reached into
+//     another check's block would break the day that block is edited, and the two cannot
+//     disagree while both read the same two literals — `spec.panels` gives the retired
+//     word, addTextPanel's own toast gives the rendered one.
+const addTextSrc48 = (() => {
+  const at = studioJs.indexOf("function addTextPanel(");
+  return at < 0 ? "" : searchBlockAt(studioJs, studioJs.indexOf("{", at), "{", "}");
+})();
+const specKey48 = (addTextSrc48.match(/spec\.(\w+)\.push\(/) || [])[1] || "";            // "panels"
+const retired48 = specKey48.replace(/s$/, "");                                           // "panel"
+const toast48 = (addTextSrc48.match(/toast\("([^"]*?)\s+added\b/) || [])[1] || "";
+const rendered48 = (toast48.match(/\b[A-Z][a-z]+\b(?!.*\b[A-Z][a-z]+\b)/) || [])[0] || "";
+const NOUN48 = retired48 ? new RegExp(`^${retired48}s?$`, "i") : /$^/;
+// The pane vocabulary, off the same two sources checks 78/79 read: the mobile tab roster
+// and the shell markup's own readable attributes. A pane IS a panel; only a thing on a
+// dashboard is not.
+const paneTabs48 = [...fnBody(studioJs, "setupMobileTabs")
+  .matchAll(/\{\s*id:\s*"\w+",\s*label:\s*"([^"]+)"/g)].map((m) => m[1]);
+const panePhrases48 = new Set(paneTabs48.map((l) => l.toLowerCase() + " " + retired48));
+const words48 = (s) => s.replace(/[’']/g, "'").match(/[A-Za-z][A-Za-z'-]*/g) || [];
+const shell48 = read("app/index.html").replace(/<!--[\s\S]*?-->/g, " ");
+const harvest48 = (text) => {
+  const w = words48(text);
+  w.forEach((tok, i) => {
+    if (NOUN48.test(tok.replace(/'s$/, "")) && i > 0) panePhrases48.add(w[i - 1].toLowerCase() + " " + retired48);
+  });
+};
+harvest48(shell48.replace(/<[^>]*>/g, " "));
+[...shell48.matchAll(/\b(?:title|aria-label|placeholder)="([^"]*)"/g)].forEach((m) => harvest48(m[1]));
+// The document's COPY: a ```lang fence is code the reader copies, an inline `span` is
+// check 15's <code> idiom, and what is left is prose. Line by line, so a report names the
+// sentence and a phrase never pairs across a break it does not span.
+const packsProse48 = packsDoc
+  .replace(/^```[a-zA-Z][\w+-]*\n[\s\S]*?^```/gm, (m) => m.replace(/[^\n]/g, " "))
+  .replace(/`[^`\n]*`/g, " ")
+  .split("\n");
+const packsPremise48 = ok(`${packsPath}: the contract parsed for the noun rule (${packsProse48.length} line(s), ${panePhrases48.size} pane phrase(s))`,
+  !!retired48 && !!rendered48 && retired48 !== rendered48 && rendered48 === savedNoun &&
+    paneTabs48.length >= 3 && panePhrases48.has("data " + retired48) && packsProse48.length > 100,
+  `retired "${retired48 || "?"}" (spec.${specKey48 || "?"}) · rendered "${rendered48 || "?"}" ` +
+  `(addTextPanel's toast, and check 14's "${savedNoun}")\n      ` +
+  `pane phrases: ${[...panePhrases48].sort().join(" · ") || "(none)"}\n      ` +
+  "the nouns and the panes are check 78's own literals — this rule adds a document, not a " +
+  "source of truth, so it refuses to run rather than report on a derivation it could not make");
+if (packsPremise48) {
+  const strayPacks48 = [];
+  packsProse48.forEach((line, i) => {
+    const w = words48(line);
+    w.forEach((tok, j) => {
+      if (!NOUN48.test(tok.replace(/'s$/, ""))) return;
+      const before = j > 0 ? w[j - 1].toLowerCase() : "";
+      if (before && panePhrases48.has(before + " " + retired48)) return;
+      strayPacks48.push(`${packsPath}:${i + 1}: "${line.trim().slice(0, 110)}"`);
+    });
+  });
+  ok(`${packsPath}: the contract calls a thing on a dashboard a "${rendered48}" — "${retired48}" only where the app's markup names a pane`,
+    !strayPacks48.length,
+    `${[...new Set(strayPacks48)].join("\n      ") || "(none)"}\n      ` +
+    `the panes: ${[...panePhrases48].sort().join(" · ")}\n      ` +
+    `checks 76-79 retired this noun in the palette, in Help, in the app and on the front page; ` +
+    `the sentence here drawing the View/dashboard distinction was drawing it in the retired word`);
+}
+
+// (g) the names. (a) holds the arithmetic of the sentence that splits the packs by kind;
+//     the parenthetical in the SAME sentence names all of them, and nothing read it. The
+//     roster is the registry's own `folder` values — what the reader sees in the app.
+const packsSplit48 = (packsDoc.match(/\S+\s+of\s+the\s+\S+\s+(?:shipped|registered)\s+packs\b[^(]*\(([^)]*)\)/i) || [, ""])[1];
+const [synthSide48, realSide48] = packsSplit48.split(";");
+const namesIn48 = (side) => (side || "").split(/,| and /)
+  .map((frag) => (frag.trim().match(/^[A-Z][^\s]*(?:\s+[A-Z][^\s]*)*/) || [""])[0].trim())
+  .filter(Boolean);
+const claimed48 = { synthetic: namesIn48(synthSide48), real: namesIn48(realSide48) };
+const packsNameGaps48 = [];
+for (const p of packRegistry) {
+  const side = p.sourceKind === "synthetic" ? "synthetic" : "real";
+  const other = side === "synthetic" ? "real" : "synthetic";
+  if (claimed48[side].includes(p.folder)) continue;
+  packsNameGaps48.push(claimed48[other].includes(p.folder)
+    ? `"${p.folder}" is listed as ${other === "real" ? "real" : "synthetic"} data, but its registry entry declares kind:"${p.sourceKind}"`
+    : `"${p.folder}" (kind:"${p.sourceKind}") is named on neither side of the sentence`);
+}
+const packsInvented48 = [...claimed48.synthetic, ...claimed48.real]
+  .filter((n) => !packRegistry.some((p) => p.folder === n))
+  .map((n) => `"${n}" is named here and is no pack's folder in the registry`);
+ok(`${packsPath}: the sentence naming the packs names every one of them, on the side its \`source.kind\` puts it (${
+  packRegistry.map((p) => `${p.folder}: ${p.sourceKind || "?"}`).join(" · ")})`,
+  !!packsSplit48 && !!synthSide48 && !!realSide48 && !packsNameGaps48.length && !packsInvented48.length,
+  `${[...packsNameGaps48, ...packsInvented48].join("\n      ") || "(no parenthetical of this shape found — the sentence naming the packs was removed or reworded)"}\n      ` +
+  `the document says synthetic: ${claimed48.synthetic.join(", ") || "(none)"} · real: ${claimed48.real.join(", ") || "(none)"}\n      ` +
+  "rule (a) holds the two NUMBERS in this sentence; a pack renamed, or moved across the " +
+  "split while the totals happen to hold, leaves them both right and the roster wrong");
 
 /* ── 49. Help's app-bar chrome vs the bar the app renders ───────────────────
    N7, and the check-21 move one paragraph over. Checks 9 and 43 hold Help's rail and

@@ -3,6 +3,6 @@
    the version label and the What's-new unseen dot, so the ~680KB of full history is
    fetched lazily (Studio.loadChangelog) the first time someone opens the feed.
    Regenerated from js/changelog.js on every normalize run — never hand-edit. */
-window.STUDIO_LATEST_VERSION = 991;
-window.STUDIO_LATEST = {"v":991,"title":"The repo's own front page was the last document walking the builder in the old noun","kind":"fix","ts":"2026-08-11T00:43:32.000Z"};
+window.STUDIO_LATEST_VERSION = 992;
+window.STUDIO_LATEST = {"v":992,"title":"The pack contract was the last document calling a View a panel","kind":"fix","ts":"2026-08-11T01:10:50.000Z"};
 window.STUDIO_BUILD = "__BUILD_TS__";

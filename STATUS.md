@@ -135,6 +135,50 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N7 — `docs/PACKS.md` was the last first-party document calling a View a panel, and the
+  sentence that named the packs answered to nothing (v992, NO sw bump, 2026-08-11, steward; dev
+  branch; est 1pt, took 1 — ON estimate):** 🔁 N7 was again the only takeable item in ▶ NOW (N31,
+  N44, N41 and N25 all ⛔ on Kevin; SP-1 ⏳ on `hold` PR #689), and the v991 pass had named this
+  as its candidate — including its own instruction to **pair it with a second candidate rather
+  than spend a whole slice on one line**, which is what the (g) half below is.
+  **The noun half closes the walk.** Checks 76 → 77 → 78 → 79 retired "panel" as the name of a
+  thing on a dashboard from the ⌘K palette, from Help, from the app's own copy and from
+  `README.md`; each is scoped to the surface it holds, and the v991 sweep found exactly one site
+  left in a first-party document. It was `docs/PACKS.md:98` — *"A pack's **Views** are not its
+  dashboards' panels again"* — a sentence whose whole job is to draw the View/dashboard
+  distinction, drawing it in the word four slices had retired. It now reads *"A pack's pinned
+  **Views** are not the Views on its dashboards again"*. **Re-measured in this pass rather than
+  taken on trust:** `CLAUDE.md`, `PUBLISH.md`, `docs/COMPAT.md`, `docs/PIPELINE.md` and
+  `docs/BACKLOG.md` carry zero occurrences, README's four are all `Data panel` (a pane, correct),
+  SPEC.md's six are the spec key, and the marketing page's one is a pane. **So the walk is
+  finished:** with this landed there is no first-party document left calling a View a panel, and
+  the next N7 slice is a different subject, not the next document.
+  **The rules went into check 48, where the v991 note said they belonged** — and this time that
+  was right, because 48 *is* `docs/PACKS.md` vs the packs it governs, unlike the 45/41 pair the
+  v990 note had proposed for README. Rule **(f)** is the noun, re-deriving check 78's line rather
+  than reaching across blocks (a rule that reads another check's variables breaks the day that
+  block is edited): the retired word is `addTextPanel()`'s own `spec.panels` key, the rendered one
+  is its toast, and the panes come from `setupMobileTabs()`'s roster plus `app/index.html`'s
+  readable attributes. Backticks are check 15's `<code>` idiom, which is what lets the contract
+  keep `Studio.newPanel` and the `spec.panels` key in its prose with no allow-list, and a ```js
+  fence is code the reader copies rather than copy they read.
+  **Rule (g) is the pairing, and it is a real gap rather than a rider:** rule (a) has held
+  *"two of the six shipped packs"* since v933 — the arithmetic — while the SAME sentence names
+  all six in a parenthetical, split synthetic-vs-real, and nothing read those words. Rename a
+  pack's folder, or move one across the split while the totals happen to hold, and (a) still
+  passes on a sentence that has gone wrong. The roster is now derived from the registry's own
+  `folder` values (the name the reader sees in the app), so the document cannot drift from it.
+  The § "What is checked, and where" table gained the two rows to match.
+  **Measured:** (f) fails on the real pre-fix tree, naming the sentence; its code side is the
+  PREMISE's, not the rule's, exactly as 78/79 do it — break the derivation and it refuses to run
+  rather than turning a correct "Data panel" into a finding (measured twice: the toast stops
+  naming the rendered noun; `addTextPanel` is renamed). (g) has **no drift today** — it is the
+  rule that keeps the sentence true as the pack program grows — and all three of its directions
+  were measured on mutated trees: a folder renamed in the registry (which fails both ways at
+  once, as an uncovered pack and an invented name), Market Coverage moved to the synthetic side
+  of the semicolon while the totals still hold, and a "Soil Health" the registry has never had.
+  Dev gate green (validate · changelog-check · doc-truth · dev-smoke at 390×780 + desktop, zero
+  pageerrors). No `sw.js` bump: `docs/PACKS.md` and `tools/` are not precached.
 - **N7 — `README.md` was the last document walking the builder in the retired noun (v991, NO sw
   bump, 2026-08-11, steward; dev branch; est 1pt, took 1 — ON estimate):** 🔁 N7 was again the
   only takeable item in ▶ NOW (N31, N44, N41 and N25 all ⛔ on Kevin; SP-1 ⏳ on `hold` PR #689),
@@ -17792,7 +17836,7 @@
     says so out loud** rather than leaving the exemption implied: the word may appear there only
     as the key — fenced, backticked, or in a line documenting a real `emptySpec()` key — so a
     later run cannot grow README-shaped prose one file over and call it the schema.
-  * **Measured in the v991 pass and NOT taken, so the next run does not re-derive it — and it is
+  * ~~**Measured in the v991 pass and NOT taken, so the next run does not re-derive it — and it is
     the named candidate for the next N7 slice.** The sweep of every remaining first-party document
     found exactly **one** more site, and it is a good one: **`docs/PACKS.md:98`** — *"A pack's
     **Views** are not its dashboards' panels again"* — a sentence whose whole job is to draw the
@@ -17803,7 +17847,38 @@
     in one document, and the document already has a check: **48** (`docs/PACKS.md` vs the packs it
     governs) is where the rule belongs, reusing check 79's derivation the way 79 reuses 78's. Pure
     derivation, no `sw.js` bump. It is small enough that whoever takes it should pair it with the
-    next candidate below it rather than spend a whole slice on one line.
+    next candidate below it rather than spend a whole slice on one line.~~ ✓ **SHIPPED v992, NO sw
+    bump (2026-08-11, steward — see DONE), and the note's own pairing instruction is what shaped
+    the slice.** The one sentence was fixed and the rule went into check 48, as the note said —
+    and this time "the document already has a check" held, because 48 *is* `docs/PACKS.md` vs the
+    packs it governs. The paired half was found by measuring the same document rather than the
+    reservoir: rule (a) has held *"two of the six shipped packs"* — the two NUMBERS — while the
+    same sentence names all six, split synthetic-vs-real, and nothing read the names. **Rule (g)
+    derives that roster from the registry's own `folder` values.** It has no drift today and says
+    so; it is the rule that keeps the sentence true as the pack program grows.
+    **The noun walk (checks 14 → 15 → 76 → 77 → 78 → 79 → 48 (f)) is now FINISHED**, re-measured
+    in this pass rather than taken on trust: `CLAUDE.md`, `PUBLISH.md`, `docs/COMPAT.md`,
+    `docs/PIPELINE.md` and `docs/BACKLOG.md` are at zero, README's four uses are all the `Data
+    panel` pane, SPEC.md's six are the spec key under check 45 (b), and the marketing page's one
+    is a pane. There is no first-party document left calling a View a panel, so the next N7 slice
+    is a different subject — not the next document.
+  * **Measured in the v992 pass and NOT taken, so the next run does not re-derive it — and it is
+    the named candidate for the next N7 slice.** Check 48 (e) resolves every repo PATH and every
+    `Studio.*` entry point `docs/PACKS.md` names — but its extractor requires the open paren
+    INSIDE the backticks (`/`Studio\.(\w+(?:\.\w+)?)\(/`), so it reads **3 of the ~10 identifiers
+    the contract hands an author**. `Studio.ensurePackDataMaterialized(id)`,
+    `Studio.ensureAllPackDataMaterialized()` and `Studio.packSourceIssues(entry)` are held;
+    `Studio.Build.compute`, `Studio.Build.runBlob`, `Studio.newPanel` and `Studio.runJobSteps`
+    are named without parens and are not, and neither are the four non-`Studio` names the
+    document tells you to copy — `writePack()`, `bdSave`, `reconcilePackDashboards` and
+    `localfile.js typeCell`. **All eleven resolve today (measured in this pass, so the slice is a
+    check, not a fix)** — `Studio.Build` is assembled as an object literal in `app/build.js:2396`
+    and `newPanel` is `app/model.js:2517`, which is exactly why a resolver has to know more than
+    one shape. It is the check-46/48(e) rule taken to the identifiers a runbook's reader actually
+    types, and the PUBLISH.md class of failure it guards is the one this family keeps finding: a
+    contract that names a function nobody can call. Est 1pt, `docs/` + `tools/` only, no `sw.js`
+    bump. **Note for whoever takes it:** the derivation belongs in check 48 beside (e), and it
+    should report the shape it could not resolve rather than silently skipping it.
 > **📋 RECORDED FOR KEVIN, NOT PROMOTED — grooming pass 4, 2026-08-10.** This sits BELOW the queue
 > on purpose: `docs/BACKLOG.md` says the loop never promotes into ▶ NOW on its own, and pass 2's
 > proposal (PR #623) is still unanswered, so pass 4 proposes no batch. This is one finding the

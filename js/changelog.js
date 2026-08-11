@@ -6,6 +6,17 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 992,
+    title: 'The pack contract was the last document calling a View a panel',
+    kind: 'fix',
+    ts: '2026-08-11T01:10:50.000Z',
+    items: [
+      'A chart on a dashboard is a <b>View</b>. Four versions retired the old word from the ⌘K palette, from Help, from the app itself and from the repo\'s front page; a sweep of every remaining first-party document found exactly one sentence left, and it was the one that could least afford it — <b>docs/PACKS.md</b>, the contract an author follows to ship a sample pack, drawing the View/dashboard distinction in the retired noun. It now reads "a pack\'s pinned Views are not the Views on its dashboards again".',
+      'The check that holds that document now holds its vocabulary too, on the same line the app draws for itself: a pane is a panel because the app\'s own markup says so, a thing on a dashboard is a View, and a name in backticks is code rather than copy — which is what lets the page keep naming the <code>spec.panels</code> key it teaches you to write.',
+      'It also gained the half that was missing beside it: the contract says how many packs ship and then names all six, and only the two numbers were checked. Rename a pack, or move one across the synthetic/real line while the totals happen to hold, and the sentence went wrong silently. The names are now read from the registry itself.',
+    ],
+  },
+  {
     v: 991,
     title: 'The repo\'s own front page was the last document walking the builder in the old noun',
     kind: 'fix',
