@@ -1137,6 +1137,264 @@ ok(`app/tutorial.js: every tour that walks a catalog names that catalog ROW's ow
   !rowTourGaps.length,
   `${rowTourGaps.join("\n      ")}\n      the row is where the work happens — an unnamed row control is one the reader will never find`);
 
+/* ── the IDENTIFIER RESOLVER (checks 46 (f) and 48 (h)) ─────────────────────
+   N7, 2026-08-11. Check 48 (h) asked a question no other check here asks: not "is this
+   COUNT right" or "does this PATH exist", but **can a reader type the name this document
+   just handed them and have the code answer?** That is the PUBLISH.md class of failure —
+   a contract naming a function nobody can call — and it is the one this family keeps
+   finding. (h) shipped that rule for `docs/PACKS.md` with a resolver that knew five
+   SHAPES, because the JS this repo writes defines a name five ways.
+
+   The v993 measurement said the obvious next move — point it at the other EXECUTED
+   document — is a bigger slice than it looks. `tools/M7-RLS-GOLIVE-RUNBOOK.md` names
+   eleven identifiers of this shape and (h)'s resolver resolved none of the hard ones:
+   `polecat_is_admin()`, `BOOTSTRAP_DDL`, `RLS_REAL_SQL`, `PROVISION_SECRET`,
+   `SUPABASE_SERVICE_ROLE_KEY`, `gotrueId`, `acctOwner`. They are not missing — they are
+   in the tree, in NAMESPACES (h) could not read:
+
+     · a SQL function inside a template literal (`polecat_is_admin` is DDL text, built in
+       `app/sources/schema.js` and three more places — no JS shape describes it);
+     · an Edge-Function binding in a **`.ts`** file the corpus excluded by extension;
+     · an environment variable, which is not a binding at all — it is a string key read
+       through `Deno.env.get`, so the honest resolution is "the code reads this name";
+     · a workspace object PROPERTY (`gotrueId`, `acctOwner`), which is function-shaped
+       nowhere;
+     · the Edge Function's fixed ACTION vocabulary (`go-live`, `create-user`), hyphenated
+       and so not spelled like a JS name at all;
+     · a UI field LABEL (`Admin function URL`) — multi-word, and the thing an operator
+       actually hunts for on screen.
+
+   So this is not "(h) with another file passed in": each namespace needs its OWN honest
+   resolution rule, or the runbook gets a check that green-lights a name nobody can call.
+   The resolver below is (h)'s, taught those namespaces and lifted out of check 48 so the
+   two documents share ONE derivation rather than growing a second copy — the reuse idiom
+   checks 28, 46 and 79 already follow.
+
+   Two invariants carried over from (h) unchanged, because they are what stop a rule like
+   this rotting one span at a time:
+     · a span that is neither prose nor a shape the resolver knows is REPORTED BY NAME,
+       not silently skipped. The unreadable bucket is a FAILING condition;
+     · every exemption is a SHAPE, never an allow-list of words. */
+
+// The code corpus — every first-party module a reader could be sent to. `tests/` and the
+// Edge Function's `.ts` are in it because both documents point an operator straight at
+// them; the guard itself is excluded on purpose, so a name resolves against the CODE and
+// never against the check that names it.
+const identCorpus = (() => {
+  const files = {};
+  const walk = (dir, re) => {
+    if (!fs.existsSync(path.join(ROOT, dir))) return;
+    for (const e of fs.readdirSync(path.join(ROOT, dir), { withFileTypes: true })) {
+      const rel = dir + "/" + e.name;
+      if (e.isDirectory()) walk(rel, re);
+      else if (re.test(e.name) && rel !== "tools/doc-truth.mjs") files[rel] = read(rel);
+    }
+  };
+  ["app", "tools", "tests"].forEach((d) => walk(d, /\.m?js$/));
+  walk("supabase", /\.ts$/);
+  files["sw.js"] = read("sw.js");
+  return files;
+})();
+const identAll = Object.values(identCorpus).join("\n");
+// Modules resolve against the TREE by basename, not against the code corpus: a document
+// may legitimately name a workflow or a SQL file, and "does this file exist" is a
+// different question from "is this name defined".
+const identTree = (() => {
+  const names = new Set();
+  const walk = (dir) => {
+    for (const e of fs.readdirSync(path.join(ROOT, dir), { withFileTypes: true })) {
+      if (e.name === "node_modules" || e.name === ".git" || e.name === "dev" || e.name === "site") continue;
+      const rel = dir === "." ? e.name : dir + "/" + e.name;
+      if (e.isDirectory()) walk(rel);
+      else { names.add(e.name); names.add(rel); }
+    }
+  };
+  walk(".");
+  return names;
+})();
+// The DDL corpus: committed `.sql` plus every module that BUILDS SQL in a template
+// literal. `polecat_is_admin` exists only as text inside those literals, which is exactly
+// why a "function" rule written for JS cannot see it.
+const identSql = (() => {
+  let s = "";
+  const walk = (dir) => {
+    for (const e of fs.readdirSync(path.join(ROOT, dir), { withFileTypes: true })) {
+      const rel = dir + "/" + e.name;
+      if (e.isDirectory()) walk(rel);
+      else if (/\.sql$/.test(e.name)) s += "\n" + read(rel);
+    }
+  };
+  ["tools", "supabase"].forEach(walk);
+  return s + "\n" + identAll;
+})();
+// An env var is a string key the code READS — the only honest resolution there is.
+const identEnv = new Set([...identAll.matchAll(/(?:Deno\.env\.get\(\s*["']([A-Z][A-Z0-9_]*)["']|process\.env\.([A-Z][A-Z0-9_]*))/g)]
+  .map((m) => m[1] || m[2]));
+// The Edge Function's action vocabulary, from the comparisons that GATE it — index.ts's
+// own header calls those four "the entire surface", so the branch is the source of truth.
+const identActions = new Set([...read("supabase/functions/polecat-admin/index.ts")
+  .matchAll(/action\s*===\s*"([a-z][\w-]*)"/g)].map((m) => m[1]));
+// An HTML ATTRIBUTE the app really uses — set/read through the DOM api, or styled by an
+// attribute selector. Both halves are needed and neither is redundant: `data-palette` is
+// only ever WRITTEN (`setAttribute`, no rule selects it), while `data-theme` is only ever
+// STYLED (the pre-paint script writes it through a variable, the stylesheet names it).
+const identAttrs = new Set([
+  ...identAll.matchAll(/(?:get|set|remove|has)Attribute\(\s*["']([a-z][\w-]*)["']/g),
+  ...[read("app/studio.css"), read("css/landing.css"), read("app/index.html"), read("index.html")]
+    .join("\n").matchAll(/\[([a-z][a-z0-9]*(?:-[a-z0-9]+)+)(?:[~^|*$]?=|\])/g),
+].map((m) => m[1]));
+// A STORAGE KEY, which is a string and nothing else — the honest question is whether the
+// code reads or writes it. `storageKey:` is in the roster because that is how the shared
+// shell is handed this app's historical keys, and CLAUDE.md names them in exactly that role.
+const identStoreKeys = new Set([...identAll.matchAll(
+  /(?:local|session)Storage\.(?:get|set|remove)Item\(\s*["']([\w.-]+)["']|storageKey:\s*["']([\w.-]+)["']/g)]
+  .map((m) => m[1] || m[2]));
+// A GIT REF the repo MINTS. `release-vNNN` is a PATTERN, not a literal — no workflow
+// contains that string, because the number is interpolated — so both sides reduce to the
+// literal stem before they are compared: `release-v${V}` in the workflow, and the doc's
+// span with its placeholder tail (a run of digits, or of capitals like `NNN`) removed.
+// Scoped to the lines that actually mint a ref, so an unrelated interpolated string
+// elsewhere in a workflow cannot enlarge the roster.
+const identRefStems = (() => {
+  const dir = ".github/workflows";
+  if (!fs.existsSync(path.join(ROOT, dir))) return new Set();
+  const text = fs.readdirSync(path.join(ROOT, dir)).filter((f) => /\.ya?ml$/.test(f))
+    .map((f) => read(dir + "/" + f)).join("\n");
+  const minting = text.split("\n").filter((l) => /git\s+tag|refs\/tags\//.test(l)).join("\n");
+  return new Set([...minting.matchAll(/([A-Za-z][\w.-]*)\$\{/g)].map((m) => m[1]));
+})();
+const identRefStem = (span) => span.replace(/(?:[A-Z]{2,}|\d+)$/, "");
+// Field labels the app really prints, for the multi-word shape.
+const identAppCopy = Object.entries(identCorpus).filter(([r]) => r.startsWith("app/")).map(([, s]) => s).join("\n")
+  + "\n" + read("app/index.html") + "\n" + read("index.html");
+
+// One name, every shape this codebase uses to define one: a declaration, an assignment
+// (to a function, an arrow, an object or an array — `Studio.DEMO_PACKS = {` is as much a
+// definition as `function writePack(`), an object KEY whose value is a function, or a
+// var/let/const binding (which is also how `export const BOOTSTRAP_DDL` reads).
+const identDefines = (src, name) => new RegExp(
+  `\\bfunction\\s+${name}\\s*\\(` +
+  `|\\b${name}\\s*=\\s*(?:async\\s+)?(?:function\\b|\\(|[[{])` +
+  `|\\b${name}\\s*:\\s*(?:async\\s+)?(?:function\\b|\\()` +
+  `|\\b(?:var|let|const)\\s+${name}\\b`).test(src);
+// A namespace member is either assigned onto the namespace (`WS.freshDeploySQL = function`)
+// or a KEY of the object literal the namespace is assigned — how app/build.js writes it
+// (`runBlob: bdRunBlob`, a name bound to a closure defined 250 lines earlier).
+const identMember = (ns, member) => {
+  if (new RegExp(`\\b${ns.replace(/\./g, "\\.")}\\.${member}\\s*=`).test(identAll)) return true;
+  const at = identAll.indexOf(`${ns} = {`);
+  return at >= 0 && new RegExp(`(^|[\\s,{])${member}\\s*:`).test(braceBlockAt(identAll, identAll.indexOf("{", at)));
+};
+// A property is read or written somewhere — `.acctOwner` or `acctOwner:`.
+const identProp = (name) => new RegExp(`\\.${name}\\b|\\b${name}\\s*:`).test(identAll);
+// A SQL function is DECLARED in DDL, schema qualifier optional.
+const identSqlFn = (name) => new RegExp(`function\\s+(?:[a-z_]+\\.)?${name}\\s*\\(`, "i").test(identSql);
+
+// The spans a reader is handed. Fenced blocks are code the reader COPIES rather than copy
+// they read (rule 48 (f)'s line) and their contents are not backticked anyway — stripped
+// so every rule over a document sees the same text. The fence may be indented: the runbook
+// indents its blocks under numbered steps, and anchoring at column 0 left half of them in,
+// which unbalanced the backtick pairing and turned whole paragraphs into "spans".
+const identSpans = (doc) => {
+  const body = doc.replace(/^[ \t]*```[^\n]*\n[\s\S]*?^[ \t]*```/gm, "");
+  return [...new Set([...body.matchAll(/`([^`]+)`/g)].map((m) => m[1].trim().replace(/\s+/g, " ")))];
+};
+// A placeholder is declared BY THE DOCUMENT — "replace `ADMIN_UUID`" — rather than guessed
+// from its spelling. `ADMIN_UUID` is SCREAMING_SNAKE and resolves nowhere by design; the
+// only honest way to exempt it is the sentence that tells the operator to substitute it.
+const identPlaceholders = (doc) => new Set([...doc.matchAll(/replace\s+`([^`]+)`/gi)].map((m) => m[1].trim()));
+
+/* Classify each span by SHAPE, then resolve it in the namespace that shape implies.
+   Returns { held, gaps, unread } — `unread` is the failing bucket. */
+function resolveIdentifiers(doc) {
+  const placeholders = identPlaceholders(doc);
+  const held = [], gaps = [], unread = [];
+  for (const span of identSpans(doc)) {
+    // — the exemptions, every one a shape —
+    // A placeholder family (`Studio.ensure<Pack><Thing>()`, `data/packs/<id>/`) or a
+    // wildcard (`Studio.*`, `steward_test_rls_*`) names a family, not a function. Matched
+    // as a bracket PAIR so a stray `>` cannot buy a span out of the unreadable bucket.
+    if (/<[A-Za-z]\w*>/.test(span) || span.includes("*")) continue;
+    if (placeholders.has(span)) continue;                 // the document declared it
+    if (/^node\s/.test(span)) continue;                   // a command line — rule (e) holds the script
+    // A code FRAGMENT rather than a name: `kind: "licensed"`, `role: "admin"`,
+    // `jsonb_set(data::jsonb,…)`. Scoped to quoting/bracing and the key-value SHAPE
+    // rather than "contains a colon" — `Studio::materialize` is not a fragment, it is a
+    // name in a syntax this repo does not write, and saying so is the point of the bucket.
+    if (/[{}"']/.test(span) || /^[A-Za-z_$][\w.$]*\s*:\s/.test(span)) continue;
+    if (span.includes("/")) continue;                     // a repo path — check 46 (e) / 48 (e)
+    if (/^[\w.-]+\.(json|md|csv|txt|sql|html|css|svg|png)$/i.test(span)) continue;  // an artifact
+    if (/^\.[a-z0-9]+$/.test(span)) continue;             // a bare extension — a file TYPE
+    if (/^[a-z0-9-]+(?:\.[a-z0-9-]+)*\.(?:com|org|net|io|live|dev)$/.test(span)) continue;  // a hostname
+    // A SQL clause or predicate: it carries an operator, or it leads with the ALL-CAPS
+    // keyword SQL is written in throughout both documents (`TO authenticated`,
+    // `role = admin`, `gotrue_id =`). A UI label never does either.
+    if (/\s/.test(span) && (/[=<>();|]/.test(span) || /^[A-Z]{2,}\b/.test(span))
+        && !/^[\w-]+\.(m?js|ts)\s+\w+$/.test(span)) continue;
+
+    // — the namespaces —
+    let m;
+    if ((m = span.match(/^([\w-]+\.(?:m?js|ts|yml|yaml))(?:\s+(\w+))?$/))) {
+      // A module, optionally qualifying a name inside it. The two halves fail differently
+      // on purpose: a missing FILE is a moved module, a missing function inside a present
+      // file is a moved closure.
+      const [, file, name] = m;
+      held.push(span);
+      const hit = Object.entries(identCorpus).find(([rel]) => rel === file || rel.endsWith("/" + file));
+      if (!hit && !identTree.has(file)) gaps.push(`${file} — named here, no such file in the tree`);
+      else if (name && !hit) gaps.push(`${file} — the module it qualifies ${name} with is not readable code`);
+      else if (name && !identDefines(hit[1], name)) gaps.push(`${span} — the module is there, the function is not`);
+    } else if ((m = span.match(/^([A-Z]\w*(?:\.\w+)*)\.(\w+)(?:\([^()]*\))?$/))) {
+      held.push(span.replace(/\([^()]*\)$/, ""));
+      if (!identMember(m[1], m[2])) gaps.push(`${span} — namespace member, assigned nowhere under app/, tools/, tests/ or supabase/`);
+    } else if ((m = span.match(/^(?:[a-z_]+\.)?([A-Za-z_]\w*)\([^()]*\)$/))) {
+      // A call. It resolves as JS **or** as DDL — `install()` is a registry hook,
+      // `polecat_is_admin()` exists only as text inside a template literal.
+      held.push(span);
+      if (!identDefines(identAll, m[1]) && !identSqlFn(m[1]))
+        gaps.push(`${span} — named here, defined neither in JS nor in any DDL this repo ships`);
+    } else if (/^[A-Z][A-Z0-9_]*$/.test(span)) {
+      // SCREAMING_SNAKE: a constant the code binds, or an env var it reads.
+      held.push(span);
+      if (!identDefines(identAll, span) && !identEnv.has(span))
+        gaps.push(`${span} — neither a binding under app/, tools/, tests/ or supabase/ nor a name the code reads from the environment`);
+    } else if (/^[a-z][\w]*(?:-[\w]+)+$/.test(span)) {
+      // Hyphenated lowercase is not a JS name at all, so it is never one namespace — it is
+      // whichever of FOUR the document meant, and each has its own roster derived from the
+      // code that would have to answer for it. The RLS runbook needed only the first (the
+      // Edge Function's gated action vocabulary); CLAUDE.md, which describes the app's
+      // chrome and the pipeline rather than an admin API, needed the other three, and its
+      // six spans of this shape resolved in none of them until they were taught.
+      held.push(span);
+      if (!identActions.has(span) && !identAttrs.has(span) && !identStoreKeys.has(span)
+          && !identRefStems.has(identRefStem(span)))
+        gaps.push(`${span} — hyphenated, so not a JS name: neither one of the actions ` +
+          `polecat-admin gates (${[...identActions].join(", ")}), nor an attribute the app ` +
+          "sets or styles, nor a key it reads from storage, nor a ref any workflow mints");
+    } else if (/^[A-Za-z_$][\w$]*$/.test(span)) {
+      // A bare word is a NAME only when it is spelled like one — an internal capital.
+      // All-lowercase spans are the registries' own keys, the `kind` vocabulary and SQL
+      // identifiers, which the surrounding rules already hold; the exception is a word
+      // the Edge Function gates, which IS a name an operator types.
+      if (!/[A-Z]/.test(span)) { if (identActions.has(span)) held.push(span); continue; }
+      held.push(span);
+      if (!identDefines(identAll, span) && !identProp(span))
+        gaps.push(`${span} — neither a binding nor a property anything reads or writes`);
+    } else if (/^[A-Z][a-z][\w ]*$/.test(span)) {
+      // A multi-word Capitalised span that survived the SQL test is a UI LABEL — the
+      // field an operator hunts for on screen. It has to be copy the app really prints.
+      held.push(span);
+      if (!identAppCopy.includes(span))
+        gaps.push(`${span} — named as a control, and no such copy is printed anywhere under app/`);
+    } else if (/^[a-z]\w*(?:\.[a-z]\w*)+$/.test(span)) {
+      continue;                                           // `data.files` — a key PATH into an entry
+    } else {
+      unread.push(span);                                  // the shape the resolver could not read
+    }
+  }
+  return { held, gaps, unread };
+}
+
 /* ── 25. the workspace schema version vs docs/COMPAT.md's history ───────────
    N18. `WS.SCHEMA_VERSION` is the one number that says what shape a workspace has, and
    the same database gets opened by builds on either side of a bump — so the rules for
@@ -1197,6 +1455,24 @@ ok(`the hand-written provision SQL stamps schema v${schemaVersion}, the version 
 ok("CLAUDE.md sends anyone touching WS.SCHEMA_VERSION or the workspace DDL to docs/COMPAT.md",
   /docs\/COMPAT\.md/.test(read("CLAUDE.md")),
   "the pointer is how the contract gets read at all — it is part of the contract");
+
+// The identifiers — the check-46 (f) / 48 (h) rule, and this is the document with the
+// strongest claim on it after those two. COMPAT.md is the other CONTRACT in `docs/`: the
+// rules above hold its version rows and its table names, and said nothing about the
+// FUNCTIONS it tells a reader to call before bumping anything — `WS.compareSchema`,
+// `WS.provisionDeltaSQL`, `Sync.recheckSchema`, `polecat_migrate()`. A migration contract
+// naming a helper that has moved is the PUBLISH.md failure with a database behind it.
+// Measured before the rule: seventeen spans, ALL resolving — so this is a check, not a
+// repair, which is what a contract read this often should measure.
+const compatIdents = resolveIdentifiers(compat);
+ok(`docs/COMPAT.md: every name it hands a reader resolves in the code (${compatIdents.held.length}: ${
+    [...new Set(compatIdents.held)].sort().join(", ")})`,
+  // The floor sits well under today's count so a rewording can never redden this on its
+  // own; the assertions that matter are the two emptiness checks, and an unreadable span
+  // fails BY DESIGN rather than going quietly out of date.
+  compatIdents.held.length >= 12 && !compatIdents.gaps.length && !compatIdents.unread.length,
+  `unresolved: ${compatIdents.gaps.join("\n      ") || "(none)"}\n      ` +
+  `spans the resolver could not classify: ${compatIdents.unread.map((s) => `\`${s}\``).join(" · ") || "(none)"}`);
 
 /* ── 26. the create-project instructions vs the SQL that depends on them ────
    N19. Help now documents the step before every other Supabase topic — creating the
@@ -3205,6 +3481,28 @@ ok(`CLAUDE.md: the posture bullet names both posture scripts (${postureTests.len
   "LIVE database readable RIGHT NOW?\" — and neither subsumes the other, which is exactly why " +
   "N29 exists: rls.mjs went 81/81 green in the same hour rls-verify found dev wide open");
 
+// (f) the identifiers, and this document has the plainest claim on the rule of any of the
+//     four: CLAUDE.md is what an AGENT reads before it merges. Rule (d) above holds the
+//     workflow names and (e) the posture artifacts; nothing held the names the file hands
+//     someone about to change the code — the two SQL generators, the theme storage keys,
+//     the `<html>` attributes the shell-token bridge switches on, `buildHtml`'s
+//     `frameTheme` opt (the ONE documented exception to export byte-identity, so a stale
+//     name here misstates an invariant), and the release tag a promotion mints.
+//     **Measured before the rule: eighteen spans, six of them unresolvable — and none of
+//     the six was drift.** They are three namespaces the resolver could not read, the
+//     v994 shape exactly: an HTML attribute, a storage key and a git ref are each a
+//     string rather than a binding, so a JS-shaped resolver calls all three missing. The
+//     six were taught, not exempted; with them the file is at zero, so this rule ships as
+//     a check rather than a repair.
+const claudeIdents = resolveIdentifiers(claude);
+ok(`CLAUDE.md: every name it hands an agent resolves in the code (${claudeIdents.held.length}: ${
+    [...new Set(claudeIdents.held)].sort().join(", ")})`,
+  claudeIdents.held.length >= 12 && !claudeIdents.gaps.length && !claudeIdents.unread.length,
+  `unresolved: ${claudeIdents.gaps.join("\n      ") || "(none)"}\n      ` +
+  `spans the resolver could not classify: ${claudeIdents.unread.map((s) => `\`${s}\``).join(" · ") || "(none)"}\n      ` +
+  "the namespaces this rule taught the resolver: HTML attributes the app sets or styles, " +
+  "storage keys the code reads or writes, and git refs the workflows mint");
+
 /* ── 43. Help's own NAVIGATION vs the page it navigates ─────────────────────
    N7, and the surface every check in this family had read THROUGH without ever reading:
    checks 9, 14–21, 28, 34–40 hold what docs/index.html SAYS. Nothing held whether a
@@ -3676,227 +3974,6 @@ ok(`SPEC.md: the colour tokens are exactly Studio.COLOR_TOKENS (${M.COLOR_TOKENS
   `in the registry, absent from the page: ${missingTokens.join(", ") || "(none)"}\n      ` +
   `on the page, not in the registry: ${strayTokens.join(", ") || "(none)"}\n      ` +
   "the page wrote `--c1`…`--c10` and hid eight real tokens inside the ellipsis");
-
-/* ── the IDENTIFIER RESOLVER (checks 46 (f) and 48 (h)) ─────────────────────
-   N7, 2026-08-11. Check 48 (h) asked a question no other check here asks: not "is this
-   COUNT right" or "does this PATH exist", but **can a reader type the name this document
-   just handed them and have the code answer?** That is the PUBLISH.md class of failure —
-   a contract naming a function nobody can call — and it is the one this family keeps
-   finding. (h) shipped that rule for `docs/PACKS.md` with a resolver that knew five
-   SHAPES, because the JS this repo writes defines a name five ways.
-
-   The v993 measurement said the obvious next move — point it at the other EXECUTED
-   document — is a bigger slice than it looks. `tools/M7-RLS-GOLIVE-RUNBOOK.md` names
-   eleven identifiers of this shape and (h)'s resolver resolved none of the hard ones:
-   `polecat_is_admin()`, `BOOTSTRAP_DDL`, `RLS_REAL_SQL`, `PROVISION_SECRET`,
-   `SUPABASE_SERVICE_ROLE_KEY`, `gotrueId`, `acctOwner`. They are not missing — they are
-   in the tree, in NAMESPACES (h) could not read:
-
-     · a SQL function inside a template literal (`polecat_is_admin` is DDL text, built in
-       `app/sources/schema.js` and three more places — no JS shape describes it);
-     · an Edge-Function binding in a **`.ts`** file the corpus excluded by extension;
-     · an environment variable, which is not a binding at all — it is a string key read
-       through `Deno.env.get`, so the honest resolution is "the code reads this name";
-     · a workspace object PROPERTY (`gotrueId`, `acctOwner`), which is function-shaped
-       nowhere;
-     · the Edge Function's fixed ACTION vocabulary (`go-live`, `create-user`), hyphenated
-       and so not spelled like a JS name at all;
-     · a UI field LABEL (`Admin function URL`) — multi-word, and the thing an operator
-       actually hunts for on screen.
-
-   So this is not "(h) with another file passed in": each namespace needs its OWN honest
-   resolution rule, or the runbook gets a check that green-lights a name nobody can call.
-   The resolver below is (h)'s, taught those namespaces and lifted out of check 48 so the
-   two documents share ONE derivation rather than growing a second copy — the reuse idiom
-   checks 28, 46 and 79 already follow.
-
-   Two invariants carried over from (h) unchanged, because they are what stop a rule like
-   this rotting one span at a time:
-     · a span that is neither prose nor a shape the resolver knows is REPORTED BY NAME,
-       not silently skipped. The unreadable bucket is a FAILING condition;
-     · every exemption is a SHAPE, never an allow-list of words. */
-
-// The code corpus — every first-party module a reader could be sent to. `tests/` and the
-// Edge Function's `.ts` are in it because both documents point an operator straight at
-// them; the guard itself is excluded on purpose, so a name resolves against the CODE and
-// never against the check that names it.
-const identCorpus = (() => {
-  const files = {};
-  const walk = (dir, re) => {
-    if (!fs.existsSync(path.join(ROOT, dir))) return;
-    for (const e of fs.readdirSync(path.join(ROOT, dir), { withFileTypes: true })) {
-      const rel = dir + "/" + e.name;
-      if (e.isDirectory()) walk(rel, re);
-      else if (re.test(e.name) && rel !== "tools/doc-truth.mjs") files[rel] = read(rel);
-    }
-  };
-  ["app", "tools", "tests"].forEach((d) => walk(d, /\.m?js$/));
-  walk("supabase", /\.ts$/);
-  files["sw.js"] = read("sw.js");
-  return files;
-})();
-const identAll = Object.values(identCorpus).join("\n");
-// Modules resolve against the TREE by basename, not against the code corpus: a document
-// may legitimately name a workflow or a SQL file, and "does this file exist" is a
-// different question from "is this name defined".
-const identTree = (() => {
-  const names = new Set();
-  const walk = (dir) => {
-    for (const e of fs.readdirSync(path.join(ROOT, dir), { withFileTypes: true })) {
-      if (e.name === "node_modules" || e.name === ".git" || e.name === "dev" || e.name === "site") continue;
-      const rel = dir === "." ? e.name : dir + "/" + e.name;
-      if (e.isDirectory()) walk(rel);
-      else { names.add(e.name); names.add(rel); }
-    }
-  };
-  walk(".");
-  return names;
-})();
-// The DDL corpus: committed `.sql` plus every module that BUILDS SQL in a template
-// literal. `polecat_is_admin` exists only as text inside those literals, which is exactly
-// why a "function" rule written for JS cannot see it.
-const identSql = (() => {
-  let s = "";
-  const walk = (dir) => {
-    for (const e of fs.readdirSync(path.join(ROOT, dir), { withFileTypes: true })) {
-      const rel = dir + "/" + e.name;
-      if (e.isDirectory()) walk(rel);
-      else if (/\.sql$/.test(e.name)) s += "\n" + read(rel);
-    }
-  };
-  ["tools", "supabase"].forEach(walk);
-  return s + "\n" + identAll;
-})();
-// An env var is a string key the code READS — the only honest resolution there is.
-const identEnv = new Set([...identAll.matchAll(/(?:Deno\.env\.get\(\s*["']([A-Z][A-Z0-9_]*)["']|process\.env\.([A-Z][A-Z0-9_]*))/g)]
-  .map((m) => m[1] || m[2]));
-// The Edge Function's action vocabulary, from the comparisons that GATE it — index.ts's
-// own header calls those four "the entire surface", so the branch is the source of truth.
-const identActions = new Set([...read("supabase/functions/polecat-admin/index.ts")
-  .matchAll(/action\s*===\s*"([a-z][\w-]*)"/g)].map((m) => m[1]));
-// Field labels the app really prints, for the multi-word shape.
-const identAppCopy = Object.entries(identCorpus).filter(([r]) => r.startsWith("app/")).map(([, s]) => s).join("\n")
-  + "\n" + read("app/index.html") + "\n" + read("index.html");
-
-// One name, every shape this codebase uses to define one: a declaration, an assignment
-// (to a function, an arrow, an object or an array — `Studio.DEMO_PACKS = {` is as much a
-// definition as `function writePack(`), an object KEY whose value is a function, or a
-// var/let/const binding (which is also how `export const BOOTSTRAP_DDL` reads).
-const identDefines = (src, name) => new RegExp(
-  `\\bfunction\\s+${name}\\s*\\(` +
-  `|\\b${name}\\s*=\\s*(?:async\\s+)?(?:function\\b|\\(|[[{])` +
-  `|\\b${name}\\s*:\\s*(?:async\\s+)?(?:function\\b|\\()` +
-  `|\\b(?:var|let|const)\\s+${name}\\b`).test(src);
-// A namespace member is either assigned onto the namespace (`WS.freshDeploySQL = function`)
-// or a KEY of the object literal the namespace is assigned — how app/build.js writes it
-// (`runBlob: bdRunBlob`, a name bound to a closure defined 250 lines earlier).
-const identMember = (ns, member) => {
-  if (new RegExp(`\\b${ns.replace(/\./g, "\\.")}\\.${member}\\s*=`).test(identAll)) return true;
-  const at = identAll.indexOf(`${ns} = {`);
-  return at >= 0 && new RegExp(`(^|[\\s,{])${member}\\s*:`).test(braceBlockAt(identAll, identAll.indexOf("{", at)));
-};
-// A property is read or written somewhere — `.acctOwner` or `acctOwner:`.
-const identProp = (name) => new RegExp(`\\.${name}\\b|\\b${name}\\s*:`).test(identAll);
-// A SQL function is DECLARED in DDL, schema qualifier optional.
-const identSqlFn = (name) => new RegExp(`function\\s+(?:[a-z_]+\\.)?${name}\\s*\\(`, "i").test(identSql);
-
-// The spans a reader is handed. Fenced blocks are code the reader COPIES rather than copy
-// they read (rule 48 (f)'s line) and their contents are not backticked anyway — stripped
-// so every rule over a document sees the same text. The fence may be indented: the runbook
-// indents its blocks under numbered steps, and anchoring at column 0 left half of them in,
-// which unbalanced the backtick pairing and turned whole paragraphs into "spans".
-const identSpans = (doc) => {
-  const body = doc.replace(/^[ \t]*```[^\n]*\n[\s\S]*?^[ \t]*```/gm, "");
-  return [...new Set([...body.matchAll(/`([^`]+)`/g)].map((m) => m[1].trim().replace(/\s+/g, " ")))];
-};
-// A placeholder is declared BY THE DOCUMENT — "replace `ADMIN_UUID`" — rather than guessed
-// from its spelling. `ADMIN_UUID` is SCREAMING_SNAKE and resolves nowhere by design; the
-// only honest way to exempt it is the sentence that tells the operator to substitute it.
-const identPlaceholders = (doc) => new Set([...doc.matchAll(/replace\s+`([^`]+)`/gi)].map((m) => m[1].trim()));
-
-/* Classify each span by SHAPE, then resolve it in the namespace that shape implies.
-   Returns { held, gaps, unread } — `unread` is the failing bucket. */
-function resolveIdentifiers(doc) {
-  const placeholders = identPlaceholders(doc);
-  const held = [], gaps = [], unread = [];
-  for (const span of identSpans(doc)) {
-    // — the exemptions, every one a shape —
-    // A placeholder family (`Studio.ensure<Pack><Thing>()`, `data/packs/<id>/`) or a
-    // wildcard (`Studio.*`, `steward_test_rls_*`) names a family, not a function. Matched
-    // as a bracket PAIR so a stray `>` cannot buy a span out of the unreadable bucket.
-    if (/<[A-Za-z]\w*>/.test(span) || span.includes("*")) continue;
-    if (placeholders.has(span)) continue;                 // the document declared it
-    if (/^node\s/.test(span)) continue;                   // a command line — rule (e) holds the script
-    // A code FRAGMENT rather than a name: `kind: "licensed"`, `role: "admin"`,
-    // `jsonb_set(data::jsonb,…)`. Scoped to quoting/bracing and the key-value SHAPE
-    // rather than "contains a colon" — `Studio::materialize` is not a fragment, it is a
-    // name in a syntax this repo does not write, and saying so is the point of the bucket.
-    if (/[{}"']/.test(span) || /^[A-Za-z_$][\w.$]*\s*:\s/.test(span)) continue;
-    if (span.includes("/")) continue;                     // a repo path — check 46 (e) / 48 (e)
-    if (/^[\w.-]+\.(json|md|csv|txt|sql|html|css|svg|png)$/i.test(span)) continue;  // an artifact
-    if (/^\.[a-z0-9]+$/.test(span)) continue;             // a bare extension — a file TYPE
-    if (/^[a-z0-9-]+(?:\.[a-z0-9-]+)*\.(?:com|org|net|io|live|dev)$/.test(span)) continue;  // a hostname
-    // A SQL clause or predicate: it carries an operator, or it leads with the ALL-CAPS
-    // keyword SQL is written in throughout both documents (`TO authenticated`,
-    // `role = admin`, `gotrue_id =`). A UI label never does either.
-    if (/\s/.test(span) && (/[=<>();|]/.test(span) || /^[A-Z]{2,}\b/.test(span))
-        && !/^[\w-]+\.(m?js|ts)\s+\w+$/.test(span)) continue;
-
-    // — the namespaces —
-    let m;
-    if ((m = span.match(/^([\w-]+\.(?:m?js|ts|yml|yaml))(?:\s+(\w+))?$/))) {
-      // A module, optionally qualifying a name inside it. The two halves fail differently
-      // on purpose: a missing FILE is a moved module, a missing function inside a present
-      // file is a moved closure.
-      const [, file, name] = m;
-      held.push(span);
-      const hit = Object.entries(identCorpus).find(([rel]) => rel === file || rel.endsWith("/" + file));
-      if (!hit && !identTree.has(file)) gaps.push(`${file} — named here, no such file in the tree`);
-      else if (name && !hit) gaps.push(`${file} — the module it qualifies ${name} with is not readable code`);
-      else if (name && !identDefines(hit[1], name)) gaps.push(`${span} — the module is there, the function is not`);
-    } else if ((m = span.match(/^([A-Z]\w*(?:\.\w+)*)\.(\w+)(?:\([^()]*\))?$/))) {
-      held.push(span.replace(/\([^()]*\)$/, ""));
-      if (!identMember(m[1], m[2])) gaps.push(`${span} — namespace member, assigned nowhere under app/, tools/, tests/ or supabase/`);
-    } else if ((m = span.match(/^(?:[a-z_]+\.)?([A-Za-z_]\w*)\([^()]*\)$/))) {
-      // A call. It resolves as JS **or** as DDL — `install()` is a registry hook,
-      // `polecat_is_admin()` exists only as text inside a template literal.
-      held.push(span);
-      if (!identDefines(identAll, m[1]) && !identSqlFn(m[1]))
-        gaps.push(`${span} — named here, defined neither in JS nor in any DDL this repo ships`);
-    } else if (/^[A-Z][A-Z0-9_]*$/.test(span)) {
-      // SCREAMING_SNAKE: a constant the code binds, or an env var it reads.
-      held.push(span);
-      if (!identDefines(identAll, span) && !identEnv.has(span))
-        gaps.push(`${span} — neither a binding under app/, tools/, tests/ or supabase/ nor a name the code reads from the environment`);
-    } else if (/^[a-z][\w]*(?:-[\w]+)+$/.test(span)) {
-      // Hyphenated lowercase is not a JS name at all; in these documents it is the Edge
-      // Function's fixed action vocabulary, and index.ts's gate is the roster.
-      held.push(span);
-      if (!identActions.has(span))
-        gaps.push(`${span} — hyphenated, and not one of the actions polecat-admin gates (${[...identActions].join(", ")})`);
-    } else if (/^[A-Za-z_$][\w$]*$/.test(span)) {
-      // A bare word is a NAME only when it is spelled like one — an internal capital.
-      // All-lowercase spans are the registries' own keys, the `kind` vocabulary and SQL
-      // identifiers, which the surrounding rules already hold; the exception is a word
-      // the Edge Function gates, which IS a name an operator types.
-      if (!/[A-Z]/.test(span)) { if (identActions.has(span)) held.push(span); continue; }
-      held.push(span);
-      if (!identDefines(identAll, span) && !identProp(span))
-        gaps.push(`${span} — neither a binding nor a property anything reads or writes`);
-    } else if (/^[A-Z][a-z][\w ]*$/.test(span)) {
-      // A multi-word Capitalised span that survived the SQL test is a UI LABEL — the
-      // field an operator hunts for on screen. It has to be copy the app really prints.
-      held.push(span);
-      if (!identAppCopy.includes(span))
-        gaps.push(`${span} — named as a control, and no such copy is printed anywhere under app/`);
-    } else if (/^[a-z]\w*(?:\.[a-z]\w*)+$/.test(span)) {
-      continue;                                           // `data.files` — a key PATH into an entry
-    } else {
-      unread.push(span);                                  // the shape the resolver could not read
-    }
-  }
-  return { held, gaps, unread };
-}
 
 /* ── 46. the RLS runbook + the posture scripts' own headers vs the POSTURES table ──
    Check 42's move, three surfaces over, and it needs no new source of truth: rule (e)
