@@ -6,6 +6,18 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 998,
+    title: 'Four more of the repo\'s own documents can no longer point you at a file that is not there',
+    kind: 'polish',
+    ts: '2026-08-11T05:06:49.000Z',
+    items: [
+      'A document can name a file that does not exist and read perfectly well — nothing about the sentence looks wrong, and the reader only finds out when they go looking. One page won that check last time; the four documents an agent or an operator actually opens first — the agent guide, the publishing runbook, the repo front page and the backend-compatibility contract — had no such check at all, and between them they hand out forty-six file paths.',
+      'All forty-six are now held against the tree, and two of them were wrong: the agent guide told you to bump a version file and run a script that live in a different repository, while its sentence said only "the platform repo". The fix is in the wording rather than in the rule — the sentence now names that repository where it names its files, so a reader is told whose files those are, and the check reads the document\'s own statement instead of guessing from the spelling.',
+      'One path is held backwards, the inversion that shipped last week one document over: the publishing runbook has a note saying a retired config file was deleted, so the rule requires that it stay deleted.',
+      'The reading is shared by all five documents rather than copied five times, and the first version of it passed green over the very mistake it was written to catch — a path that happens to look like a repository name exempted itself. It was caught by running it against the unfixed document instead of trusting it, and closed before merging. Eight ways of breaking it were tried and eight failed the gate.',
+    ],
+  },
+  {
     v: 997,
     title: 'The runbook that tells you how to ship now has to mean every name and every file it prints',
     kind: 'polish',

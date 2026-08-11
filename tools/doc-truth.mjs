@@ -1454,6 +1454,83 @@ const identSpans = (doc) => {
 // only honest way to exempt it is the sentence that tells the operator to substitute it.
 const identPlaceholders = (doc) => new Set([...doc.matchAll(/replace\s+`([^`]+)`/gi)].map((m) => m[1].trim()));
 
+/* ── the repo PATHS a document hands a reader ───────────────────────────────
+   The span shape the identifier resolver skips ("a repo path — check 46 (e) / 48 (e)").
+   That hand-off is true for PACKS.md and the RLS runbook and lands nowhere for every other
+   document here, which is what rule 44 (h) found for docs/PIPELINE.md. This is that rule's
+   derivation, extracted rather than copied: unlike the identifier namespaces there is
+   nothing document-specific to teach — a path either is in this tree or it is not — so the
+   five documents that publish paths share one reading of them.
+
+   Three shapes decide whose tree must answer, and none of them is an allow-list:
+   · a last segment spelled like a HOSTNAME is another repo's slug
+     (`kevinrhaas/jobtracker.polecat.live`, the pilot runbook PIPELINE.md defers to) — by
+     design not in this checkout;
+   · a two-segment OWNER/REPO slug is a REPOSITORY rather than a path
+     (`kevinrhaas/polecat-platform`), and the OWNER half is derived rather than listed — see
+     `pathOwners` below. Deriving it is not ceremony: the first cut of this rule read any
+     dotless two-segment span the tree does not have as a repo, which is exactly the shape of
+     `lib/VERSION`, so the check passed green over the very drift it was written for;
+   · a path in a SENTENCE that names one of those two is a path in THAT repo, the
+     identRetired grain: CLAUDE.md's shell rule sends an agent to the platform repo to bump
+     `lib/VERSION` and run `scripts/gen-manifest.mjs`, two files that must never exist here.
+     The document declares the scope, in the sentence a reader is reading when they meet the
+     path; the rule reads the declaration rather than guessing from the spelling.
+   And the RETIREMENT inversion the identifier resolver already applies, for the same reason
+   and ahead of every exemption: a path the document says was DELETED must NOT resolve, so
+   PUBLISH.md's note about `app/gate-config.js` reddens the day that file comes back. */
+const pathShape = /^[\w.][\w.-]*(?:\/[\w.-]+)+$/;
+const pathHostname = (s) => /^[a-z0-9-]+(?:\.[a-z0-9-]+)*\.(?:com|org|net|io|live|dev)$/.test(s.split("/").pop());
+// Which first segment is a GitHub OWNER rather than a directory? Derived, never listed: the
+// fleet spells its repos `<owner>/<host>` — `kevinrhaas/jobtracker.polecat.live` — a shape
+// nothing in this tree can be confused with, since a directory here is never spelled like a
+// hostname. Every such slug across the repo's own Markdown contributes its owner half, so
+// `kevinrhaas/polecat-platform` reads as a repository while `lib/VERSION` stays a path this
+// tree must answer for. An owner nobody ever spells that way is unknown and the rule fails
+// closed — the path is held here, which is the safe direction for a rule about missing files.
+const pathOwners = (() => {
+  const out = new Set();
+  for (const dir of [ROOT, path.join(ROOT, "docs"), path.join(ROOT, "tools")])
+    for (const f of fs.readdirSync(dir).filter((n) => n.endsWith(".md")))
+      for (const m of fs.readFileSync(path.join(dir, f), "utf8")
+        .matchAll(/`([\w-]+)\/[a-z0-9-]+(?:\.[a-z0-9-]+)*\.(?:com|org|net|io|live|dev)`/g))
+        out.add(m[1]);
+  return out;
+})();
+const pathOtherRepo = (s) => pathHostname(s)
+  || (/^[\w-]+\/[\w-]+$/.test(s) && pathOwners.has(s.split("/")[0]));
+// Every span in a sentence that names another repo — the declaration is sentence-scoped, so
+// naming the platform repo once cannot buy the whole document out of the rule.
+const pathForeign = (doc) => {
+  const out = new Set();
+  for (const sentence of doc.split(/(?<=[.!?])\s+|\n\s*\n/)) {
+    const spans = [...sentence.matchAll(/`([^`]+)`/g)].map((m) => m[1].trim().replace(/\s+/g, " "));
+    if (!spans.some((s) => pathShape.test(s) && pathOtherRepo(s))) continue;
+    for (const s of spans) out.add(s);
+  }
+  return out;
+};
+/* Returns { held, gaps, elsewhere } — `gaps` is the failing bucket, `elsewhere` the spans
+   this tree is not the one to answer for. */
+function resolvePaths(doc) {
+  const retired = identRetired(doc), foreign = pathForeign(doc);
+  const held = [], gaps = [], elsewhere = [];
+  for (const span of identSpans(doc)) {
+    if (!pathShape.test(span)) continue;
+    if (retired.has(span)) {
+      held.push(span);
+      if (fs.existsSync(path.join(ROOT, span)))
+        gaps.push(`${span} — the document says it was deleted, and the tree answers to it again`);
+      continue;
+    }
+    if (pathOtherRepo(span) || foreign.has(span)) { elsewhere.push(span); continue; }
+    held.push(span);
+    if (!fs.existsSync(path.join(ROOT, span)))
+      gaps.push(`${span} — named here, no such file or directory in the tree`);
+  }
+  return { held, gaps, elsewhere };
+}
+
 /* Classify each span by SHAPE, then resolve it in the namespace that shape implies.
    Returns { held, gaps, unread } — `unread` is the failing bucket. */
 function resolveIdentifiers(doc) {
@@ -3758,17 +3835,18 @@ ok(`docs/PIPELINE.md: every name it hands an operator resolves in the code (${pi
 //     repo's slug (`kevinrhaas/jobtracker.polecat.live`, the pilot runbook this page defers
 //     to, which by design is not in this checkout); everything else is a path here and must
 //     exist here.
-const pipelinePathSpans = identSpans(pipelineMd)
-  .filter((s) => /^[\w.][\w.-]*(?:\/[\w.-]+)+$/.test(s));
-const pipelineExternal = (s) => /^[a-z0-9-]+(?:\.[a-z0-9-]+)*\.(?:com|org|net|io|live|dev)$/
-  .test(s.split("/").pop());
-const pipelineOwnPaths = pipelinePathSpans.filter((s) => !pipelineExternal(s));
-const pipelineMissingPaths = pipelineOwnPaths.filter((s) => !fs.existsSync(path.join(ROOT, s)));
-ok(`docs/PIPELINE.md: every repo path it names is in the tree (${pipelineOwnPaths.length}, plus ` +
-   `${pipelinePathSpans.length - pipelineOwnPaths.length} another repo's)`,
-  pipelineOwnPaths.length >= 10 && !pipelineMissingPaths.length,
-  `named here, no such file or directory: ${pipelineMissingPaths.join(", ") || "(none)"}\n      ` +
-  `paths read: ${pipelineOwnPaths.join(", ") || "(none — the extraction found nothing, which would pass every other rule here)"}\n      ` +
+//     **The derivation moved to `resolvePaths` (check 80, v998)** and this rule now calls it:
+//     the four documents that had no path rule needed the identical reading, and the shapes
+//     above are not document-specific the way the identifier namespaces are. The shared
+//     reader also gained two shapes this one never needed — an OWNER/REPO slug and the
+//     sentence-scoped foreign-repo declaration — neither of which changes what PIPELINE.md
+//     resolves (its one other-repo span is the hostname-shaped slug it always was).
+const pipelinePaths = resolvePaths(pipelineMd);
+ok(`docs/PIPELINE.md: every repo path it names is in the tree (${pipelinePaths.held.length}, plus ` +
+   `${pipelinePaths.elsewhere.length} another repo's)`,
+  pipelinePaths.held.length >= 10 && !pipelinePaths.gaps.length,
+  `${pipelinePaths.gaps.join("\n      ") || "(no gaps)"}\n      ` +
+  `paths read: ${pipelinePaths.held.join(", ") || "(none — the extraction found nothing, which would pass every other rule here)"}\n      ` +
   "rule (a) matches a gate step by stem, so a typo inside a path it already accepts — " +
   "tools/dev-smoker.mjs — was invisible to all of check 42 until this rule");
 
@@ -10118,6 +10196,75 @@ if (kitLive) {
       `both directions — so SPEC.md keeps the word, and this rule is the boundary that says ` +
       `where it may keep it rather than leaving the exemption implied`);
   }
+}
+
+/* ── 80. the repo PATHS four more documents name — check 44 (h)'s derivation, shared ────────
+   N7, and the hole rule 44 (h) left open in its own closing note. The identifier resolver
+   SKIPS any span containing `/` with the comment "a repo path — check 46 (e) / 48 (e)".
+   Those two checks cover PACKS.md and the RLS runbook; 44 (h) covered PIPELINE.md; so
+   **CLAUDE.md, PUBLISH.md, README.md and docs/COMPAT.md had no path rule at all**, and
+   CLAUDE.md's Layout block alone is mostly paths.
+
+   Shared rather than four rules apiece, which is the v995 placement question answered the
+   other way this time and for a stated reason: the identifier rules each had a namespace to
+   teach (the actions polecat-admin gates, the storage keys, the workflow refs), and a path
+   has none — it is in this tree or it is not. `resolvePaths` is that one reading; rule
+   44 (h) was refactored onto it in the same commit, so five documents now share it.
+
+   Measured 2026-08-11, before the fix — 46 paths across the four, and **four of them did not
+   resolve**, in three different ways:
+   · **CLAUDE.md: `lib/VERSION` and `scripts/gen-manifest.mjs`.** Both real, neither HERE —
+     they are the platform repo's, named in the shell rule's second sentence, which said only
+     "in the platform repo" while the first sentence carried the slug. An agent following that
+     bullet looks for two files this checkout has never contained. Fixed in the copy rather
+     than the check: the sentence now names `kevinrhaas/polecat-platform` where it names the
+     files, which is both truer for the reader and what makes the foreign-repo shape below
+     readable — the rule reads a declaration the document makes, never a spelling.
+   · **CLAUDE.md: `kevinrhaas/polecat-platform`** itself — another repo's slug, and NOT the
+     hostname shape 44 (h) taught (`polecat-platform` has no TLD), so it needed the second
+     other-repo shape rather than an exemption.
+   · **PUBLISH.md: `app/gate-config.js`** — the retirement idiom, one span shape over. The
+     document says it "had no readers left and was deleted in v852"; the honest question is
+     not whether it resolves but whether it STILL does, so the rule inverts exactly as
+     identRetired does for identifiers, and this is the assertion that exercises that half.
+
+   README.md (7 paths) and docs/COMPAT.md (10) were both already clean — so this is a check
+   over two of the four and a repair on the other two, and the two clean documents are the
+   reason the floors below exist: a rule that passes green over an extraction finding nothing
+   is the failure mode this family has hit before.
+
+   **The first cut of this rule passed green over its own drift, and that is why the owner set
+   is derived.** It read any dotless two-segment span the tree does not have as another repo's
+   slug — which is the shape of `lib/VERSION` exactly, so the two paths above exempted
+   THEMSELVES and the check reported 21 held with no gaps against the unfixed document. Every
+   count in this note is from a run on the pre-fix tree, not a reading, which is the only
+   reason it was caught before merging rather than after.
+
+   Refactoring rule 44 (h) onto the shared reader moved ONE span, correctly: PIPELINE.md's
+   held count went 15 → 14 because its opening sentence — "the canonical runbook is
+   `kevinrhaas/jobtracker.polecat.live` → `docs/PIPELINE.md`" — means the PILOT repo's
+   PIPELINE.md, not this one. It happens to exist here too, which is why the old rule held it
+   and was never wrong; the sentence-scoped reading says what the sentence says.
+
+   The boundary, stated rather than left implied: inside a sentence declared foreign this
+   rule cannot check anything — no tree here can answer for another repo's — so a typo in
+   `lib/VERSION` there stays green (measured). The scope is one sentence and the declaration
+   is visible in it, which is the smallest grain that could carry a true statement about
+   another repository at all. */
+for (const [file, doc, floor] of [
+  ["CLAUDE.md", claude, 15], ["PUBLISH.md", publish, 3],
+  ["README.md", readme, 5], ["docs/COMPAT.md", compat, 6],
+]) {
+  const paths = resolvePaths(doc);
+  ok(`${file}: every repo path it names is in the tree (${paths.held.length} held` +
+     `${paths.elsewhere.length ? `, ${paths.elsewhere.length} another repo's` : ""})`,
+    paths.held.length >= floor && !paths.gaps.length,
+    `${paths.gaps.join("\n      ") || "(no gaps)"}\n      ` +
+    `paths read: ${paths.held.join(", ") || "(none — an extraction that finds nothing is why this rule carries a floor)"}\n      ` +
+    `declared to be another repo's: ${paths.elsewhere.join(", ") || "(none)"}\n      ` +
+    "a path is exempt only where the document itself puts it elsewhere — a hostname-shaped " +
+    "slug, an owner/repo slug, or a sentence that names one of those; a path the document " +
+    "says was DELETED is held the other way round and must NOT exist");
 }
 
 console.log(failed ? `\n✗ doc-truth: ${failed} claim(s) have drifted from the source of truth`

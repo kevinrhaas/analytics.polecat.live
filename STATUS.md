@@ -135,6 +135,57 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N7 — four more of the repo's own documents can no longer point you at a file that is not
+  there (v998, NO sw bump, 2026-08-11, steward; dev branch; est 1pt, took 1):** 🔁 N7 was again
+  the only takeable item in ▶ NOW (N31, N44, N41 and N25 all ⛔ on Kevin; SP-1 ⏳ on `hold`
+  PR #689), and the v997 pass named this as the next slice — the hole rule 44 (h) left open in
+  its own closing note. Taken exactly there. **Measured before a line was written, and the note's
+  reading was right about the gap and short by two on the repair: 46 path spans across the four
+  documents, and FOUR of them did not resolve.**
+  **The gap.** The identifier resolver skips any span containing `/` as "a repo path — check
+  46 (e) / 48 (e)". Those two checks cover `docs/PACKS.md` and the RLS runbook; rule 44 (h)
+  covered `docs/PIPELINE.md`; so `CLAUDE.md`, `PUBLISH.md`, `README.md` and `docs/COMPAT.md` had
+  **no path rule at all** — and CLAUDE.md's Layout block alone is mostly paths.
+  **Shared, not four rules apiece** — the v995 placement question answered the other way this
+  time, for the reason the v997 note predicted: the identifier rules each have a namespace to
+  teach (the actions `polecat-admin` gates, the storage keys, the workflow refs) and a path has
+  none. `resolvePaths` is that one reading; rule 44 (h) was refactored onto it in the same
+  commit, so five documents now share it, and check **80** is the four new rules.
+  **It is a repair on two of the four, not only a check.** `CLAUDE.md`'s shell rule sends an
+  agent to bump `lib/VERSION` and run `scripts/gen-manifest.mjs` — both real, neither HERE; they
+  are the platform repo's, and the sentence naming them said only "in the platform repo" while
+  the slug sat in the sentence before. Fixed in the COPY rather than in the check: the sentence
+  now names `kevinrhaas/polecat-platform` where it names the files, which is both truer for a
+  reader and what makes the exemption readable — the rule reads a declaration the document makes,
+  never a spelling. The other two non-resolving spans are the two shapes the rule had to learn:
+  the slug itself (not the hostname shape 44 (h) taught — `polecat-platform` has no TLD), and
+  `PUBLISH.md`'s `app/gate-config.js`, the RETIREMENT idiom one span shape over, held the other
+  way round exactly as `identRetired` holds identifiers.
+  **THE FIRST CUT PASSED GREEN OVER ITS OWN DRIFT, and that is the finding worth carrying.** It
+  read any dotless two-segment span the tree lacks as another repo's slug — which is the shape of
+  `lib/VERSION` exactly, so the two paths exempted THEMSELVES and the check reported 21 held / no
+  gaps against the unfixed document. The owner half is therefore DERIVED, not shaped: the fleet
+  spells its repos `<owner>/<host>` (`kevinrhaas/jobtracker.polecat.live`), a form no directory
+  here can be confused with, so every such slug in the repo's own Markdown contributes its owner
+  and an owner nobody spells that way fails CLOSED. The v997 note's "measure before writing, every
+  count from a run" is the only reason this was caught before merging rather than after.
+  **The refactor moved one span, correctly:** PIPELINE.md's held count went 15 → 14, because its
+  opening sentence's `docs/PIPELINE.md` is the PILOT repo's, not this one. It exists here too,
+  which is why the old rule held it and was never wrong.
+  **Eight failure directions measured**, six of them on mutated trees: a path typo in each of the
+  four documents; a first-segment typo (`toolz/validate.mjs`) and a dotless two-segment path
+  (`docs/BACKLOG`) both still held, which is what proves the owner derivation is not a shape hole;
+  the retirement inversion, by restoring `app/gate-config.js` to the tree; an unknown owner
+  failing closed; the floor, by stripping a document's backticks so the extraction finds nothing;
+  and 44 (h)'s own `tools/dev-smoker.mjs` regression after the refactor. Two of the eight — the
+  CLAUDE.md gaps — were measured on the REAL pre-fix tree.
+  **The boundary is stated rather than left implied:** inside a sentence declared foreign the rule
+  cannot check anything, since no tree here can answer for another repo's, so a typo in
+  `lib/VERSION` there stays green (measured). One sentence is the smallest grain that can carry a
+  true statement about another repository at all.
+  Verified: `node tools/doc-truth.mjs` (all 40+ checks incl. the four new), `node
+  tools/validate.mjs`, `node tools/changelog-check.js`, `node tools/dev-smoke.mjs` — the dev gate,
+  green. `docs/` + `tools/` + `CLAUDE.md` only; no precached file touched, so NO `sw.js` bump.
 - **N7 — the runbook an operator ships by now has to mean every name and every file it prints
   (v997, NO sw bump, 2026-08-11, steward; dev branch; est 1pt, took 1 — slice 2 of 2, and this
   item's identifier family is now complete):** 🔁 N7 was again the only takeable item in ▶ NOW
@@ -18326,7 +18377,7 @@
     page defers to, by design not in this checkout), everything else must exist here.
     **Ten failure directions measured on mutated trees**, five of them from the CODE side.
     **Est 1pt, took 1.**
-    **Measured in this pass and NOT taken, so the next run does not re-derive it.** Rule (h) is
+    ~~**Measured in this pass and NOT taken, so the next run does not re-derive it.** Rule (h) is
     scoped to PIPELINE.md, and the same hole is open one document over: the resolver's path
     hand-off names checks 46 (e) and 48 (e), which cover PACKS.md and the RLS runbook — so
     `CLAUDE.md`, `PUBLISH.md`, `README.md` and `docs/COMPAT.md` have no path rule either, and
@@ -18335,7 +18386,29 @@
     time, since unlike the identifier rules there is nothing document-specific to teach. Est 1pt,
     `tools/` only, no `sw.js` bump. **Note for whoever takes it:** measure before writing — every
     count in this family has been taken from a run, not a reading, since v995, and that is the
-    only reason the last two notes were right.
+    only reason the last two notes were right.~~ ✓ **SHIPPED v998, NO sw bump (2026-08-11,
+    steward — see the v998 line below and DONE).** Shared was right, and so was the warning:
+    46 paths, 4 of them not resolving, and the first cut of the shared reader **passed green
+    over its own drift** because `lib/VERSION` has the shape of an owner/repo slug. Running it
+    against the unfixed document is what caught that — a reading would not have.
+  * *Four more documents' repo paths — v998, NO sw bump (2026-08-11 — see DONE).* The candidate
+    above. `resolvePaths` is now one reading shared by five documents (rule 44 (h) refactored
+    onto it, check 80 the four new rules), the OWNER half of "another repo's slug" is derived
+    from the `<owner>/<host>` form the fleet spells its repos in rather than shaped, and
+    `CLAUDE.md` was a repair as well as a check: it sent an agent to `lib/VERSION` and
+    `scripts/gen-manifest.mjs`, two paths that live in the platform repo, in a sentence that
+    named only "the platform repo". Eight failure directions measured, two on the real pre-fix
+    tree. The boundary is stated in the check: inside a sentence declared foreign nothing can be
+    held, because no tree here can answer for another repo's.
+    **Measured in this pass and NOT taken, so the next run does not re-derive it:** the path
+    rules are now three derivations over seven documents — `resolvePaths` (five), check 46 (e)
+    for the RLS runbook and check 48 (e) for PACKS.md — and the two older ones predate it, so
+    they read paths their own way (an artifact roster and a cited-path list rather than the span
+    shape). Neither is wrong and both hold today, so this is a CONSOLIDATION, not a drift: worth
+    doing the day a third reading is needed and not before, and worth measuring first, since
+    `select/insert/update/delete` in the runbook has the path shape and is a privilege list —
+    the one span that tells you the shared reader cannot simply be pointed at those two
+    documents as it stands. Est 1pt, `tools/` only, no `sw.js` bump.
 > **📋 RECORDED FOR KEVIN, NOT PROMOTED — grooming pass 4, 2026-08-10.** This sits BELOW the queue
 > on purpose: `docs/BACKLOG.md` says the loop never promotes into ▶ NOW on its own, and pass 2's
 > proposal (PR #623) is still unanswered, so pass 4 proposes no batch. This is one finding the
