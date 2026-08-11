@@ -135,6 +135,62 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N7 — the go-live runbook's names answered to nothing, and none of them are JavaScript names
+  (v994, NO sw bump, 2026-08-11, steward; dev branch; est 2pt, took 1 of the 2 — the second
+  slice is named below):** 🔁 N7 was again the only takeable item in ▶ NOW (N31, N44, N41 and
+  N25 all ⛔ on Kevin; SP-1 ⏳ on `hold` PR #689), and the v993 pass had named this as its
+  candidate along with the warning that made it a 2-pointer: *"the slice is not 'point (h) at
+  another file'; it is teaching the resolver those namespaces and only then taking the rule to
+  check 46."* That warning was right, and it is the whole substance of this slice.
+  **What was unheld.** `tools/M7-RLS-GOLIVE-RUNBOOK.md` is the PUBLISH.md class — the one
+  document here whose instructions an operator EXECUTES against a live security posture — and
+  check 46 held its counts, its artifacts, its two scripts and its repo PATHS. It said nothing
+  about the names an operator TYPES, and this document is almost nothing else. Check 48 (h),
+  the rule that asks exactly that question one document over, resolved none of the hard ones:
+  `polecat_is_admin()`, `BOOTSTRAP_DDL`, `RLS_REAL_SQL`, `PROVISION_SECRET`,
+  `SUPABASE_SERVICE_ROLE_KEY`, `gotrueId`, `acctOwner`.
+  **They were never missing — they live in namespaces a JS-shaped resolver cannot read**, which
+  is why this could not be a one-line re-point. Six were taught, each with its own honest
+  resolution rule: a SQL function that exists only as text inside a template literal
+  (`polecat_is_admin`, built in `app/sources/schema.js` and three more places); an
+  Edge-Function binding in a **`.ts`** file the corpus excluded BY EXTENSION; an environment
+  variable, which is not a binding anywhere at all — the only honest question is whether the
+  code READS the name, so the roster is every literal handed to `Deno.env.get`; a workspace
+  object PROPERTY, function-shaped nowhere; the Edge Function's fixed ACTION vocabulary
+  (`go-live`, `create-user`), hyphenated and so not spelled like a JS name; and a UI field
+  LABEL (`Admin function URL`), multi-word, and the thing an operator actually hunts for on
+  screen. The last needed a discriminator, because SQL is multi-word too: this document writes
+  its SQL keywords in CAPS, so a span leading with an ALL-CAPS word or carrying an operator is
+  a clause (`TO authenticated`, `role = admin`) and a span leading with a Capitalised word is a
+  label — derived from the document's own convention rather than an allow-list.
+  **The resolver was LIFTED OUT of check 48 rather than copied**, so the two documents that ask
+  this question share one derivation; (h) is now a call and holds exactly what it held before
+  (19 spans, re-measured). Check 46 gains **(f)**: **24 spans held, and all 24 resolve today**,
+  so — as the v993 note predicted for its own slice — this is a check and not a repair.
+  **One real bug fell out of writing it, in the extractor both rules use:** the fence stripper
+  was anchored at column 0, and this runbook INDENTS its code blocks under numbered steps. Three
+  of its nine blocks survived, which unbalanced the backtick pairing and turned thirty-two
+  whole sentences into "spans" — the resolver was reading prose as identifiers. Fixed for both
+  documents (`docs/PACKS.md` has no indented fences, so its 19 are unchanged, which is the
+  measurement that proves the fix is a fix and not a rewrite).
+  **Eight failure directions measured on mutated trees**, one per namespace plus the two
+  invariants: a DDL function the runbook names and nothing declares; the `.ts` constant renamed
+  in code; an env var the code never reads; the workspace property renamed in the CODE while
+  the runbook still names it (renaming BOTH correctly stays green — a coordinated rename is not
+  drift); an action `polecat-admin` does not gate; a field label the app never prints;
+  `Studio::materialize`, a name in a syntax this repo does not write, which lands in the
+  unreadable bucket and FAILS rather than being skipped; and the placeholder exemption held
+  from its own end — delete the runbook's *"replace `ADMIN_UUID`"* declaration and `ADMIN_UUID`
+  correctly becomes a gap, so the exemption is the document's own statement and not a free pass
+  bought by spelling.
+  **`CLAUDE.md`'s LOC figure moved in the same PR** (~67K → ~75K): the resolver's ~230 lines
+  tipped check 7's 10% band, exactly as check 29's ~110 lines did at v916. Same fix, same
+  reason, recorded so the next check-shaped slice expects it.
+  **Est vs actual: est 2pt, this is slice 1 of 2.** The estimate was right and the split is the
+  one the v993 note drew — the namespaces were the work, and `docs/COMPAT.md` + `CLAUDE.md`
+  (the other two documents naming identifiers of this shape) are slice 2, now that the resolver
+  can read them. Verified: `node tools/doc-truth.mjs` green (the new rule and the re-pointed
+  (h) both), `node tools/validate.mjs`, `node tools/changelog-check.js`, `node tools/dev-smoke.mjs`.
 - **N7 — the pack contract's guard read 3 of the 19 names the contract hands an author (v993,
   NO sw bump, 2026-08-11, steward; dev branch; est 1pt, took 1 — ON estimate):** 🔁 N7 was again
   the only takeable item in ▶ NOW (N31, N44, N41 and N25 all ⛔ on Kevin; SP-1 ⏳ on `hold`
@@ -17941,7 +17997,7 @@
     bracket" and "contains a colon" would each have swallowed an unreadable span whole, so a
     placeholder is now a bracket PAIR and a fragment is the key-value SHAPE. Six directions
     measured on mutated trees, including the two the old extractor could never have seen.
-  * **Measured in the v993 pass and NOT taken, so the next run does not re-derive it — and it is
+  * ~~**Measured in the v993 pass and NOT taken, so the next run does not re-derive it — and it is
     the named candidate for the next N7 slice.** The obvious move is (h) one document over, and
     the measurement says it is a bigger slice than it looks: run the same resolver over the other
     executed documents and `tools/M7-RLS-GOLIVE-RUNBOOK.md` — the PUBLISH.md class, check 46's
@@ -17958,7 +18014,44 @@
     and each namespace needs its own honest resolution rule or the runbook gets a check that
     green-lights a name nobody can call. `docs/COMPAT.md` (3) and `CLAUDE.md` (1) fall out of the
     same work; `PUBLISH.md` and `README.md`'s only miss is `CNAME`, a repo FILE their path rules
-    already cover. Est 2pt, `docs/` + `tools/` only, no `sw.js` bump.
+    already cover. Est 2pt, `docs/` + `tools/` only, no `sw.js` bump.~~ ✓ **SHIPPED v994, NO sw bump (2026-08-11, steward — see the v994 line below and DONE), and the note's central warning was the slice.**
+  * *The go-live runbook's own names vs the code that has to answer them — v994, NO sw bump
+    (2026-08-11 — see DONE).* The candidate above, and it took **slice 1 of its 2 points** exactly
+    where the note drew the line: the namespaces were the work, not the re-pointing. `tools/
+    M7-RLS-GOLIVE-RUNBOOK.md` is the PUBLISH.md class — the one document here an operator EXECUTES
+    against a live security posture — and check 46 held its counts, artifacts, scripts and PATHS
+    while saying nothing about the names an operator TYPES. **Six namespaces were taught, each
+    with its own honest resolution rule**, because none of the hard ones is a JavaScript name: a
+    SQL function that exists only as text inside a template literal; an Edge-Function binding in a
+    `.ts` file the corpus excluded BY EXTENSION; an env var, which is a binding NOWHERE (the honest
+    question is whether the code reads it, so the roster is every literal handed to `Deno.env.get`);
+    a workspace object PROPERTY; the Edge Function's hyphenated ACTION vocabulary; and a UI field
+    LABEL, which needed a discriminator against SQL — this document writes its keywords in CAPS,
+    so a span leading ALL-CAPS or carrying an operator is a clause and a Capitalised one is a
+    label, derived from the document's own convention rather than an allow-list. **The resolver
+    was LIFTED OUT of check 48 rather than copied**, so both documents share one derivation; (h)
+    is a call now and still holds its same 19 spans. Check 46 (f) holds **24, all resolving
+    today** — a check, not a repair, as the v993 note predicted of its own slice. **One real bug
+    fell out of writing it, in the extractor BOTH rules use:** the fence stripper was anchored at
+    column 0 and this runbook indents its blocks under numbered steps, so three of its nine survived,
+    the backtick pairing unbalanced, and thirty-two whole sentences were being read as
+    identifiers. Eight failure directions measured on mutated trees — one per namespace plus the
+    two invariants (an unreadable span FAILS; and the placeholder exemption held from its own end,
+    since deleting the runbook's *"replace `ADMIN_UUID`"* declaration correctly makes `ADMIN_UUID`
+    a gap). `CLAUDE.md`'s LOC figure moved in the same PR (~67K → ~75K), the v916 precedent.
+    **Measured in this pass and NOT taken, so the next run does not re-derive it — and it is the
+    named candidate for the next N7 slice, because it is this item's own slice 2.** The two
+    documents the v993 note said "fall out of the same work" are the remainder, and they now
+    genuinely do, because the resolver can read their shapes: **`docs/COMPAT.md`** (3 identifiers)
+    and **`CLAUDE.md`** (1). Neither is executed the way the runbook is, but COMPAT.md is the other
+    CONTRACT in `docs/` and check 25's subject, and `CLAUDE.md` is what an agent reads before it
+    merges — check 42's subject, and check 7 already holds its numbers and nothing else. The open
+    question the slice has to answer is **where each rule lives**: 48 (h) and 46 (f) each sit in
+    the check that owns the document, and the same move gives 25 and 42 a rule apiece rather than
+    a third check about identifiers. Est 1pt, `docs/` + `tools/` only, no `sw.js` bump. **Note for
+    whoever takes it:** measure the spans FIRST — the v993 note's "~10" was low for the runbook by
+    more than double, and a count taken from a document's own list rather than from a run is the
+    mistake this family keeps repeating.
 > **📋 RECORDED FOR KEVIN, NOT PROMOTED — grooming pass 4, 2026-08-10.** This sits BELOW the queue
 > on purpose: `docs/BACKLOG.md` says the loop never promotes into ▶ NOW on its own, and pass 2's
 > proposal (PR #623) is still unanswered, so pass 4 proposes no batch. This is one finding the

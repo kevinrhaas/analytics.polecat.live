@@ -6,6 +6,18 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 994,
+    title: 'The go-live runbook now has to mean every name it prints',
+    kind: 'polish',
+    ts: '2026-08-11T02:44:25.000Z',
+    items: [
+      'The <b>RLS go-live runbook</b> is the one document here whose instructions an operator executes against a live database, and it is almost nothing but names you type: a security function to paste into the SQL editor, two constants that live inside the admin function, four environment variables, the four action names that function will answer to, two workspace columns, and the field on screen the admin URL goes into. Nothing checked that a single one of them exists.',
+      'They all do — twenty-four names, every one of them resolving today — so this is a check rather than a repair. The work was teaching the guard where to look, because a name in this repo is not always a JavaScript name: a security function exists only as text inside a template literal, an admin-function constant lives in a file the guard skipped by extension, an environment variable is not defined anywhere at all (the honest question is whether the code reads it), an action name is hyphenated and so is not spelled like code, and a field label is three ordinary words.',
+      'Each of those is now resolved by its own rule, and the two documents that ask this question — the pack contract and this runbook — share one derivation instead of growing a second copy of it.',
+      'The habit that keeps a rule like this alive: a name written in a shape the guard does not recognise is reported by name and fails, rather than being quietly skipped. That is also how a stray formatting bug surfaced — indented code blocks were not being treated as code, so whole sentences were being read as if they were names.',
+    ],
+  },
+  {
     v: 993,
     title: 'The pack contract now has to mean every function name it prints',
     kind: 'polish',
