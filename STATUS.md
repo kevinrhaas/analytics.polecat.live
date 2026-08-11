@@ -135,6 +135,58 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N7 — the two contracts an agent reads before it changes anything now have to mean their names
+  (v995, NO sw bump, 2026-08-11, steward; dev branch; est 1pt, took 1):** 🔁 N7 was again the only
+  takeable item in ▶ NOW (N31, N44, N41 and N25 all ⛔ on Kevin; SP-1 ⏳ on `hold` PR #689), and
+  the v994 pass named this as its own slice 2 — `docs/COMPAT.md` and `CLAUDE.md`, the two
+  documents its predecessor said would "fall out of the same work".
+  **The note's own warning was the finding.** Its last sentence said *"measure the spans FIRST —
+  a count taken from a document's own list rather than from a run is the mistake this family keeps
+  repeating,"* and the same note predicted **3 identifiers and 1**. A run says **17 and 18**. That
+  is the third pass in a row where the previous note's number was low (v993 said "~10" for the
+  runbook; the answer was 19 there and 24 here), so the measurement was made before a line of rule
+  was written, and the new note at the foot of the N7 list carries a run's numbers rather than a
+  reading's.
+  **Where the rules live, and why the resolver moved.** The note's open question was placement, and
+  the answer it proposed held: 48 (h) and 46 (f) each sit in the check that owns their document, so
+  COMPAT.md's rule went into **check 25** (which already holds its version rows and table names)
+  and CLAUDE.md's into **check 42** (which already holds its workflow list and posture bullet) —
+  one rule apiece, no third check about identifiers. That required MOVING the shared resolver up
+  the file rather than copying it: it was defined below check 42, and its rosters are `const`
+  bindings, which do not hoist. It now precedes check 25, so all four documents read one
+  derivation. Pure relocation, no behaviour change — checks 46 (f) and 48 (h) hold their same 24
+  and 19 spans after it.
+  **COMPAT.md was clean: 17 spans, zero gaps, zero unreadable.** It is the backend-compatibility
+  CONTRACT — the rules for changing the shape of a workspace, read by whoever is about to change
+  one — and it hands its reader four functions to call before touching anything
+  (`WS.compareSchema`, `WS.provisionDeltaSQL`, `Sync.recheckSchema`, `polecat_migrate()`). A
+  migration contract naming a helper that has moved is the PUBLISH.md failure with a database
+  behind it, and nothing held it. So this half ships as a check, not a repair — which is what a
+  contract consulted this often should be able to prove.
+  **CLAUDE.md had 6 unresolvable spans and NONE of them was drift** — the v994 shape exactly.
+  `data-theme` / `data-palette` / `data-app-theme` are HTML ATTRIBUTES; `studio-theme` /
+  `studio-app-theme` are STORAGE KEYS; `release-vNNN` is a GIT REF. All three are strings rather
+  than bindings, so the hyphenated branch — which had assumed hyphenated meant the Edge Function's
+  gated action vocabulary, true only for the runbook — reported all six missing. **Each was
+  taught, not exempted**, and each resolves against the thing that would have to answer for it:
+  an attribute against the stylesheet that styles it AND the DOM calls that set it (both halves
+  are load-bearing, measured — `data-palette` is only ever written, `data-theme` only ever
+  styled); a storage key against `getItem`/`setItem` plus the `storageKey:` the shared shell is
+  handed, which is the role CLAUDE.md names them in; a ref against the workflow lines that mint
+  one, scoped to those lines so an unrelated interpolated string cannot enlarge the roster. The
+  ref needed one extra step — `release-vNNN` is a PATTERN no workflow contains, because the number
+  is interpolated — so both sides reduce to the literal stem (`release-v`) before comparison.
+  **Six failure directions measured on mutated trees, three of them from the CODE side** so the
+  rules are shown to read the tree rather than the document: (1) a `WS.` member renamed in
+  COMPAT.md; (2) a span of a shape the resolver cannot read (`Studio::materialize`) — still a
+  FAILING condition, the invariant carried from (h); (3) the attribute dropped from the app's
+  whole corpus; (4) the storage key renamed in the app; (5) `promote-to-prod.yml` minting a
+  different tag; (6) CLAUDE.md naming an attribute the app does not use. Both emptiness checks
+  and both directions, on both documents.
+  Files: `tools/doc-truth.mjs`, `js/changelog.js`, `STATUS.md`. No `sw.js` bump — nothing
+  precached changed — and `CLAUDE.md`'s LOC figure stayed inside doc-truth's own 10% band, so
+  unlike v994 it needed no restatement. Dev gate green: validate + changelog-check + doc-truth +
+  dev-smoke at 390×780 and desktop, zero pageerrors.
 - **N7 — the go-live runbook's names answered to nothing, and none of them are JavaScript names
   (v994, NO sw bump, 2026-08-11, steward; dev branch; est 2pt, took 1 of the 2 — the second
   slice is named below):** 🔁 N7 was again the only takeable item in ▶ NOW (N31, N44, N41 and
@@ -18039,7 +18091,7 @@
     two invariants (an unreadable span FAILS; and the placeholder exemption held from its own end,
     since deleting the runbook's *"replace `ADMIN_UUID`"* declaration correctly makes `ADMIN_UUID`
     a gap). `CLAUDE.md`'s LOC figure moved in the same PR (~67K → ~75K), the v916 precedent.
-    **Measured in this pass and NOT taken, so the next run does not re-derive it — and it is the
+    ~~**Measured in this pass and NOT taken, so the next run does not re-derive it — and it is the
     named candidate for the next N7 slice, because it is this item's own slice 2.** The two
     documents the v993 note said "fall out of the same work" are the remainder, and they now
     genuinely do, because the resolver can read their shapes: **`docs/COMPAT.md`** (3 identifiers)
@@ -18051,7 +18103,53 @@
     a third check about identifiers. Est 1pt, `docs/` + `tools/` only, no `sw.js` bump. **Note for
     whoever takes it:** measure the spans FIRST — the v993 note's "~10" was low for the runbook by
     more than double, and a count taken from a document's own list rather than from a run is the
-    mistake this family keeps repeating.
+    mistake this family keeps repeating.~~ ✓ **SHIPPED v995, NO sw bump (2026-08-11, steward — see
+    the v995 line below and DONE), and its own "measure FIRST" warning was the finding.**
+  * *The two contracts an agent reads before it changes anything — v995, NO sw bump
+    (2026-08-11 — see DONE).* The candidate above, and this item's slice 2. **The note said 3
+    identifiers and 1; the run says 17 and 18** — the exact mistake its last sentence warned about,
+    made by the note that warned about it, which is the third time this family has under-counted a
+    document from its own summary (v993 said "~10" for the runbook and it was 19 there and 24 here).
+    Both rules live where the note said they should: `docs/COMPAT.md`'s in **check 25**, which owns
+    that document, and `CLAUDE.md`'s in **check 42** — one rule apiece, no third check about
+    identifiers. To make that possible the resolver was **moved up the file** rather than copied:
+    it sat below check 42 and `const` declarations do not hoist, so the shared derivation now
+    precedes the first check that uses it and all four documents read the same one.
+    **COMPAT.md was clean — 17 spans, zero gaps.** It is the contract for changing a workspace's
+    shape and it hands a reader four functions to call first (`WS.compareSchema`,
+    `WS.provisionDeltaSQL`, `Sync.recheckSchema`, `polecat_migrate()`); a migration contract naming
+    a helper that has moved is the PUBLISH.md failure with a database behind it, and nothing had
+    held it. **CLAUDE.md had 6 unresolvable spans and none of them was drift** — the v994 shape
+    exactly: `data-theme` / `data-palette` / `data-app-theme` are HTML ATTRIBUTES, `studio-theme` /
+    `studio-app-theme` are STORAGE KEYS, and `release-vNNN` is a GIT REF. All three are strings
+    rather than bindings, so the hyphenated branch — which had assumed hyphenated meant the Edge
+    Function's action vocabulary, true only for the runbook — called all six missing. Each was
+    TAUGHT, not exempted, and each resolves against the thing that would have to answer for it: an
+    attribute against the stylesheet that styles it AND the code that sets it (both halves are
+    load-bearing — `data-palette` is only ever written, `data-theme` only ever styled), a storage
+    key against `getItem`/`setItem` and the `storageKey:` the shared shell is handed, a ref against
+    the workflow lines that mint one. The ref needed the extra step: `release-vNNN` is a PATTERN no
+    workflow contains, so both sides reduce to the literal stem before comparison.
+    **Six failure directions measured on mutated trees**, three of them from the CODE side so the
+    rules are shown to read the tree and not the document: a renamed `WS.` member, an unreadable
+    span (`Studio::materialize`), the attribute dropped from the app, the storage key renamed in the
+    app, the promotion minting a different tag, and Help naming an attribute that does not exist.
+    **Est 1pt, took 1.**
+    **Measured in this pass and NOT taken, so the next run does not re-derive it — and it is the
+    named candidate for the next N7 slice.** The resolver now reads nine namespaces, so pointing it
+    at the remaining documents is finally cheap — and a probe over the four that have no identifier
+    rule says the work is real, not a formality: **`PUBLISH.md`** (6 spans, 3 gaps, 1 unreadable),
+    **`README.md`** (2 spans, 1 gap, 2 unreadable), **`docs/PIPELINE.md`** (14 spans, 4 gaps, 2
+    unreadable). The gaps are two more namespaces plus one genuine question: a repo FILE with no
+    extension (`CNAME`, named by both PUBLISH.md and README) and a WORKFLOW named without its
+    `.yml` (`promote-to-prod`, `github-pages`) are both resolvable, while `localStorage` — a
+    browser global, in PIPELINE.md — is the honest edge, because "the platform defines it" is not
+    a claim this repo's tree can answer and the right move may be to exempt globals BY SHAPE.
+    `docs/BACKLOG.md` is deliberately excluded: its 15 unreadable spans are ID series and star
+    glyphs, which are this repo's own vocabulary and not names anyone types at code. Est 2pt —
+    PUBLISH.md and README together, then PIPELINE.md — `docs/` + `tools/` only, no `sw.js` bump.
+    **Note for whoever takes it:** the count above came from a run, not a reading, and it is the
+    third pass in a row where the previous note's number was low.
 > **📋 RECORDED FOR KEVIN, NOT PROMOTED — grooming pass 4, 2026-08-10.** This sits BELOW the queue
 > on purpose: `docs/BACKLOG.md` says the loop never promotes into ▶ NOW on its own, and pass 2's
 > proposal (PR #623) is still unanswered, so pass 4 proposes no batch. This is one finding the

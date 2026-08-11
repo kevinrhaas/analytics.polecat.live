@@ -6,6 +6,18 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 995,
+    title: 'The two contracts an agent reads before it changes anything now have to mean their names',
+    kind: 'polish',
+    ts: '2026-08-11T03:23:56.000Z',
+    items: [
+      'Two documents were still unchecked on this point. <b>docs/COMPAT.md</b> is the backend-compatibility contract — the rules for changing the shape of a workspace, read by whoever is about to change it — and it hands you four functions to call before you touch anything. <b>CLAUDE.md</b> is what an agent reads before it merges. Between them they name thirty-five things you are expected to type, and nothing confirmed that any of them still exists.',
+      'All thirty-five resolve, so this is a check rather than a repair — but six of them could not be resolved at first, and none of the six was wrong. They were three kinds of name the guard had no way to read: an attribute on the page, a key the browser stores a preference under, and the tag a release is published with. None of those is a function or a variable, so a guard that looks for code called all three missing.',
+      'Each now resolves against the thing that would have to answer for it: an attribute against the stylesheet that styles it and the code that sets it, a storage key against the code that reads or writes it, a release tag against the workflow that mints it. The tag needed one extra step, because the number in it is filled in at release time — so both sides are compared without it.',
+      'The note that pointed at this slice predicted four names to check and there were thirty-five. Measuring the document instead of trusting its own summary is the lesson, and it is now written down where the next pass will read it.',
+    ],
+  },
+  {
     v: 994,
     title: 'The go-live runbook now has to mean every name it prints',
     kind: 'polish',
