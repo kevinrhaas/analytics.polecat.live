@@ -2515,9 +2515,9 @@
       chart: { type: "richtext", da: null, opts: { content: [
         "**Itemized individual contributions, one closed cycle.** A committee itemizes a donor once their cycle total passes $200; everything under that is reported as an unitemized lump and is not in this source at all. So these are the dollars the FEC can name a giver for, not all the dollars raised.",
         "",
-        "**The kind of committee is a column, not a filter, and that is the whole point.** Restricting recipients to candidate committees looks like the obvious reading of \"who funds the candidates\" and draws a landslide that never happened: one side's earmarked money was itemized directly against the campaign while the other's ran through joint fundraising committees that transfer onward. Same money, different plumbing. Every panel here draws all six kinds together and labels them — **adding a joint fundraiser's total to its participants' is double-counting**, which is why no panel does.",
+        "**The kind of committee is a column, not a filter, and that is the whole point.** Restricting recipients to candidate committees looks like the obvious reading of \"who funds the candidates\" and draws a landslide that never happened: one side's earmarked money was itemized directly against the campaign while the other's ran through joint fundraising committees that transfer onward. Same money, different plumbing. Every View here draws all six kinds together and labels them — **adding a joint fundraiser's total to its participants' is double-counting**, which is why no View does.",
         "",
-        "**Two floors, and they are different in kind.** The panels above sit on the pack's SECOND job, which keeps every state→committee flow of " + cfMillions(CF_CHART_FLOOR) + " or more — **" + f.chartedRows.toLocaleString() + "** of the first job's **" + f.flowRows.toLocaleString() + "** rows, and **" + f.chartedPct.toFixed(1) + "%** of its dollars, with all fifty committees still present. That trim exists because the View Builder runs a dataset live and keeps its first 2,000 rows, and a chart that lost twelve committees to a row limit would look exactly like a chart that had taken a side. The sankey's own " + cfMillions(CF_FLOW_FLOOR) + " floor, on top of it, is about readability alone: open the View and move it.",
+        "**Two floors, and they are different in kind.** The Views above sit on the pack's SECOND job, which keeps every state→committee flow of " + cfMillions(CF_CHART_FLOOR) + " or more — **" + f.chartedRows.toLocaleString() + "** of the first job's **" + f.flowRows.toLocaleString() + "** rows, and **" + f.chartedPct.toFixed(1) + "%** of its dollars, with all fifty committees still present. That trim exists because the View Builder runs a dataset live and keeps its first 2,000 rows, and a chart that lost twelve committees to a row limit would look exactly like a chart that had taken a side. The sankey's own " + cfMillions(CF_FLOW_FLOOR) + " floor, on top of it, is about readability alone: open the View and move it.",
         "",
         "- Itemized individual giving, 2023-24: **" + cfBillions(f.total) + "** across **" + f.contributions.toLocaleString() + "** contributions",
         "- Received by the 50 largest committees: **" + cfBillions(f.flowTotal) + "** (**" + f.flowPct.toFixed(1) + "%**), which is the first job's table",
@@ -2676,7 +2676,7 @@
     das.push(empDa);
     panels.push({ id: "pcd_emp", title: "Donor employers above " + cfMillions(CF_EMPLOYER_FLOOR), span: 2,
       sub: "and the top of this list is the finding — see the note below",
-      info: "The same free-text treatment as occupation. Named employers begin well down the list, which is what the note beside this panel is about.",
+      info: "The same free-text treatment as occupation. Named employers begin well down the list, which is what the note beside this View is about.",
       chart: { type: "bars", da: empDa.id, map: { labelCol: "employer", valueCol: "amount" },
         opts: { horizontal: true, sortBars: true, showValues: false, fmt: "money", height: 420 } } });
 
@@ -3421,7 +3421,7 @@
     panels.push({ id: "pcc_pairs", section: "And the same question one grain down",
       title: "The biggest county-to-county moves out of each state", span: "full",
       sub: "the three largest destinations out of every state — county grain, so a move inside a state counts",
-      info: "This table is the only place the two grains sit on one page, and they are in separate panels on purpose: the corridors above cross a state line by definition, and most of the rows here do not.",
+      info: "This table is the only place the two grains sit on one page, and they are in separate Views on purpose: the corridors above cross a state line by definition, and most of the rows here do not.",
       chart: { type: "table", da: pairsDa.id,
         map: { cols: [
           { col: "from_county", label: "Left" },
@@ -3482,7 +3482,7 @@
     panels.push({ id: "pci_map", section: "Whose income moved",
       title: "Net adjusted gross income by state", span: "full",
       sub: "a calculated column on this View — in_agi_k minus out_agi_k, $ thousands, green gained",
-      info: "The formula is on the shelf: open this panel's View and it is the first thing you see. The scale diverges at zero because the sign is the finding.",
+      info: "The formula is on the shelf: open this View and it is the first thing you see. The scale diverges at zero because the sign is the finding.",
       chart: { type: "choropleth", da: stateDa.id,
         map: { idCol: "state", valueCol: CM_NET_AGI_CALC.name },
         opts: { scale: "state", fmt: "abbr", agg: "sum", classes: 6, height: 460,

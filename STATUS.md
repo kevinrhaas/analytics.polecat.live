@@ -135,6 +135,60 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N7 — the APP was the last place a View was still called a panel (v990, sw v565,
+  2026-08-11, steward; dev branch; est 1pt, took 1 — ON estimate):** 🔁 N7 was again the only
+  takeable item in ▶ NOW (N31, N44, N41 and N25 all ⛔ on Kevin; SP-1 ⏳ on `hold` PR #689), and
+  the v989 pass had left this as its named candidate — the one it could not take, because it is a
+  code slice with an `sw.js` CACHE bump while v989 was a copy pass over one document.
+  **The measurement was the argument for taking it whole.** v988 called the palette "the last
+  surface"; building check 77's exemption set is what showed the app itself was the widest one,
+  in nine modules and 62 printed phrases. What a reader was actually shown: hovering a chart
+  offered **Zoom panel full-screen / Duplicate panel / Delete panel** (`app/studio-render.js`),
+  duplicating it toasted **Panel duplicated** and named the copy `"Panel" + " copy"`, the
+  inspector's own section header read **Panels (6)** with a **Panel accent** field under it, the
+  validator warned that a dashboard **has no panels or KPIs** and named a broken chart
+  `Panel “…”`, Simple mode's checklist said **Add a panel**, the builder-note editor offered
+  **Panel: <title>** one line under its own *"not tied to a View"*, and **six separate places**
+  printed the count — dashboard cards, Home tiles, search rows, recents, version history,
+  the dataset editor's *3 panels in 2 dashboards read this dataset* (the string check 77 had
+  just been forced to move into `<code>` in Help for want of this slice).
+  **The `Panel title` half was decided rather than swept, which is what the v989 note asked
+  for.** It is renamed **Title on dashboards**, NOT "View title": it sits directly beneath the
+  View's own **Name** field in the View Builder, and two boxes both called a title would have
+  read as the same thing twice. The stored `panelTitle` key is untouched, so nothing anyone has
+  saved moves.
+  **The panes keep the word, and that is the whole line the check draws** — `app/index.html`
+  names its own panes that way in the attributes a reader is read to ("Expand Data panel",
+  "Collapse panel"), so the Data panel is still the Data panel. What DID move is the places one
+  word was doing two jobs, the v989 move one document over: the two side panes are **panes**
+  ("Open the builder with side panes"), the theme picker swaps *background, **cards**, text*,
+  and the Dashboard-panel route reads **Dashboard inspector**. Help followed in the same PR —
+  eleven sentences plus the `<code>` quote — because check 77 reads its exemption OUT of the
+  app's copy, so the two documents cannot move apart.
+  Doc-truth **check 78**, premise + two rules, and the line comes from the app's markup rather
+  than from either document (Help and the app would otherwise hold each other to a fixpoint
+  neither could leave). Three exemptions, each derived: `app/palette.js` is skipped because
+  check 76 (c) REQUIRES the retired word there as a hidden search synonym, in both directions;
+  the spec KEY printed in quotes is allowed (`Spec must have a "panels" array` — check 15's
+  `<code>` idiom with the only quoting a plain string has) and the key is read off
+  `addTextPanel()`, not listed; identifiers, `--custom-props` and `[data-*]` selectors go by
+  shape (check 18's rule). **Rule (a) fails on the real pre-fix tree — 72 sites** — and four
+  more directions were measured on mutated trees: one action tooltip reverted, the spec key
+  printed without its quotes, a pane renamed to a View (rule (b), the no-overshoot half), and
+  Help reverting one quote (which reddens check 77, proving the two stay coupled).
+  **The check found a defect in ITSELF on the first mutation, which is why it is worth having:**
+  the first draft stripped HTML tags before scanning, so every one of the canvas item's action
+  tooltips — the copy this slice started from — was invisible to it, hiding in a `title=`
+  attribute. It now adds the readable attributes back before the strip.
+  **Verification.** `tools/validate.mjs` (215 files), `tools/changelog-check.js` (967 entries,
+  top v990, manager-parse OK), `tools/doc-truth.mjs` and `tools/dev-smoke.mjs` — the dev gate,
+  all green. Four new suite checks in `tests/run.js`'s N7 block (the inspector's item section
+  header and the getting-started checklist, at **1280×900 AND 390×780**) plus the two existing
+  assertions the rename moved (STUDIO-PANELS' Settings row label, v76's accent field). The
+  suite's own run is the 45–60 min stage gate, so the five were driven live against a local
+  server in the same harness the block uses, at both widths: all pass, zero pageerrors. The
+  exhaustive copy half is check 78's, by design — the check reaches every literal in `app/*.js`,
+  which no viewport can.
 - **N7 — Help was the last document still calling a View a panel (v989, NO sw bump,
   2026-08-10, steward; dev branch; est 1pt, took 1 — ON estimate):** 🔁 N7 was again the only
   takeable item in ▶ NOW (N31, N44, N41 and N25 all ⛔ on Kevin; SP-1 ⏳ on `hold` PR #689), and
@@ -17654,24 +17708,36 @@
     matcher comment still illustrates the ANDed-terms rule with *"export panel" reaches "Export
     the current panel"* — a command label the palette has never printed. It is a comment, so no
     check can fail on it (check 12's rule) and none should.
-  * **Measured in the v989 pass and NOT taken, so the next run does not re-derive it — and it is
+  * ~~**Measured in the v989 pass and NOT taken, so the next run does not re-derive it — and it is
     the named candidate for the next N7 slice.** Building check 77's exemption set is what
     surfaced it: **the APP still calls a View a panel in the copy a reader sees**, in more
     places than the palette ever did, and v988's "the last surface" was true only of the
-    palette. Measured, with sources: the panel-action tooltips on every View on the canvas —
-    `Zoom panel full-screen`, `Duplicate panel`, `Delete panel` (`app/studio-render.js`) — the
-    dataset editor's impact warning `3 panels in 2 dashboards read this dataset`
-    (`app/datasets.js:916`, the string Help now quotes inside `<code>` for exactly this reason),
-    `Add a panel` and `Dashboard has no panels or KPIs` (`app/model.js`), `Add more panels or
-    KPIs` and the Simple-mode What's-next card (`app/studio.js`), and the `Panel title` field
-    (`app/build.js`) — the one place where the retired noun is the LABEL a reader types into.
-    That is the check-15→18 move (the rule that finished Help finishes the app, one document
-    over, in the direction the other checks read FROM), and check 77 is scoped to
-    `docs/index.html` for that reason rather than by oversight. **It is a code slice with an
-    `sw.js` CACHE bump**, which is why the copy pass did not widen into it, and `Panel title`
-    carries a product question the others do not: renaming a field a reader has typed into for
-    months is not free, so whoever takes it should decide the label half deliberately.
-
+    palette.~~ ✓ **SHIPPED v990, sw v565 (2026-08-11 — see DONE), whole, and the product question
+    the note flagged was answered rather than dodged.** The note's list was the start of it, not
+    the size of it: 62 printed phrases across nine modules, including six separate places that
+    counted "6 panels · 2 KPIs" and the builder-note editor's `Panel: <title>` sitting one line
+    under its own *"not tied to a View"*. `Panel title` is now **Title on dashboards** — not
+    "View title", because it sits directly beneath the View's own **Name** field and two boxes
+    both called a title read as the same box twice; the stored `panelTitle` key is untouched.
+    The panes keep the word (`app/index.html` names them that way in the attributes a reader is
+    read to), and the places where one word was doing two jobs moved to **pane** — the v989 move
+    one document over. Doc-truth **check 78** draws the line from that markup rather than from
+    either document, since Help and the app would otherwise hold each other to a fixpoint
+    neither could leave; **rule (a) fails on the real pre-fix tree, 72 sites**, with four more
+    directions measured on mutated trees. Help moved in the same PR (11 sentences + the `<code>`
+    quote) because check 77 reads its exemption out of the app's copy.
+  * **Measured in the v990 pass and NOT taken, so the next run does not re-derive it — and it is
+    the named candidate for the next N7 slice.** Check 78 is scoped to `app/*.js`, which leaves
+    the repo's own front door: **`README.md` walks the builder in the retired noun** — "drop on
+    the canvas to add a panel", "any panels", "a panel" — six item-uses in its Dashboard Builder
+    section (`README.md:139-144`), while its `Data panel` uses are panes and correct. That is
+    the check-77→78 move one document over, into a document check 45 ALREADY holds (it derives
+    README's H1 and the artifacts README and SPEC.md name), so the rule has a home rather than
+    needing a new one. **`SPEC.md`'s two uses are NOT the same thing and must not be swept with
+    them:** that page defines the file format, where `panels` is the key an author writes, and
+    check 45 holds its key table against `emptySpec()` both directions — so the slice has to
+    tell the key from the noun, which is the same distinction check 78 already draws with the
+    quoted-key exemption. Pure derivation, one document, no `sw.js` bump.
 > **📋 RECORDED FOR KEVIN, NOT PROMOTED — grooming pass 4, 2026-08-10.** This sits BELOW the queue
 > on purpose: `docs/BACKLOG.md` says the loop never promotes into ▶ NOW on its own, and pass 2's
 > proposal (PR #623) is still unanswered, so pass 4 proposes no batch. This is one finding the

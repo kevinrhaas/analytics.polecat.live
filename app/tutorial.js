@@ -391,7 +391,7 @@
         },
         {
           t: "5 · Name it, save it",
-          h: "Give it a name and <b>Save View</b>. Saved Views are reusable everywhere: ★ pins one to <b>Home</b> live; ▦ drops it into the current dashboard as a panel.",
+          h: "Give it a name and <b>Save View</b>. Saved Views are reusable everywhere: ★ pins one to <b>Home</b> live; ▦ drops it into the current dashboard as a View.",
           target: ".xp-savebar",
           pos: "top"
         },
@@ -404,7 +404,7 @@
         },
         {
           t: "That's the fast path!",
-          h: "<b>Dataset → table → chart → saved View.</b> When you want full dashboards — many panels, KPIs, filters, export — take the <b>Build a dashboard</b> tour next.",
+          h: "<b>Dataset → table → chart → saved View.</b> When you want full dashboards — many Views, KPIs, filters, export — take the <b>Build a dashboard</b> tour next.",
           sub: "⌘K → Interactive tutorial brings you back here any time.",
           target: null,
           last: true
@@ -413,7 +413,7 @@
     },
     build: {
       label: "Build a dashboard", ic: "grid", tint: "--good",
-      blurb: "The full Dashboard Builder loop — arrange panels, tune charts, export a file that runs anywhere.",
+      blurb: "The full Dashboard Builder loop — arrange Views, tune charts, export a file that runs anywhere.",
       steps: [
         {
           t: "Build a full dashboard",
@@ -433,7 +433,7 @@
         },
         {
           t: "2 · Canvas — live preview",
-          h: "The centre pane is the <b>real rendered dashboard</b>, not a mock-up. Drop data here to add a panel; drag the header grip to reorder; drag a panel's right edge to change its width, its bottom edge to change its height.",
+          h: "The centre pane is the <b>real rendered dashboard</b>, not a mock-up. Drop data here to add a View; drag the header grip to reorder; drag a View's right edge to change its width, its bottom edge to change its height.",
           sub: "Every change updates instantly.",
           target: "#canvas",
           pane: "canvas",
@@ -441,7 +441,7 @@
         },
         {
           t: "3 · Inspector",
-          h: "Click any panel to select it. The <b>Inspector</b> (right pane) renames it, changes the chart type, binds columns, and tunes visual options — the same pane also configures KPI tiles, filters, and datasets.",
+          h: "Click any View to select it. The <b>Inspector</b> (right pane) renames it, changes the chart type, binds columns, and tunes visual options — the same pane also configures KPI tiles, filters, and datasets.",
           target: "#inspector",
           pane: "inspector",
           pos: "left"
@@ -464,7 +464,7 @@
         },
         {
           t: "You're ready to build!",
-          h: "That's the loop: <b>pick data → arrange panels → configure → export</b>. Feature a dashboard on <b>Home</b> (the little house on its card) to see it live when you open the app, and use <b>Jobs</b> to prep or roll up data before charting.",
+          h: "That's the loop: <b>pick data → arrange Views → configure → export</b>. Feature a dashboard on <b>Home</b> (the little house on its card) to see it live when you open the app, and use <b>Jobs</b> to prep or roll up data before charting.",
           sub: "In a hurry? <b>New ▾</b> in the topbar → <b>Auto-build a starter</b> scaffolds a whole dashboard from one dataset.",
           target: null,
           pane: "canvas",
@@ -682,7 +682,7 @@
         },
         {
           t: "4 · What it does NOT prove",
-          h: "Every pack that ships real data ships this panel too. A low rate can mean an under-served market — or a county whose residents eat in the next county over, or one restaurant covering a lot of ground. The method note says so on the dashboard itself, next to the numbers, rather than in a footnote nobody opens.",
+          h: "Every pack that ships real data ships this View too. A low rate can mean an under-served market — or a county whose residents eat in the next county over, or one restaurant covering a lot of ground. The method note says so on the dashboard itself, next to the numbers, rather than in a footnote nobody opens.",
           target: '[data-panel-id="pmw_note"]',
           pos: "top",
           inPreview: true
@@ -732,8 +732,8 @@
         },
         {
           t: "4 · The decision the pack turns on",
-          h: "The <b>kind</b> of committee is a column here, never a silent filter. Restricting recipients to candidate committees looks like the obvious reading and draws a landslide that never happened — one side's money was itemized against the campaign, the other's ran through joint fundraising committees that transfer onward. Same money, different plumbing, so every panel draws all six kinds and labels them.",
-          sub: "Which also means adding a joint fundraiser's total to its participants' is double-counting. No panel does.",
+          h: "The <b>kind</b> of committee is a column here, never a silent filter. Restricting recipients to candidate committees looks like the obvious reading and draws a landslide that never happened — one side's money was itemized against the campaign, the other's ran through joint fundraising committees that transfer onward. Same money, different plumbing, so every View draws all six kinds and labels them.",
+          sub: "Which also means adding a joint fundraiser's total to its participants' is double-counting. No View does.",
           target: '[data-panel-id="pcf_note"]',
           pos: "top",
           inPreview: true
@@ -786,7 +786,7 @@
         {
           t: "4 · The two grains do not add up",
           h: "The thing to read this pack with, and it is the source's own definition rather than a gap in the extract: a <b>county's</b> totals count every US move it saw, including moves from the next county over inside the same state. A <b>state's</b> totals count only moves that crossed a state line. Summing these counties and expecting the state pages to agree is the one mistake this data invites.",
-          sub: "So no panel in this pack ever adds a county number to a state number, and every note says which grain it is on.",
+          sub: "So no View in this pack ever adds a county number to a state number, and every note says which grain it is on.",
           target: '[data-panel-id="pcm_note"]',
           pos: "top",
           inPreview: true

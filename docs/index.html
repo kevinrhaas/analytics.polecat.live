@@ -637,7 +637,7 @@
   toggles all work) with none of the builder chrome. Handy for sharing with someone who should
   read a dashboard, not edit it.</p>
   <p><strong>Light or dark in the viewer follows you, not the author.</strong> A dashboard's
-  <strong>Appearance</strong> setting (Dashboard panel → Appearance: Light, Dark or Auto) decides
+  <strong>Appearance</strong> setting (Dashboard inspector → Appearance: Light, Dark or Auto) decides
   how the dashboard looks as a finished piece — but inside this app the viewer renders it in
   <em>your</em> light/dark theme instead, because a dark app wrapped around a light dashboard just
   looks broken. Nothing about the dashboard is changed: switch your own theme and the viewer
@@ -785,7 +785,7 @@
   which groups by that field instead of summing it; id-like numeric columns (ending in
   <code>_fips</code>, <code>_id</code>, or plain <code>id</code>) default to Category the first
   time you drop them, rather than SUM.</p>
-  <p>When you save, the <strong>Panel title</strong> field names the View where it sits on a
+  <p>When you save, the <strong>Title on dashboards</strong> field names the View where it sits on a
   dashboard — it defaults to (and keeps tracking) the View's name until you set your own.</p>
   <p>Drop a field on the <strong>Rows</strong> shelf (or use a chip's ⇄ button) and the table
   pivots into a <strong>crosstab</strong>:</p>
@@ -861,7 +861,7 @@
   <p><strong>Quadrant</strong> takes the same two measures and splits the plot into four labelled
   zones, colouring each point by the zone it lands in — the "where does this one sit?" read that a
   plain scatter leaves to the eye. It splits at the midpoints here; the thresholds and the four
-  zone labels are edited on the <strong>Dashboard</strong> panel (Inspector), and a View that already has its own
+  zone labels are edited in the <strong>Dashboard</strong> inspector, and a View that already has its own
   keeps them when you open and update it from the builder.</p>
   <p><strong>Map</strong> draws a US choropleth from your <em>geographic</em> field (region ids —
   FIPS county code, state FIPS or postal code, USDA district, watershed/HUC8, congressional
@@ -1220,7 +1220,7 @@
     <li><strong>Live preview (center)</strong> — The real dashboard rendered in an iframe. This is byte-identical to what the export produces — no approximation. Click a View to select it; drag the title bar to reorder; drag the right edge to make it wider, or the bottom edge to make it taller — as tall as the whole screen if you like. The height sticks and carries into the viewer and every export.</li>
     <li><strong>Inspector (right)</strong> — Contextual editor for whatever is selected. When nothing is selected, shows the dashboard-level controls. Click a View → View inspector. Click a KPI tile → KPI inspector. Click a filter → filter inspector. Click the title banner itself → Header inspector.</li>
   </ul>
-  <p><strong>The builder opens clean:</strong> both side panels start closed so the dashboard gets the full width — pop them open with the edge chevrons when you need them. Prefer them always open? Flip <strong>Open the builder with side panels</strong> in Settings and every visit starts that way.</p>
+  <p><strong>The builder opens clean:</strong> both side panes start closed so the dashboard gets the full width — pop them open with the edge chevrons when you need them. Prefer them always open? Flip <strong>Open the builder with side panes</strong> in Settings and every visit starts that way.</p>
   <p>The View inspector is <strong>context-aware</strong>: interaction sections like Drill-through, Detail drawer, Cross-filter, Conditional formatting, and Color scale only appear when the selected chart type actually supports them (e.g. Conditional formatting shows for Bar/Donut/Treemap/Lollipop but not for Table or Line — clicking a table row instead opens the Detail drawer). This keeps the inspector focused on settings that do something for the current chart.</p>
 
   <p><strong>Renaming a dashboard:</strong> the dashboard title in the toolbar above the live preview renames in place — click it and it becomes a text field (Enter or clicking away commits, Escape cancels). The Dashboard inspector's <strong>Title</strong> field is the same value, edit whichever is closer. The Title (the display name shown in the dashboard's header/banner) and the <strong>File name (stem)</strong> (the lowercase-with-dashes name used for exported files, e.g. <code>my-dashboard.html</code>) are two independent fields right below it, so you can rename either without the other changing.</p>
@@ -1242,7 +1242,7 @@
 
   <p><strong>Show dashboard header (embed mode):</strong> the <strong>Header</strong> toggle in the Dashboard inspector. Turn it <em>off</em> and the entire title banner and description bar disappear from both the live preview and the exported <code>.html</code>, leaving just the KPIs and Views — a clean, chrome-free dashboard you can drop straight inside your own page. Turn it back on and the title, subtitle and description return, all still editable in the inspector.</p>
 
-  <p id="dashboard-header"><strong>The header as an object:</strong> click anywhere on the title banner in the live preview (not on one of its buttons) to select it, the same way clicking a View or KPI tile does — the Inspector switches to a dedicated <strong>Header</strong> view with quick Title/Subtitle/Alignment fields and a ✕ button that hides the whole banner (the same effect as the Show dashboard header toggle above). Double-clicking the title or subtitle text directly still edits it in place without needing to select first. Logo, link, and light/dark stay on the Dashboard panel (click "‹ Dashboard" at the top of the Inspector to get back there).</p>
+  <p id="dashboard-header"><strong>The header as an object:</strong> click anywhere on the title banner in the live preview (not on one of its buttons) to select it, the same way clicking a View or KPI tile does — the Inspector switches to a dedicated <strong>Header</strong> view with quick Title/Subtitle/Alignment fields and a ✕ button that hides the whole banner (the same effect as the Show dashboard header toggle above). Double-clicking the title or subtitle text directly still edits it in place without needing to select first. Logo, link, and light/dark stay in the Dashboard inspector (click "‹ Dashboard" at the top of the Inspector to get back there).</p>
 
   <p><strong>Alignment:</strong> in that same Header view, the <strong>Alignment</strong> picker (Left / Center / Right) moves the brand mark, title and subtitle within the banner. Left is the standard flush-left layout. Center and Right shift that block toward the middle or the icon cluster on the right — the info/print/waffle icons always stay pinned to the far right either way.</p>
 
@@ -1660,7 +1660,7 @@
     <li>Or select an existing View and use the <strong>Query</strong> picker in the inspector to switch its DA.</li>
     <li>The <strong>Query preview</strong> section in the View inspector shows the SQL snippet, column headers, and 3 sample rows so you can verify the binding without leaving the builder. If that sample has any blank/missing values, a column that's the same value on every row, or duplicate rows, a small note appears right below the table calling it out — a quick data-quality check before you build a chart on top of it.</li>
     <li>When that View reads a <strong>workspace dataset</strong>, the same section carries an <strong>Edit this query</strong> link. It opens the ordinary dataset editor on top of the dashboard — change the SQL, hit <strong>Preview</strong> to see the rows it returns now, and save. Your dashboard is still there behind it, with the same View selected, and the pane repaints against the query you just saved. A View that carries its own inline rows (a sample-pack View, or a dashboard-only query) has no dataset to open, so it shows no link. If the new query stops returning a column a shelf was using, saving says so by name rather than leaving you with an empty axis.</li>
-    <li>Because that editor is now one click from a canvas, it warns you before a save that could break something you can't see. If you change what a dataset <strong>runs</strong> — its query, the connection behind it, a parameter default, the file it reads — on a dataset that dashboards are bound to, and you haven't pressed <strong>Preview</strong> on what you're about to save, a note appears above the buttons: why it's unproven (never run here, or the last Preview failed and what it said) and what it would reach, counted and named — <code>3 panels in 2 dashboards read this dataset — …</code>. The dashboard you have open counts too, even if you've never saved it. <strong>Preview, then save</strong> runs the query and, if rows come back, completes the save in the same tap; <strong>Save anyway</strong> goes ahead regardless (there are good reasons to save a query you can't run right now); <strong>Keep editing</strong> puts you back in the query box. Saves that can't break anything are never questioned — renaming, refiling, retagging or re-describing a dataset, a save you've already previewed, and any dataset no dashboard reads yet.</li>
+    <li>Because that editor is now one click from a canvas, it warns you before a save that could break something you can't see. If you change what a dataset <strong>runs</strong> — its query, the connection behind it, a parameter default, the file it reads — on a dataset that dashboards are bound to, and you haven't pressed <strong>Preview</strong> on what you're about to save, a note appears above the buttons: why it's unproven (never run here, or the last Preview failed and what it said) and what it would reach, counted and named — <code>3 Views in 2 dashboards read this dataset — …</code>. The dashboard you have open counts too, even if you've never saved it. <strong>Preview, then save</strong> runs the query and, if rows come back, completes the save in the same tap; <strong>Save anyway</strong> goes ahead regardless (there are good reasons to save a query you can't run right now); <strong>Keep editing</strong> puts you back in the query box. Saves that can't break anything are never questioned — renaming, refiling, retagging or re-describing a dataset, a save you've already previewed, and any dataset no dashboard reads yet.</li>
     <li>For any chart bound to a single value column, an <strong>Insight</strong> section appears right below it with a short, plain-English narration of the View's own sample data — overall trend direction, the single biggest point-to-point move, any outlier more than 2 standard deviations from the mean, and (when the data supports it) a repeating pattern detected via autocorrelation on the trend-removed series, e.g. "It also shows a repeating pattern roughly every 4 points." A <strong>Scatter / bubble</strong> View gets a different read instead: the Pearson correlation between its bound X and Y columns (strength + direction, e.g. "a strong positive correlation"). It's computed entirely client-side (pure JS math, no API key, no network call) and updates automatically as you change the query or column mapping. When the narration flags an outlier or a biggest single move, an <strong>Add callout at "…"</strong> button appears below it — one click drops the View's Callout arrow overlay (see below) right on that point instead of eyeballing the x%/y% sliders yourself.</li>
   </ul>
 
@@ -2669,7 +2669,7 @@
   (color theme + light/dark) is saved on your own account and applies wherever you sign in. The
   two local demo accounts stay browser-local, since they have no backend identity. Your wider
   personal setup roams as well: Simple mode, the restore-unsaved-work opt-in, the builder's
-  side-panels preference, sample visibility, pane sizes (Studio's side panels, the
+  side-panes preference, sample visibility, pane sizes (Studio's side panes, the
   View Builder's datasets pane and chart canvas), and your tile/list layout picks for Dashboards
   and the Repository — all saved on your own account row and applied when you sign in
   elsewhere.</p>
@@ -2808,7 +2808,7 @@
     <tbody>
       <tr>
         <td><strong>Dashboard (.html)</strong></td>
-        <td>A fully self-contained <code>.html</code> file with all toolkit JS/CSS inlined. No server required — open in any browser. (Internally this is the <em>Dashboard Framework</em> export — the name you'll see in a text panel's inspector note — but the button says <strong>Dashboard (.html)</strong>.)</td>
+        <td>A fully self-contained <code>.html</code> file with all toolkit JS/CSS inlined. No server required — open in any browser. (Internally this is the <em>Dashboard Framework</em> export — the name you'll see in a text View's inspector note — but the button says <strong>Dashboard (.html)</strong>.)</td>
         <td>Sharing demos, embedding in portals, or hosting as a standalone dashboard on any static web host.</td>
       </tr>
       <tr>
@@ -2904,7 +2904,7 @@
       <tr><td><kbd>?</kbd></td><td>Open / close the keyboard shortcuts reference modal</td></tr>
     </tbody>
   </table>
-  <p>The in-app shortcuts panel closes with two things that aren't keys, so they have no row above: <strong>double-click a View's title</strong> on the canvas to rename it inline, and the <strong>↗</strong> button on a View zooms it to full screen (<kbd>Escape</kbd> closes it again).</p>
+  <p>The in-app shortcuts overlay closes with two things that aren't keys, so they have no row above: <strong>double-click a View's title</strong> on the canvas to rename it inline, and the <strong>↗</strong> button on a View zooms it to full screen (<kbd>Escape</kbd> closes it again).</p>
 
   <h3>Reading a dashboard without a mouse</h3>
   <p>In the <strong>Viewer</strong> and in any dashboard you've exported as a self-contained file, KPI tiles are buttons: <kbd>Tab</kbd> moves through them, a focus ring shows which one you're on, and <kbd>↵</kbd> or <kbd>Space</kbd> opens that tile's detail — the same drawer of underlying records a click gives you. Inside the drawer, <kbd>Escape</kbd> closes it.</p>
@@ -3044,7 +3044,7 @@
       <strong data-set-row="simple">Simple mode</strong>, the subject of this chapter;
       <strong data-set-row="restore">Restore unsaved work</strong>, off by default, which offers
       on your next visit to bring back a dashboard you were editing but never saved; and
-      <strong data-set-row="panels">Open the builder with side panels</strong>, also off by
+      <strong data-set-row="panels">Open the builder with side panes</strong>, also off by
       default, which decides whether the Dashboard Builder opens with its Data and Inspector
       panes already out.</li>
     <li><strong data-set-card="Presentation">Presentation</strong> —

@@ -8244,8 +8244,8 @@ function serve() {
       var row = cb ? cb.closest(".set-row") : null;
       return { found: !!cb, checked: cb ? cb.checked : null, label: row ? (row.querySelector("b") || {}).textContent : "" };
     });
-    ok("STUDIO-PANELS: Settings exposes an 'Open the builder with side panels' preference, reflecting the stored choice",
-      panelsCard.found && panelsCard.checked === true && /Open the builder with side panels/.test(panelsCard.label), JSON.stringify(panelsCard));
+    ok("STUDIO-PANELS: Settings exposes an 'Open the builder with side panes' preference, reflecting the stored choice",
+      panelsCard.found && panelsCard.checked === true && /Open the builder with side panes/.test(panelsCard.label), JSON.stringify(panelsCard));
     await page.evaluate(function () { window.__studioShellSetSection("studio"); });
     await page.waitForTimeout(150);
 
@@ -32120,10 +32120,10 @@ function serve() {
       try {
         var allText = [].slice.call(document.querySelectorAll("#inspBody *")).map(function (el) { return el.textContent; }).join(" ");
         var hasInput = document.querySelector(".panel-accent-inp") !== null;
-        return { hasAccentText: /panel accent/i.test(allText), hasInput: hasInput };
+        return { hasAccentText: /view accent/i.test(allText), hasInput: hasInput };
       } catch (e) { return { hasAccentText: false, hasInput: false, err: e.message }; }
     });
-    ok("v76: panel inspector shows Panel accent field with color input", accentField.hasAccentText && accentField.hasInput, JSON.stringify(accentField));
+    ok("v76: the View inspector shows the View accent field with a color input", accentField.hasAccentText && accentField.hasInput, JSON.stringify(accentField));
 
     // 6. Setting p.accentColor renders .dk-accent-panel in the preview iframe
     const accentRender = await page.evaluate(async function () {
@@ -49778,7 +49778,44 @@ function serve() {
     ok("N7: on desktop the same button expands a COLLAPSED Data pane and focuses its search, without rewriting the reader's persisted collapse preference",
       dpDesktop.wasCollapsed && !dpDesktop.nowCollapsed && dpDesktop.focused && dpDesktop.pref === "1",
       JSON.stringify(dpDesktop));
-    ok("N7: the Data-pane walk (390×780 → 1280×900) raised zero pageerrors", dpErrors.length === 0, dpErrors.slice(0, 3).join(" | "));
+
+    // ---- N7 (the app's own noun): the thing on a dashboard is a View where the app SAYS so ----
+    // v988 renamed the ⌘K palette and v989 renamed Help; building check 77's exemption set is
+    // what showed the app itself was the widest offender still printing the retired noun — the
+    // canvas item's action tooltips, the inspector's section header, the validator, the
+    // completeness checklist, every "6 panels · 2 KPIs" count, and `Panel title`. doc-truth
+    // check 78 holds the exhaustive copy half (every literal in app/*.js, both directions);
+    // these two are the surfaces a reader actually gets to at a viewport, so they are measured
+    // live at BOTH gate widths rather than read out of the source.
+    const nounSpec = function () {
+      var spec = window.__STUDIO_STATE.spec;
+      spec.panels = [{ id: "n7p1", title: "N7 noun", span: 2, chart: { type: "bars", da: "", map: {}, opts: {} } }];
+      window.__STUDIO_STATE.selection = null;
+      if (window.__studioRenderInspector) window.__studioRenderInspector();
+    };
+    const readNoun = function () {
+      var body = document.getElementById("inspBody");
+      var heads = [].map.call(body ? body.querySelectorAll(".sec-h, .section-h, h3, h4, b") : [],
+        function (el) { return (el.textContent || "").trim(); });
+      var itemSection = heads.filter(function (t) { return /^(Views|Panels)\s*\(\d+\)$/.test(t); })[0] || "";
+      var checklist = (window.Studio && Studio.dashboardCompleteness)
+        ? Studio.dashboardCompleteness(window.__STUDIO_STATE.spec).items.map(function (i) { return i.label; }) : [];
+      return { itemSection: itemSection, checklist: checklist };
+    };
+    for (const w of [{ width: 1280, height: 900 }, { width: 390, height: 780 }]) {
+      await dpPage.setViewportSize(w);
+      await dpPage.waitForTimeout(200);
+      await dpPage.evaluate(nounSpec);
+      await dpPage.waitForTimeout(150);
+      const noun = await dpPage.evaluate(readNoun);
+      ok(`N7: at ${w.width}×${w.height} the inspector's item section is named for the View it lists, not the spec key it is stored under`,
+        noun.itemSection === "Views (1)", JSON.stringify(noun.itemSection));
+      ok(`N7: at ${w.width}×${w.height} the getting-started checklist asks for a View — no step still names the retired noun`,
+        noun.checklist.length >= 4 && noun.checklist.indexOf("Add a View") >= 0 &&
+        !noun.checklist.some(function (l) { return /\bpanels?\b/i.test(l); }), JSON.stringify(noun.checklist));
+    }
+
+    ok("N7: the Data-pane + noun walk (390×780 → 1280×900) raised zero pageerrors", dpErrors.length === 0, dpErrors.slice(0, 3).join(" | "));
     await dpCtx.close();
 
     // ---- N7 (build tour): the tour OPENS the panes it points at ----
