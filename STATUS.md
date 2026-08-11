@@ -135,6 +135,55 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N7 — the runbook an operator ships by now has to mean every name and every file it prints
+  (v997, NO sw bump, 2026-08-11, steward; dev branch; est 1pt, took 1 — slice 2 of 2, and this
+  item's identifier family is now complete):** 🔁 N7 was again the only takeable item in ▶ NOW
+  (N31, N44, N41 and N25 all ⛔ on Kevin; SP-1 ⏳ on `hold` PR #689), and the v996 pass named this
+  as the next slice, being its own slice 2. Taken exactly there, and the note's counts were
+  confirmed by a run before a line was written — **`docs/PIPELINE.md`: 15 spans, 3 gaps, 1
+  unreadable, exactly as recorded.**
+  **The document is correct today, so this is a check, not a repair.** What earned it a slice is
+  that PIPELINE.md is the only one of the seven that describes the DELIVERY MACHINERY rather than
+  the app, so most of what it hands you to type is a workflow, a gate script or a command — and
+  the rules already in check 42 held its gate LISTS while nothing held its names. All four
+  unresolved shapes were TAUGHT, not exempted, each against the thing that would have to answer
+  for it: a **workflow named without its `.yml`** (`promote-to-prod`) against `.github/workflows/`
+  — deliberately left out of the v996 pass, since PUBLISH.md needed no such span and a roster no
+  document reads is a rule that cannot be measured; a **command** (`git revert -m 1`) against the
+  `run:` lines of `rollback-prod.yml`, which is better than the `node …` exemption's
+  unreadable-but-fine because the sentence's whole claim is that rollback IS that command — held
+  on an ordered token subsequence, so `git revert -n 1` fails where the true invocation passes; a
+  **platform global** (`localStorage`), the honest edge the v996 note flagged, where the note's own
+  proposed remedy ("exempt globals by shape") was the wrong instinct and the rule resolves instead,
+  against the narrower question the tree can answer — does this app use the name as a global, a
+  bare receiver nothing here binds — which hands it straight back to the binding rule the day
+  someone shadows it; and `STUDIO_WS_STORE.blockReason()`, a namespace whose base is a global
+  bound to an IIFE's return, taught to `identMember` as a THIRD shape (read the module's closing
+  `return {…}`) rather than given its own branch, so all seven documents keep sharing one
+  derivation.
+  **The verification found a real hole, and closing it is the slice's other half — rule (h).**
+  The resolver skips any span containing `/` as "a repo path — check 46 (e) / 48 (e)"; for
+  PACKS.md and the RLS runbook that hand-off is true, and for this document it lands nowhere.
+  **PIPELINE.md names 15 repo paths and nothing verified any of them existed.** Measured by
+  mutating the document — `tools/dev-smoke.mjs` → `tools/dev-smoker.mjs` — which came back GREEN
+  across all 40 checks, because rule (a) matches a gate step by STEM and `dev-smoker.mjs` contains
+  `dev-smoke`. Rule (a) is RIGHT to match that way (CLAUDE.md legitimately names some gate steps
+  by stem alone, so tightening it would fail a true sentence), so the fix is the other one: hold
+  the paths as paths. Three shapes, no allow-list — a leading `/` is a URL prefix (`/dev/`,
+  `/stage/`, `/v/`), a last segment spelled like a hostname is another repo's slug
+  (`kevinrhaas/jobtracker.polecat.live`, the pilot runbook this page defers to and by design not
+  in this checkout), everything else is a path here and must exist here.
+  **Verified: ten failure directions measured on mutated trees, five of them from the CODE side**
+  so the rules are shown to read the tree and not the document — the module's published member
+  renamed, the dispatched workflow renamed, `rollback-prod.yml` no longer running the command the
+  page prints, the whole corpus no longer calling the global, and a named file deleted from the
+  tree; plus five from the document — a workflow it invents, a member it invents, a global it
+  invents, a wrong rollback command, and the path typo that started rule (h). One further
+  direction was measured as a HAND-OFF rather than a failure: shadowing `localStorage` with a
+  local binding keeps the span green through the binding rule, which is the designed behaviour.
+  Dev gate green (validate + changelog-check + doc-truth + dev-smoke at 390×780 and desktop, zero
+  pageerrors). `docs/` + `tools/` + bookkeeping only; no precached file changed, so no `sw.js`
+  bump, per the v996 precedent.
 - **N7 — the two pages the front door forwards to now have to mean the names they print
   (v996, NO sw bump, 2026-08-11, steward; dev branch; est 2pt, slice 1 of 2 — PIPELINE.md is
   slice 2):** 🔁 N7 was again the only takeable item in ▶ NOW (N31, N44, N41 and N25 all ⛔ on
@@ -18231,7 +18280,7 @@
     of one character (`A` records, the `+` chips). Rules: **check 44 (g)** and **check 41 (h)**,
     each in the check that owns its document, the v995 placement. **Eight failure directions
     measured on mutated trees**, four of them from the CODE side.
-    **Measured in this pass and NOT taken, so the next run does not re-derive it — and it is the
+    ~~**Measured in this pass and NOT taken, so the next run does not re-derive it — and it is the
     named candidate for the next N7 slice, because it is this item's own slice 2.**
     **`docs/PIPELINE.md`: 15 spans, 3 gaps, 1 unreadable** (measured with the taught resolver, not
     read off the old note — its `window.STUDIO_STAGE` now resolves, which is why the count moved
@@ -18247,7 +18296,46 @@
     "the platform defines it" is not a claim this repo's tree can answer, so the right move is
     probably to exempt globals BY SHAPE (a name the app never assigns and never could). The
     unreadable span is `git revert -m 1`, a command line — the `node …` exemption one tool over.
-    Est 1pt. `docs/` + `tools/` only, no `sw.js` bump.
+    Est 1pt. `docs/` + `tools/` only, no `sw.js` bump.~~ ✓ **SHIPPED v997, NO sw bump (2026-08-11,
+    steward — see the v997 line below and DONE), and this note's counts were right in every
+    particular — the second pass in a row, after four where they were not.** Its one wrong
+    instinct was the `localStorage` remedy: "exempt globals BY SHAPE" would have bought the span
+    out of the rule, and the honest move was the opposite — RESOLVE it, against the narrower
+    question the tree can actually answer.
+  * *The runbook an operator ships by, vs the names and files it prints — v997, NO sw bump
+    (2026-08-11 — see DONE).* The candidate above, this item's slice 2 of 2, and the last
+    document in the family. **15 spans, all correct today** — a check, not a repair, and all
+    four unresolved shapes were taught rather than exempted: a workflow named without its `.yml`
+    (`promote-to-prod`) against the directory; a **command** (`git revert -m 1`) against the
+    `run:` lines of the workflow that performs the rollback, on an ordered token subsequence so
+    `git revert -n 1` fails where the true invocation passes; a **platform global**
+    (`localStorage`) against whether this app calls the name and never binds it — which hands the
+    span back to the binding rule the day someone shadows it; and `STUDIO_WS_STORE.blockReason()`,
+    a namespace whose base is a global bound to an IIFE, taught to `identMember` as a third shape
+    (read the module's closing `return {…}`) so all seven documents share one derivation.
+    **The verification found a real hole and closing it is the slice's other half — rule (h).**
+    The resolver SKIPS any span containing `/` as "a repo path — check 46 (e) / 48 (e)", and for
+    PACKS.md and the RLS runbook that hand-off is true; for this document it lands nowhere.
+    **PIPELINE.md names 15 repo paths and nothing verified that any of them exists.** Measured by
+    mutating the document — `tools/dev-smoke.mjs` → `tools/dev-smoker.mjs` — which came back
+    GREEN across all 40 checks, because rule (a) matches a gate step by STEM and `dev-smoker.mjs`
+    contains `dev-smoke`. **Rule (a) is right to do that** (CLAUDE.md legitimately names some
+    steps by stem alone, so tightening it would fail a true sentence), which is why the fix is the
+    other one: hold the paths AS paths. Three shapes, no allow-list — a leading `/` is a URL
+    prefix, a last segment spelled like a hostname is another repo's slug (the pilot runbook this
+    page defers to, by design not in this checkout), everything else must exist here.
+    **Ten failure directions measured on mutated trees**, five of them from the CODE side.
+    **Est 1pt, took 1.**
+    **Measured in this pass and NOT taken, so the next run does not re-derive it.** Rule (h) is
+    scoped to PIPELINE.md, and the same hole is open one document over: the resolver's path
+    hand-off names checks 46 (e) and 48 (e), which cover PACKS.md and the RLS runbook — so
+    `CLAUDE.md`, `PUBLISH.md`, `README.md` and `docs/COMPAT.md` have no path rule either, and
+    CLAUDE.md's Layout block alone is mostly paths. Whether that is one shared derivation or four
+    rules apiece is the v995 placement question again, and the answer is probably shared this
+    time, since unlike the identifier rules there is nothing document-specific to teach. Est 1pt,
+    `tools/` only, no `sw.js` bump. **Note for whoever takes it:** measure before writing — every
+    count in this family has been taken from a run, not a reading, since v995, and that is the
+    only reason the last two notes were right.
 > **📋 RECORDED FOR KEVIN, NOT PROMOTED — grooming pass 4, 2026-08-10.** This sits BELOW the queue
 > on purpose: `docs/BACKLOG.md` says the loop never promotes into ▶ NOW on its own, and pass 2's
 > proposal (PR #623) is still unanswered, so pass 4 proposes no batch. This is one finding the

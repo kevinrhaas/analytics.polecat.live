@@ -1197,6 +1197,35 @@ ok(`app/tutorial.js: every tour that walks a catalog names that catalog ROW's ow
    typography, a span of one character (`A` records, the `+` chips), since nothing this
    repo defines is one character long.
 
+   Then 2026-08-11 once more, for `docs/PIPELINE.md` (check 42 (g)) — the last document
+   this family had left. Its three gaps were three more namespaces, and none of them was
+   drift; what they have in common is that the runbook describes the DELIVERY MACHINERY, so
+   two of the three are answered by the workflows rather than by the app:
+
+     · a WORKFLOW named without its `.yml` (`promote-to-prod`) — hyphenated, so it never
+       reaches the module rule that resolves `promote-to-prod.yml`, and the roster is simply
+       the directory. Deliberately not taken with PUBLISH.md's namespaces, which needed no
+       such span: a roster no document reads is a rule that cannot be measured;
+     · a COMMAND (`git revert -m 1`) — not a name at all. The `node …` exemption calls its
+       shape unreadable-but-fine because rule (e) holds the script; this one does better,
+       because the sentence's whole claim is that rollback IS that command and
+       `rollback-prod.yml` is the file that runs it. It resolves against the automation
+       instead of being exempted, on an ordered token subsequence so `git revert -n 1`
+       fails where the true invocation passes;
+     · a PLATFORM GLOBAL (`localStorage`) — the honest edge, and the one the v996 note
+       flagged as such. It is the only shape here whose answer is not "this repo defines
+       it", because this repo cannot; "the platform defines it" is not a claim the tree can
+       check. So the rule asks the narrower question the tree CAN answer — does this app use
+       the name as a global, a bare receiver nothing here binds — which is derived rather
+       than an allow-list of web APIs, and hands the name back to the binding rule the day
+       someone shadows it.
+
+   And one shape the namespace branch could not read: a namespace whose base is a GLOBAL
+   bound to an IIFE's return (`window.STUDIO_WS_STORE = (function () { … })()`). Neither
+   `NS.member =` nor `NS = {` describes a module that publishes through its closing
+   `return {…}`, so `identMember` learned that third shape rather than the document learning
+   an exemption.
+
    Two invariants carried over from (h) unchanged, because they are what stop a rule like
    this rotting one span at a time:
      · a span that is neither prose nor a shape the resolver knows is REPORTED BY NAME,
@@ -1311,11 +1340,43 @@ const identEnvironments = new Set([
   ...identWorkflowYaml.matchAll(/^\s*environment:\s*([\w.-]+)\s*$/gm),
   ...identWorkflowYaml.matchAll(/^\s*environment:\s*\n(?:[^\S\n]*(?:#[^\n]*)?\n)*[^\S\n]*name:\s*([\w.-]+)/gm),
 ].map((m) => m[1]));
+// A WORKFLOW named without its `.yml` — `promote-to-prod`, which is how PIPELINE.md names
+// the dispatch it tells an operator to run ("Production ships only on an explicit
+// `promote-to-prod` dispatch"). Hyphenated, so it never reaches the module rule that would
+// have resolved `promote-to-prod.yml`; the roster is the directory itself.
+const identWorkflowNames = new Set([...identTree]
+  .filter((n) => /^\.github\/workflows\/[\w.-]+\.ya?ml$/.test(n))
+  .map((n) => path.basename(n).replace(/\.ya?ml$/, "")));
 // A GLOBAL — `window.STUDIO_GATE_SHA256`, `window.STUDIO_STAGE`. Not a namespace member in
 // the `Studio.x` sense (the resolver's namespace branch is spelled for a Capitalised
 // namespace, and `window` is the platform's), so it needs its own rule: the honest question
 // is whether this app's own code puts the name on the window.
 const identGlobal = (name) => new RegExp(`\\bwindow\\.${name}\\s*=`).test(identAll);
+// A WEB PLATFORM global — `localStorage`. The honest edge the v996 note named, and it is the
+// one shape whose answer is NOT "this repo defines it": this repo cannot define it, and "the
+// platform defines it" is not a claim the tree can check. What the tree CAN answer is whether
+// this app uses the name AS a global — a bare receiver nothing here binds. Both halves matter:
+// the usage is what makes it real rather than a typo, and the absence of a binding is what
+// makes it the platform's. Derived rather than listed, so the day someone shadows the name
+// with a local the shape changes and the binding rule above answers for it instead.
+const identPlatformGlobal = (name) =>
+  !identDefines(identAll, name) && new RegExp(`(^|[^\\w.$])${name}\\s*[.([]`).test(identAll);
+// A COMMAND LINE — `git revert -m 1`. Not a name at all, and the `node …` exemption above
+// treats its own shape as unreadable-but-fine because rule (e) holds the script it names.
+// This one has something better to answer for it: PIPELINE.md says rollback IS that command,
+// and `rollback-prod.yml` is the file that runs it — so the span resolves against this repo's
+// own automation rather than being exempted. Tokens must appear IN ORDER as a subsequence of
+// a real run line (not merely be present in it), so a plausible-but-wrong invocation —
+// `git revert -n 1` — fails where the true one passes.
+const identRunLines = identWorkflowYaml.split("\n").map((l) => l.trim().split(/\s+/));
+const identCommandRun = (span) => {
+  const want = span.split(/\s+/);
+  return identRunLines.some((toks) => {
+    let i = 0;
+    for (const t of toks) if (t === want[i] || t.startsWith(want[i] + ";")) i++;
+    return i === want.length;
+  });
+};
 // A RETIREMENT is declared BY THE DOCUMENT, the placeholder idiom one step further. PUBLISH.md
 // § 3 names `app/gate-config.js` and `window.STUDIO_GATE_SHA256` inside a sentence whose whole
 // job is to say they are GONE (v852, AUD-09) — so "every name resolves" is the wrong question
@@ -1357,10 +1418,22 @@ const identDefines = (src, name) => new RegExp(
 // A namespace member is either assigned onto the namespace (`WS.freshDeploySQL = function`)
 // or a KEY of the object literal the namespace is assigned — how app/build.js writes it
 // (`runBlob: bdRunBlob`, a name bound to a closure defined 250 lines earlier).
+// A THIRD shape, taught for `STUDIO_WS_STORE.blockReason()`: the namespace is a global bound
+// to an IIFE's RETURN value (`window.STUDIO_WS_STORE = (function () { … return { blockReason:
+// blockReason, … }; })()`). Neither branch above can see it — nothing is ever assigned onto
+// the namespace, and `NAME = {` looks at the assignment, where a module like this publishes
+// through its closing `return`. So read the IIFE's own brace block and ask the object literal
+// it returns, which is the only place such a module exposes anything.
 const identMember = (ns, member) => {
-  if (new RegExp(`\\b${ns.replace(/\./g, "\\.")}\\.${member}\\s*=`).test(identAll)) return true;
+  const esc = ns.replace(/\./g, "\\.");
+  if (new RegExp(`\\b${esc}\\.${member}\\s*=`).test(identAll)) return true;
   const at = identAll.indexOf(`${ns} = {`);
-  return at >= 0 && new RegExp(`(^|[\\s,{])${member}\\s*:`).test(braceBlockAt(identAll, identAll.indexOf("{", at)));
+  if (at >= 0 && new RegExp(`(^|[\\s,{])${member}\\s*:`).test(braceBlockAt(identAll, identAll.indexOf("{", at)))) return true;
+  const iife = new RegExp(`(?:window\\.)?${esc}\\s*=\\s*\\(\\s*function`).exec(identAll);
+  if (!iife) return false;
+  const body = braceBlockAt(identAll, identAll.indexOf("{", iife.index));
+  const ret = body.lastIndexOf("return {");
+  return ret >= 0 && new RegExp(`(^|[\\s,{])${member}\\s*:`).test(braceBlockAt(body, body.indexOf("{", ret)));
 };
 // A property is read or written somewhere — `.acctOwner` or `acctOwner:`.
 const identProp = (name) => new RegExp(`\\.${name}\\b|\\b${name}\\s*:`).test(identAll);
@@ -1471,11 +1544,13 @@ function resolveIdentifiers(doc) {
       // six spans of this shape resolved in none of them until they were taught.
       held.push(span);
       if (!identActions.has(span) && !identAttrs.has(span) && !identStoreKeys.has(span)
-          && !identRefStems.has(identRefStem(span)) && !identEnvironments.has(span))
+          && !identRefStems.has(identRefStem(span)) && !identEnvironments.has(span)
+          && !identWorkflowNames.has(span))
         gaps.push(`${span} — hyphenated, so not a JS name: neither one of the actions ` +
           `polecat-admin gates (${[...identActions].join(", ")}), nor an attribute the app ` +
           "sets or styles, nor a key it reads from storage, nor a ref any workflow mints, " +
-          `nor a deployment environment any workflow declares (${[...identEnvironments].join(", ") || "none"})`);
+          `nor a deployment environment any workflow declares (${[...identEnvironments].join(", ") || "none"}), ` +
+          "nor a workflow in .github/workflows/ named without its .yml");
     } else if (/^[A-Za-z_$][\w$]*$/.test(span)) {
       // A bare word is a NAME only when it is spelled like one — an internal capital.
       // All-lowercase spans are the registries' own keys, the `kind` vocabulary and SQL
@@ -1483,8 +1558,9 @@ function resolveIdentifiers(doc) {
       // the Edge Function gates, which IS a name an operator types.
       if (!/[A-Z]/.test(span)) { if (identActions.has(span)) held.push(span); continue; }
       held.push(span);
-      if (!identDefines(identAll, span) && !identProp(span))
-        gaps.push(`${span} — neither a binding nor a property anything reads or writes`);
+      if (!identDefines(identAll, span) && !identProp(span) && !identPlatformGlobal(span))
+        gaps.push(`${span} — neither a binding, nor a property anything reads or writes, ` +
+          "nor a platform global this app calls and never binds");
     } else if (/^[A-Z][a-z][\w ]*$/.test(span)) {
       // A multi-word Capitalised span that survived the SQL test is a UI LABEL — the field
       // an operator hunts for on screen. It has to be copy this repo really prints, and
@@ -1499,6 +1575,14 @@ function resolveIdentifiers(doc) {
           "nor named by any workflow this repo runs");
     } else if (/^[a-z]\w*(?:\.[a-z]\w*)+$/.test(span)) {
       continue;                                           // `data.files` — a key PATH into an entry
+    } else if (/^[a-z][\w-]*(?:\s+\S+)+$/.test(span)) {
+      // A COMMAND, and the last reading before the unreadable bucket — deliberately last, so
+      // it only ever gets a span no namespace above could spell. It resolves against this
+      // repo's own automation: a document that says rollback IS `git revert -m 1` is answered
+      // by the workflow that runs exactly that.
+      held.push(span);
+      if (!identCommandRun(span))
+        gaps.push(`${span} — read as a command, and no \`run:\` line in .github/workflows/ invokes it`);
     } else {
       unread.push(span);                                  // the shape the resolver could not read
     }
@@ -3634,6 +3718,59 @@ ok(`CLAUDE.md: every name it hands an agent resolves in the code (${claudeIdents
   `spans the resolver could not classify: ${claudeIdents.unread.map((s) => `\`${s}\``).join(" · ") || "(none)"}\n      ` +
   "the namespaces this rule taught the resolver: HTML attributes the app sets or styles, " +
   "storage keys the code reads or writes, and git refs the workflows mint");
+
+// (g) the same rule for the OTHER document this check owns, and the last one in the family
+//     (checks 25, 41 (h), 42 (f), 44 (g), 46 (f) and 48 (h) hold the rest). PIPELINE.md is
+//     read by an operator deciding how to ship, and it is the only one of the seven that
+//     describes the DELIVERY MACHINERY rather than the app — so most of what it hands you
+//     to type is a workflow, a gate script or a command. The rules above hold its gate
+//     LISTS; nothing held its names.
+//     **Measured before the rule: 15 spans, three unresolvable and one unreadable — and,
+//     as with CLAUDE.md, none of the four was drift.** They are three namespaces the
+//     resolver could not read plus one shape it could not spell: a workflow named without
+//     its `.yml`, a command line, a platform global, and a namespace whose base is an
+//     IIFE's return value. All four were TAUGHT, not exempted, and each resolves against
+//     the thing that would have to answer for it — `.github/workflows/` for the first two,
+//     the app's own use for the third, the module's closing `return` for the fourth. With
+//     them the file is at zero, so this ships as a check rather than a repair.
+const pipelineIdents = resolveIdentifiers(pipelineMd);
+ok(`docs/PIPELINE.md: every name it hands an operator resolves in the code (${pipelineIdents.held.length}: ${
+    [...new Set(pipelineIdents.held)].sort().join(", ")})`,
+  pipelineIdents.held.length >= 12 && !pipelineIdents.gaps.length && !pipelineIdents.unread.length,
+  `unresolved: ${pipelineIdents.gaps.join("\n      ") || "(none)"}\n      ` +
+  `spans the resolver could not classify: ${pipelineIdents.unread.map((s) => `\`${s}\``).join(" · ") || "(none)"}\n      ` +
+  "the namespaces this rule taught the resolver: workflows named without their .yml, " +
+  "commands the workflows' own run: lines invoke, platform globals the app calls and never " +
+  "binds, and members a module publishes through its closing return");
+
+// (h) the PATHS, and this rule exists because (g)'s verification found the hole rather than
+//     because the slice went looking for one. The resolver SKIPS a span containing `/` with
+//     the comment "a repo path — check 46 (e) / 48 (e)", and for PACKS.md and the RLS runbook
+//     that hand-off is true. For this document it lands nowhere: **PIPELINE.md names 15 repo
+//     paths and nothing verified that any of them exists.** Measured by mutating the doc —
+//     `tools/dev-smoke.mjs` → `tools/dev-smoker.mjs` — which came back GREEN across all 40
+//     checks, because rule (a) above matches a gate step by STEM (`dev-smoker.mjs` contains
+//     `dev-smoke`) and (a) is right to: CLAUDE.md legitimately names some steps by stem alone,
+//     so tightening (a) would fail a true sentence. The honest fix is the other one — hold the
+//     paths AS paths, which is (g)'s own question for the one span shape (g) hands off.
+//     Three shapes, no allow-list: a leading `/` is a URL prefix (`/dev/`, `/stage/`, `/v/`)
+//     and not this tree's to answer for; a last segment spelled like a HOSTNAME is another
+//     repo's slug (`kevinrhaas/jobtracker.polecat.live`, the pilot runbook this page defers
+//     to, which by design is not in this checkout); everything else is a path here and must
+//     exist here.
+const pipelinePathSpans = identSpans(pipelineMd)
+  .filter((s) => /^[\w.][\w.-]*(?:\/[\w.-]+)+$/.test(s));
+const pipelineExternal = (s) => /^[a-z0-9-]+(?:\.[a-z0-9-]+)*\.(?:com|org|net|io|live|dev)$/
+  .test(s.split("/").pop());
+const pipelineOwnPaths = pipelinePathSpans.filter((s) => !pipelineExternal(s));
+const pipelineMissingPaths = pipelineOwnPaths.filter((s) => !fs.existsSync(path.join(ROOT, s)));
+ok(`docs/PIPELINE.md: every repo path it names is in the tree (${pipelineOwnPaths.length}, plus ` +
+   `${pipelinePathSpans.length - pipelineOwnPaths.length} another repo's)`,
+  pipelineOwnPaths.length >= 10 && !pipelineMissingPaths.length,
+  `named here, no such file or directory: ${pipelineMissingPaths.join(", ") || "(none)"}\n      ` +
+  `paths read: ${pipelineOwnPaths.join(", ") || "(none — the extraction found nothing, which would pass every other rule here)"}\n      ` +
+  "rule (a) matches a gate step by stem, so a typo inside a path it already accepts — " +
+  "tools/dev-smoker.mjs — was invisible to all of check 42 until this rule");
 
 /* ── 43. Help's own NAVIGATION vs the page it navigates ─────────────────────
    N7, and the surface every check in this family had read THROUGH without ever reading:
