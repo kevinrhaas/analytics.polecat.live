@@ -6,6 +6,18 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 996,
+    title: 'The two pages the front door sends you to now have to mean the names they print',
+    kind: 'polish',
+    ts: '2026-08-11T04:04:30.000Z',
+    items: [
+      'The repo\'s front page and the publishing runbook are the two documents a newcomer meets first — one introduces the app, the other tells whoever runs it how the site gets published — and neither had ever been checked on the names it hands you to type.',
+      'Both are correct today, so this is a check rather than a repair. What made it worth a pass is where the names live: the runbook is executed against GitHub\'s own settings rather than against this code, so it names things no amount of reading this repo\'s JavaScript could confirm — the deployment environment that refuses every branch but the live one, the setting on the Pages screen the deploy depends on, and the file that wires the custom domain.',
+      'Each now resolves against the thing that would actually have to answer for it: the environment and the settings value against the workflow that declares and requires them, the file against the tree.',
+      'One name is held backwards, and it is the more interesting half. The runbook has a note saying a retired passcode file and its setting were deleted — a sentence whose whole job is to say they are gone. Demanding that those names resolve would push a true sentence out of the page, so the rule is inverted: if either name ever comes back, the note claiming it is gone fails the gate.',
+    ],
+  },
+  {
     v: 995,
     title: 'The two contracts an agent reads before it changes anything now have to mean their names',
     kind: 'polish',
