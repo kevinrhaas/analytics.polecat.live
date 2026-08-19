@@ -558,7 +558,7 @@
           var row = el("button", "odp-row"); row.type = "button";
           var panels = (sp.panels || []).length;
           row.innerHTML = '<b>' + esc(labels[r.id]) + '</b>' +
-            '<small>' + esc(sp.name || "") + " · " + panels + " panel" + (panels === 1 ? "" : "s") +
+            '<small>' + esc(sp.name || "") + " · " + panels + " View" + (panels === 1 ? "" : "s") +
             (r.ts ? " · " + new Date(r.ts).toLocaleDateString() : "") + '</small>';
           row.onclick = function () { closeAllModals(); openRecent(r.id); xpAddAnalysisToSpec(analysisId); };
           listWrap.appendChild(row);

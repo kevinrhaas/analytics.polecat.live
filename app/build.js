@@ -1918,7 +1918,7 @@
       // authored. A View opened here keeps its own thresholds and labels (they ride
       // the N33 carry-through, and the notice names them).
       if (BD.chartType === "quadrant" && BD.run) {
-        strip.innerHTML += '<small class="bd-map-hint bd-ct-note">splits at the midpoints — thresholds and zone labels are edited on the dashboard panel</small>';
+        strip.innerHTML += '<small class="bd-map-hint bd-ct-note">splits at the midpoints — thresholds and zone labels are edited in the dashboard inspector</small>';
       }
     }
 
@@ -2177,10 +2177,10 @@
       field("Name", D.withSparkleButton(inp, "view", function () {
         return { sourceDatasetName: BD.dsName || "", valueCol: (BD.shelfCols[0] && BD.shelfCols[0].col) || "" };
       }));
-      // VB-7 (Kevin live, 2026-07-30): the panel that HOLDS the View can carry its own
+      // VB-7 (Kevin live, 2026-07-30): the dashboard slot that HOLDS the View can carry its own
       // title — it defaults to (and keeps tracking) the View name until overridden here.
       var ptInp = D.el("input"); ptInp.type = "text"; ptInp.value = BD.panelTitle || ""; ptInp.placeholder = BD.name || "Same as the View name";
-      field("Panel title", ptInp, "Optional — how the panel header reads in the preview and on dashboards. Leave blank to keep it matching the View name.");
+      field("Title on dashboards", ptInp, "Optional — how this View's header reads in the preview and on dashboards. Leave blank to keep it matching the View name.");
       var folderInp = D.el("input"); folderInp.type = "text"; folderInp.value = BD.folder || ""; folderInp.placeholder = "e.g. Finance";
       // VB-6: the LF56 folder navigator (same Browse-a-folder-tree picker every other
       // Folder field uses) plus the sparkle suggest, seeded from the picked dataset's

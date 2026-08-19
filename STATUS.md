@@ -135,6 +135,1776 @@
   `KH-`. The currently-open backlog was seeded as KH-001..KH-022 (2026-08-06).
 
 ## DONE
+- **N7 — four more of the repo's own documents can no longer point you at a file that is not
+  there (v998, NO sw bump, 2026-08-11, steward; dev branch; est 1pt, took 1):** 🔁 N7 was again
+  the only takeable item in ▶ NOW (N31, N44, N41 and N25 all ⛔ on Kevin; SP-1 ⏳ on `hold`
+  PR #689), and the v997 pass named this as the next slice — the hole rule 44 (h) left open in
+  its own closing note. Taken exactly there. **Measured before a line was written, and the note's
+  reading was right about the gap and short by two on the repair: 46 path spans across the four
+  documents, and FOUR of them did not resolve.**
+  **The gap.** The identifier resolver skips any span containing `/` as "a repo path — check
+  46 (e) / 48 (e)". Those two checks cover `docs/PACKS.md` and the RLS runbook; rule 44 (h)
+  covered `docs/PIPELINE.md`; so `CLAUDE.md`, `PUBLISH.md`, `README.md` and `docs/COMPAT.md` had
+  **no path rule at all** — and CLAUDE.md's Layout block alone is mostly paths.
+  **Shared, not four rules apiece** — the v995 placement question answered the other way this
+  time, for the reason the v997 note predicted: the identifier rules each have a namespace to
+  teach (the actions `polecat-admin` gates, the storage keys, the workflow refs) and a path has
+  none. `resolvePaths` is that one reading; rule 44 (h) was refactored onto it in the same
+  commit, so five documents now share it, and check **80** is the four new rules.
+  **It is a repair on two of the four, not only a check.** `CLAUDE.md`'s shell rule sends an
+  agent to bump `lib/VERSION` and run `scripts/gen-manifest.mjs` — both real, neither HERE; they
+  are the platform repo's, and the sentence naming them said only "in the platform repo" while
+  the slug sat in the sentence before. Fixed in the COPY rather than in the check: the sentence
+  now names `kevinrhaas/polecat-platform` where it names the files, which is both truer for a
+  reader and what makes the exemption readable — the rule reads a declaration the document makes,
+  never a spelling. The other two non-resolving spans are the two shapes the rule had to learn:
+  the slug itself (not the hostname shape 44 (h) taught — `polecat-platform` has no TLD), and
+  `PUBLISH.md`'s `app/gate-config.js`, the RETIREMENT idiom one span shape over, held the other
+  way round exactly as `identRetired` holds identifiers.
+  **THE FIRST CUT PASSED GREEN OVER ITS OWN DRIFT, and that is the finding worth carrying.** It
+  read any dotless two-segment span the tree lacks as another repo's slug — which is the shape of
+  `lib/VERSION` exactly, so the two paths exempted THEMSELVES and the check reported 21 held / no
+  gaps against the unfixed document. The owner half is therefore DERIVED, not shaped: the fleet
+  spells its repos `<owner>/<host>` (`kevinrhaas/jobtracker.polecat.live`), a form no directory
+  here can be confused with, so every such slug in the repo's own Markdown contributes its owner
+  and an owner nobody spells that way fails CLOSED. The v997 note's "measure before writing, every
+  count from a run" is the only reason this was caught before merging rather than after.
+  **The refactor moved one span, correctly:** PIPELINE.md's held count went 15 → 14, because its
+  opening sentence's `docs/PIPELINE.md` is the PILOT repo's, not this one. It exists here too,
+  which is why the old rule held it and was never wrong.
+  **Eight failure directions measured**, six of them on mutated trees: a path typo in each of the
+  four documents; a first-segment typo (`toolz/validate.mjs`) and a dotless two-segment path
+  (`docs/BACKLOG`) both still held, which is what proves the owner derivation is not a shape hole;
+  the retirement inversion, by restoring `app/gate-config.js` to the tree; an unknown owner
+  failing closed; the floor, by stripping a document's backticks so the extraction finds nothing;
+  and 44 (h)'s own `tools/dev-smoker.mjs` regression after the refactor. Two of the eight — the
+  CLAUDE.md gaps — were measured on the REAL pre-fix tree.
+  **The boundary is stated rather than left implied:** inside a sentence declared foreign the rule
+  cannot check anything, since no tree here can answer for another repo's, so a typo in
+  `lib/VERSION` there stays green (measured). One sentence is the smallest grain that can carry a
+  true statement about another repository at all.
+  Verified: `node tools/doc-truth.mjs` (all 40+ checks incl. the four new), `node
+  tools/validate.mjs`, `node tools/changelog-check.js`, `node tools/dev-smoke.mjs` — the dev gate,
+  green. `docs/` + `tools/` + `CLAUDE.md` only; no precached file touched, so NO `sw.js` bump.
+- **N7 — the runbook an operator ships by now has to mean every name and every file it prints
+  (v997, NO sw bump, 2026-08-11, steward; dev branch; est 1pt, took 1 — slice 2 of 2, and this
+  item's identifier family is now complete):** 🔁 N7 was again the only takeable item in ▶ NOW
+  (N31, N44, N41 and N25 all ⛔ on Kevin; SP-1 ⏳ on `hold` PR #689), and the v996 pass named this
+  as the next slice, being its own slice 2. Taken exactly there, and the note's counts were
+  confirmed by a run before a line was written — **`docs/PIPELINE.md`: 15 spans, 3 gaps, 1
+  unreadable, exactly as recorded.**
+  **The document is correct today, so this is a check, not a repair.** What earned it a slice is
+  that PIPELINE.md is the only one of the seven that describes the DELIVERY MACHINERY rather than
+  the app, so most of what it hands you to type is a workflow, a gate script or a command — and
+  the rules already in check 42 held its gate LISTS while nothing held its names. All four
+  unresolved shapes were TAUGHT, not exempted, each against the thing that would have to answer
+  for it: a **workflow named without its `.yml`** (`promote-to-prod`) against `.github/workflows/`
+  — deliberately left out of the v996 pass, since PUBLISH.md needed no such span and a roster no
+  document reads is a rule that cannot be measured; a **command** (`git revert -m 1`) against the
+  `run:` lines of `rollback-prod.yml`, which is better than the `node …` exemption's
+  unreadable-but-fine because the sentence's whole claim is that rollback IS that command — held
+  on an ordered token subsequence, so `git revert -n 1` fails where the true invocation passes; a
+  **platform global** (`localStorage`), the honest edge the v996 note flagged, where the note's own
+  proposed remedy ("exempt globals by shape") was the wrong instinct and the rule resolves instead,
+  against the narrower question the tree can answer — does this app use the name as a global, a
+  bare receiver nothing here binds — which hands it straight back to the binding rule the day
+  someone shadows it; and `STUDIO_WS_STORE.blockReason()`, a namespace whose base is a global
+  bound to an IIFE's return, taught to `identMember` as a THIRD shape (read the module's closing
+  `return {…}`) rather than given its own branch, so all seven documents keep sharing one
+  derivation.
+  **The verification found a real hole, and closing it is the slice's other half — rule (h).**
+  The resolver skips any span containing `/` as "a repo path — check 46 (e) / 48 (e)"; for
+  PACKS.md and the RLS runbook that hand-off is true, and for this document it lands nowhere.
+  **PIPELINE.md names 15 repo paths and nothing verified any of them existed.** Measured by
+  mutating the document — `tools/dev-smoke.mjs` → `tools/dev-smoker.mjs` — which came back GREEN
+  across all 40 checks, because rule (a) matches a gate step by STEM and `dev-smoker.mjs` contains
+  `dev-smoke`. Rule (a) is RIGHT to match that way (CLAUDE.md legitimately names some gate steps
+  by stem alone, so tightening it would fail a true sentence), so the fix is the other one: hold
+  the paths as paths. Three shapes, no allow-list — a leading `/` is a URL prefix (`/dev/`,
+  `/stage/`, `/v/`), a last segment spelled like a hostname is another repo's slug
+  (`kevinrhaas/jobtracker.polecat.live`, the pilot runbook this page defers to and by design not
+  in this checkout), everything else is a path here and must exist here.
+  **Verified: ten failure directions measured on mutated trees, five of them from the CODE side**
+  so the rules are shown to read the tree and not the document — the module's published member
+  renamed, the dispatched workflow renamed, `rollback-prod.yml` no longer running the command the
+  page prints, the whole corpus no longer calling the global, and a named file deleted from the
+  tree; plus five from the document — a workflow it invents, a member it invents, a global it
+  invents, a wrong rollback command, and the path typo that started rule (h). One further
+  direction was measured as a HAND-OFF rather than a failure: shadowing `localStorage` with a
+  local binding keeps the span green through the binding rule, which is the designed behaviour.
+  Dev gate green (validate + changelog-check + doc-truth + dev-smoke at 390×780 and desktop, zero
+  pageerrors). `docs/` + `tools/` + bookkeeping only; no precached file changed, so no `sw.js`
+  bump, per the v996 precedent.
+- **N7 — the two pages the front door forwards to now have to mean the names they print
+  (v996, NO sw bump, 2026-08-11, steward; dev branch; est 2pt, slice 1 of 2 — PIPELINE.md is
+  slice 2):** 🔁 N7 was again the only takeable item in ▶ NOW (N31, N44, N41 and N25 all ⛔ on
+  Kevin; SP-1 ⏳ on `hold` PR #689), and the v995 pass named this as the next slice and drew its
+  own line: **PUBLISH.md and README together, then PIPELINE.md.** Taken exactly there.
+  **Both documents are correct today — 7 spans and 2, zero gaps, zero unreadable — so this is a
+  check, not a repair.** What earned it a slice is WHERE the names live. `PUBLISH.md` is the first
+  document this family has held whose instructions are executed against **GitHub** rather than
+  against this repo's code, so it names three things no amount of reading this codebase's
+  JavaScript can confirm, and the resolver's nine namespaces read none of them:
+  a deployment **environment** (`github-pages` — the thing check 44 (c) already says "refuses
+  every other ref"), which is hyphenated and so was read as "not a JS name" and was none of the
+  four things that branch knew about; a settings-UI **label** (`GitHub Actions`, the Pages source),
+  which no app string can answer for because the screen belongs to GitHub; and a repo **file with
+  no extension** (`CNAME`, named by BOTH documents), which is SCREAMING_SNAKE by shape and so
+  reached the constant rule and failed there.
+  **Each was taught, not exempted, and each resolves against the thing that would have to answer
+  for it:** the environment against the workflow that declares it, the label against the workflow
+  that REQUIRES the setting (deploy.yml's own NOTE — check 44 (a)'s source, so the rule borrows a
+  derivation rather than minting one), the file against the tree, for the same reason the module
+  branch does — "does this file exist" is a different question from "is this name defined".
+  A fourth, `window.STUDIO_STAGE`-shaped namespace came with them: a **global**, which the
+  namespace branch cannot spell because `window` is the platform's namespace and not one of this
+  app's.
+  **The find is the pair the rule holds BACKWARDS.** `PUBLISH.md` § 3 names `app/gate-config.js`
+  and `window.STUDIO_GATE_SHA256` inside a note whose whole job is to say they were DELETED (v852,
+  AUD-09, when the sign-in screen replaced the site-wide passcode). "Every name resolves" is the
+  wrong question for those, and enforcing it would have pushed a true sentence out of the page —
+  the failure mode a check is supposed to prevent, arriving from the check. So a retirement the
+  document DECLARES is held from the other end: the name must **not** resolve, and if it ever comes
+  back the sentence saying it is gone reddens the gate. The declaration is sentence-scoped and
+  shape-derived (the `identPlaceholders` idiom one step further), never an allow-list.
+  **Two exemptions widened, both by shape and both measured:** a key-value fragment written without
+  the space (`caps.data:false`, README) — which had to reject a SECOND colon so `Studio::materialize`
+  stays in the unreadable bucket where it belongs — and typography, a span of one character (`A`
+  records in the DNS table, the `+` chips on the canvas), since nothing this repo defines is one
+  character long.
+  **Where the rules live:** **check 44 (g)** and **check 41 (h)**, each in the check that owns its
+  document — the v995 placement, no new check about identifiers. The four documents already holding
+  this rule are unchanged by the teaching, verified rather than assumed: COMPAT.md 17, CLAUDE.md
+  18, PACKS.md 19, the RLS runbook 24, the same rosters as before.
+  **Eight failure directions measured on mutated trees, four of them from the CODE side** so the
+  rules are shown to read the tree and not the document: (1) deploy.yml declaring a different
+  environment; (2) its NOTE no longer naming the Pages source; (3) `CNAME` leaving the tree (fails
+  BOTH documents at once, which is the right blast radius for a shared name); (4) the deleted
+  global reassigned in `app/gate.js`; (5) the deleted `app/gate-config.js` recreated; (6) a span in
+  a syntax this repo does not write (`Studio::materialize`) — still a FAILING condition, the
+  invariant carried from 48 (h); (7) a live global whose assignment moved out of `window.`; (8)
+  README renaming the extension point it hands you (`Studio.registerSource` → `registerAdapter`).
+  Files: `tools/doc-truth.mjs`, `js/changelog.js`, `STATUS.md`. No `sw.js` bump — nothing precached
+  changed — and `CLAUDE.md`'s LOC figure stayed inside doc-truth's own 10% band. Dev gate green:
+  validate + changelog-check + doc-truth + dev-smoke at 390×780 and desktop, zero pageerrors.
+- **N7 — the two contracts an agent reads before it changes anything now have to mean their names
+  (v995, NO sw bump, 2026-08-11, steward; dev branch; est 1pt, took 1):** 🔁 N7 was again the only
+  takeable item in ▶ NOW (N31, N44, N41 and N25 all ⛔ on Kevin; SP-1 ⏳ on `hold` PR #689), and
+  the v994 pass named this as its own slice 2 — `docs/COMPAT.md` and `CLAUDE.md`, the two
+  documents its predecessor said would "fall out of the same work".
+  **The note's own warning was the finding.** Its last sentence said *"measure the spans FIRST —
+  a count taken from a document's own list rather than from a run is the mistake this family keeps
+  repeating,"* and the same note predicted **3 identifiers and 1**. A run says **17 and 18**. That
+  is the third pass in a row where the previous note's number was low (v993 said "~10" for the
+  runbook; the answer was 19 there and 24 here), so the measurement was made before a line of rule
+  was written, and the new note at the foot of the N7 list carries a run's numbers rather than a
+  reading's.
+  **Where the rules live, and why the resolver moved.** The note's open question was placement, and
+  the answer it proposed held: 48 (h) and 46 (f) each sit in the check that owns their document, so
+  COMPAT.md's rule went into **check 25** (which already holds its version rows and table names)
+  and CLAUDE.md's into **check 42** (which already holds its workflow list and posture bullet) —
+  one rule apiece, no third check about identifiers. That required MOVING the shared resolver up
+  the file rather than copying it: it was defined below check 42, and its rosters are `const`
+  bindings, which do not hoist. It now precedes check 25, so all four documents read one
+  derivation. Pure relocation, no behaviour change — checks 46 (f) and 48 (h) hold their same 24
+  and 19 spans after it.
+  **COMPAT.md was clean: 17 spans, zero gaps, zero unreadable.** It is the backend-compatibility
+  CONTRACT — the rules for changing the shape of a workspace, read by whoever is about to change
+  one — and it hands its reader four functions to call before touching anything
+  (`WS.compareSchema`, `WS.provisionDeltaSQL`, `Sync.recheckSchema`, `polecat_migrate()`). A
+  migration contract naming a helper that has moved is the PUBLISH.md failure with a database
+  behind it, and nothing held it. So this half ships as a check, not a repair — which is what a
+  contract consulted this often should be able to prove.
+  **CLAUDE.md had 6 unresolvable spans and NONE of them was drift** — the v994 shape exactly.
+  `data-theme` / `data-palette` / `data-app-theme` are HTML ATTRIBUTES; `studio-theme` /
+  `studio-app-theme` are STORAGE KEYS; `release-vNNN` is a GIT REF. All three are strings rather
+  than bindings, so the hyphenated branch — which had assumed hyphenated meant the Edge Function's
+  gated action vocabulary, true only for the runbook — reported all six missing. **Each was
+  taught, not exempted**, and each resolves against the thing that would have to answer for it:
+  an attribute against the stylesheet that styles it AND the DOM calls that set it (both halves
+  are load-bearing, measured — `data-palette` is only ever written, `data-theme` only ever
+  styled); a storage key against `getItem`/`setItem` plus the `storageKey:` the shared shell is
+  handed, which is the role CLAUDE.md names them in; a ref against the workflow lines that mint
+  one, scoped to those lines so an unrelated interpolated string cannot enlarge the roster. The
+  ref needed one extra step — `release-vNNN` is a PATTERN no workflow contains, because the number
+  is interpolated — so both sides reduce to the literal stem (`release-v`) before comparison.
+  **Six failure directions measured on mutated trees, three of them from the CODE side** so the
+  rules are shown to read the tree rather than the document: (1) a `WS.` member renamed in
+  COMPAT.md; (2) a span of a shape the resolver cannot read (`Studio::materialize`) — still a
+  FAILING condition, the invariant carried from (h); (3) the attribute dropped from the app's
+  whole corpus; (4) the storage key renamed in the app; (5) `promote-to-prod.yml` minting a
+  different tag; (6) CLAUDE.md naming an attribute the app does not use. Both emptiness checks
+  and both directions, on both documents.
+  Files: `tools/doc-truth.mjs`, `js/changelog.js`, `STATUS.md`. No `sw.js` bump — nothing
+  precached changed — and `CLAUDE.md`'s LOC figure stayed inside doc-truth's own 10% band, so
+  unlike v994 it needed no restatement. Dev gate green: validate + changelog-check + doc-truth +
+  dev-smoke at 390×780 and desktop, zero pageerrors.
+- **N7 — the go-live runbook's names answered to nothing, and none of them are JavaScript names
+  (v994, NO sw bump, 2026-08-11, steward; dev branch; est 2pt, took 1 of the 2 — the second
+  slice is named below):** 🔁 N7 was again the only takeable item in ▶ NOW (N31, N44, N41 and
+  N25 all ⛔ on Kevin; SP-1 ⏳ on `hold` PR #689), and the v993 pass had named this as its
+  candidate along with the warning that made it a 2-pointer: *"the slice is not 'point (h) at
+  another file'; it is teaching the resolver those namespaces and only then taking the rule to
+  check 46."* That warning was right, and it is the whole substance of this slice.
+  **What was unheld.** `tools/M7-RLS-GOLIVE-RUNBOOK.md` is the PUBLISH.md class — the one
+  document here whose instructions an operator EXECUTES against a live security posture — and
+  check 46 held its counts, its artifacts, its two scripts and its repo PATHS. It said nothing
+  about the names an operator TYPES, and this document is almost nothing else. Check 48 (h),
+  the rule that asks exactly that question one document over, resolved none of the hard ones:
+  `polecat_is_admin()`, `BOOTSTRAP_DDL`, `RLS_REAL_SQL`, `PROVISION_SECRET`,
+  `SUPABASE_SERVICE_ROLE_KEY`, `gotrueId`, `acctOwner`.
+  **They were never missing — they live in namespaces a JS-shaped resolver cannot read**, which
+  is why this could not be a one-line re-point. Six were taught, each with its own honest
+  resolution rule: a SQL function that exists only as text inside a template literal
+  (`polecat_is_admin`, built in `app/sources/schema.js` and three more places); an
+  Edge-Function binding in a **`.ts`** file the corpus excluded BY EXTENSION; an environment
+  variable, which is not a binding anywhere at all — the only honest question is whether the
+  code READS the name, so the roster is every literal handed to `Deno.env.get`; a workspace
+  object PROPERTY, function-shaped nowhere; the Edge Function's fixed ACTION vocabulary
+  (`go-live`, `create-user`), hyphenated and so not spelled like a JS name; and a UI field
+  LABEL (`Admin function URL`), multi-word, and the thing an operator actually hunts for on
+  screen. The last needed a discriminator, because SQL is multi-word too: this document writes
+  its SQL keywords in CAPS, so a span leading with an ALL-CAPS word or carrying an operator is
+  a clause (`TO authenticated`, `role = admin`) and a span leading with a Capitalised word is a
+  label — derived from the document's own convention rather than an allow-list.
+  **The resolver was LIFTED OUT of check 48 rather than copied**, so the two documents that ask
+  this question share one derivation; (h) is now a call and holds exactly what it held before
+  (19 spans, re-measured). Check 46 gains **(f)**: **24 spans held, and all 24 resolve today**,
+  so — as the v993 note predicted for its own slice — this is a check and not a repair.
+  **One real bug fell out of writing it, in the extractor both rules use:** the fence stripper
+  was anchored at column 0, and this runbook INDENTS its code blocks under numbered steps. Three
+  of its nine blocks survived, which unbalanced the backtick pairing and turned thirty-two
+  whole sentences into "spans" — the resolver was reading prose as identifiers. Fixed for both
+  documents (`docs/PACKS.md` has no indented fences, so its 19 are unchanged, which is the
+  measurement that proves the fix is a fix and not a rewrite).
+  **Eight failure directions measured on mutated trees**, one per namespace plus the two
+  invariants: a DDL function the runbook names and nothing declares; the `.ts` constant renamed
+  in code; an env var the code never reads; the workspace property renamed in the CODE while
+  the runbook still names it (renaming BOTH correctly stays green — a coordinated rename is not
+  drift); an action `polecat-admin` does not gate; a field label the app never prints;
+  `Studio::materialize`, a name in a syntax this repo does not write, which lands in the
+  unreadable bucket and FAILS rather than being skipped; and the placeholder exemption held
+  from its own end — delete the runbook's *"replace `ADMIN_UUID`"* declaration and `ADMIN_UUID`
+  correctly becomes a gap, so the exemption is the document's own statement and not a free pass
+  bought by spelling.
+  **`CLAUDE.md`'s LOC figure moved in the same PR** (~67K → ~75K): the resolver's ~230 lines
+  tipped check 7's 10% band, exactly as check 29's ~110 lines did at v916. Same fix, same
+  reason, recorded so the next check-shaped slice expects it.
+  **Est vs actual: est 2pt, this is slice 1 of 2.** The estimate was right and the split is the
+  one the v993 note drew — the namespaces were the work, and `docs/COMPAT.md` + `CLAUDE.md`
+  (the other two documents naming identifiers of this shape) are slice 2, now that the resolver
+  can read them. Verified: `node tools/doc-truth.mjs` green (the new rule and the re-pointed
+  (h) both), `node tools/validate.mjs`, `node tools/changelog-check.js`, `node tools/dev-smoke.mjs`.
+- **N7 — the pack contract's guard read 3 of the 19 names the contract hands an author (v993,
+  NO sw bump, 2026-08-11, steward; dev branch; est 1pt, took 1 — ON estimate):** 🔁 N7 was again
+  the only takeable item in ▶ NOW (N31, N44, N41 and N25 all ⛔ on Kevin; SP-1 ⏳ on `hold`
+  PR #689), and the v992 pass had named this as its candidate, with two instructions attached.
+  **Both were followed literally.** The derivation went into check 48 as rule **(h)**, and
+  rule (e) — whose title has always said *paths* — was NARROWED to paths, so the identifiers
+  have one owner rather than a third of the job in each of two places.
+  **What was actually wrong.** (e)'s extractor was `` /`Studio\.(\w+(?:\.\w+)?)\(/ `` — the open
+  paren INSIDE the backticks — so `docs/PACKS.md` could name a function without one and the gate
+  never looked. It read `Studio.ensurePackDataMaterialized(id)`,
+  `Studio.ensureAllPackDataMaterialized()` and `Studio.packSourceIssues(entry)`, and nothing
+  else: not `Studio.Build.compute`, `Studio.Build.runBlob`, `Studio.newPanel`, `Studio.runJobSteps`
+  or `Studio.DEMO_PACKS`, and not one of the non-`Studio` names the document tells you to COPY —
+  `writePack()`, `bdSave`, `reconcilePackDashboards`, `localfile.js typeCell`. **The v992 note's
+  "~10 identifiers" was low.** Held now: **19 spans**, because the entry hooks (`install()`,
+  `seed(csv)`, `afterInstall`) and `sw.js`'s `SHELL_FILES` / `CACHE_NAME` are names an author
+  types as surely as an entry point is.
+  **All 19 resolve today, which is why this is a check and not a repair** — measured, exactly as
+  the note predicted. The substance is therefore the resolver, and the reason it needed writing
+  is that this codebase defines a name five ways: an assignment (`Studio.newPanel`,
+  `app/model.js:2517`), an object literal (`Studio.DEMO_PACKS`), a MEMBER of one assembled
+  somewhere else and bound to a closure 250 lines earlier (`Studio.Build`'s `runBlob: bdRunBlob`,
+  `app/build.js:2396` — the shape the old extractor could not have read even with the paren), a
+  closure inside ONE adapter file (`localfile.js typeCell`), and an `export function` under
+  `tools/`. So each backticked span is CLASSIFIED by shape and resolved by the rule that shape
+  implies, and the file-qualified form fails in two directions on purpose: a missing module is a
+  moved file, a missing function inside a present one is a moved closure.
+  **The unreadable bucket is the note's second instruction, and it FAILS rather than logs.** A
+  span that is neither prose nor a shape the resolver knows reports itself by name — the only way
+  a rule like this does not rot one span at a time. Making it real meant tightening two
+  exemptions that would each have swallowed an unreadable span whole: a placeholder is now an
+  angle-bracket PAIR (`<id>`, `<Pack>`) rather than "contains an angle bracket", and a code
+  fragment is the key-value SHAPE (`kind: "licensed"`) rather than "contains a colon". Bare
+  lowercase spans stay prose by design — `folder`, `seeds`, `public`, `false` are the registry's
+  keys and the `kind` vocabulary, which (a)-(d) already hold; a bare word counts as a NAME only
+  when it is spelled like one. **The guard itself is out of the corpus**: a name may not resolve
+  against the check that names it.
+  **Verified:** `node tools/doc-truth.mjs` green (399 checks), `node tools/validate.mjs`,
+  `node tools/changelog-check.js`, and `tools/dev-smoke.mjs` at 390×780 + desktop with zero
+  pageerrors. **Six directions measured on mutated trees**, since there was no drift to measure:
+  `Studio.Build.runBlob`'s member renamed inside the literal, `Studio.newPanel`'s assignment
+  renamed, `typeCell` renamed inside `localfile.js`, the document pointed at a module that is not
+  there, `writePack`'s export removed from `tools/`, `bdSave` renamed, and an unreadable span
+  (`` `Studio::materialize` ``) added to the document — which reports the span rather than
+  passing. `docs/PACKS.md`'s own "What is checked, and where" table gained the row, so the
+  contract publishes the rule it is now held to.
+- **N7 — `docs/PACKS.md` was the last first-party document calling a View a panel, and the
+  sentence that named the packs answered to nothing (v992, NO sw bump, 2026-08-11, steward; dev
+  branch; est 1pt, took 1 — ON estimate):** 🔁 N7 was again the only takeable item in ▶ NOW (N31,
+  N44, N41 and N25 all ⛔ on Kevin; SP-1 ⏳ on `hold` PR #689), and the v991 pass had named this
+  as its candidate — including its own instruction to **pair it with a second candidate rather
+  than spend a whole slice on one line**, which is what the (g) half below is.
+  **The noun half closes the walk.** Checks 76 → 77 → 78 → 79 retired "panel" as the name of a
+  thing on a dashboard from the ⌘K palette, from Help, from the app's own copy and from
+  `README.md`; each is scoped to the surface it holds, and the v991 sweep found exactly one site
+  left in a first-party document. It was `docs/PACKS.md:98` — *"A pack's **Views** are not its
+  dashboards' panels again"* — a sentence whose whole job is to draw the View/dashboard
+  distinction, drawing it in the word four slices had retired. It now reads *"A pack's pinned
+  **Views** are not the Views on its dashboards again"*. **Re-measured in this pass rather than
+  taken on trust:** `CLAUDE.md`, `PUBLISH.md`, `docs/COMPAT.md`, `docs/PIPELINE.md` and
+  `docs/BACKLOG.md` carry zero occurrences, README's four are all `Data panel` (a pane, correct),
+  SPEC.md's six are the spec key, and the marketing page's one is a pane. **So the walk is
+  finished:** with this landed there is no first-party document left calling a View a panel, and
+  the next N7 slice is a different subject, not the next document.
+  **The rules went into check 48, where the v991 note said they belonged** — and this time that
+  was right, because 48 *is* `docs/PACKS.md` vs the packs it governs, unlike the 45/41 pair the
+  v990 note had proposed for README. Rule **(f)** is the noun, re-deriving check 78's line rather
+  than reaching across blocks (a rule that reads another check's variables breaks the day that
+  block is edited): the retired word is `addTextPanel()`'s own `spec.panels` key, the rendered one
+  is its toast, and the panes come from `setupMobileTabs()`'s roster plus `app/index.html`'s
+  readable attributes. Backticks are check 15's `<code>` idiom, which is what lets the contract
+  keep `Studio.newPanel` and the `spec.panels` key in its prose with no allow-list, and a ```js
+  fence is code the reader copies rather than copy they read.
+  **Rule (g) is the pairing, and it is a real gap rather than a rider:** rule (a) has held
+  *"two of the six shipped packs"* since v933 — the arithmetic — while the SAME sentence names
+  all six in a parenthetical, split synthetic-vs-real, and nothing read those words. Rename a
+  pack's folder, or move one across the split while the totals happen to hold, and (a) still
+  passes on a sentence that has gone wrong. The roster is now derived from the registry's own
+  `folder` values (the name the reader sees in the app), so the document cannot drift from it.
+  The § "What is checked, and where" table gained the two rows to match.
+  **Measured:** (f) fails on the real pre-fix tree, naming the sentence; its code side is the
+  PREMISE's, not the rule's, exactly as 78/79 do it — break the derivation and it refuses to run
+  rather than turning a correct "Data panel" into a finding (measured twice: the toast stops
+  naming the rendered noun; `addTextPanel` is renamed). (g) has **no drift today** — it is the
+  rule that keeps the sentence true as the pack program grows — and all three of its directions
+  were measured on mutated trees: a folder renamed in the registry (which fails both ways at
+  once, as an uncovered pack and an invented name), Market Coverage moved to the synthetic side
+  of the semicolon while the totals still hold, and a "Soil Health" the registry has never had.
+  Dev gate green (validate · changelog-check · doc-truth · dev-smoke at 390×780 + desktop, zero
+  pageerrors). No `sw.js` bump: `docs/PACKS.md` and `tools/` are not precached.
+- **N7 — `README.md` was the last document walking the builder in the retired noun (v991, NO sw
+  bump, 2026-08-11, steward; dev branch; est 1pt, took 1 — ON estimate):** 🔁 N7 was again the
+  only takeable item in ▶ NOW (N31, N44, N41 and N25 all ⛔ on Kevin; SP-1 ⏳ on `hold` PR #689),
+  and the v990 pass had named this as its candidate. The last leg of the check 14 → 15 → 76 → 77
+  → 78 walk: 76 held the ⌘K palette, 77 held Help, 78 held the app itself, and every one of them
+  is scoped to the surface it holds — which left the repo's FRONT PAGE answering to none of them.
+  **Seven sites, in a document nothing had read on this word.** The Direct manipulation list
+  (`README.md:139-144`) described the canvas entirely in the retired noun — "drag a panel by its
+  header", "drop between any panels across rows", "a panel's right edge", "a panel title",
+  "click any panel or KPI" — and the v990 note's six were not all of it: the three-pane ASCII
+  diagram at the TOP of the page (`README.md:17`) had the Inspector column reading
+  *"panel /KPI / dashboard)"*, the one occurrence a reader meets before any prose at all. Its
+  opening bracket had been missing since the diagram was drawn, so the fix closed that too and
+  the column is still 15 cells wide (verified — all six box rows are 64 characters).
+  **Every `Data panel` in the same document was already correct and stays**, which is why this
+  was a noun rule and not a sweep.
+  **Doc-truth check 79**, premise + three rules, and it adds a DOCUMENT rather than a source of
+  truth: both nouns come from `addTextPanel()` alone (the `spec.panels` key gives the retired
+  word, the function's own toast gives the rendered one) and the pane vocabulary is re-derived
+  from check 78's two literals — `setupMobileTabs()`'s roster and `app/index.html`'s readable
+  attributes — so the two checks cannot disagree about where the word is legitimate. What counts
+  as README's copy is derived, not chosen: a ```lang fence is a command the reader types and is
+  stripped, a bare fence is a DIAGRAM the reader reads and stays (which is what put the pane box
+  inside the rule), and an inline `code` span is check 15's `<code>` idiom in markdown.
+  **(c) is the boundary rule, and it is the reason SPEC.md could be left alone safely:** that
+  page defines the file format, where `panels` is the key an author writes and check 45 (b)
+  already holds it both directions against `emptySpec()` — so the word may appear there only in
+  key context (fenced, backticked, or in a line documenting a real key), stated rather than
+  trusted, so a later run cannot grow README-shaped prose one file over and call it the schema.
+  **Measured:** rule (a) fails on the real pre-fix tree at all seven uses across six lines;
+  (b) and (c) on mutated trees ("out of the Data View onto the canvas"; one sentence of
+  README-shaped prose appended to SPEC.md). The code-side direction belongs to the PREMISE, not
+  to rule (a), and deliberately — check 78 behaves the same way: strip the Data pane out of the
+  markup and the tab roster and the check refuses to run rather than turning README's correct
+  "Data panel" into a finding (measured both ways, including the toast losing the rendered noun).
+  **One correction to the v990 note, which is worth carrying because it was a reasonable guess:**
+  it said the rule had a home in check 45 and needed no new check. It does not — 45 is *SPEC.md
+  vs the spec it publishes* and 41 is README's inventories (adapters, exports, the rail walk,
+  the pane's name); neither carries the nouns or the pane vocabulary this rule reads, both of
+  which are check 78's. Files: `README.md`, `tools/doc-truth.mjs`, `js/changelog.js`, `STATUS.md`.
+  No precached file changed, so no `sw.js` bump (and issue #631's territory stays untouched).
+  NEXT: `docs/PACKS.md:98` is the one remaining site in any first-party document — see the
+  candidate note at the foot of the N7 list, with the clean documents named.
+- **N7 — the APP was the last place a View was still called a panel (v990, sw v565,
+  2026-08-11, steward; dev branch; est 1pt, took 1 — ON estimate):** 🔁 N7 was again the only
+  takeable item in ▶ NOW (N31, N44, N41 and N25 all ⛔ on Kevin; SP-1 ⏳ on `hold` PR #689), and
+  the v989 pass had left this as its named candidate — the one it could not take, because it is a
+  code slice with an `sw.js` CACHE bump while v989 was a copy pass over one document.
+  **The measurement was the argument for taking it whole.** v988 called the palette "the last
+  surface"; building check 77's exemption set is what showed the app itself was the widest one,
+  in nine modules and 62 printed phrases. What a reader was actually shown: hovering a chart
+  offered **Zoom panel full-screen / Duplicate panel / Delete panel** (`app/studio-render.js`),
+  duplicating it toasted **Panel duplicated** and named the copy `"Panel" + " copy"`, the
+  inspector's own section header read **Panels (6)** with a **Panel accent** field under it, the
+  validator warned that a dashboard **has no panels or KPIs** and named a broken chart
+  `Panel “…”`, Simple mode's checklist said **Add a panel**, the builder-note editor offered
+  **Panel: <title>** one line under its own *"not tied to a View"*, and **six separate places**
+  printed the count — dashboard cards, Home tiles, search rows, recents, version history,
+  the dataset editor's *3 panels in 2 dashboards read this dataset* (the string check 77 had
+  just been forced to move into `<code>` in Help for want of this slice).
+  **The `Panel title` half was decided rather than swept, which is what the v989 note asked
+  for.** It is renamed **Title on dashboards**, NOT "View title": it sits directly beneath the
+  View's own **Name** field in the View Builder, and two boxes both called a title would have
+  read as the same thing twice. The stored `panelTitle` key is untouched, so nothing anyone has
+  saved moves.
+  **The panes keep the word, and that is the whole line the check draws** — `app/index.html`
+  names its own panes that way in the attributes a reader is read to ("Expand Data panel",
+  "Collapse panel"), so the Data panel is still the Data panel. What DID move is the places one
+  word was doing two jobs, the v989 move one document over: the two side panes are **panes**
+  ("Open the builder with side panes"), the theme picker swaps *background, **cards**, text*,
+  and the Dashboard-panel route reads **Dashboard inspector**. Help followed in the same PR —
+  eleven sentences plus the `<code>` quote — because check 77 reads its exemption OUT of the
+  app's copy, so the two documents cannot move apart.
+  Doc-truth **check 78**, premise + two rules, and the line comes from the app's markup rather
+  than from either document (Help and the app would otherwise hold each other to a fixpoint
+  neither could leave). Three exemptions, each derived: `app/palette.js` is skipped because
+  check 76 (c) REQUIRES the retired word there as a hidden search synonym, in both directions;
+  the spec KEY printed in quotes is allowed (`Spec must have a "panels" array` — check 15's
+  `<code>` idiom with the only quoting a plain string has) and the key is read off
+  `addTextPanel()`, not listed; identifiers, `--custom-props` and `[data-*]` selectors go by
+  shape (check 18's rule). **Rule (a) fails on the real pre-fix tree — 72 sites** — and four
+  more directions were measured on mutated trees: one action tooltip reverted, the spec key
+  printed without its quotes, a pane renamed to a View (rule (b), the no-overshoot half), and
+  Help reverting one quote (which reddens check 77, proving the two stay coupled).
+  **The check found a defect in ITSELF on the first mutation, which is why it is worth having:**
+  the first draft stripped HTML tags before scanning, so every one of the canvas item's action
+  tooltips — the copy this slice started from — was invisible to it, hiding in a `title=`
+  attribute. It now adds the readable attributes back before the strip.
+  **Verification.** `tools/validate.mjs` (215 files), `tools/changelog-check.js` (967 entries,
+  top v990, manager-parse OK), `tools/doc-truth.mjs` and `tools/dev-smoke.mjs` — the dev gate,
+  all green. Four new suite checks in `tests/run.js`'s N7 block (the inspector's item section
+  header and the getting-started checklist, at **1280×900 AND 390×780**) plus the two existing
+  assertions the rename moved (STUDIO-PANELS' Settings row label, v76's accent field). The
+  suite's own run is the 45–60 min stage gate, so the five were driven live against a local
+  server in the same harness the block uses, at both widths: all pass, zero pageerrors. The
+  exhaustive copy half is check 78's, by design — the check reaches every literal in `app/*.js`,
+  which no viewport can.
+- **N7 — Help was the last document still calling a View a panel (v989, NO sw bump,
+  2026-08-10, steward; dev branch; est 1pt, took 1 — ON estimate):** 🔁 N7 was again the only
+  takeable item in ▶ NOW (N31, N44, N41 and N25 all ⛔ on Kevin; SP-1 ⏳ on `hold` PR #689), and
+  the v988 pass had left this as its named candidate: check 76 renamed the ⌘K palette's labels and
+  its own header recorded what it deliberately left — *"Help's chart-interaction prose says 'panel'
+  about the thing under a cursor"*, a vocabulary decision across a document rather than a
+  derivation. This is that decision, and the note's proposed shape turned out to be the wrong one.
+  **What was measured, and it changed the design before a line of Help was touched.** The note
+  said the rule "has to be check 15's stricter shape — outside `<code>`, the word must not
+  appear". A grep of the APP's own copy says that shape would have been wrong: `panel` appears in
+  **62 two-word phrases the app itself PRINTS** — `Panel title` is a real field label
+  (`app/build.js`), `Data panel` is the pane's own `aria-label`, `Open the builder with side
+  panels` is a Settings row — so a blanket ban would have made Help contradict the controls it
+  documents. **The line drawn instead is the app's, not the page's:** every `panel` in Help must
+  sit inside a two-word phrase the app itself prints. That is check 17 (a)'s idiom (*"the allowed
+  phrases are read out of app/*.js's own string literals rather than listed here"*) one noun over,
+  and it needs no taste to apply.
+  **What was drifting — 21 sentences, in three shapes.** The three the v988 note named
+  (`#filters-how`'s *"a filter applies to a panel when the panel's dataset…"*, and the
+  read-a-dashboard-by-keyboard chapter's *"wherever that panel has a detail drawer"* /
+  *"clicking a mark still selects the panel for editing"*, where every control named beside them
+  is a **View**); the PROPERTIES (*"where every panel's height lives"*, *"the panel's bottom
+  edge"*, *"value formats, panel height"*, *"not its panel grid"*, *"the saved View's panel"* — a
+  panel owning a View that owned a panel); and *"the panel inspector"* ×3, where Help's own
+  Query-preview paragraph two chapters above already says **the View inspector**. A fourth shape
+  was the reason the first three could hide: Help called the PANES panels in passing too (*"the
+  dataset panel next to it"*, *"the Datasets panel"*, *"in a right-hand panel"*, *"the panel leads
+  with an overview"*), so one word was doing two jobs on one page. Those read as **panes** now —
+  the vocabulary the same paragraphs already used (*"The Data panel (left pane)"*).
+  **What deliberately did NOT change:** `Panel title`, `Data panel`, `Dashboard panel`, `side
+  panels` and the inspector note's `text panel` — the app prints all five, and Help documenting a
+  control by the name it carries is the parity rule, not drift. One string moved into `<code>`
+  instead of being reworded: the dataset editor's live warning, `3 panels in 2 dashboards read
+  this dataset`, which is check 15's own sanctioned way to print a string the reader will
+  genuinely see. Three routes were renamed to the thing you actually click while the sentences
+  were open anyway — the Quick Views **Result** step, Repository's **Quick edit** dialog, and the
+  schema browser.
+  **The check.** Doc-truth **check 77**, premise + two rules. Both nouns come from
+  `addTextPanel()` exactly as check 76 derives them (the spec key it pushes into, the toast it
+  shows), so the two checks can never disagree about which word is retired; the exemption is
+  harvested from every `app/*.js` string literal (check 18's lexer + its by-shape identifier
+  rule) plus `app/index.html`'s text nodes AND its `title`/`aria-label` attributes — the pane's
+  own name for itself lives nowhere else. Closed-class words are not qualifiers (the app prints
+  *"a panel"* and *"the panel"* too, and honouring those would have exempted every drift site).
+  Rule (a) is the vocabulary rule; rule (b) is the negative half — no overshoot, since the
+  cheapest way to satisfy (a) is to replace the word everywhere and rename the builder's panes
+  with it, so no pane label (`setupMobileTabs`, check 19 (b)'s source) may be followed by the
+  rendered noun. `<p id="cmdk-labels">` is exempt, and the exemption is DERIVED: check 76 (c)
+  requires that paragraph to say the retired word for exactly as long as the palette keeps it as
+  a hidden synonym.
+  **Verification.** Rule (a) fails on the REAL pre-fix tree (21 sites, reported as sentence
+  fragments — check 15's idiom), and in BOTH code-side directions on mutated trees: delete
+  `Panel title` from `app/build.js`, or `Text panels` from `app/studio.js`, and Help's two
+  surviving quotes fail immediately, which is what proves the exemption is read live rather than
+  listed. Rule (b) fails on a mutated tree (a pane renamed to a View). The premise fails when
+  `addTextPanel`'s toast stops naming the rendered noun. Green after: `node tools/doc-truth.mjs`
+  (every published claim), `node tools/validate.mjs`, `node tools/changelog-check.js`,
+  `node tools/dev-smoke.mjs` at 390×780 + desktop, zero pageerrors. **No `sw.js` bump:**
+  `docs/index.html` is not precached (`sw.js:20` says so outright), and `tools/doc-truth.mjs`
+  never ships — same reasoning as every N7 slice since v915.
+  **One thing this pass measured and did NOT take, now the named candidate:** the APP itself
+  still calls a View a panel in the copy a reader sees — the canvas action tooltips (`Zoom panel
+  full-screen`, `Duplicate panel`, `Delete panel`), `app/datasets.js:916`'s impact warning,
+  `Add a panel` / `Dashboard has no panels or KPIs`, and the `Panel title` FIELD. v988's "the last
+  surface" was true of the palette only. It is the check-15→18 move, it is a code slice with an
+  `sw.js` CACHE bump, and the field label carries a product question (renaming a field people have
+  typed into for months is not free) — see the N7 list for the full measurement.
+- **N7 — the ⌘K palette was the last surface still calling a View a panel (v988, sw v564,
+  2026-08-10, steward; dev branch; est 1pt, took 1 — ON estimate):** 🔁 N7 was again the only
+  takeable item in ▶ NOW (N31, N44, N41 and N25 all ⛔ on Kevin; SP-1 ⏳ on `hold` PR #689), and
+  the v987 pass had left this as its named candidate. Check 75 holds the palette's WIRING — every
+  command clicks a control that exists; this is the same question asked of its WORDING, and it is
+  check 14's move one surface over.
+  **What was measured, live rather than read.** LF52/LF57 made **View** the user-facing name and
+  swept the controls; ⌘K kept the old one on **55 rows at once** — `chartTypeCommands` minted
+  `"Add panel: " + label` for all **54** registered types and tagged every one of those rows with
+  the family word **Add panel**, and `Add text / annotation panel` clicked `#cesText`, a button
+  whose own label reads **¶ Add a text View**. So the palette and the button it drives disagreed
+  about what they make, which is check 75 (c)'s failure one field over — there the label named the
+  wrong control, here it named the right control by the wrong noun. Help quoted the retired string
+  verbatim (check 61 (d) had just been written to hold it, correctly: Help documents what ships),
+  so the old word was published as the thing to type.
+  **Both halves in one slice, and the v987 note's own split is why.** It called the text command
+  self-contained and the chart-type prefix a two-document change; taking them separately would
+  have left the palette printing BOTH nouns at once, because the family tag is shared — check 61
+  (b) makes Help publish every family the palette prints, so the tag moves whichever half goes
+  first. All 55 rows now read **Add View: &lt;chart type&gt;** in an **Add View** family and
+  **Add text / annotation View**; Help's `#cmdk-families` and `#cmdk-labels` follow.
+  **The rename costs no discoverability, which is the part that made it safe to ship as copy.**
+  `panel` stays in both commands' hidden synonyms (`kw`), so typing it still returns all 55 rows —
+  verified live, not asserted — and Help now says so in a sentence check 76 (c) holds in BOTH
+  directions: promise the old word works and it must, drop it from the synonyms and the promise
+  must go too.
+  **Doc-truth check 76.** Both nouns come out of ONE function, check 14's idiom: `addTextPanel()`
+  is the handler behind the canvas ¶ button and the palette's own Add-text command, and it names
+  them five lines apart — it pushes into `S.spec.panels` (the internal key, deliberately
+  unrenamed) and toasts *"Text View added"*. The premise then corroborates the rendered noun
+  against three independent surfaces (check 14's library group, `#cesText`, `#dropHint`), because
+  a one-function derivation nothing agrees with is a typo rather than a vocabulary. Premise +
+  three rules: (a) every ADD command's label and family tag name the rendered noun and never the
+  internal one — **scoped to the add commands by their own verb**, since `panel` is still right
+  for a pane of the UI and a blanket ban would be wrong the day one gets a command; (b) a command
+  that drives a named control agrees with that control's own label about the noun (check 75 (c)
+  generalised off its hand-named pair); (c) the probe, run in the opposite direction to check 61
+  (e)'s — not "can you find what we published" but "can you still find it by the word you learned
+  first". **All three fail on the real pre-fix tree**, and five more directions were measured on
+  mutated trees (the noun dropped rather than replaced; the label alone reverted; the synonym
+  stripped while Help still promised it; Help's promise deleted while the synonym stood; the
+  toast stripped of its noun) — each failing its own rule and only its own, and a sixth (the
+  canvas button renamed out of the vocabulary) correctly failing the premise rather than a rule.
+  **Verification.** The dev gate in full (validate · changelog-check · doc-truth · dev-smoke at
+  1400×950 and 390×780, zero pageerrors) plus a Playwright probe of the palette itself against the
+  real app, which is how the 54/55/one-family-tag figures above were obtained rather than counted
+  by hand. Four suite checks in `tests/run.js` carry it: the two existing add-of-type checks moved
+  to the new label, plus the no-stale-noun rule (scoped the same way (a) is) and the
+  synonym-survives probe.
+- **N7 — two ⌘K commands drove controls that were not there (v987, sw v563, 2026-08-10, steward;
+  dev branch; est 1pt, took 1 — ON estimate):** 🔁 N7 was again the only takeable item in ▶ NOW
+  (N31, N44, N41 and N25 all ⛔ on Kevin; SP-1 ⏳ on `hold` PR #689), and v986's pass had left a
+  named candidate: the palette reached **Clear local data…** and not the hard reset v986 had just
+  built. Check 74 asked whether a route the app PRINTS resolves; this slice asked the same question
+  of the routes the app WIRES.
+  **The pairing, as named.** `⌘K → Hard reset…` now sits directly above `Clear local data…` in the
+  same **Manage** family, driving `#setHardResetBtn` through `goSec("settings")` — the same
+  click-a-real-control wiring the destructive entry already used. Its keywords answer the PROBLEM
+  as well as the name (*stuck*, *offline copy*, *service worker*, *reload*, *banner*), because the
+  reader who needs it is describing a symptom, not looking up a feature. The two are not
+  alternatives — Hard reset touches no storage, Clear local data wipes the workspace — so having
+  only the second in the palette put the destructive remedy one keystroke away and left the one it
+  should be tried before reachable through Settings alone.
+  **And writing the rule found a second command that was already broken, which is the better half
+  of this slice.** The note asked for a rule holding "the pairing"; a rule over two hand-named ids
+  is transcription, so it was written as the general form — every control id the registry drives
+  must be one the app actually renders — and it failed on the pre-fix tree for a command nobody was
+  looking at. **`Add text / annotation panel` clicked `btnAddText`, deleted on 2026-07-14** when
+  ¶ Text moved out of the Data-panel header into the canvas empty state (`#cesText`) because it
+  creates a panel; the suite even asserts the old id is gone (`oldHeaderBtnGone`) and the palette
+  was never repointed. **Measured live, not inferred:** the row rendered, ranked and highlighted,
+  and `spec.panels.length` went **6 → 6**. A `click()` on a missing id throws nothing and shows
+  nothing, so four weeks of use looked identical to it working. `app/palette.js`'s own header has
+  claimed since Track N that a command "clicks a real button… and can never drift out of sync with
+  the app" — true of the mechanism, and silent about the id.
+  **Doc-truth check 75.** The registry is EVALUATED (check 61's idiom) and each command's wiring is
+  read back off its own function source, both idioms it uses — the `click("<id>")` helper and a
+  `#id`-anchored `querySelector` — against every id the app can render (`id="…"` across `app/*.html`
+  plus the markup `app/*.js` builds as strings; 334 ids, 17 driven). Premise + three rules: (a) no
+  command drives an id the app does not render; (b) the safe remedy ships wherever the destructive
+  one does, first and in the same family; (c) the safe command's label is the control's own label,
+  ellipsis stripped, so ⌘K answers to the words the banner and Help both print. **The two ids in
+  (b) are named rather than derived, deliberately** — which of two buttons destroys your work is a
+  fact about consequences and no parse can read it out of the source; everything around them (the
+  family word, the order) is derived. **(a) and (b) fail on the real pre-fix tree**; five more
+  directions were measured on mutated trees (order reversed, family changed, palette label drifted,
+  button renamed, registry unparseable), each failing its own rule and only its own.
+  **Verification.** 7 new suite checks at 390×780 → 1280×900 in their own browser context, because
+  the command ends on a real `confirm()` and a stray accept would unregister the service worker out
+  from under the rest of the suite: Playwright's default dismiss is itself the assertion — the
+  command must reach the button's own handler and then not go through with it, and the dialog's
+  text is the proof of arrival. All 7 fail on the pre-fix tree (6 of them; the seventh is the
+  zero-pageerrors walk) and pass on this one. Dev gate green.
+  **One pre-existing red, found by running the full suite and fixed here because it is the same
+  defect one file over.** `tests/run.js` asserted the Settings page renders **8** cards, in two
+  hand-kept places — v986 added the ninth (**App**) and left both counts behind, so `dev` has been
+  failing the STAGE gate since yesterday and the nightly promotion would have rolled this work back
+  with it. Corrected to 9 and measured (`Account · Workspace backend · Appearance · Mode ·
+  Presentation · Dashboard defaults · Sample packs · Data · App`), which is exactly the list
+  doc-truth check 73 derives from `renderSettings()` — the assertion was stale, not the app, so
+  nothing was weakened. The pattern is worth naming: v986 shipped on the LIGHT dev gate, which does
+  not run `tests/run.js`, and left a stale assertion and a stale palette id on the same day.
+  **Named for the next N7 slice:** the palette still calls a View a **panel** — see the N7 list.
+- **N7 — `Settings → hard reset` was a remedy the app told you to use and did not have (v986,
+  sw v562, 2026-08-10, steward; dev branch; est 1pt, took 1 — ON estimate):** 🔁 N7 was again the
+  only takeable item in ▶ NOW (N31, N44, N41 and N25 all ⛔ on Kevin; SP-1 ⏳ on `hold` PR #689),
+  and this time a candidate WAS standing: v985's own pass measured it and left it, because it is
+  the one N7 candidate that is code as well as copy.
+  **The measurement, restated because it is the whole case for building rather than deleting.**
+  `renderVersionBanner()` (`app/studio.js`) tells a reader whose workspace is newer than their app
+  to reload, and *"if it keeps coming back, use **Settings → hard reset** to clear a stuck offline
+  copy of the app."* `docs/index.html`'s read-only paragraph printed the same route. **There was no
+  such control anywhere in `app/`.** The nearest thing was ⋯ More → **Clear local data**, which
+  wipes the workspace — so the app's only advice for a stale service worker, followed to its
+  nearest match, destroys the user's work. The two honest fixes were "build it" or "stop promising
+  it", and the note left the choice to whoever took it. **Built**, because the failure mode is real
+  and had no other answer, and because the control is small, non-destructive and exactly what the
+  sentence already describes.
+  **What shipped.** A ninth Settings card, **App**, whose one row is **Hard reset**:
+  `Studio.hardResetApp()` unregisters every service-worker registration for the scope and deletes
+  every Cache Storage bucket, then the button toasts what it cleared and reloads. It reads and
+  writes **no storage at all** — that is the entire distinction from Clear local data, it is stated
+  in the confirm, in the row's own blurb and in the function's header, and the suite asserts it
+  against real seeded `localStorage`/`sessionStorage` keys rather than trusting any of them. Both
+  copy sites now say **Settings → App → Hard reset**; Help's installable-app tip gained the
+  Clear-local-data contrast (*"reach for the hard reset first"*), and `#settings-card-list` gained
+  the card, so check 73 (a) held the addition without an edit to the rule.
+  **Two more dead routes fell out of the new check, and both were the same defect one document
+  over.** `app/welcome.js`'s hero note still closed on **`Settings → Tour`** — the exact route
+  v985 had just deleted from Help, still printed by the app, which is precisely what check 73's
+  header warned would happen when only one side is fixed; and a sync-failure toast said *"see
+  Settings → workspace backend"*, lower-casing a card the page prints as **Workspace backend**.
+  **Doc-truth check 74** — the routes the APP prints, check 73's move one document over. Premise +
+  four rules, all derived: cards from `renderSettings()`'s emission order (check 73's own parse),
+  controls from the labels the page prints (`<b>…</b>` rows and `>…</button>` texts across
+  `renderSettings()`, `accountCardHtml()` and `renderWorkspaceBackendCard()`), routes out of quoted
+  string literals in the app's chrome. Segments are matched against that vocabulary longest-first
+  with a word-boundary test rather than split on punctuation — these routes are printed
+  mid-sentence (*"…and Settings → Workspace backend manages, so…"*), so nothing in the text says
+  where a segment ends but the page's own labels do, and `App` can never be read out of
+  `Appearance`. (a) the head is a card that exists, casing included; (b) a deep route ends on a
+  control the page really prints; (c) a deep route the app prints is printed by Help too — a bare
+  card name is a pointer, but naming a button is an instruction, and the instruction is what goes
+  stale; (d) the scoping guard — `app/sources/**` is skipped because adapter credential hints
+  describe the REMOTE product's console (Supabase's `Settings → API`, Databricks' `Settings →
+  Developer`), and rule (d) fails the day an adapter starts naming OUR page, so the exclusion can
+  never quietly hide a real route. **Check 73 (d) was widened in the same pass** and its carve-out
+  deleted: it now reads every bolded route regardless of case, because the one lower-case route
+  that forced the carve-out is the one this slice fixed.
+  **Verified.** The full dev gate green in the foreground — `tools/validate.mjs` (215 files),
+  `tools/changelog-check.js` (963 entries, top v986, manager-parse OK), `tools/doc-truth.mjs`
+  (every claim), `tools/dev-smoke.mjs` (marketing + app + docs, desktop and 390px, zero
+  pageerrors). Six new suite checks at **390×780 and 1280×900** — the card and its wired control on
+  screen at both, the blurb stating both halves, the behaviour against a real seeded cache bucket
+  (cleared) and real seeded storage (intact), and zero pageerrors across the walk. **Nine failure
+  modes measured, each failing its own rule:** all four new doc-truth rules and the widened 73 (d)
+  on mutated trees, plus the two suite claims — a `hardResetApp` that also calls
+  `localStorage.clear()` fails the storage rule and nothing else, and a deleted **App** card fails
+  the card rule and nothing else.
+- **N7 — the SETTINGS page's own cards vs the section that documents them (v985, NO sw bump,
+  2026-08-10, steward; dev branch; est 1pt, took 1 — ON estimate):** 🔁 N7 was again the only
+  takeable item in ▶ NOW (N31, N44, N41 and N25 all ⛔ on Kevin; SP-1 ⏳ on `hold` PR #689), and
+  v984 left no candidate standing, so this pass repeated check 69's ALTITUDE move one page over.
+  Eight checks read things a reader reaches THROUGH Settings — 39 the backend chooser, 40 the two
+  theme rosters, 35 the pack cards, 59/60 the mode — and **nothing had ever read the PAGE those
+  cards sit on**, the same gap check 69 found for Home.
+  **Measured: Help named three of the eight cards.** `renderSettings()` emits Account, Workspace
+  backend, Appearance, Mode, Presentation, Dashboard defaults, Sample packs and Data; the rail
+  bullet published Settings as *"appearance and colour theme, the workspace-backend card, and
+  where you sign out"*. **`Presentation` was named nowhere on the page at all** — so the card
+  carrying Demo mode and the tour was invisible — and neither was the Account card. The Mode
+  card's membership went the same way: `Restore unsaved work` and `Open the builder with side
+  panels` each appeared exactly once, as a bare "flip it in Settings", with no card to flip it on.
+  **And one route pointed at a card that does not exist.** The welcome chapter closed on
+  *"revisit it anytime from **Settings → Tour**"*. There is no Tour card and there never was one
+  under that name: the tour is the **Welcome tour** row inside **Presentation**, whose button
+  reads **Take the tour**. That is check 13's class of defect (a named route resolving to
+  nothing), one menu over, and no rule had ever looked at a `Settings → …` route.
+  New `#settings-cards` section: every card in render order, each saying what it is for, closing
+  on the three settings-shaped cards that live on **Admin** instead (Section access, Workspaces,
+  Branding) so a reader stops scrolling for them. The rail bullet now points at it rather than
+  publishing a fourth partial inventory.
+  **Doc-truth check 73**, one premise + four rules, everything read from inside `renderSettings()`
+  — the two delegated cards (`accountCardHtml()`, `#wsBackendCard`) resolved to the `<h2>` each of
+  their own renderers prints, the `groups.map` expanded to `SETTINGS_TOGGLES`' groups in
+  declaration order, the rest in place, and the whole thing sorted by emission index so ORDER is
+  derived rather than transcribed. (a) every card marked `data-set-card`, in the app's order, both
+  directions — the section's own first sentence promises "in the order they appear"; (b) each mark
+  carries real prose (check 72 (b)'s idiom — a card called "Data" tells a reader nothing);
+  (c) every switch marked `data-set-row` and named by the label the app PRINTS, both directions;
+  (d) every **bolded** `Settings → …` route resolves to a real card. Rule (d)'s scope is derived,
+  not hand-drawn: the page bolds its OWN routes and italicises another product's — measured nine
+  `<strong>` against one `<em>` for Databricks' `Settings → Developer → Access tokens` — so the
+  markup already draws the line. **Rules (a), (c) and (d) all fail on the real pre-fix tree**, and
+  five more directions were measured on mutated trees (a card renamed, the cards reordered, a
+  switch renamed, a sixth switch added, a card listed with no prose), each failing its own rule and
+  only its own, with the premise catching a broken parse while the rules stay silent.
+  **It also required amending check 59 (f), which is a partition, not a weakening.** That rule
+  treats any `SETTINGS_TOGGLES` label appearing in the `#simple-mode` chapter as a claim that the
+  switch NEIGHBOURS Simple mode, and the new inventory names Demo mode with its own card —
+  the opposite claim. (f) now reads the chapter with `#settings-card-list` cut out, check 70's
+  idiom over check 36's table, and check 73 (c) is what holds each switch to the right card.
+  Verified the amendment did not blunt it: naming Demo mode beside Simple mode anywhere ELSE in
+  the chapter still fails (f).
+  **Docs-only, so NO `sw.js` CACHE bump** — `docs/index.html` is runtime-cached, not precached
+  (`sw.js:20` says so outright), same reasoning as every N7 slice since v915, and it keeps this
+  PR clear of open issue #631 (a CACHE bump deterministically reddens the N2 slice-4 checks).
+  **Verified in the foreground:** the full dev gate — `tools/validate.mjs`,
+  `tools/changelog-check.js`, `tools/doc-truth.mjs` (73 checks, all green) and
+  `tools/dev-smoke.mjs` at 390×780 + desktop with zero pageerrors.
+  Files: docs/index.html, tools/doc-truth.mjs, js/changelog.js, js/changelog-head.js, STATUS.md.
+- **N7 — what a feedback report CARRIES vs the chapter that promises to say (v984, NO sw bump,
+  2026-08-10, steward; dev branch; est 1pt, took 1 — ON estimate):** 🔁 N7 was again the only
+  takeable item in ▶ NOW (N31, N44, N41 and N25 all ⛔ on Kevin; SP-1 ⏳ on `hold` PR #689), and
+  v983 parked its own find as code rather than copy. Every check in this family so far has asked
+  whether Help names the CONTROLS the app renders; this pass asked the same question of the DATA
+  the app sends, which is the same question with a privacy answer instead of a navigation one —
+  and went to the one chapter whose own title makes the promise: *Sending feedback (and what
+  gets recorded)*.
+  **Measured: the chapter named four of the nine fields a report carries.**
+  `Studio.Activity.feedback` (`app/activity.js:136`) sends `gotrue_id` and `username` beside the
+  typed kind/message, plus a `context` block built by `ctx()` — `section`, `dashboard`,
+  `dashboardTitle`, `route`, `version`, `viewport` and a 160-char `ua`. Help published *"your
+  account name, the section you were on, the open dashboard (if any), and the app version"*, so
+  the sign-in id, the dashboard's title, the route, the window size and the **browser's
+  user-agent string** went unpublished.
+  **The paragraph BELOW it is what turned an omission into a denial.** The anonymous-trail
+  paragraph is the one place the page discusses route/referrer/viewport/IP/UA, and it is scoped
+  to `polecat_activity` rows — so a reader comparing the two chapters would fairly conclude a
+  feedback report is the smaller payload. It is the larger one. New `#feedback-context`
+  paragraph: all nine fields, each in its own phrase, closing on what does NOT travel with a
+  report (the contents of the page, any workspace data), and the pick-a-kind list moved into its
+  own `#feedback-kinds` span.
+  **Doc-truth check 72**, one premise + three rules, both lists derived rather than transcribed:
+  the captured set is the `send("polecat_feedback", { … })` row literal MINUS the fields built
+  from `feedback()`'s own parameters (so what the reader typed is never counted as captured
+  context), with its `context:` pair expanded into `ctx()`'s keys — the initializer's plus every
+  `c.<key> =` the body adds. (a) `#feedback-context` marks every captured field with
+  `data-fb-field`, both directions; (b) each mark carries real prose, not the key echoed back —
+  (a) is satisfiable mechanically and a reader learns nothing from `ua`; (c) the kinds both ways
+  in their own span (check 71 (c)'s idiom), because the picker is the one sentence a fifth kind
+  falsifies without touching another word on the page. **Rules (a) and (c) both fail on the real
+  pre-fix tree**, and five more directions were measured on mutated trees (a new `ctx()` key, a
+  field dropped from the chapter, a field tagged with its own key as prose, a fifth dialog kind,
+  a kind renamed) — each failing its own rule and only its own, with the premise catching a
+  broken parse while the rules stay silent.
+  **Deliberately NOT held:** `ctx(extra)`'s caller-supplied `extra`. The one caller
+  (`openFeedbackModal`, `studio.js:10628`) passes none, so there is nothing static to derive and
+  a rule over an empty parameter would measure nothing — recorded in the check's own header so
+  the next run does not re-derive it.
+  **Docs-only, so NO `sw.js` CACHE bump** — `docs/index.html` is runtime-cached, not precached
+  (`sw.js:20` says so outright), same reasoning as every N7 slice since v915, and it keeps this
+  PR clear of open issue #631 (a CACHE bump deterministically reddens the N2 slice-4 checks).
+  **Verified in the foreground:** the full dev gate — `tools/validate.mjs`,
+  `tools/changelog-check.js`, `tools/doc-truth.mjs` (72 checks, all green) and
+  `tools/dev-smoke.mjs` at 390×780 + desktop with zero pageerrors.
+  Files: docs/index.html, tools/doc-truth.mjs, js/changelog.js, js/changelog-head.js, STATUS.md.
+- **N7 — the viewer's own top bar vs the chapter that documents it (v983, NO sw bump,
+  2026-08-10, steward; dev branch; est 1pt, took 1 — ON estimate):** 🔁 N7 was again the only
+  takeable item in ▶ NOW (N31, N44, N41 and N25 all ⛔ on Kevin; SP-1 ⏳ on `hold` PR #689) and
+  v982 left no candidate standing, so this pass went looking for a SURFACE the family had never
+  read rather than another chapter of the one it had. It found a whole page: every chrome check
+  in this family — 16–21 (the builder), 49 (the app bar), 69 (Home) — lives inside
+  `app/index.html`, and `app/viewer.html` is a second standalone document with its own top bar.
+  The only thing ever read from it was the export MENU (check 37).
+  **Measured: Help named an `Edit in Studio` button; the bar renders `Edit in Dashboard
+  Builder`.** Not a paraphrase — `git log -S` dates the rename to **a67d30c** *("LIVE-a slice 2:
+  sweep remaining Explore/Studio strings to Quick Views/Dashboard Builder")*, which swept the app
+  and left the Help page behind; the sentence itself was written with the button in **d73dc81**
+  (LF23 slice 2) and was true the day it landed. Its two neighbours, **Save a copy** and
+  **Export**, are still correct, which is what makes a stale third one expensive — nothing in the
+  list looks wrong. The page's only other `Edit in Studio` hits are CODE COMMENTS
+  (`app/studio.js:566`, `app/viewer.js:71`, `app/studio.css`'s LF23 block); they are precached
+  files, so per the standing convention they belong to whichever slice next opens them for a real
+  reason, not to a docs pass.
+  **The second half, and the reason it earned a chapter rather than a one-word fix:** the
+  chapter documented the bar in the DESKTOP's terms only. `app/studio.css`'s
+  `@media(max-width:640px)` block drops the `Viewer — read-only` badge outright and hides every
+  `.viewer-btn-txt` label plus the export caret, so on a phone the three actions are icons alone
+  and the badge that tells you the page is read-only is gone. Help has a whole `#phone-more`
+  chapter for the BUILDER's toolbar (check 21) and gave the viewer nothing — and the viewer is
+  the route most likely to be opened on a phone, because it is the one you send someone in a
+  link. New `#viewer-bar` chapter: the bar left to right (back link, title, badge, the three
+  actions in the order it prints them), then `#viewer-bar-phone` for the band, including that
+  the viewer has no ⋯ menu at all so a reader is not sent hunting for the builder's.
+  **Doc-truth check 71**, one premise (app-side only — gating it on the new anchors would have
+  let the pre-fix page pass in silence, check 70's split for the same reason) + four rules:
+  (a) the actions list names every control the bar REVEALS — `hidden` in the markup, un-hidden by
+  viewer.js — by the label it prints, both directions, reading the FIRST `<strong>` in each
+  `<li>` so the role words later in a bullet can neither satisfy nor fail it; (b) the phone
+  paragraph names the real band, the badge it drops and every label it hides, with the band read
+  off the media query that drops the badge rather than typed into the check; (c) the export
+  formats both ways in a span of their own — check 37 (c) already asks that none go UNNAMED, so
+  this is the negative half, the check-24→28 move one direction over; (d) the "no ⋯ menu here"
+  claim answers to `viewer.html`. **3 of 4 rules fail on the real pre-fix tree**, and seven
+  code-side directions were measured on mutated trees (the label renamed on either side, the
+  band re-banded 640→600, the badge text changed, a fourth export format, a ⋯ menu added to the
+  bar, and a format the menu does not have) — each failing its own rule and only its own.
+  **Measured in the same pass and NOT taken, so the next run does not re-derive it:** the Jobs
+  chapter was audited against `Studio.JOB_STEP_KINDS`, `Studio.JOB_AGG_FNS`, `Studio.filterOps`'
+  operator list and its 15 relative RANGES, and the dynamic-token chapter against
+  `WS.dynamicParam` + `DATE_TOKENS` — **all CURRENT, nothing to fix**, which is why this slice
+  went to the viewer instead. One thing that surfaced there is code, not copy, so it is NOT N7's:
+  `WS.dynamicParam` builds every date from the reader's LOCAL calendar (`getFullYear`/`getMonth`)
+  while the filter engine two files over documents and implements UTC on both sides
+  (`app/model.js`'s AUD-06 slice 4 block) — so `{{today}}` and a date filter can disagree by a
+  day near midnight for a reader outside UTC. Real, small, and a behaviour decision rather than a
+  wording one.
+- **N7 — the keyboard chords Help prints OUTSIDE its shortcuts table (v982, NO sw bump,
+  2026-08-10, steward; dev branch; est 1pt, took 1 — ON estimate):** 🔁 N7 was again the only
+  takeable item in ▶ NOW (N31, N44, N41 and N25 all ⛔ on Kevin; SP-1 ⏳ on `hold` PR #689), and
+  v981 parked its one find as editorial, so no candidate was standing. This pass took check 36's
+  move one **altitude** up rather than one document over — and the drift it found is check 36's
+  own, still alive one chapter away from where v923 fixed it.
+  **Measured: Help's Undo / Redo chapter said `Shift Z` to redo — the exact chord v923 deleted
+  from the Keyboard shortcuts table a day earlier.** It has never worked: the builder's letter
+  shortcuts are read inside a block opening `if (!(e.metaKey || e.ctrlKey)) return;`, so a bare
+  Shift+Z falls straight through. Check 36's header says outright that it is *"scoped to the
+  TABLE, not the whole section"* — so the table was correct and the paragraph 1,500 lines above
+  it kept publishing the corpse. **And the chapter named ONE of the three chords its own two
+  buttons fire:** `undoAct()`/`redoAct()` implement `Ctrl/⌘+Z`, `Ctrl/⌘+Shift+Z` and `Ctrl/⌘+Y`,
+  so the chapter about redoing was the one place a reader could not learn how to redo. Both real
+  redo chords are named now; the ⋯ More phone route beside them was verified against `#menuMore`
+  and is correct.
+  **Doc-truth check 70**, two premises and three rules, all reading the page with the
+  `kbd-table` block CUT OUT so checks 36 and 70 partition the page rather than overlap on it:
+  (b) no letter chord without Ctrl/⌘ anywhere in the prose; (c) no Ctrl/⌘ chord the app's `?`
+  panel does not publish (transitive — check 36 already holds that panel to the handler); (d) the
+  `#undo-redo` anchor names exactly the chords the handler's undo/redo branches fire, both
+  directions, derived per-branch from the `undoAct()`/`redoAct()` call inside each one so the
+  rule can ask for completeness and not only "invent none". **The two premises are split on
+  purpose:** the pre-fix tree had no `#undo-redo` anchor at all (it ships with this slice), and a
+  single premise would have let the missing anchor silence the page-wide rule the real drift was
+  failing — measured, not theorised. Eight failure modes measured: rule (b) and the anchor
+  premise on the REAL pre-fix tree, (b) alone in an unrelated chapter, (c) alone, (d)'s missing
+  and stray halves separately, (d) from the CODE side (a handler that gains a redo chord fails it
+  alongside check 36's rule (a)), and the hard throw when the handler block moves.
+  **A fourth rule was written and deleted, recorded so nobody writes it again:** the chapter's
+  `⋯ More → Undo` / `→ Redo` route is already held page-wide by **check 21**, whose mutation
+  fails right beside this one's. Check 13's header excluding `docs/index.html` from route-checking
+  reads like a gap and is not one. Adopting the existing check beat minting a rival (N44 slice
+  1's lesson, one tool over).
+  **Measured in the same pass and NOT taken, so the next run does not re-derive it:** the page
+  spells the palette chord three ways — `⌘K` closed up, `Ctrl-K` hyphenated, and `Ctrl K` /
+  `⌘ K` in the table's own style. All three resolve to the same real chord (check 70 normalises
+  them before comparing, which is why they pass), so this is house style, not drift — and
+  `docs/BACKLOG.md` says the loop does not make editorial calls for Kevin. The two v922
+  candidates are still open and still Kevin's calls.
+- **N7 — Home's own page vs the chapter that introduces it (v981, NO sw bump, 2026-08-10,
+  steward; dev branch; est 1pt, took 1 — ON estimate):** 🔁 N7 was again the only takeable item in
+  ▶ NOW (N31, N44, N41 and N25 all ⛔ on Kevin; SP-1 ⏳ on `hold` PR #689), and v980 parked both of
+  its finds as code rather than copy, so no candidate was standing. This pass repeated check 67's
+  **altitude** move one page over: eight checks read things a reader reaches THROUGH Home, and
+  **nothing had ever read the page Home renders first.**
+  **Two candidates were measured first and found CLEAN**, which is why the slice is Home and not
+  either of them — a check with no drift to fix is worth building the day the source changes, not
+  today. (1) `site/chart-gallery.js`, the marketing gallery's generated dump, is held only on its
+  COUNT (`galleryTypes === N`, doc-truth's early block) and not on its labels/groups/descs — but
+  re-running `tools/gen-chart-gallery.mjs` produced a byte-identical file, so there is nothing
+  stale in it. (2) the landing page's `#themes` section claims *"Seven chrome palettes"* and names
+  four in its figcaptions; `APP_THEME_KEYS`/`APP_THEME_LABELS` really do ship seven, and all four
+  captions are verbatim labels. Check 40's header already scopes itself to `docs/index.html` for
+  the theme rosters; that scope is still correct.
+  **The chapter opened its list at the FOURTH thing on the screen.** `renderHome()`
+  (`app/studio.js:6426`) paints a "Welcome back" hero, then a grid of quick-start cards, then a
+  rotating tip, then — once the workspace has workbooks — a chip strip, and only then the content
+  sections the chapter described. **All eight cards were undocumented here.** Four are named in
+  passing in other chapters (Quick import in Getting started, Sample dashboards in the packs
+  chapter, Take the tour in Admin, New Quick View in the builder chapter) and four — **New View,
+  New dashboard, New connection, New dataset** — appeared nowhere on the page as a Home affordance
+  at all. The card grid is the whole above-the-fold of Home, so the page documenting Home began
+  below it. The new subsection lists all eight, states that **Sample dashboards** appears only
+  while an installed pack really contributes examples (N32's own rule), and names the four a
+  **viewer**-role account does not get, with the reason (they all route into the builder, which
+  `currentUserCanDevelop()` never opens to a viewer — Home drops them rather than ship a dead
+  click).
+  **Three more drifts, all in the same direction — the reader is told less than the page shows.**
+  (1) The reorderable-section list published **Featured, Pinned, Favorites, Examples, Dashboards**,
+  and two of those are not what the headings say: `HOME_SECTION_LABELS` (`app/studio.js:6395`)
+  renders **Pinned Views** and **Favorite datasets & connections**. A reader scanning headings for
+  "Favorites" finds nothing — paraphrasing a heading is the expensive kind of near-miss. (2) The
+  **Dashboards** section draws TWO nested strips, **Pinned** and **Recent dashboards**, and only
+  the second was named, even though the chapter's own Clear-recents bullet points at that heading.
+  So pinned dashboards (`loadPins()`, the ★ on a dashboard card) were invisible while pinned
+  **Views** had a section of their own three bullets above — the exact pair a reader confuses.
+  (3) The workbook chip strip was absent, and a section that silently hides itself when empty was
+  never stated as doing so.
+  Doc-truth **check 69**, premise + five rules, every fact read from inside `renderHome()` so there
+  is no second copy to keep in sync: the `cards` array literal (its `t:` titles ARE the words on
+  the buttons), the `currentUserCanDevelop()` filter's own act list, `HOME_SECTION_LABELS`, the
+  `home-sub-nested` headings scoped to the `dashboards:` section body (so the Examples section's
+  per-pack headings, same class with an attribute in between, stay out), and `wbChipDefs`' two
+  FIXED chips — the chips between them carry the reader's own workbook names and so cannot be held.
+  Rules: (a) the card list, both directions, inside `#home-quick-cards` only, so the viewer
+  paragraph's repeats below cannot satisfy it; (b) the viewer-hidden set, named rather than counted;
+  (c) the section labels **verbatim**, both directions; (d) both strips in Dashboards; (e) the two
+  fixed workbook chips. Two enumerations that sit mid-sentence got a `<span id>` of their own
+  (check 68's idiom) so the prose around them can neither satisfy nor fail a rule.
+  **Eight failure modes measured, each failing its own rule and only its own** — Help dropping a
+  card, Help inventing one, the app renaming one, Help dropping a viewer-hidden card, the gate
+  ceasing to hide one, Help paraphrasing two headings (this is literally the pre-fix copy, and it
+  fails), Help dropping the Pinned strip, and the app renaming the `Unfiled` chip. **One honest
+  note on the last:** renaming `Unfiled` also reddens checks 56 and 57, which own that same word as
+  a shared filter pill — that is correct behaviour (three documents name one string), not a leak,
+  and rule (e) fired alongside them.
+  **Measured in the same pass and NOT taken, so the next run does not re-derive it:** Home's
+  rotating tip strip is documented in one clause and NOT held by a rule — `HOME_TIPS` is a prose
+  list of hand-written sentences, so holding a Help page to it would be transcription, not
+  derivation. And the chapter's *"click the small house button"* for Featuring is copy about an
+  ICON: the button's own `title` is `Feature on Home (live preview)`, so what the glyph looks like
+  is a CSS question, and check 69 holds the affordance's presence through the section list rather
+  than the picture. The two v922 candidates are still open and still Kevin's calls.
+- **N7 — the Quick Views mapping grid vs the chapter that documents it (v980, NO sw bump,
+  2026-08-10, steward; dev branch; est 1pt, took 1 — ON estimate):** 🔁 N7 was again the only
+  takeable item in ▶ NOW (N31, N44, N41 and N25 all ⛔ on Kevin; SP-1 ⏳ on `hold` PR #689), and
+  v979's closing note parked its one find as editorial, so no candidate was standing. This pass
+  took the gap v979's own altitude move implies one section over: **check 32 reads the Quick Views
+  editor's four numbered steps (`1 · Data`, `2 · Chart`, `3 · Mapping`, `4 · Result`) and the
+  marketing shot framed around them, and nothing had ever read what step 3 puts INSIDE the mapping
+  grid** — which is the pane a reader is sent to when Help names a control. It had drifted in both
+  of the directions that matter.
+  **It documented two controls Quick Views does not have.** `xpMapEditorHtml()`
+  (`app/explore.js:594`) is the sole producer of the mapping grid, and it pushes exactly **three**
+  per-chart option rows: `scale` and `renderer` for a map, `refSeries` for an Ensemble chart. The
+  chapter walked the reader through those and then through the GL map's **Zoom/pan controls**
+  (Show / Compact / Hidden) and **Controls position** (any corner) — `Studio.CHARTS.choropleth`
+  options (`app/model.js:1084`, `:1090`) rendered by the **Dashboard Builder's** generic inspector
+  table and by nothing in `app/explore.js`. Both sentences sat inside a bullet about this pane, so
+  the reader hunts a three-row grid for a fourth and a fifth. The copy now names the three that are
+  there and says plainly where the rest live, so the pointer is useful rather than absent.
+  **And it named two of the four chart types the Rollup control is hidden on.** *"Geo and Ensemble
+  charts carry their own aggregation, so the control is hidden for those"* was true and incomplete:
+  `XP_AGG_TYPES` (`app/explore.js:146`) shows the control for **five of the nine chips**, so
+  **Scatter / bubble** and **Heatmap (pivot)** are excluded too — for a reason the code states
+  outright (a rollup aggregates ONE measure by category; scatter carries x+y and heatmap is a
+  row×column pivot, so grouping one measure away would collapse them). Two of the four exclusions
+  were therefore silent, which is the expensive direction: the reader picks the chip, the row is
+  not there, and the page never said it would not be. The bullet now names all four with the
+  reason, plus the `No aggregation (raw rows)` setting the control starts on.
+  Doc-truth **check 68**, premise + five rules. Every LABEL is read from the evaluated `M` model
+  rather than pattern-matched — chart names **verbatim** (they are the words on the chips the
+  reader is choosing between) and option names by their **pre-parenthesis stem**, because Explore
+  and the registry word the same option's tail differently (`Reference series (never joins the
+  estimate)` vs `(excluded from the estimate)`) and the reader is looking for the name, not the
+  aside. The premise asserts the join the rules depend on: every `data-xp-opt` key Explore renders
+  must resolve in the chart registry, which is what lets (b) read the registry's label instead of a
+  second copy of it. Rules (b)/(c)/(d)/(e) all run **both directions** inside their own anchors, and
+  the "where the other options live" sentence sits OUTSIDE `#quickviews-chart-options` on purpose —
+  so telling a reader the GL cluster is in the builder stays legal while presenting it as a Quick
+  Views control does not.
+  **Twelve failure modes measured, each failing its own rule and only its own** — doc-side: the
+  real pre-fix defect (a builder-only option bolded inside the options anchor) (b); a rendered
+  option losing its name (b); a shown chart type dropped from the on-list (c); **the true pre-fix
+  exclusion list, Geo + Ensemble only** (d); an aggregate function left unpublished (e); the
+  group-by count reading "three" (f). Code-side: Quick Views growing an undocumented option row
+  (b); the registry renaming `Region scale` (b); `scatter` moving into `XP_AGG_TYPES`, which
+  correctly reddens (c) AND (d) together because one type moving between the two lists is one
+  defect seen from both ends; `Studio.AGG_FNS` gaining a seventh function (e); a third group-by
+  select appearing (f); and a chart type renamed in the registry, which reddens (d) alongside
+  checks 45 and 50 — correctly, a rename is published on several surfaces. The premise fails on the
+  true pre-fix tree (no anchors to hold), which is why the doc-side rules were measured on mutated
+  trees carrying the pre-fix wording — check 63's pattern, unchanged.
+  **Verified — the whole dev gate, in the foreground:** `node tools/validate.mjs`,
+  `node tools/changelog-check.js`, `node tools/doc-truth.mjs` (all 68 checks green) and
+  `NODE_PATH=… node tools/dev-smoke.mjs` at 390×780 + desktop, zero pageerrors, including its
+  "docs render" leg — which is the page this slice changes. The full `tests/run.js` suite is the
+  STAGE gate (`promote-to-stage.yml`), not the dev gate, and is unaffected: nothing here ships to
+  the app. Docs-only in shipped terms (`docs/index.html` is not precached and `tools/` ships
+  nothing), so NO `sw.js` bump.
+  **Measured in the same pass and NOT taken, so the next run does not re-derive it** — both are
+  code rather than copy, and both are in the precached `app/explore.js`, so they belong to the next
+  slice that has to bump anyway (issue #631): (1) `xpMapEditorHtml()` hard-codes its **Region
+  scale** choice list (six scales) rather than reading `Studio.CHARTS.choropleth`'s `scale` opt
+  (seven, including `Custom regions`) — the exact second-hardcoded-list problem the `renderer` row
+  right below it was refactored to avoid, and its own comment says so; (2) the same function prints
+  `Reference series (never joins the estimate)` where the registry's label is `Reference series
+  (excluded from the estimate)` — one option, two on-screen names. Check 68 matches on the stem, so
+  it holds the name and not the divergent aside, and neither find is doc drift. Also measured and
+  found CURRENT: the chapter's four numbered steps, its navigator description (folder tree, sample
+  grouping, search-flattens-the-tree), the `+ New dashboard` / `Existing dashboard…` pair, the live
+  run's sample-row fallback, and the six region scales it lists against the six Explore renders. The
+  two v922 candidates are still open and still Kevin's calls.
+- **N7 — the guided-tour chooser vs the tours it really offers (v979, NO sw bump, 2026-08-10,
+  steward; dev branch; est 1pt, took 1 — ON estimate):** 🔁 N7 was again the only takeable item in
+  ▶ NOW (N31, N44, N41 and N25 all ⛔ on Kevin; SP-1 ⏳ on `hold` PR #689), and v978's closing note
+  parked both of its finds — one an information-architecture call, one code rather than copy — so
+  this pass changed the ALTITUDE rather than the chapter: **checks 12/13/14/19/20/22/23/24 all read
+  INSIDE the tours (their steps, spotlight targets, nouns) and nothing had ever read the LIST.**
+  Help's account of the chooser was written when there were four general topics and one pack tour.
+  **Measured:** `TOUR_ORDER` (`app/tutorial.js:838`) holds **nine** tours — five always-visible
+  (`Getting started`, `Quick analysis`, `Build a dashboard`, `Prep data (Jobs)`,
+  `Connections &amp; Datasets`) and four gated on an installed pack by `TOUR_GATES`
+  (conservation, marketcoverage, campaignfinance, countymigration). Help published **four**
+  lowercase paraphrases, and the fourth — *"prepping and connecting your data"* — had silently
+  merged `jobs` and `connect`, two separate walks, into one phrase that is not a row you can click.
+  So a reader counted four and the picker drew five, and the two tours most likely to be wanted by
+  someone bringing their own data were the pair that had been collapsed. The pack half said *"plus
+  one for your installed sample pack"*, singular, of a chooser that adds a row per pack — and of
+  two engines (`welcome.js`'s `computeSteps` and `tutorial.js`'s `computeOverviewSteps`) that each
+  splice one step **per** installed pack via `packs.map(...)`.
+  **The same drift reached the Sample packs chapter from the other end, and this is the half that
+  made the page actively misleading:** Campaign Finance and Where America Moved each close on *"The
+  pack also carries its own guided tour, which appears in ⌘K → Interactive tutorial once it is
+  installed"*, while **Conservation Insight and Market Coverage — which have had tours just as
+  long — said nothing**, and Federal Contract Awards and Data Management (which genuinely have
+  none) also said nothing. The page's silence therefore meant two different things, so it meant
+  nothing. Both entries now carry the sentence verbatim in the idiom the page already uses.
+  Doc-truth **check 67**, premise + four rules, all derived from `app/tutorial.js`: the order, each
+  entry's own printed `label:`, and each gate's body — **not its key** — for the pack it really
+  asks about. The premise holds that join (a gate keyed on one tour but asking about another pack
+  would attach rules (d)/(e)'s sentence to the wrong entry) plus membership in `packRegistry`, so
+  it fails loudly rather than letting a coverage rule pass over an empty string. Rule (b) runs both
+  directions inside the new `#tour-topics` anchor and matches the label VERBATIM, so renaming a
+  tour moves the rule with it instead of leaving a plausible paraphrase behind; rule (c) holds the
+  count sentence separately, so a sixth topic added to the chooser and to the list while the
+  sentence still says five fails on its own.
+  **Seven failure modes measured, each failing its own rule and only its own** — the pre-fix
+  paraphrase list under the new anchor (b); the count reading "four" (c); Conservation Insight's
+  real pre-fix entry with no tour sentence (d); Federal Contract Awards claiming a tour it does not
+  have (e); a sixth ungated tour added to `TOUR_ORDER` reddening (b) AND (c) together, code-side; a
+  `contractawards` gate added to the chooser reddening (d), code-side; and a gate rewritten to ask
+  about a different pack failing the PREMISE rather than any rule. The premise fails on the true
+  pre-fix tree (no anchor to hold), which is why the doc-side rules were measured on mutated trees
+  carrying the pre-fix wording — check 63's pattern, unchanged.
+  **Verified:** `node tools/doc-truth.mjs` (all 67 checks green), `node tools/validate.mjs`,
+  `node tools/changelog-check.js`, `node tools/dev-smoke.mjs` at 390×780 + desktop, zero
+  pageerrors. Docs-only in shipped terms (`docs/index.html` is not precached), so NO `sw.js` bump.
+  **Measured in the same pass and NOT taken, so the next run does not re-derive it:** the tour
+  chooser's own footer offers **← Back** and **Maybe later**, and Help names only the Back button —
+  the smaller of the two, and naming the dismiss control is an editorial call about how much of a
+  dialog a Help page should transcribe, not a derivation, so check 67 holds the topic list and not
+  the chrome around it. Also measured and found CURRENT: Help's Jobs chapter against
+  `Studio.JOB_STEP_KINDS` (all nine step types named), `JOB_AGG_FNS` (all five rollup metrics),
+  `Studio.filterOps` (all nine operators, verbatim) and its fifteen relative date ranges; the View
+  Builder chapter's twelve chart types against `CHART_TYPES` and its seven aggregation badges
+  against `AGGS`; and Home's five reorderable sections against `HOME_SECTION_KEYS`. Four chapters
+  read and found true is why this slice's drift is the tour list and not one of them. The two v922
+  candidates are still open and still Kevin's calls.
+- **N7 — the Admin user editor's provisioning controls vs the copy that documents them (v978,
+  NO sw bump, 2026-08-10, steward; dev branch; est 1pt, took 1 — ON estimate):** 🔁 N7 was again
+  the only takeable item in ▶ NOW (N31, N44, N41 and N25 all ⛔ on Kevin; SP-1 ⏳ on `hold`
+  PR #689), and v977's closing note parked both of its finds inside the precached `app/studio.js`
+  — issue #631's territory — so this pass took the chapter that whole family had read AROUND:
+  **`docs/index.html`'s `Admin &amp; backend setup`, 550 lines and the second-largest surface on
+  the page, held by nothing.** Checks 26/27/30 hold the provisioning SQL and 42/46 the gate
+  documents; the chapter a workspace administrator actually reads answered to none of them.
+  - **It documented a control the app no longer has** — the `ⓘ Tour` class check 41 (g) deleted
+    from README and check 44 (f) from `PUBLISH.md`, a third document over. The section said
+    Add user carries an **"Install the Conservation Insight sample pack on first sign-in"
+    checkbox**. **SP-0 replaced that checkbox with a `<select>`** (`openUserEditor`,
+    `app/studio.js` — `pSel = el("select")`, populated from `Object.keys(Studio.DEMO_PACKS)`),
+    and its own comment says why: *"With more than one pack registered it has to be a CHOICE."*
+  - **The consequence is bigger than the dead control, and it is a capability nobody was told
+    about.** The registry holds **six** packs (`conservation`, `marketcoverage`, `contractawards`,
+    `campaignfinance`, `countymigration`, `datamanagement`) — three of them the money-flow packs
+    Kevin promoted and that shipped the same day — and the only sentence in the product
+    describing per-user pack provisioning named **one**. An admin standing up an account for
+    contract-awards work had no way to learn from Help that the form would do it.
+  - **Second drift, running the other way — the copy under-reports what it captures.** "Copy my
+    current Dashboard defaults" was published as "every field from your **Settings → Dashboard
+    defaults** card", enumerating eight. `snapshotDashboardDefaults()` (`app/defaults.js:217`)
+    returns **nine**: the ninth is `quickModeCreativity`, and it is invisible in BOTH places —
+    **LF50 (b) hid the "Quick import creativity" row on the Settings card** (Kevin: *"it's
+    confusing things for now"*) while leaving the stored default and the whole low/high build
+    machinery live. So a value nobody can see is snapshotted onto a new account and replayed at
+    their first sign-in. The page now names it and says plainly that its Settings row is hidden —
+    the alternative was to add a ninth noun to the list and imply a control a reader would then
+    hunt for.
+  - **Doc-truth check 66, premise + four rules, and the membership is the derivation worth
+    keeping.** WHICH controls count as provisioning controls is read out of the SAVE HANDLER —
+    the operands of `opts.provisioning = (…)` and `opts.forceTour = …`, resolved one hop back to
+    the element each reads (`X.value` / `X.checked`, or the button whose `onclick` assigns it) —
+    so a control that stops being written onto the account leaves the rule with it and a newly
+    wired one joins the day it exists. That found **six**: the theme and pack pickers, the
+    one-shot tour checkbox, the two Dashboard-defaults buttons and the assigned-workspace select.
+    On top of it: (b) the pack control is documented as the element it IS, with the negative half
+    that a picker over the whole registry may not be published as installing ONE named pack
+    (naming none or several is fine — naming exactly one is the drift); (c) each picker's own
+    empty-option text is quoted, so "leaving it unset skips that part" points at a label the form
+    prints; (d) the snapshot's enumeration both directions, keyed by the RETURNED KEY so a tenth
+    captured field falls out of the vocabulary and fails the premise rather than passing green;
+    (e) coverage over the whole chapter, since two of the six are documented in their own `<h3>`s.
+  - **3 of the 4 rules measured failing on the real pre-fix tree** (the checkbox wording and the
+    single named pack both tripped (b); the pack picker's "Don't install one" was unquoted;
+    `quickModeCreativity` was unpublished). The rest on mutated trees, each failing its own rule
+    and only its own: a tenth captured default with no registered noun (premise), a captured field
+    dropped while the copy still names it ((d)'s negative half), the pack picker's label renamed
+    ((e)), its empty option renamed in code ((c)), the copy naming exactly one pack again ((b));
+    and the copy naming TWO measured GREEN, which is the point of that rule's shape.
+  - **Verification:** the full dev gate in the foreground — `tools/validate.mjs` (215 files,
+    6 packs), `tools/changelog-check.js` (955 entries, top v978, manager-parse OK),
+    `tools/doc-truth.mjs`, `tools/dev-smoke.mjs` (marketing / app / docs / 390px mobile, zero
+    pageerrors). NO `sw.js` bump: `docs/index.html` is not precached (sw.js's own line 20) and the
+    precache LIST is unchanged, which is the file's stated rule and #631's reason to prefer it.
+- **N7 — the roles the marketing page sells vs the roles the app has (v977, NO sw bump,
+  2026-08-10, steward; dev branch; est 1pt, took 1 — ON estimate):** 🔁 N7 was again the only
+  takeable item in ▶ NOW (N31, N44, N41 and N25 all ⛔ on Kevin; SP-1 ⏳ on `hold` PR #689), and
+  v976's closing note left no standing candidate — so this pass went one QUESTION over rather
+  than one document over: **checks 9–64 hold what the app can DO** (its charts, panes, menus,
+  packs, pickers, tables and prose) **and nothing held WHO can do it.** The first place that was
+  read is the first place it was wrong.
+  - **The marketing page had invented a role.** `index.html`'s "Bring your team" card sold
+    "admin, **editor** and viewer roles". `app/auth.js:277` is the source of truth —
+    `ROLES = ["admin", "developer", "viewer"]`, with `ROLE_LABELS` beside it — and **there has
+    never been an editor**. The rung the card dropped is the one that BUILDS: `canDevelop()`
+    (`auth.js:282`) admits `admin` and `developer`, and it is the only gate on the Dashboard
+    Builder. So the card omitted the role a prospect is most likely to want and offered, in its
+    place, a name that appears nowhere in the product.
+  - **It is not a label drift, because of where the card sits in the funnel.** The card is
+    upstream of **Admin → Add user**, whose own select reads *Admin — full access* /
+    *Developer — build &amp; edit dashboards* / *Viewer — browse &amp; explore*: a reader who
+    signed up on the strength of "editor" went looking for it in a list that has never had it.
+    The card now names all three in ladder order and says in one clause what each can do.
+  - **Audited and found CURRENT in the same pass, no change needed:** Help was right on both of
+    its role passages — the Admin bullet's ladder ("whether they're an admin, developer, or
+    viewer — each role a superset of the one below") and the Dashboard Builder's own visibility
+    sentence, which splits the roster exactly where `canDevelop()` splits it. `README.md`,
+    `SPEC.md`, `PUBLISH.md` and the six tours name no role at all. The two Help passages gained
+    `id="roles-ladder"` and `id="builder-access"` as the new check's anchors — the
+    `id="viewer-export"` / `id="filters-how"` idiom this page already uses.
+  - **Doc-truth check 65 — premise + four rules, all three derivations from one file.** `ROLES`
+    (the roster), `ROLE_LABELS` (its keys, so a set that stops matching its labels fails the
+    PREMISE rather than half a rule) and `canDevelop()`'s own body (the capability split as the
+    code enforces it, not as a comment describes it). The read-only set is derived as the
+    complement, so a fourth role classifies itself here instead of needing a second list.
+    (b) the marketing card offers exactly the roster, both directions in one rule because it is
+    one sentence; (c) Help's ladder, the same; (d) the builder's visibility, held role by role —
+    a role is documented on the granted side **iff** the gate admits it and on the read-only side
+    **iff** it does not; (e) the direction that costs a reader the most, run page-wide over
+    `index.html`, `docs/index.html` and `README.md` rather than on an anchor: **no document may
+    tell a read-only account it can build a dashboard.**
+  - **Every rule measured failing.** (b) on the REAL pre-fix wording, carried under the new
+    anchor because the anchor did not exist before this slice (check 63's idiom) — it reported
+    both halves at once: *sold by the card, not a role: editor · missing from the card:
+    developer*. (c), (d) and (e) on mutated trees (a ladder that drops the middle rung; a Help
+    sentence that grants the builder to a viewer; a sentence that says a viewer builds). And
+    every code-side direction: **a fourth role reddens (b), (c) and (d) simultaneously**;
+    `ROLE_LABELS` drifting off `ROLES` fails the premise; a gate opened to every role empties the
+    read-only set and fails the premise too (correctly — Help's viewer-route sentence would then
+    be a lie about nobody); and closing the gate on `developer` fails (d) alone, naming it.
+  - **Measured in the same pass and NOT taken, so the next run does not re-derive it.** Both are
+    in `app/studio.js`, which is precached — an `sw.js` CACHE bump is issue #631's territory —
+    so both belong to the next slice that has to bump anyway, the v927/v976 reasoning unchanged.
+    **(1) COPY, so N7's, and it is the same drift one surface over:** the Admin page's own hero
+    paragraph explains **two** of the three roles it offers — *"**Admin** has full access;
+    **viewer** can browse and explore but not edit"* — leaving the developer rung unexplained on
+    the one page where roles are actually assigned. **(2) NOT copy, so not N7's:**
+    `openUserEditor` hard-codes a THIRD role list with labels of its own instead of reading
+    `PolecatAuth.ROLES` / `ROLE_LABELS`, and `ROLE_LABELS` — exported for exactly this — has no
+    reader anywhere in `app/` (`grep -an "ROLE_LABELS" app/*.js` finds only `auth.js`). Check 65
+    holds the documents to the roster; nothing holds the app's second copy of it to the first.
+- **N7 — the honesty chapter vs the two registries it argues about (v976, NO sw bump, 2026-08-10,
+  steward; dev branch; est 1pt, took 1 — ON estimate):** 🔁 N7 was again the only takeable item in
+  ▶ NOW (N31, N44, N41 and N25 all ⛔ on Kevin; SP-1 ⏳ on `hold` PR #689), grooming pass 5 had
+  drained the queue that morning and deliberately declined to open a fifth proposal on top of the
+  unanswered #623, and v975's closing note left no standing candidate — so this pass picked its
+  own target: **`docs/index.html` § "Ensembles &amp; scientific honesty"**, the last `<h2>` on the
+  page that nothing derived. It is also the chapter where staleness costs the most, because the
+  chapter IS the product's honesty argument.
+  - **The drift ran through its thesis, and it was measured rather than read.** The page said the
+    combined value *is* "the **median**" — unconditionally, in five places. Both charts make the
+    combination a SETTING: `Studio.CHARTS.ensembleSeries.opts.agg` is a select labelled **Common
+    estimate** offering **Median (recommended)** and **Mean**, and `_ensembleSeries`
+    (`app/studio-charts.js`) computes the bold line with `aggValues(vals, cfg.agg || "median")`,
+    so a chart whose author picked Mean was described by every sentence on the page as a median.
+    The map's is wider still: `choropleth.opts.agg` — **Combine duplicate rows by** — offers
+    **six** (median / mean / sum / min / max / last), and four of those are not a common estimate
+    in any sense, so a page arguing the median's honesty never mentioned that its own map will
+    total the rows if you ask it to. Neither control was named anywhere in the chapter.
+  - **The chart never prints the word the chapter was written around.** The legend swatch
+    (`studio-charts.js:6785`), the hover tooltip (`:6766`) and the Download-data rows (`:6846`)
+    all print `cfg.medianLabel || "Common estimate"` — the **Estimate label** option's default —
+    so a reader told to look for "the median line" found that word in none of the three places
+    the page sends them, including the CSV they hand a stakeholder. The estimate paragraph now
+    names the label, its default, and all three surfaces that spend it.
+  - **Four behaviours were stated as facts, and each is an option that can be off** — `showBand`
+    (**Agreement band (confidence)**), `showProviders` (**Show provider series**), `showToggles`
+    (**Provider on/off toggles**) and `refSeries` (**Reference series (excluded from the
+    estimate)**). Each is now named beside the behaviour it governs. The channel sentence was
+    corrected in the same pass: the chapter attributed the link to "the map's Provider/series
+    column option", where the map has an **Ensemble channel** option of its own and *also* needs
+    its **Provider / series column** mapped.
+  - **Doc-truth check 64 — premise + five rules, no new source of truth invented.** Both chart
+    registries are **evaluated** through the shared `M` model (check 45's idiom), so labels,
+    choices and defaults are exact rather than regexed; rule (e) holds the registry default and
+    the renderer's own fallback string to EACH OTHER as well as to the page, since a split there
+    would make the docs wrong while both files still looked right; rule (d)'s negative half is
+    exhaustive by construction (anything bolded in the estimate paragraph that is not an option
+    label or an option's own default has to be a method a chart really offers) rather than by a
+    word list, which would read straight past an invented method with a new name; and rule (f)
+    uses the chapter's own idiom — "the **X** option" — so a control that is renamed or retired
+    fails here instead of reading plausibly forever.
+  - **Verified:** the premise fails on the true pre-fix tree (no anchor to hold — check 61/63's
+    pattern), and every rule was measured failing: doc-side, an invented method bolded ("Mode")
+    and a governing option left unnamed; code-side on mutated trees, a third estimate choice
+    ("Trimmed mean"), a seventh map choice ("First"), `medianLabel` renamed to "Series label",
+    and the renderer's fallback drifted to "Median" — each failing its own rule. Dev gate green in
+    the foreground: `tools/validate.mjs`, `tools/changelog-check.js`, `tools/doc-truth.mjs`,
+    `tools/dev-smoke.mjs` (marketing + app + docs at 1280×800 and 390×780, zero pageerrors).
+  - **Not taken, deliberately:** `studio-charts.js`'s own `ensembleSeries` header repeats the same
+    stale claim ("the median of the providers currently toggled on") about the line it computes
+    with `cfg.agg` — a precached file, so correcting a comment costs an `sw.js` CACHE bump (issue
+    #631's territory); it belongs to the next slice that has to bump anyway.
+- **N7 — the Glossary vs the nouns the app actually prints (v975, NO sw bump, 2026-08-10,
+  steward; dev branch; est 1pt, took 1 — ON estimate):** 🔁 N7 was again the only takeable item
+  in ▶ NOW (N31, N44, N41 and N25 all ⛔ on Kevin; SP-1 ⏳ on `hold` PR #689), and grooming pass 5
+  had already drained the queue that morning and deliberately declined to open a fifth proposal
+  on top of the unanswered #623 — so there was nothing to groom either. v974's closing note parked
+  its own find as *not* N7's (widening the chart registry's `desc` strings is app copy in a
+  precached file **and** a product call about which synonyms the product says out loud), so this
+  pass picked its own target: **the Glossary**, the last chapter on the page that nothing derived,
+  and the one whose title makes the strongest promise on the site — *"every term, one line each"*.
+  - **It defined ten terms and omitted three the app renders constantly.** Measured against the
+    app, not read: **Repository** — a section of the rail's own **Workspace** group, and the page
+    Help's Simple-mode, folders and filing prose all route the reader to by name — appeared
+    nowhere in the chapter. **Folder** — the noun the 🗂 ORGANIZE program turns on — was absent
+    while `app/studio.js` prints it on every catalog row, on the Repository's folder tree, on the
+    `+ New folder` button (`studio.js:8006`) and on the workbook chips' own *"Move workbook … to a
+    folder"* control. And of the three builders the rail carries in its **Build** group, the
+    chapter named **Quick Views** and the **View Builder** in the `View` entry's second sentence
+    and never named the **Dashboard Builder** at all — the dictionary of the app left out the
+    place dashboards are made.
+  - **Two more were added on the page's own evidence rather than on a rule.** **Data access** and
+    **Ensemble** each own a Help `<h2>` (*"Data sources &amp; data accesses"*, *"Ensembles &amp;
+    scientific honesty"*) and a bolded defining sentence inside it — so the page was spending two
+    words in its chapter titles that its dictionary did not carry, and a *Data access* is
+    pointedly **not** a *Dataset*, which the glossary did define. Both are app-said, not
+    doc-invented: `"New compound data access"` / `"Member data accesses (stacked)"` in
+    `app/studio.js`, `label: "Ensemble (common estimate)"` / `"Ensemble channel"` in
+    `app/model.js`.
+  - **The chapter now states its own contract** (`<p id="glossary-promise">`): what it covers —
+    the five kinds the Repository indexes, the three builders on the rail's Build group, and the
+    two ways they are filed — and that the spellings are the app's own. Without it, the rules
+    below would be a private convention rather than something a reader can rely on (the
+    check-62 move, one chapter over).
+  - **Doc-truth check 63, premise + six rules**, deriving the required vocabulary from three
+    places in `app/`, none of them a hand-written list: the rail's own IA (`app/index.html`'s
+    `rail-group-lbl` divs walked in document order, each `data-sec` button's `aria-label`
+    attaching to the group above it — the comment there is explicit that *Workspace = the things
+    you HAVE, Build = the places you MAKE them*); `REPO_TYPES` in `app/studio.js`, **evaluated**
+    rather than regexed (it is a plain literal), for the five object kinds; and the two organizer
+    nouns read off the buttons that mint them, so renaming `+ New folder` in the app moves the
+    rule with it. The premise also holds the title's OTHER half — *one line each* means one `<li>`
+    per term, so a nested list or a `<br>` inside an entry is itself the failure. Rule (g) runs
+    the other direction: a term defined here must be one the rest of the page actually bolds,
+    which is what would catch a retired noun lingering after a rename (the "analysis"→View
+    sweep's shape).
+  - **One rule was wrong on its first pass and the pre-fix measurement caught it.** The naming
+    rules originally read the whole section's text, so the new promise paragraph — which names
+    **Repository** and **Build** in order to state the contract — satisfied rule (c) by itself and
+    it passed on the pre-fix content. They now read the entry list only; the paragraph that
+    announces a rule cannot be what satisfies it.
+  - **Verified in both directions.** Premise fails on the true pre-fix tree (no
+    `#glossary-promise` anchor to hold), so the doc-side rules were measured on a mutated tree
+    carrying the pre-fix entry list under the new paragraph: **all three code-derived gaps flagged
+    there** (Repository unnamed, Dashboard Builder unnamed, folder undefined) and green after.
+    Five code-side directions measured on mutated trees — a fourth Build section on the rail, the
+    folder button renamed `+ New collection`, a sixth `REPO_TYPE`, a glossary word the docs never
+    bold, and an entry grown a nested list — **each failing its own rule and only its own.**
+  - Verification: `node tools/doc-truth.mjs` (63 checks), `node tools/validate.mjs`,
+    `node tools/changelog-check.js` and `node tools/dev-smoke.mjs` at 390×780 + desktop, zero
+    pageerrors. Docs-only + a gate script: `docs/index.html` is not precached, so **no `sw.js`
+    bump** (same as v974).
+- **N7 — the NAME on a Help chart card vs the name the picker prints (v974, NO sw bump,
+  2026-08-10, steward; dev branch; est 1pt, took 1 — ON estimate):** 🔁 N7 was again the only
+  takeable item in ▶ NOW (N31, N44, N41, N25 all ⛔ on Kevin; SP-1 ⏳ on `hold` PR #689), and
+  grooming pass 5 had drained the queue, so there was nothing to groom either. The v973 slice
+  named no successor — its own closing note parked its one find as *not* N7's (app copy in a
+  precached file, plus a product call about the word "panel") — so this pass picked its own
+  target: the **Chart types** chapter, the largest surface on the page and, it turned out, a
+  half-held one.
+  - **Check 2 is the oldest check in `tools/doc-truth.mjs` and it holds the chapter's KEYS**
+    — every registry type has a `ct-<type>` card, no card invents a type. Nothing had ever held
+    the **name printed on the card**, and **seven of the fifty-four had drifted**:
+    `parallelCoords` was written up as *"Parallel coordinates"* where the picker prints
+    **"Parallel coords"**, `combo` as *"Bar + line (combo)"* vs **"Bar + line"**, `lollipop`,
+    `dumbbell` and `bump` had all lost the word **chart**, `marimekko` was *"Marimekko / Mekko"*
+    vs **"Marimekko"**, and `ridgeline` was *"Ridgeline / joy plot"* vs **"Ridgeline plot"**.
+  - **Not a synonyms quibble, because the app wires the two together three ways.** Every
+    gallery card carries an **ⓘ** link to `docs/index.html#ct-<type>` titled `"Docs: " + c.label`
+    (`app/studio.js`), so a reader clicked *"Docs: Parallel coords"* and landed on a card headed
+    *"Parallel coordinates"*. The gallery's search box matches `label + desc` through
+    `Studio.catalogSearch`. And the Views catalog's chart-type filter pills print the same label
+    (`vwChartLabel`, `app/views.js:45`). **Help even says so itself**, in the facets chapter —
+    the pills print *"the chart's own name from the gallery"*, with *"Line / area"* as its own
+    example, which IS the registry label. The sentence was true of the app and false of this
+    page for seven types; neither section was wrong alone.
+  - **Measured by PROBE, not by reading.** Each published name, fed to `Studio.catalogSearch`
+    against that chart's own label + desc: **five of the seven found nothing** — *"Parallel
+    coordinates"*, *"Bar + line (combo)"*, *"Bump / ranking"*, *"Marimekko / Mekko"* and
+    *"Ridgeline / joy plot"*, plus the *"joy plot"* alias on its own. The chapter's own
+    instruction is to select the type in the inspector, where that box is the way in.
+  - **The fix keeps the synonyms, in the place that can carry them.** All seven titles are now
+    the picker's label verbatim; *Mekko*, *joy plot*, *combo* and *parallel-coordinates plot*
+    moved into the card descriptions, which are Help's prose rather than a name the app has to
+    match. The intro gained the promise the rules hold: the titles are the picker's own names,
+    the ⓘ link opens by them, the filter pill carries them, and one can be typed straight into
+    *Search chart types…*.
+  - **Doc-truth check 62** — the check-38→40 idiom (a picker's roster holds the page that
+    documents it) with check 61's probe on top. Premise + four rules: card title = registry
+    label; the negative half (no card wears another type's name — a swap satisfies coverage and
+    is exactly what a names rule exists to catch); the probe, run on the title AND on each
+    `/`-separated alternative in it; and the intro's promise. **ADOPTED, NOT RIVALLED:** check 50
+    already holds every card to its GROUP in both directions and check 45(d) already holds the
+    facets chapter's volunteered labels and reads the kpi exception out of `vwChartLabel`, so
+    two draft rules were deleted rather than shipped beside them. `ct-kpi` needs no carve-out —
+    rule (a) walks the registry and never reaches it.
+  - **All measured failing.** The title rule, the probe and the intro rule on the **real
+    pre-fix tree**; the negative half on a mutated tree (`ct-lollipop` retitled *"Dumbbell
+    chart"* — it fires while the title rule fires too, which is the point); the code-side
+    direction on a mutated tree (the picker relabels *Waffle chart* → *Waffle grid*, and the
+    title rule and the probe both redden — as does `SPEC.md`'s own existing label check, which
+    is the neighbouring derivation doing its job); and the premise on a mutated tree (the
+    gallery stops printing `c.label` into `.lb`). The probe's standing job beyond aliases is the
+    kit direction — a card whose title is exactly the label passes it by construction, so it
+    earns its keep on the `/` alternatives and on a search-kit regression.
+  - **Verified:** `node tools/validate.mjs` (215 files parse clean), `node
+    tools/changelog-check.js` (951 entries, top v974, manager-parse OK), `node
+    tools/doc-truth.mjs` (all checks green, 62 now among them) and `NODE_PATH=$(npm root -g)
+    node tools/dev-smoke.mjs` — the repo's whole DEV GATE, in the foreground.
+- **N7 — the command palette Help describes vs the one the app ships (v973, NO sw bump,
+  2026-08-10, steward; dev branch; est 1pt, took 1 — ON estimate):** 🔁 N7 was again the only
+  takeable item in ▶ NOW (N31, N44, N41, N25 all ⛔ on Kevin; SP-1 ⏳ on `hold` PR #689), and
+  grooming pass 5 had drained the queue the same morning, so there was nothing to groom either.
+  The v972 slice named no successor — its own closing note deliberately parked the one candidate
+  it found as *not* N7's (dead CSS in a precached file) — so this pass picked its own target:
+  the **Command palette** section, the last un-held enumerable claim in the Help page's
+  keyboard chapter. It was stale in both halves at once, and one half had been wrong since the
+  feature shipped.
+  - **The label the page told you to type finds nothing.** Help quoted an
+    **`"Add View: <chart type>"`** command. The app prints `label: "Add panel: " + label`
+    (`app/palette.js:148`) and has since N-FUN slice 5 minted the family — it was never called
+    a widget, and never a View. **LF52's widget→View sweep (b7a4b20, 2026-07-28) renamed the
+    PAGE's quote** — from an equally wrong *"Add widget:"* — under a whitelist that had no app
+    string to match, so the rename moved the copy further from the app rather than onto it.
+    **Measured, not reasoned:** feeding the published string to the palette's own matcher
+    (`Studio.catalogSearch`, the kit every search box in the app runs) against a chart-type
+    command's real haystack returns **false** for `"Add View"` and for `"Add View: Bar"`, and
+    true for `"Add panel"`. The one sentence that says *"jump straight to any of those by
+    typing part of its name"* named the only string in the section that finds nothing.
+  - **And it published 4 of the palette's 14 family tags.** Every row prints a family word on
+    the right (`.cmdk-hint`, `render()`); the page named sections, dashboard lifecycle, editing
+    actions and mode toggles, and never mentioned **Data**, **Present**, **Manage** or
+    **Learn** — the last of which is where *Take the tour*, *Interactive tutorial* and
+    *Keyboard shortcuts* live, i.e. the family every tour means when it says
+    "⌘K → Interactive tutorial" (the route doc-truth check 13 already holds).
+  - **A third find, in the same paragraph:** *"Recently- and frequently-run commands rise to
+    the top of an empty-query open"* is backwards. `refresh()`'s empty-query arm sorts on
+    `usage[].last` alone; `usage[].count` is read **only** in the typed arm, and only as a
+    tie-break inside a relevance bucket (`score()` decides the buckets). So the page credited
+    the empty open with a popularity ranking it has never had, and said nothing about the
+    ordering you actually see when you type.
+  - **Shipped:** the section is now four anchored paragraphs — how to open it and the keys,
+    all fourteen families with what each holds, the five prefix-labelled families quoted as the
+    app prints them, and the ranking stated in the order you meet it.
+  - **Verified:** doc-truth **check 61** (seven rules). The static `COMMANDS` array is
+    **evaluated, not regexed** — its `run` bodies only dereference their helpers when called,
+    so the literal stands alone — and the four builders of live commands give up their label
+    prefix and family word from the object literal each returns. Rule (e) is check 55's probing
+    idiom: it runs `Studio.catalogSearch` over the very string the page prints, because "type
+    part of its name" is a promise a quoted label either keeps or does not.
+    **The premise fails on the true pre-fix tree** (the section had no anchors, so there was
+    nothing to hold), so the four doc-side rules were measured on mutated trees that
+    **re-publish the old claims verbatim** — check 60's precedent: the pre-fix quote reddens
+    (d) and (e) together, the pre-fix ranking sentence reddens (g), dropping four families
+    reddens (b), a wrong count word reddens (b), an invented family reddens (b) and (c).
+    Seven code-side directions measured on mutated trees, each failing its own rule and only
+    its own: the chart-type prefix renamed out from under the page (d + e), one command's
+    family renamed (b), a new command carrying a brand-new family (b), the family renamed
+    everywhere so the page bolds a tag no row carries (b + c), `navCommands()` losing its
+    `.visible` filter (f), frequency sorting the empty-query open (g), and the registry made
+    unextractable — which reddens the premise **and skips the other six** rather than passing
+    over nothing. Full dev gate green in the foreground: `tools/validate.mjs`,
+    `tools/changelog-check.js`, `tools/doc-truth.mjs`, `tools/dev-smoke.mjs`.
+  - **NO sw bump, correctly:** `docs/index.html` is not precached (`sw.js` line 20 says so),
+    `tools/` does not ship, and regenerating `js/changelog-head.js` has never taken one (the
+    v972/v945 precedent). Nothing in this slice enters issue #631's territory.
+  - **Est 1pt, took 1.** The deliberate non-take is on the N7 bullet: the palette's own
+    `"Add panel: …"` and `"Add text / annotation panel"` labels still use the pre-LF52 noun for
+    a thing the rest of the app calls a **View**. Renaming them is app copy in a precached file
+    (an `sw.js` CACHE bump for two strings) **and** a product call about whether "panel" is
+    still a word the app says out loud — Help documents what ships, which is what this slice
+    did.
+- **N7 — the authoring controls Simple mode hides vs the controls it really hides (v972, NO sw
+  bump, 2026-08-10, steward; dev branch; est 1pt, took 1 — ON estimate):** 🔁 N7 was the only
+  takeable item in ▶ NOW — N31, N44, N41 and N25 are all ⛔ on Kevin, SP-1 is ⏳ on `hold` PR
+  #689, and grooming pass 5 (the commit directly below this one) had just declined to open a
+  fifth batch proposal on top of the unanswered #623, so there was nothing to groom either.
+  The slice is the candidate **check 59's own closing note** named, and it earned the slice
+  rather than a rider: the sentence was not stale, it was **wrong three times over, and one of
+  the three ran the opposite way to the other two.**
+  - **What Help published:** *"The **Data** panel is read-only browse + drag: its **＋ New ▾**
+    button, the add control on **My queries** and the per-query actions are all hidden, as are
+    the **Edit data source** jump link in a panel's Data section and the per-dataset actions on
+    the **Repository** page."* One sentence, four controls named, five hidden.
+  - **(1) The add button was documented on the wrong group.** `.mine-add` is built by
+    `buildMyDataSources()`, whose header prints **This dashboard’s datasets**. **My queries** is
+    a different group (`buildLibrary()`'s `.lib-samples`) with its own, different per-card
+    actions — both are real, both have an actions row, so the claim read as plausible while
+    sending a reader to the wrong place to confirm what they had lost.
+  - **(2) "the per-query actions" was one phrase for two sets on two groups** — `.da-mine-acts`
+    (**Duplicate** / **Delete**) and `.da-acts` (**Edit data source** / **Delete data source**) —
+    naming neither the groups nor the four actions.
+  - **(3) The Repository clause was false in BOTH directions.** `.repo-ds-acts`, the selector it
+    was written about, is hidden by `app/studio.css:718` and rendered by **nothing** —
+    `.repo-ds-card` has no renderer anywhere in `app/`. Meanwhile the Repository page's real
+    per-row authoring controls (`repo-edit` = **Quick edit**, `repo-folder-add` =
+    **+ New folder**, the `dash-bulk-bar` Select bar) are hidden by no rule at all. A
+    Simple-mode reader was told catalog authoring was locked down while all of it stayed live.
+  - **Shipped:** the list now names all five live controls, each with the group header it sits
+    under, and a companion `<p id="simple-keeps">` states the other direction outright — Simple
+    mode is a quieter builder, not a read-only app.
+  - **Verified:** doc-truth **check 60** (six rules; the hand-written half is
+    selector → control name → group, everything else derived from the CSS, from the function
+    that builds each control, and from the `class="nm"` label that function or its caller
+    prints). **(d), (e), (f) and the premise measured failing on the real pre-fix tree**; (c) on
+    a mutated tree that re-publishes the Repository clause, because an absent list bolds nothing
+    to catch. Five code-side directions measured on mutated trees — a hide rule nothing claims,
+    a selector renamed out from under the table, a group header renamed in the app, a control
+    relabelled in **both** its `title` and its `aria-label` (renaming only one correctly changes
+    nothing), and Simple mode starting to hide **Quick edit**, which reddens (b) and (f)
+    together. Full dev gate green in the foreground: `tools/validate.mjs`,
+    `tools/changelog-check.js`, `tools/doc-truth.mjs`, `tools/dev-smoke.mjs`.
+  - **NO sw bump, correctly:** `docs/index.html` is not precached (`sw.js` says so at line 20)
+    and nothing else user-facing changed — so this slice does not enter issue #631's territory.
+  - **Est 1pt, took 1.** The deliberate non-take is recorded on the N7 bullet: deleting the dead
+    `.repo-ds-*` CSS is code hygiene in a precached file, and belongs to the next slice that
+    opens `app/studio.css` for a reason of its own.
+- **Grooming pass 5 — Kevin's whole promotion drained, and the queue is honestly empty (no
+  version/sw bump; docs-only; 2026-08-10, steward; dev branch; est 1pt, took 1 — ON estimate):**
+  the unit the SP-13 (c) run named, and `docs/BACKLOG.md`'s grooming trigger had fired on its
+  first half only — **2 struck carcasses (under the rule's 5) but ZERO ready non-recurring items
+  (against a threshold of 3)**. That asymmetry is the pass: what drained was not a backlog of
+  odds and ends, it was the *last* of the work Kevin promoted on 2026-08-09, so ▶ NOW emptied
+  rather than shortened.
+  - **Drained.** SP-5 and SP-13 moved **verbatim** into `docs/BACKLOG-ARCHIVE.md` under a new
+    "grooming pass 5" section (137 lines; the anchor carries a `b` suffix because pass 4 already
+    claimed `#groomed-2026-08-10` the same morning and ids must stay unique). Nothing deleted,
+    nothing renumbered, NOW's order untouched; the Contents list gained the section.
+    STATUS.md 22,010 → 21,858 lines before this pass's own bookkeeping.
+  - **The ▸ PROMOTED note had accreted five layers of running commentary** — one per pack
+    milestone, each opening "X is complete, so Y is next", the last four of them superseded and
+    all five still in the reader's path before the first real item. Collapsed to one paragraph
+    stating the outcome: **SP-6 v963–v965 · SP-5 v966–v968 · SP-13 v969–v971, nine slices against
+    nine points, every pack ON its 3pt estimate.** Kevin's own promotion text above it is kept
+    verbatim — the layers removed are the loop's, not his.
+  - **THREE findings were rescued on the way out** (pass 4's precedent, applied to two entries
+    instead of one), into the 📋 RECORDED FOR KEVIN note at the foot of ▶ NOW — recorded, NOT
+    promoted, because `docs/BACKLOG.md` reserves promotion to Kevin: **(1) the 2,000-row live cap
+    truncates silently and three packs have now paid for it** — SP-5 drew $2.8B of $3.69B and 38
+    of 50 committees, SP-13 lost sixteen states off a national choropleth that still looked like
+    a map, and SP-13 (c) confirmed it reaches pinned Views too; each pack shipped a trimming job
+    as a workaround, which is a workaround three times over (est ★ 1pt to disclose it with a
+    badge); **(2) `DashKit.heatmap` emits invalid SVG when narrow** — 336 console errors for a
+    24×7 pivot and **56 from the shipped `conservation-scorecard` example today**, which makes it
+    a defect against the zero-pageerrors bar rather than only a capability gap (est ★ 1pt);
+    **(3) the committed county atlas predates the 2022 boundary changes** — eleven ids with no
+    shape, so Connecticut reads as "no data" on *every* county choropleth in the app (est ★ 1pt).
+  - **Four stale pointers corrected.** The 📦 SAMPLE-PACK PROGRAM reservoir still announced
+    "SP-5 is the next one to take and SP-13 after it" and carried ⏫ PROMOTED markers on SP-5,
+    SP-6 and SP-13 — so a reader arriving at the reservoir was pointed at three packs that had
+    already shipped. All three now read ✓ SHIPPED with their versions, their specs kept in place
+    as the provenance record, and the program status says plainly that **no directed pack work
+    remains**: the next promotion is Kevin's.
+  - **No batch proposed, deliberately — but escalated.** Pass 2's proposal (PR #623) has been
+    open and unanswered since 2026-08-07 and passes 3 and 4 both declined to stack on it; a
+    fourth unanswered batch would be noise, not throughput. What changed is the cost: at pass 4
+    there was still ready promoted work, and now there is none, so the lane is down to 🔁 N7
+    until Kevin moves. **The honest state after this pass: ⛔ N31, ⛔ N44, ⛔ N41, ⛔ N25,
+    ⏳ SP-1 (#689), 🔁 N7 — and nothing ready.** The unblocking move is small and it is his:
+    answer any one of the four ⛔ questions, or rank #623.
+  **Verified:** docs-only — no app file, test or exported artifact is touched and nothing is
+  user-visible, so no changelog entry and no version bump (the pass-1/2/3/4 precedent). The dev
+  gate is the whole gate and all four steps were run in the foreground on this branch; results
+  are on the PR.
+- **SP-13 (c) — Where America Moved pins its four Views and brings its own tour (v971, sw v561,
+  2026-08-10, steward; dev branch; est 1pt, took 1 — ON estimate, and SP-13 closes ON its 3pt
+  estimate):** the pack's last slice, and the same shape SP-1 (c1), SP-6 (c) and SP-5 (c) all
+  shipped. Four builder-native Views, seeded from the same turn that writes the datasets and
+  healed onto an existing install by `Studio.ensureCountyMigrationViews`: net household
+  migration by county (the hero, diverging at zero), the state-to-state corridors as a real
+  sankey above the dashboards' own 12,000-household readability floor, the income that changed
+  state as a **calculated column on the View**, and every published corridor's movers against
+  the stayers of the state they left, as a sortable table. Plus the pack's own 6-stop guided
+  tour, pack-gated in the chooser the way the other three pack tours are.
+  **Three things this pack's Views had to get right, and all three are asserted rather than
+  assumed.** (1) **The county View reads the TRIMMED job output**, never the 3,087-row county
+  table: the builder's live run keeps the first 2,000 rows before the View's own filters, so a
+  View bound to the raw table would have drawn Alabama through Ohio and stopped — the same
+  silent artifact slice (b) built its third job to avoid, reproduced one surface over. The suite
+  pins that the raw table is over the cap, that the trimmed one is under it, and that a live run
+  returns the trimmed table WHOLE. (2) **Every View names its grain in its own title** — a card
+  on Home arrives without its dashboard's note, and county and state totals are different
+  universes by the source's own definition. (3) **The money is a calc column**, because the IRS
+  ships the income arriving and the income leaving and deliberately not their difference; the
+  suite recomputes `net_agi_k` from the two shipped figures on all 51 rows.
+  The boot heal is this pack's third and it declines while the map job's output is missing —
+  pinning nothing rather than a broken card — which the suite exercises in both orders.
+  **Verified:** the dev gate green in the foreground (`tools/validate.mjs`,
+  `tools/changelog-check.js`, `tools/doc-truth.mjs`, `tools/dev-smoke.mjs` at 390×780 and
+  desktop, zero pageerrors), and `tests/run.js` run live to **2,970 checks with zero assertion
+  failures**, including the four new SP-13(c) checks and the amended J6-5 tour shape. The run
+  was then cut off by this steward run's own 10-minute foreground ceiling while clicking in the
+  style-presets block near the end of the file — by the clock, not by a failure; the nightly
+  `promote-to-stage` sweep runs the whole suite before anything moves toward main.
+  **What this slice did NOT do, deliberately:** it neither fixed nor worked around the 2,000-row
+  live cap (still Kevin's to rank — disclose / raise / both, est 1pt for disclosure alone, and
+  this is now the THIRD pack to pay for its absence), and it did not refresh the county atlas
+  the eleven shapeless counties come from. Both remain exactly as slices (a) and (b) recorded
+  them.
+- **SP-13 (b) — Where America Moved gets its dashboards (v970, sw v560, 2026-08-10, steward;
+  dev branch; est 1pt, took 1 — ON estimate):** three dashboards over the pack's committed IRS
+  data, seeded from the same turn that writes the datasets and healed onto an existing install
+  by `Studio.ensureCountyMigrationDashboards`. They are split by **grain rather than by topic**,
+  because slice (a) measured that the two grains in this source count different universes and
+  no panel may blur them: *Who Is Winning Households* (county grain — the net-migration
+  choropleth as the hero, the arrivers-versus-leavers income gap as its twin, both diverging at
+  zero, the gainers bars and a losers table that pairs net households with the income gap),
+  *The Corridors* (state grain — the state-to-state sankey, the corridors taking 15% or more of
+  the state they leave, and the biggest county-to-county moves), and *Did the Money Move With
+  Them* (state grain — net AGI by state as a **calculated column on the View**, each corridor's
+  movers against the stayers of the state they left, and the county-grain scatter of arrivers
+  against leavers). Every dashboard's note panel names its own grain, and every figure quoted in
+  copy is recomputed from the shipped rows at seed time.
+  **THE SLICE'S REAL WORK WAS AN APP LIMIT, MEASURED AND DESIGNED AROUND — and it is the SP-5(b)
+  finding hitting a second pack, in a form that is worse to look at.** The View Builder keeps the
+  first **2,000 rows** of a live dataset run (`app/build.js`, `bdLoadRowsFor`), before the View's
+  own filters, and every dashboard panel bound to a builder blob inherits it. The county table is
+  **3,087 rows in FIPS order**, so a national choropleth bound to it draws Alabama through Ohio
+  and stops: **sixteen states — Ohio through Wyoming — vanish, and the map still looks like a
+  map.** The pack therefore ships a **third job** that trims by a rule you can open — keep the
+  counties where at least 1,000 households arrived or left — which is **1,782 counties carrying
+  96.5% of every household move**, and **loses no state at all**. The rule, the count and what it
+  costs are on the hero's own note, in counties and in moves. The suite pins the distinction
+  rather than the prose: it derives which states a 2,000-row prefix would drop and asserts the
+  pack's rule drops none of them. **The general fix is still not this** — disclosing or raising
+  the cap remains the app change recorded for Kevin in the SP-5 item, and this is now the second
+  pack to have designed around it.
+  **The eleven no-shape counties were handled by disclosure, as slice (a) said (b) had to.** The
+  app's committed county atlas predates the 2022 boundary changes, so Connecticut's nine planning
+  regions and Alaska's Chugach and Copper River are real rows with no geometry. They stay in every
+  total and the hero's note says a blank Connecticut is the atlas rather than the data — refreshing
+  `vendor/geo/counties-albers-10m.json` is still the separate ~1pt item Kevin ranks.
+  **One thing this slice needed that no earlier pack did: a TWO-STEP boot heal.** A workspace from
+  slice (a) has no mapped output at all, so `Studio.ensureCountyMigrationMapJob` rebuilds the job
+  (from the same steps function the seed uses, so a heal and a fresh install produce identical
+  rows) before the dashboards will seed — and the dashboards decline while it is missing rather
+  than seeding panels bound to nothing. Both orderings are asserted.
+  **Verified:** the dev gate green in the foreground (`tools/validate.mjs`, `changelog-check`,
+  `doc-truth`, `dev-smoke` at 390×780 and desktop), and the full `tests/run.js` suite run live to
+  **3,040 checks with zero assertion failures** — the five new SP-13(b) checks and the amended
+  SP-13(a) block among them — before the run hit the steward's own 10-minute foreground ceiling.
+  The tail beyond that point (the SWEEP574 export-a11y block) was not reached in this run; the
+  nightly promote-to-stage sweep runs the whole suite. **One defect the verification caught and
+  fixed rather than shipping:** the render check left the pack installed, and its folder and three
+  jobs then reddened **four unrelated catalog-count checks hundreds of lines later** — a green pack
+  slice can break the suite by what it leaves behind, not only by what it asserts.
+- **SP-13 (a) — Where America Moved: the data foundation (v969, sw v559, 2026-08-10, steward;
+  dev branch; est 1pt, took 1 — ON estimate):** the first slice of the THIRD of Kevin's three
+  money-flow packs, and the one whose money angle is the part people do not expect. The IRS
+  matches each year's returns to the previous year's by taxpayer id, so it can publish not just
+  how many households left one county for another but the **aggregate income that left with
+  them** — which is what makes "who is winning population" and "are the leavers richer than the
+  stayers" the same chart. `tools/pack-extract/countymigration.mjs` reads the four 2022-2023 SOI
+  files (8.8MB of upstream CSV) and ships **134.1KB of the 150KB budget** in four committed
+  tables: every county's arrivals and departures (3,087 of them), the same for the 50 states and
+  DC **plus the households that stayed**, the six largest destinations out of each state (306
+  corridors), and the three largest county corridors out of each state (153). The pack seeds one
+  connection, six datasets and **two jobs** — a county-grain derive chain (net households, net
+  income, arrivers' average income against leavers') and a state-grain **join** that gives each
+  corridor the state it left, so a corridor reads as a share of that state's departures and its
+  movers' average income can be set against that state's stayers. Both outputs are
+  pre-materialized by running the jobs' OWN steps through the engine, so a Run rewrites them with
+  identical numbers (docs/PACKS.md). One suite check, holding all of it: the column sets exactly
+  (including the `_agi_k` thousands-of-dollars suffix), both jobs' arithmetic recomputed per row
+  on all 3,087 counties and all 306 corridors, the join's brought-across columns, the corridor
+  shares partitioning their origin state, both outputs reproduced byte-for-byte through the live
+  adapter+engine path, and Remove sweeping the async rows. Help, `THIRD-PARTY-NOTICES.md`,
+  `docs/PACKS.md`'s pack count and the sw precache list all move in the same PR.
+  **Four things the item did not anticipate, all found by measuring rather than assuming:**
+  (1) **The two grains do not add up, and that is the source's definition, not a bug.** A
+  county's total counts every US move INCLUDING moves within its own state; a state's total
+  counts only moves ACROSS state lines. Summing Texas's counties gives 119,377 arrivals against
+  the state row's 55,369. It is stated in the extract's notes, on the pack card, in Help, and
+  pinned as a suite assertion so a future extract cannot quietly "fix" it into a redefinition of
+  every number in the pack.
+  (2) **The stayers only exist at state grain.** The county files have no non-migrant row, so the
+  leavers-versus-stayers comparison the item leads with is a STATE reading; the county job answers
+  arrivers-versus-leavers instead, which is the same question one grain down and needs no extra
+  table. Both are in the pack; neither is guessed.
+  (3) **The item's "top-N pairs per state" is right and top-N nationally is wrong** — measured
+  both ways. A national top-300 cut is all Sun Belt and dropped **eight states out of the flow
+  table entirely**, so a reader in Wyoming found their state missing. Per-state keeps every one of
+  the 51 and still contains every corridor a national cut would have had.
+  (4) **The stated size risk did not bind; a different one did.** The full pair matrix is 54,000
+  county pairs, but the binding constraint was the county file itself: 3,087 counties × names ×
+  four measures is 117.6KB of the 150KB on its own, which is why people-counts live at state grain
+  and the pair tables are cut per state.
+  **And one finding that is NOT this pack's to fix, recorded for Kevin the way SP-5 (b)'s two
+  were:** the app's committed county atlas (`vendor/geo/counties-albers-10m.json`) **predates the
+  2022 boundary changes**, so 11 counties in this data have no shape to draw — Connecticut's nine
+  planning regions, which replaced its eight counties outright, plus Alaska's Chugach and Copper
+  River. The pack KEEPS them (dropping them would delete Connecticut's entire county coverage) and
+  the extract re-derives the exact list from the committed atlas on every run, so the gap is in
+  SOURCE.json rather than in a comment. The suite pins the eleven ids, so a NEW hole cannot hide
+  inside the old one. **The general fix is an atlas refresh** (`tools/build-geo.mjs` re-pulls
+  county geometry from TIGERweb) and it affects every county choropleth in the app, not just this
+  pack — est 1pt, and it is Kevin's to rank rather than a rider on a pack slice.
+- **SP-5 (c) — Campaign Finance pins its four Views and brings its own tour (v968, sw v558,
+  2026-08-10, steward; dev branch; est 1pt, took 1 — ON estimate, and SP-5 as a whole came in at
+  3 slices against its 3pt estimate):** the last slice of the second of Kevin's three money-flow
+  packs. It was the first ready item in ▶ NOW — N31/N44/N41/N25 are all ⛔ on Kevin and SP-1 is
+  ⏳ on the `hold`-labelled #689 — and it was ready because PR #751 had merged, so its ⏳ marker
+  had expired (`docs/BACKLOG.md`'s "re-check ⏳ markers whose PRs closed"); clearing that marker
+  is part of this PR.
+  - **Four pinned Views**, seeded from the same turn that writes the datasets and healed onto
+    existing installs by `Studio.ensureCampaignFinanceViews` (the SP-1/SP-6 shape, third time,
+    and the dataset lookup both heals need is now one `campaignFinanceDatasets()` instead of two
+    copies): the donor-state → committee **flow** as a real sankey at the dashboards' own $10M
+    readability floor; the **home-state share** for the 16 candidate committees whose seat is a
+    donor state; **giving by donor state** on the app's `state` scale; and **every state's giving
+    style** as a sortable table carrying both derived shares. Authored the way `bdSave` would —
+    `Studio.Build.compute` for the basis, `Studio.newPanel` over its columns — so a seeded View
+    and one saved by hand open in the same editor, and the rows a card draws come from
+    `runBlob` against the live dataset on every render rather than a stored copy.
+  - **The two things this pack's Views had to get right, and the checks that hold them there.**
+    Both flow Views read the pack's SECOND job output, never the 2,658-row join: the builder's
+    live run keeps 2,000 rows, so a View bound to the join would have lost the last twelve
+    committees — both Trump committees among them — silently, which is precisely the partisan
+    artifact slice (a) went out of its way to avoid. And both shares are **calc columns on the
+    View**, not extract columns, because "the derivation is visible" is the pack's argument: the
+    suite recomputes each one from the shipped CSV on all 67 rows and demands they agree.
+  - **The pack's own guided tour** (6 stops, pack-gated in the chooser exactly like Conservation
+    Insight's and Market Coverage's): the four Views on Home, the flow, the home-state share, and
+    the modelling decision the pack turns on — the kind of committee is a column, never a silent
+    filter. `docs/index.html`, the registry tagline and the blurb all name the Views and the tour.
+  - **Needed no builder work at all**, which is why a slice with a sankey hero was still 1pt:
+    SP-6 (c) had already made Sankey a View Builder chart type riding the heatmap's
+    [Rows, Columns, measure] basis, so the flow hero opened as a flow on the first try instead of
+    degrading to a table. That is the second pack to collect the same dividend.
+  - **Verified:** the full `tests/run.js` suite green in the foreground, with 5 new checks (View
+    shape + positional mappings + the trimmed-output rule, the live basis of all four blobs, the
+    boot heal's idempotence, the tour's registration and that every panel it spotlights is one
+    the pack really seeds) and the J6 tour-shape check widened from seven tours to eight. The SP-5
+    block now leaves the pack state as it found it, the way the SP-1 and SP-6 blocks do — a
+    pack-gated tour makes a pack left installed change the chooser counts J6-10 asserts later.
+  - **Unchanged and still Kevin's to rank:** slice (b)'s two findings — the View Builder's silent
+    2,000-row prefix, and `DashKit.heatmap`'s negative-width rects when narrow. Slice (c) neither
+    fixed nor worked around either; the first is simply now visible in one more place.
+- **SP-5 (b) — Campaign Finance gets its dashboards (v967, sw v557, 2026-08-10, steward; dev
+  branch; est 1pt for this slice, took 1 — the pack is 2 of ~3 slices in, still on its 3pt
+  estimate):** three dashboards over the FEC data slice (a) installed, seeded from the same turn
+  that writes the datasets and healed onto existing installs by
+  `Studio.ensureCampaignFinanceDashboards` (the SP-1/SP-6 shape, third time).
+  - **Who Funds Whom** (the hero): the donor-state → recipient-committee sankey at a $10M floor,
+    the share of each Senate candidate's itemized money that came from the state they are running
+    in (the `is_home_state` flag as an ordinary View filter — 16 rows, the three presidential
+    committees absent by construction because their seat is "US"), and the 41 pairs where one
+    state supplied a fifth or more of a whole committee.
+  - **Where the Money Comes From**: the donor-state choropleth on the app's `state` scale, the
+    small-gift and max-out shares as builder CALC columns (not extract columns), and the
+    money-against-small-share scatter. Sixteen of the 67 rows have no geometry — overseas
+    military, territories, two Canadian provinces, ZZ — and the note says so rather than letting
+    the map's silence do it.
+  - **Who Gives It, and How**: the size-band marimekko (cheque size × kind of committee), the
+    cycle's shape as a line over the View's own SUM rollup, and occupation/employer — where the
+    three largest "employers" are RETIRED, NOT EMPLOYED and SELF EMPLOYED, which the note states
+    rather than ranking around.
+  - **THE FINDING, and it changed the slice's design: the View Builder silently keeps only the
+    first 2,000 rows of a live dataset run** (`app/build.js` `bdLoadRowsFor`), BEFORE the View's
+    own filters. The join's output is 2,658 rows in `cmte_id` order, so a panel bound to it
+    directly loses the last **twelve committees outright — Trump 47 and Trump National Committee
+    JFC among them** — while still drawing a perfectly plausible sankey. That is
+    indistinguishable from the partisan artifact slice (a) went out of its way to avoid, arrived
+    at by an app limit rather than a modelling choice, and nothing on screen would have said so.
+    Measured first (the hero drew $2.8B of $3.69B and 38 of 50 committees), then designed around:
+    the pack now ships a **second job** — "Keep the donor-state flows a live View can hold",
+    chained onto the first one's output, `filter amount >= $200,000` — whose 1,293-row output is
+    what every flow panel reads. It keeps **97.7% of the dollars and all 50 committees**, and the
+    dashboard's own note states the trim in rows and dollars beside the sankey's separate
+    readability floor. The suite asserts the twelve committees a 2,000-row prefix drops are all
+    present in the live rows, by name.
+  - **Two app defects found and NOT fixed here, recorded for Kevin to rank** (the SP-6(b)
+    precedent — a pack slice is the wrong place to change the toolkit): (1) the 2,000-row cap
+    above is silent — no badge, no note, nothing in Help; every user building a View over a
+    bigger dataset is charting a prefix and cannot tell. (2) `DashKit.heatmap` divides its width
+    among its columns after reserving a 130px label gutter and never clamps the result, so a
+    heatmap emits negative-width `<rect>`s — 336 console errors per render for a 24×7 pivot —
+    whenever the panel is narrow, which includes every first paint; the shipped
+    `conservation-scorecard` example already emits 56 of them today. Vertical bars divide width
+    the same way and fail the same way. That is why the cycle panel is a line and not the pivot
+    it was first written as; `vendor/dashkit.js` is pristine by invariant, so the clamp belongs
+    to a toolkit slice.
+  - **Verified**: `node tools/validate.mjs`, `node tools/changelog-check.js`, `node
+    tools/doc-truth.mjs`, `node tools/dev-smoke.mjs` all green, plus the five new suite checks
+    and the amended SP-5(a) block run against a live browser at 1400×950 AND 390×780 — three
+    dashboards rendering with **zero console or page errors** at both sizes (the heatmap was the
+    only source of any, which is what retired it).
+- **SP-5 (a) — Campaign Finance, the pack's data foundation (v966, sw v556, 2026-08-10,
+  steward; dev branch; est 3pt for the pack, this is slice 1 of ~3 — on estimate):** the second
+  of the three money-flow packs Kevin promoted on 2026-08-09, in the shape SP-1 (a) and SP-6 (a)
+  proved — the extract, the committed CSVs, the connection, the datasets and the job.
+  - **The data.** `tools/pack-extract/campaignfinance.mjs` reads the FEC's bulk downloads for the
+    CLOSED 2023-24 cycle (`indiv24`, `cm24`, `cn24`; 4.2GB compressed, 58.2M rows), keeps the
+    46.2M individual receipts — `ENTITY_TP=IND`, types 15/15E/15J, positive, non-memo — and
+    aggregates $6.50B into seven tables: donor state (67 rows), the 50 largest recipient
+    committees, every donor state each of them drew from (2,658 rows), the top 200 occupations
+    and 200 employers, 24 months by kind of committee, and seven size bands from under $50 to the
+    per-election limit. **95.6KB of the 150KB budget.** A closed cycle was chosen over the live
+    one deliberately: the file is frozen, so a re-run is byte-identical forever.
+  - **The modelling decision that mattered, and it was measured rather than assumed.** The obvious
+    filter — recipients must be candidate committees — produces a chart that is *wrong in a way
+    that looks partisan*: it puts HARRIS FOR PRESIDENT at $390M and no Trump campaign in the top
+    fifty, because the Trump operation raised through JOINT FUNDRAISING committees that transfer
+    onward (Trump 47, $349M; Trump National Committee JFC, $290M) while the Harris operation's
+    earmarked money was itemized straight against the campaign. Same money, different plumbing. So
+    every recipient committee is counted and `committee_type` (the FEC's own designation/type
+    codes) is a COLUMN a reader can group by, instead of a filter that silently picks a winner.
+    The first extract run shipped the naive filter; it was caught by reading the output, not by a
+    test, which is the honest account of it.
+  - **Two more corrections from reading the same output.** The NRSC came out filed under *Alaska*
+    — the committee master links some party committees to a candidate id — so a candidate's seat
+    is now attributed only to the candidate's OWN committee. And Amy Klobuchar came out "other
+    party", because Minnesota's Democrats register as **DFL**; DFL and DNL now count as DEM, which
+    is a fact about their registered names and not an editorial fold.
+  - **The privacy line, and what it cost: nothing.** Kevin settled the scope on 2026-08-08 and
+    took individual donor NAMES. This slice ships none — not as a reversal, but because every
+    table is an aggregate and an aggregate has no name column to put one in; the decision is
+    banked for a slice that needs it. **The street-address half of the item is unreachable from
+    this source, which is a measurement and not a skip:** the FEC bulk file's 21 fields stop at
+    city/state/ZIP, so there is no address to read, no Census Geocoder call to make, and no
+    rooftop-derived tract to mix with a ZIP-derived one — which is why nothing carries the
+    `geo_precision` column the item specified for disclosing exactly that mixture. The suite pins
+    all seven column lists exactly, which is the item's own "assert it in the pack's test" made
+    good: a later extract that re-adds a name or an address changes a list and reddens the gate.
+  - **The job.** `committee-state.csv` carries a committee ID and nothing readable; the job joins
+    `committees.csv` for the name, kind, party, seat and cycle total, then derives
+    `one_pct_of_committee` → `pct_of_committee` (one state's share of one committee) and
+    `home_state_amount`. That last one is why `is_home_state` is a 0/1 in the extract rather than
+    something derived here: the engine's derive step does arithmetic on numbers and cannot compare
+    two strings, so the flag arrives as something it can multiply by — and summed against the
+    committee total it IS the out-of-state share.
+  - **Verified**: `tools/validate.mjs`, `tools/doc-truth.mjs` (checks 34/35/47/48 all read the new
+    pack), `tools/changelog-check.js`, `tools/dev-smoke.mjs` and the pack's own suite block — a
+    Playwright check that installs the pack, materializes the CSV, pins the seven column shapes,
+    re-runs the job through the live adapter+engine path and holds the seeded output to the BYTE,
+    checks every committee's donor-state shares sum to it, holds `home_state_amount` to "the whole
+    gift or none of it" on all 2,658 rows (16 home-state rows — 19 of the 50 committees have a
+    seat, and three of those are presidential, whose FEC office state is "US" and can never be a
+    donor's home — and never one for a committee with no seat at all), resolves every mappable
+    state code against `vendor/geo/states-albers-10m.json`
+    through the app's OWN postal→FIPS table read out of `app/studio-charts.js` rather than a second
+    copy, and asserts Remove sweeps the async rows.
+  - **What remains: (b) the dashboards and (c) the pinned Views + tour + docs**, the SP-6 split,
+    and the reason is the same one — a dashboard reads the rows this slice created, so it cannot
+    be written a turn earlier, and the two are different blast radii in one PR.
 - **Grooming pass 4 — the queue's two unmarked items were both waiting on Kevin (no version/sw
   bump; docs-only; 2026-08-10, steward; dev branch; est 1pt, took 1 — on estimate):**
   `docs/BACKLOG.md` triggers a grooming pass at "fewer than 3 ready items **or** ≥5 struck entries
@@ -14507,17 +16277,28 @@
 > Not promoted, deliberately: SP-12 (Neighborhood Change) and SP-14/SP-15 stay in the reservoir
 > for the next batch — Kevin asked for the money ones, and three 3pt packs is already ~9 PRs.
 >
-> **SP-6 is COMPLETE and archived** — three slices, v963/v964/v965, all 2026-08-10, ON estimate
-> (grooming pass 4 moved its entry to `docs/BACKLOG-ARCHIVE.md`). It had its own item line, minted
-> because the promotion note named the three packs but gave a grammar line to none of them, so the
-> queue had nothing to mark when work started.
-> **SP-5 is therefore the next of the three, and it is READY** — Kevin promoted it here himself, so
-> taking it is following this note, not the loop promoting a reservoir item. Its constraints were
-> settled 2026-08-08 and they ARE the item: read the SP-5 entry in the 📦 SAMPLE-PACK PROGRAM
-> reservoir before starting, then mint its grammar line in this block the way SP-6's was, marking
-> it ⏳ with the PR number as soon as one is open. SP-13 stays in the reservoir with its ⏫ marker
-> until SP-5 is done. **Grooming pass 4 note:** with N31/N41/N44/N25 all ⛔ and SP-1 ⏳, SP-5 is the
-> only ready non-recurring work in this queue — that is the honest state, not an oversight.
+> **▸ THIS PROMOTION IS COMPLETE — all three packs shipped 2026-08-10, and their entries are
+> archived.** Grooming pass 5 collapsed five layers of running commentary into this paragraph;
+> the promotion text above is Kevin's and is kept verbatim. **SP-6 v963/v964/v965 · SP-5
+> v966/v967/v968 · SP-13 v969/v970/v971 — nine slices against nine points, every pack ON its 3pt
+> estimate**, each built on the SP-0 convention SP-1 proved and none of them needing an amendment
+> to it. SP-6's entry went to `docs/BACKLOG-ARCHIVE.md` at grooming pass 4; SP-5's and SP-13's
+> went at pass 5. Each pack was given its own grammar line when its first slice started, because
+> this note names the three packs and gives a line to none of them — so the queue had nothing to
+> mark. Whoever starts the next promoted pack should mint its line the same way.
+>
+> **Three findings left the queue inside those archived entries and were rescued, not lost** —
+> they are in the 📋 RECORDED FOR KEVIN note at the foot of this block, with their measurements.
+> Two of them are the reason a pack slice had to work AROUND the app rather than use it, and one
+> of those has now been paid for by three separate packs.
+>
+> **What this leaves: zero ready non-recurring work.** N31, N44, N41 and N25 are all ⛔ on Kevin,
+> SP-1 is ⏳ on `hold` PR #689, and everything else here is archived — so the only takeable item
+> in the block is 🔁 N7. **The unblocking move is Kevin's, and it is small:** answering any one of
+> the four ⛔ questions, or ranking the batch grooming pass 2 proposed on `hold` PR #623 (open and
+> unanswered since 2026-08-07). Pass 5 deliberately did NOT open a fifth proposal on top of it —
+> passes 3 and 4 declined for the same reason, and a fourth unanswered batch is noise, not
+> throughput. #623 is the pending proposal; this note is the escalation.
 
 - ⛔ **N44 ★★ [3pt est, 3 slices shipped — the estimate is spent] — SQL is edited in plain textareas
   app-wide.** **⛔ BLOCKED ON KEVIN, marked 2026-08-10 (steward), and it is the LAST half of the
@@ -15822,16 +17603,812 @@
     `hasFeatured ? "home" : "explore"`, Quick Views said "Explore is the default", flat.
     Doc-truth check 59: eight rules, **7 of 8 measured failing on the real pre-fix tree** and all
     nine code-side directions on mutated trees, each failing its own rule and only its own.
-    **Measured in the same pass and NOT taken, so the next run does not re-derive it:** the
+    ~~**Measured in the same pass and NOT taken, so the next run does not re-derive it:** the
     authoring controls the mode hides are published now but held only by a reader — their source
     is five `body.simple-mode` selectors in `app/studio.css`, and mapping a selector to the name a
     reader knows the control by is a hand-written table, not a derivation. That is check 21's
-    idiom over a different set, and **it is the named candidate for the next N7 slice**. Also
+    idiom over a different set, and **it is the named candidate for the next N7 slice**.~~
+    ✓ **SHIPPED v972, NO sw bump (2026-08-10 — see the v972 line below and DONE), and "held only
+    by a reader" was generous: the one sentence was wrong three times.** Also
     measured and **NOT N7's** (it is code, not copy): `app/studio.js`'s "Flip on Simple mode in
     Settings" tip names one of the four routes, in a precached file — a `sw.js` CACHE bump
     (issue #631) for a tip, so it belongs to whichever slice next touches that file for a real
     reason. The two v922 candidates are still open and still Kevin's calls.
-
+  * *The authoring controls Simple mode hides vs the controls it really hides — v972, NO sw
+    bump (2026-08-10 — see DONE).* The candidate check 59's own closing note named, and the
+    reason it was worth a slice rather than a rider is that the sentence was not stale — it was
+    **wrong three times, in one sentence, and one of the three ran the opposite way to the other
+    two.** Help said: *"The **Data** panel is read-only browse + drag: its **＋ New ▾** button,
+    the add control on **My queries** and the per-query actions are all hidden, as are the
+    **Edit data source** jump link in a panel's Data section and the per-dataset actions on the
+    **Repository** page."*
+    **(1) The add button was on the wrong group.** `.mine-add` is built by
+    `buildMyDataSources()`, whose header prints **This dashboard’s datasets** — not **My
+    queries**, which is a different group (`buildLibrary()`'s `.lib-samples`) with its own,
+    different per-card actions. Both groups are real and both have an actions row, so the claim
+    read as plausible while sending a reader to the wrong place to confirm what they had lost.
+    **(2) "the per-query actions" was one phrase for two different sets on two different
+    groups** — `.da-mine-acts` (**Duplicate** / **Delete**) and `.da-acts` (**Edit data
+    source** / **Delete data source**) — naming neither the groups nor the four actions.
+    **(3) The Repository clause is false in BOTH directions, and that is the find.**
+    `.repo-ds-acts`, the selector it was written about, is hidden by `app/studio.css:718` and
+    rendered by **nothing** — `.repo-ds-card` has no renderer anywhere in `app/`, so the rule is
+    dead CSS. Meanwhile the Repository page's REAL per-row authoring controls (`repo-edit` =
+    **Quick edit**, `repo-folder-add` = **+ New folder**, and the `dash-bulk-bar` Select bar) are
+    hidden by no rule at all. So a Simple-mode reader was told catalog authoring was locked down
+    while every one of those stayed live. Help now publishes the five live controls each with the
+    group header it sits under, and a companion sentence stating the other direction: Simple mode
+    is a quieter builder, not a read-only app.
+    Doc-truth **check 60** is check 21's idiom over this set — the hand-written half is
+    selector → control name → group; everything else is derived from the CSS, from the function
+    that builds each control, and from the `class="nm"` label that function (or its caller)
+    prints. Six rules; **(d), (e), (f) and the premise measured failing on the real pre-fix
+    tree** — the premise because the page had no such list to hold, which is also why (c) had to
+    be measured on a mutated tree (an absent list bolds nothing to catch). Every code-side
+    direction measured on mutated trees: a hide rule nothing claims, a selector renamed out from
+    under the table, a group header renamed in the app, a control relabelled in **both** its
+    `title` and its `aria-label` (renaming only one correctly changes nothing — the app still
+    prints the name), and Simple mode starting to hide **Quick edit**, which correctly reddens
+    (b) and (f) together.
+    **Measured in the same pass and NOT taken, so the next run does not re-derive it:** deleting
+    the dead `.repo-ds-acts` CSS (and the four `.repo-ds-*` rules above it, ~6 lines). It is code
+    hygiene, not copy, and `app/studio.css` is precached — a `sw.js` CACHE bump, issue #631's
+    territory, for dead CSS no user can see. Check 60 rule (b) keeps the entry visible as
+    `dead: true` rather than letting it rot unnamed, so it belongs to whichever slice next opens
+    that file for a reason of its own. Also measured and found CURRENT: `app/tutorial.js` and
+    `app/welcome.js` contain **zero** occurrences of "Simple mode", so neither tour publishes a
+    claim about what the mode hides and the usual check-16→17 move one document over has nothing
+    to correct — check 60 is scoped to Help for that reason, not by oversight. The two v922 candidates are still open and still Kevin's calls.
+  * *The command palette Help describes vs the one the app ships — v973, NO sw bump
+    (2026-08-10 — see DONE).* No candidate was standing (v972's own note parked its only find
+    as not-N7's), so this pass chose the **Command palette** section — the last un-held
+    enumerable claim in the keyboard chapter — and found it stale in both halves.
+    **(1)** It quoted an **`"Add View: <chart type>"`** command the app has never printed:
+    `app/palette.js:148` prints `"Add panel: " + label`, and **LF52's widget→View sweep renamed
+    the PAGE's quote** (from an equally wrong *"Add widget:"*) with no app string to match, so
+    the rename moved the copy further from the app. Measured by PROBE rather than by reading:
+    the published string, fed to `Studio.catalogSearch` against a chart-type command's real
+    haystack, matches **nothing** — in a paragraph whose own promise is "jump straight to any
+    of those by typing part of its name".
+    **(2)** It published **4 of the 14 family tags** every row prints, omitting **Data**,
+    **Present**, **Manage** and **Learn** — Learn being where *Take the tour*, *Interactive
+    tutorial* and *Keyboard shortcuts* live, i.e. the family every tour's "⌘K → Interactive
+    tutorial" route (check 13) lands in.
+    **(3)** Its ranking sentence was backwards: `refresh()`'s empty-query arm sorts on
+    `usage[].last` alone, and `usage[].count` is read only in the typed arm as a tie-break
+    inside a relevance bucket — the page credited the empty open with a popularity ranking it
+    has never had.
+    Doc-truth **check 61**, seven rules, with the static registry **evaluated rather than
+    regexed** and rule (e) probing the app's own search kit (check 55's idiom). Premise fails
+    on the true pre-fix tree (no anchors to hold), so the doc-side rules were measured on
+    mutated trees re-publishing the old claims verbatim; seven code-side directions measured
+    on mutated trees, each failing its own rule and only its own.
+    **Measured in the same pass and NOT taken, so the next run does not re-derive it:** the
+    palette's own `"Add panel: …"` and `"Add text / annotation panel"` labels still use the
+    pre-LF52 noun for what the rest of the app calls a **View**. That is app copy in a
+    precached file (an `sw.js` CACHE bump, issue #631's territory, for two strings) **and** a
+    product call about whether "panel" is still a word the app says out loud — not a
+    derivation, and not Help's to make: Help documents what ships. Also measured and found
+    CURRENT: the **Voice command mode** paragraph below it (the mic only renders when
+    `SpeechRecognition` exists, which `voiceSupported()` still gates), and the top-bar
+    **Search…** pill the section names, which `app/index.html:113` still prints.
+  * *The NAME on a Help chart card vs the name the picker prints — v974, NO sw bump
+    (2026-08-10 — see DONE).* No candidate was standing again (v973's own note parked its find
+    as not-N7's), so this pass took the **Chart types** chapter — the page's largest surface,
+    and a half-held one. **Check 2, the oldest check in the file, holds the chapter's KEYS**
+    (every registry type has a `ct-` card, no card invents a type) and nothing had ever held the
+    **name on the card**: seven of the fifty-four had drifted — *"Parallel coordinates"* vs the
+    picker's **"Parallel coords"**, *"Bar + line (combo)"* vs **"Bar + line"**, *"Lollipop"* /
+    *"Dumbbell"* / *"Bump / ranking"* all missing the word **chart**, *"Marimekko / Mekko"* vs
+    **"Marimekko"**, *"Ridgeline / joy plot"* vs **"Ridgeline plot"**.
+    **The app wires the two together three ways, which is why it is drift and not editorial:**
+    every gallery card's **ⓘ** link opens `docs/index.html#ct-<type>` titled `"Docs: " + c.label`,
+    so a reader clicked one name and landed on another; the gallery's search box matches
+    `label + desc`; and the Views filter pills print the same label (`vwChartLabel`). Help's own
+    facets chapter already said the pills print *"the chart's own name from the gallery"* — true
+    of the app, false of this page for seven types. **Measured by PROBE:** five of the seven
+    names found **nothing** through `Studio.catalogSearch`, plus the *"joy plot"* alias.
+    All seven titles are now the picker's label verbatim, with the synonyms moved into the card
+    descriptions, and the intro states the promise. Doc-truth **check 62**, premise + four rules;
+    two more were DELETED rather than shipped because check 50 (group filing) and check 45(d)
+    (the pill sentence's labels + the kpi exception) already hold them.
+    **Measured in the same pass and NOT taken, so the next run does not re-derive it:** the
+    picker's own search cannot find a chart by a name it does not print — *joy plot*, *Mekko*
+    and *combo* are all real names for charts the app ships, and typing any of them into
+    *Search chart types…* returns nothing. Widening the registry's `desc` strings (the other
+    half of the haystack) would fix it in the app rather than in the docs, but `app/model.js` is
+    precached — an `sw.js` CACHE bump, issue #631's territory — and *which* synonyms belong in
+    the product's own copy is a product call, not a derivation. Also measured and found CURRENT:
+    the chapter's group `<h3>`s (check 50 holds all 54 cards to the picker's tabs, both
+    directions) and the `<div class="chart-group"></div>` stub every card carries.
+  * *The Glossary vs the nouns the app prints — v975, NO sw bump (2026-08-10 — see DONE).* No
+    candidate was standing again (v974's note parked its find as a product call about the app's
+    own synonyms), so this pass took the **Glossary** — the last chapter nothing derived, and the
+    one whose title makes the page's strongest promise: *"every term, one line each"*. It defined
+    ten and **omitted three the app renders constantly**: **Repository** (a rail **Workspace**
+    section, and where three other chapters send the reader for filing), **Folder** (ORGANIZE's
+    noun — every catalog row, the Repository tree, the `+ New folder` button at
+    `studio.js:8006`), and the **Dashboard Builder** (of the rail's three builders, only Quick
+    Views and the View Builder were named — the dictionary of the app omitted where dashboards
+    are made). **Data access** and **Ensemble** were added on the page's own evidence rather than
+    a rule: each owns an `<h2>` and a bolded defining sentence, so the page spent two words in its
+    chapter titles that its dictionary did not carry.
+    Doc-truth **check 63**, premise + six rules, deriving the vocabulary from the rail's own IA
+    (`rail-group-lbl` walked in document order), `REPO_TYPES` **evaluated** rather than regexed,
+    and the two organizer buttons — so renaming `+ New folder` moves the rule with it. The
+    premise holds the title's other half (*one line each* = one `<li>`, no nested list); rule (g)
+    runs the reverse — a defined term must be one the rest of the page bolds. Premise fails on
+    the true pre-fix tree (no anchor), so the doc-side rules were measured on a mutated tree
+    carrying the pre-fix entries under the new paragraph: all three gaps flagged, and **one rule
+    was wrong on that first pass** — reading the whole section let the promise paragraph, which
+    names Repository to state the contract, satisfy rule (c) by itself; the rules now read the
+    entry list only. Five code-side directions measured on mutated trees, each failing its own
+    rule and only its own.
+    **Measured in the same pass and NOT taken, so the next run does not re-derive it:** the
+    glossary's `Workbook` entry says workbooks are *"a filter chip in the Dashboards section"* and
+    that is **correct** — `renderDashboards()` writes into `#repoResults` (a historical id) and
+    owns the chip strip, while the rail's **Repository** section is `renderRepository()`, the
+    all-types finder. The two are easy to conflate from the ids alone; they were checked rather
+    than assumed. Also measured and found CURRENT: all ten pre-existing terms are words the app
+    still says (`Turso` is still a shipped workspace backend), and every one is bolded elsewhere
+    on the page — rule (g) passes on the pre-fix list, so nothing had gone dead.
+  * *The roles the marketing page sells vs the roles the app has — v977, NO sw bump (2026-08-10 —
+    see DONE).* No candidate was standing again, so this pass changed the QUESTION rather than the
+    document: checks 9–64 hold what the app can DO, and **nothing held WHO can do it.** The first
+    surface read was wrong — `index.html`'s "Bring your team" card sold **"admin, editor and viewer
+    roles"** where `app/auth.js` offers `["admin", "developer", "viewer"]` and has never had an
+    editor. The rung it dropped is the one that BUILDS (`canDevelop()` admits admin + developer and
+    is the only gate on the Dashboard Builder), and the card sits directly upstream of **Admin →
+    Add user**, whose select reads *Admin — full access / Developer — build &amp; edit dashboards /
+    Viewer — browse &amp; explore*. Doc-truth **check 65**, premise + four rules, from three
+    derivations in one file (`ROLES`, `ROLE_LABELS`'s keys, and `canDevelop()`'s own body — the
+    read-only set is their complement, so a fourth role classifies itself): the card and Help's
+    ladder each hold both directions, the builder's visibility is held role-by-role against the
+    gate, and rule (e) runs page-wide — no document may tell a read-only account it can build a
+    dashboard. (b) measured failing on the real pre-fix wording under the new anchor; the rest on
+    mutated trees, including a fourth role reddening (b), (c) and (d) at once.
+    **Audited and found CURRENT in the same pass, no change needed:** both of Help's role passages
+    (they gained `id="roles-ladder"` / `id="builder-access"` as anchors, nothing else), and
+    `README.md`, `SPEC.md`, `PUBLISH.md` and all six tours, which name no role at all.
+    **Measured in the same pass and NOT taken, so the next run does not re-derive it** — both in
+    the precached `app/studio.js`, so both belong to the next slice that has to bump anyway
+    (issue #631): the Admin page's **own** hero paragraph explains two of the three roles it
+    offers (*"**Admin** has full access; **viewer** can browse and explore but not edit"*) — the
+    same drift one surface over, and the surface where roles are assigned; and, **not N7's
+    because it is code**, `openUserEditor` hard-codes a third role list rather than reading
+    `PolecatAuth.ROLES` / `ROLE_LABELS`, which is exported and has no reader in `app/` at all.
+  * *The honesty chapter vs the two registries it argues about — v976, NO sw bump (2026-08-10 —
+    see DONE).* No candidate was standing again (v975's note parked its find as already correct),
+    so this pass took **"Ensembles &amp; scientific honesty"** — the last `<h2>` nothing derived,
+    and the one where being stale costs more than a wrong label, because the chapter IS the app's
+    honesty argument. **The drift ran through its thesis:** it said the combined value *is* the
+    **median**, unconditionally, in five places — while both charts make the combination a
+    SETTING. `ensembleSeries.agg` is a select (**Median (recommended)** / **Mean**) that
+    `_ensembleSeries` feeds straight to `aggValues` for the bold line, and `choropleth.agg` offers
+    **six** ways to turn several rows for one region into one colour — four of them (sum, min,
+    max, last) not a common estimate at all. Neither control was named on the page.
+    **And the chart never PRINTS the word the chapter was written around:** the legend swatch, the
+    hover tooltip and the Download-data rows all print `medianLabel`, whose default is **Common
+    estimate** — so a reader who went looking for "the median line" found it in none of the three
+    places the page sent them. Four more behaviours were stated as facts (`showBand`,
+    `showProviders`, `showToggles`, `refSeries`) where each is an option that can be off.
+    Doc-truth **check 64**, premise + five rules, with both registries **evaluated** (the shared
+    `M` model, so labels/choices/defaults are exact) and rule (e) holding the registry default and
+    the RENDERER's fallback to each other as well as to the page — a split there would make the
+    docs wrong without either file looking wrong alone. Rule (f) reads the chapter's own idiom
+    ("the **X** option"), so a control that is renamed or retired fails here instead of reading
+    plausibly forever. The premise fails on the true pre-fix tree (no anchor to hold), and all
+    five rules were measured failing — two doc-side (an invented method; a governing option left
+    unnamed) and four code-side on mutated trees (a third estimate choice, a seventh map choice, a
+    renamed `medianLabel` option, and a renderer fallback drifting off the registry default), each
+    failing its own rule.
+    **Measured in the same pass and NOT taken, so the next run does not re-derive it:**
+    `app/studio-charts.js`'s own header for `ensembleSeries` says *"the median of the providers
+    currently toggled on"* about the very line it computes with `aggValues(vals, cfg.agg)` — the
+    same drift one file over, inside a comment. It is a precached file (an `sw.js` CACHE bump,
+    issue #631's territory) for a comment, so it belongs to the next slice that has to bump
+    anyway — the v927 note's reasoning, unchanged. Also measured and found CURRENT: the ⓘ Sources
+    popover's three bullets (coverage, full-coverage points, `lastUpdated`), the hatched no-data
+    texture, and the band being the min–max range of the toggled-on providers — all still what the
+    renderer does. The two v922 candidates are still open and still Kevin's calls.
+  * *The Admin user editor's provisioning controls vs the copy that documents them — v978, NO sw
+    bump (2026-08-10 — see DONE).* No candidate was standing again (v977 parked both of its finds
+    in the precached `app/studio.js`, issue #631's territory), so this pass took the chapter this
+    whole family had read AROUND rather than through: **`Admin &amp; backend setup`, 550 lines,
+    held by nothing** — checks 26/27/30 hold the provisioning SQL and 42/46 the gate documents,
+    and the pages an administrator actually reads answered to neither. **It documented a control
+    the app no longer has** — the `ⓘ Tour` class, a third document over: Add user was said to
+    carry an *"Install the Conservation Insight sample pack on first sign-in"* **checkbox**, where
+    **SP-0 replaced it with a `<select>` over `Studio.DEMO_PACKS`** whose own comment says why
+    (*"With more than one pack registered it has to be a CHOICE"*). The dead control is the
+    smaller half: the registry holds **six** packs — three of them the money-flow packs that
+    shipped the same day — and the only sentence in the product about per-user pack provisioning
+    named **one**, so an admin had no way to learn the form would assign any of the others.
+    **The second drift runs the other way:** "Copy my current Dashboard defaults" enumerated
+    **eight** fields where `snapshotDashboardDefaults()` returns **nine**, and the ninth is
+    invisible in both places — LF50 (b) hid the `Quick import creativity` row on the Settings card
+    while leaving the stored default live, so a value nobody can see is snapshotted onto a new
+    account and replayed at their first sign-in. The page now names it AND says its row is hidden,
+    rather than adding a ninth noun and sending a reader hunting for a control.
+    Doc-truth **check 66**, premise + four rules, and the membership is the part worth keeping:
+    WHICH controls are provisioning controls is derived from the SAVE HANDLER (`opts.provisioning`
+    / `opts.forceTour`, resolved one hop back to the element each reads), so a control that stops
+    being written onto the account leaves the rule with it — it found six. **3 of the 4 measured
+    failing on the real pre-fix tree**, the rest on mutated trees, each failing its own rule and
+    only its own; the copy naming TWO packs measured GREEN, which is the shape of rule (b).
+    **Measured in the same pass and NOT taken, so the next run does not re-derive it:** the
+    chapter's **Branding &amp; app identity** `<h3>` documents an **Admin** page card from inside
+    the `Simple mode vs Advanced mode` chapter (`docs/index.html:2965`), and the Admin page's own
+    **Section access** card — a fifth card `renderAdmin()` really draws — is named only once on
+    the page, up in *Getting started*. Both are v930/v936's information-architecture class (moving
+    a topic between chapters is an editorial call, not a derivation), so check 66 holds the copy
+    and not its address. Also measured and **NOT N7's** because it is code: `openUserEditor`
+    hard-codes its role list rather than reading `PolecatAuth.ROLES` / `ROLE_LABELS` — v977's own
+    note already flagged it, and it is still true. The two v922 candidates are still open and
+    still Kevin's calls.
+  * *The guided-tour CHOOSER vs the tours it really offers — v979, NO sw bump (2026-08-10 — see
+    DONE).* No candidate was standing again (v978 parked one information-architecture call and one
+    code find), so this pass changed the ALTITUDE instead of the chapter: eight checks read INSIDE
+    the tours and **nothing had ever read the LIST**. `TOUR_ORDER` holds **nine** tours — five
+    always-visible plus four gated on an installed pack — and Help published **four** lowercase
+    paraphrases, the fourth of which (*"prepping and connecting your data"*) had merged `jobs`
+    (**Prep data (Jobs)**) and `connect` (**Connections &amp; Datasets**), two separate walks, into
+    one phrase that is not a row you can click. The pack half said *"plus one for your installed
+    sample pack"*, singular, of a chooser that adds a row per pack and of two engines that splice
+    one step **per** pack. **The half that made the page actively misleading was the Sample packs
+    chapter:** two of the four tour-carrying packs closed on *"The pack also carries its own guided
+    tour"* and **Conservation Insight and Market Coverage said nothing** — the same silence the two
+    packs with no tour keep, so the silence meant nothing. Doc-truth **check 67** derives the
+    chooser from the registry (order, each entry's printed `label:`, and each gate's BODY rather
+    than its key, so the premise holds the join Help's per-pack sentence depends on); rule (b) runs
+    both directions inside the new `#tour-topics` anchor and matches the label verbatim. Seven
+    failure modes measured, each failing its own rule and only its own.
+    **Audited and found CURRENT in the same pass, no change needed** (four chapters, which is why
+    the drift is the tour list and not one of them): the Jobs chapter against `JOB_STEP_KINDS`,
+    `JOB_AGG_FNS`, `Studio.filterOps` and its fifteen relative ranges; the View Builder's twelve
+    chart types and seven aggregation badges; Home's five reorderable sections.
+    **Measured in the same pass and NOT taken, so the next run does not re-derive it:** the
+    chooser's footer also offers **Maybe later** and Help names only **← Back** — how much of a
+    dialog a Help page should transcribe is editorial, not a derivation, so check 67 holds the
+    topic list and not the chrome around it. The two v922 candidates are still open and still
+    Kevin's calls.
+  * *The Quick Views MAPPING GRID vs the chapter that documents it — v980, NO sw bump (2026-08-10 —
+    see DONE).* No candidate was standing again (v979 parked its find as editorial), so this pass
+    took the gap v979's own altitude move implies one section over: check 32 reads the Quick Views
+    editor's four numbered steps and the shot framed around them, and **nothing had ever read what
+    step 3 puts inside the mapping grid** — the pane a reader is sent to when Help names a control.
+    **It documented two controls Quick Views does not have:** `xpMapEditorHtml()` pushes exactly
+    three per-chart option rows (`scale`, `renderer`, `refSeries`), and the chapter also walked the
+    reader through the GL map's **Zoom/pan controls** and **Controls position** — registry options
+    rendered by the **Dashboard Builder's** inspector and by nothing in `app/explore.js`. **And it
+    named two of the four chart types the Rollup control is hidden on:** `XP_AGG_TYPES` shows it for
+    five of nine chips, so **Scatter / bubble** and **Heatmap (pivot)** are excluded alongside Geo
+    and Ensemble, for a reason the code states outright. Doc-truth **check 68**, premise + five
+    rules, every label read from the evaluated `M` model — chart names verbatim, option names by
+    their pre-parenthesis stem, because Explore and the registry word the same option's tail
+    differently. Twelve failure modes measured, each failing its own rule and only its own.
+    **Measured in the same pass and NOT taken, so the next run does not re-derive it** — both code
+    rather than copy, both in the precached `app/explore.js` (issue #631's territory, and both
+    still open — v981 took a copy slice instead): the
+    hard-coded **Region scale** choice list, which has drifted to six where the registry's `scale`
+    opt has seven — the exact second-hardcoded-list problem the `renderer` row beneath it was
+    refactored to avoid; and `Reference series (never joins the estimate)` against the registry's
+    `Reference series (excluded from the estimate)`, one option with two on-screen names. **Audited
+    and found CURRENT in the same pass, no change needed:** the chapter's four numbered steps, the
+    navigator description, the `+ New dashboard` / `Existing dashboard…` pair, the live-run sample
+    fallback, and its six region scales against the six Explore renders. The two v922 candidates are
+    still open and still Kevin's calls.
+  * *Home's own page vs the chapter that introduces it — v981, NO sw bump (2026-08-10 — see DONE).*
+    No candidate was standing again (v980 parked both of its finds as code), so this pass repeated
+    check 67's ALTITUDE move one page over: eight checks read things a reader reaches THROUGH Home,
+    and **nothing had ever read the page Home renders first**. The chapter's list opened at the
+    fourth thing on the screen — **all eight quick-start cards were undocumented here**, four of
+    them named nowhere on the page at all (New View, New dashboard, New connection, New dataset).
+    Three more drifts in the same direction: the section list published **Pinned** and
+    **Favorites** for headings that render **Pinned Views** and **Favorite datasets &
+    connections**; the **Dashboards** section's two nested strips had only **Recent dashboards**
+    named, leaving pinned DASHBOARDS invisible three bullets below a Pinned **Views** section; and
+    the workbook chip strip was absent. Doc-truth **check 69**, premise + five rules, everything
+    read from inside `renderHome()`. Eight failure modes measured, each failing its own rule and
+    only its own.
+    **Two candidates measured FIRST and found clean, so the next run does not re-derive them:**
+    `site/chart-gallery.js` regenerates byte-identically (its labels/groups/descs are unheld but
+    unstale), and the landing page's *"Seven chrome palettes"* + four figcaptions match
+    `APP_THEME_KEYS`/`APP_THEME_LABELS` exactly.
+    **Measured in the same pass and NOT taken:** Home's rotating tip strip is documented in one
+    clause and deliberately unheld — `HOME_TIPS` is hand-written prose, so a rule over it would be
+    transcription, not derivation. The two v922 candidates are still open and still Kevin's calls.
+  * *The keyboard chords Help prints OUTSIDE its shortcuts table — v982, NO sw bump (2026-08-10 —
+    see DONE).* No candidate was standing again (v981 parked its find as editorial), so this pass
+    took check 36's move one **altitude** up rather than one document over — and found check 36's
+    OWN drift, still alive one chapter away from where v923 fixed it. Check 36's header says it is
+    *"scoped to the TABLE, not the whole section"*, and the page prints chords in forty-three more
+    `<kbd>` outside that table. The **Undo / Redo** chapter said **`Shift Z`** to redo — the exact
+    chord v923 deleted from the table a day earlier, and one the builder has never had, because
+    every letter shortcut is read inside a block opening `if (!(e.metaKey || e.ctrlKey)) return;`.
+    It also named **one of the three chords its own two buttons fire** (`Ctrl/⌘+Z`,
+    `Ctrl/⌘+Shift+Z`, `Ctrl/⌘+Y`), so the chapter about redoing was the one place a reader could
+    not learn how to redo. Doc-truth **check 70**, two premises + three rules over the page with
+    the table CUT OUT (so 36 and 70 partition it rather than overlap): no modifier-less letter
+    chord, nothing the `?` panel does not publish, and the `#undo-redo` anchor holding exactly the
+    handler's undo/redo chords both ways — derived per-branch from the `undoAct()`/`redoAct()` call
+    inside each, which is what lets it demand completeness. Eight failure modes measured, two on
+    the real pre-fix tree. **A fourth rule was written and deleted:** the chapter's `⋯ More → Undo`
+    / `→ Redo` route is already held page-wide by **check 21** — check 13's exclusion of
+    `docs/index.html` reads like a gap and is not one.
+    **Measured in the same pass and NOT taken, so the next run does not re-derive it:** the page
+    spells the palette chord three ways (`⌘K`, `Ctrl-K`, `Ctrl K`), all resolving to the same real
+    chord — house style, not drift, and the loop does not make editorial calls for Kevin. The two
+    v922 candidates are still open and still Kevin's calls.
+  * *The viewer's own top bar vs the chapter that documents it — v983, NO sw bump (2026-08-10 —
+    see DONE).* No candidate was standing again, so this pass went looking for a SURFACE the
+    family had never read rather than another chapter of the one it had — and found a whole page.
+    Every chrome check here (16–21 the builder, 49 the app bar, 69 Home) reads `app/index.html`;
+    `app/viewer.html` is a second standalone document and the only thing ever read from it was
+    its export MENU (check 37). **Help named an `Edit in Studio` button and the bar renders
+    `Edit in Dashboard Builder`** — renamed in **a67d30c** (LIVE-a slice 2's Explore/Studio
+    sweep), which swept the app and left this page behind, while its two neighbours **Save a
+    copy** and **Export** stayed correct, so nothing in the list looked wrong. **And the chapter
+    was desktop-only:** at ≤640px `app/studio.css` drops the `Viewer — read-only` badge and hides
+    every `.viewer-btn-txt`, so the three actions are icons alone on the route people are most
+    likely to open on a phone. New `#viewer-bar` + `#viewer-bar-phone` chapters. Doc-truth
+    **check 71**: one app-side premise + four rules (the revealed controls both ways by the
+    label they print; the band/badge/labels the phone drops, with the band read off the media
+    query itself; the export formats' NEGATIVE half, which check 37 (c) leaves open; and the
+    "no ⋯ menu here" claim held to `viewer.html`). 3 of 4 rules failed on the real pre-fix tree;
+    seven code-side directions measured on mutated trees.
+    **Measured in the same pass and NOT taken, so the next run does not re-derive them:** the
+    Jobs chapter (all nine `JOB_STEP_KINDS`, all five `JOB_AGG_FNS`, all nine `filterOps` and all
+    15 relative RANGES) and the dynamic-token chapter (`WS.dynamicParam` + `DATE_TOKENS`) were
+    both audited and are **CURRENT** — which is why this slice went to the viewer. The one thing
+    that surfaced there is **code, not copy, so it is not N7's**: `WS.dynamicParam` builds every
+    date from the reader's LOCAL calendar while the filter engine documents and implements UTC on
+    both sides, so `{{today}}` and a date filter can disagree by a day near midnight outside UTC.
+    The two v922 candidates are still open and still Kevin's calls.
+  * *What a feedback report CARRIES vs the chapter that promises to say — v984, NO sw bump
+    (2026-08-10 — see DONE).* v983 parked its find as code, so this pass changed the QUESTION
+    rather than the document: every check in the family asks whether Help names the controls the
+    app renders; this one asks whether it names the DATA the app sends. It went to the chapter
+    whose own title makes the promise — *Sending feedback (and what gets recorded)* — and
+    **it named four of the nine fields a report carries.** `Studio.Activity.feedback` sends
+    `gotrue_id` + `username` beside the typed kind/message, plus `ctx()`'s `section`,
+    `dashboard`, `dashboardTitle`, `route`, `version`, `viewport` and a 160-char `ua`; Help
+    published the account name, the section, the open dashboard and the app version. **The
+    paragraph below it made that an active denial** — it publishes route/referrer/viewport/IP/UA
+    for the ANONYMOUS trail, so the shorter list above read as a promise that a feedback report
+    collects less. Doc-truth **check 72**, premise + three rules, the captured set derived from
+    the row literal minus the fields built from `feedback()`'s own parameters, with `context:`
+    expanded into `ctx()`'s keys. Seven failure modes measured, each failing its own rule and
+    only its own.
+    **Measured in the same pass and NOT taken, so the next run does not re-derive it:**
+    `ctx(extra)`'s caller-supplied `extra` is unheld on purpose — the one caller passes none, so
+    there is nothing static to derive. The two v922 candidates are still open and still Kevin's
+    calls.
+  * *The SETTINGS page's own cards vs the section that documents them — v985, NO sw bump
+    (2026-08-10 — see DONE).* No candidate was standing again, so this pass repeated check 69's
+    ALTITUDE move one page over: eight checks read things a reader reaches THROUGH Settings (39
+    the backend chooser, 40 the theme rosters, 35 the pack cards, 59/60 the mode) and **nothing
+    had ever read the page those cards sit on**. **Help named three of the eight** — the rail
+    bullet's "appearance and colour theme, the workspace-backend card, and where you sign out" —
+    so **`Presentation`, the card carrying Demo mode and the tour, was named nowhere on the page
+    at all**, and the Mode card's `Restore unsaved work` / `Open the builder with side panels`
+    each had one bare "flip it in Settings" with no card attached. **And one route resolved to
+    nothing:** *"revisit it anytime from **Settings → Tour**"* — the tour is the **Welcome tour**
+    row inside **Presentation**, button **Take the tour**. New `#settings-cards` section; doc-truth
+    **check 73**, premise + four rules, the card order derived from `renderSettings()`'s own
+    emission index. Three of four rules fail on the real pre-fix tree; five more directions
+    measured on mutated trees. Check 59 (f) was amended to partition with it (it now reads the
+    chapter with the inventory cut out — check 70's idiom), and the amendment was verified not to
+    blunt it.
+    **Measured in the same pass and NOT taken, so the next run does not re-derive it — and this
+    one is a real, live defect, not a gap.** **`Settings → hard reset` resolves to NOTHING.** Help
+    offers it as the remedy for a stuck offline copy of the app (the read-only schema-version
+    paragraph), and so does the APP — `app/studio.js`'s version banner prints the same route
+    verbatim. There is no hard-reset control anywhere in `app/`: the nearest thing is ⋯ More →
+    **Clear local data**, which wipes the workspace and is emphatically NOT what someone with a
+    stale service worker should be told to press. Check 73 (d) deliberately holds only routes whose
+    first segment is a card NAME (upper-case), and its header records why: this one names an
+    ACTION, both surfaces print it, and fixing Help alone would leave the app contradicting the
+    page. ~~**It is the candidate for the next N7 slice** — but it is a code-and-copy slice that
+    bumps the `sw.js` CACHE, and whichever run takes it should decide whether the honest fix is a
+    real control or copy that stops promising one.~~ ✓ **SHIPPED v986, sw v562 (2026-08-10 — see
+    DONE).** The choice the note left open went to **build it**: the failure mode is real and its
+    only near-match, ⋯ More → Clear local data, wipes the workspace. `Settings → App → Hard reset`
+    now exists (`Studio.hardResetApp` — workers and caches only, storage untouched, asserted
+    against real seeded keys), both surfaces name it, and doc-truth **check 74** reads the routes
+    the APP prints so the next dead one fails the build instead of waiting for a copy audit. It
+    found two more on its first run, both the same defect one document over: `app/welcome.js`
+    still printed **`Settings → Tour`**, the exact route v985 had just deleted from Help, and a
+    sync toast lower-cased **Workspace backend**. Check 73 (d)'s upper-case carve-out is gone with
+    it. The two v922 candidates are still open and still Kevin's calls.
+  * ~~**Measured in the v986 pass and NOT taken, so the next run does not re-derive it — and it is
+    the named candidate for the next N7 slice.** `app/palette.js` reaches **Clear local data…**
+    (⌘K → "Clear local data…", which clicks `#moreClearData`) and does NOT reach the hard reset —
+    so the destructive remedy is one keystroke away and the non-destructive one it should be tried
+    before is not in the palette at all. Pure derivation, no product call: check 13 already
+    resolves "⌘K → X" against `app/palette.js`'s command labels, so a `Hard reset…` command that
+    navigates to Settings and clicks `#setHardResetBtn` is the same wiring the Clear-local-data
+    entry already uses, and the pairing could be held by a rule rather than remembered. It is a
+    code slice with an `sw.js` bump, which is why v986 did not widen into it.~~ ✓ **SHIPPED
+    v987, sw v563 (2026-08-10 — see DONE), and writing the rule found a SECOND command that was
+    already broken.** The pairing landed as named — `Hard reset…` sits directly above
+    `Clear local data…` in **Manage**, reached by the problem as well as the name. But the check
+    the note asked for could not stop at those two ids without being a transcription, so it was
+    written as the general rule — *every* control id the registry drives must be one the app
+    renders — and it failed on the pre-fix tree for a command nobody was looking at:
+    **`Add text / annotation panel` clicked `btnAddText`, an id deleted on 2026-07-14** when ¶ Text
+    moved to the canvas empty state (`#cesText`). Measured live, not inferred: the palette row
+    rendered, ranked and highlighted, and `spec.panels.length` went 6 → 6. Doc-truth **check 75**,
+    premise + three rules; two fail on the real pre-fix tree and five more directions were measured
+    on mutated trees. The palette's own header had claimed the opposite for a year — *"clicks a real
+    button… can never drift out of sync with the app"* — which is true of the mechanism and says
+    nothing about the id.
+  * ~~**Measured in the v987 pass and NOT taken, so the next run does not re-derive it — and it is
+    the named candidate for the next N7 slice.** The palette still calls a View a **panel**.
+    `Add text / annotation panel` drives a button whose own label reads **¶ Add a text View**, and
+    `chartTypeCommands` mints `"Add panel: " + label` — the LF52/LF57 widget→View rename swept the
+    controls and left the palette's copy behind, which is the exact shape of the v875/v876 pair one
+    surface over. **The two halves split the same way those did, and only one is self-contained:**
+    `Add text / annotation panel` is quoted nowhere in `docs/index.html` (measured), so it is a
+    palette-only edit; `"Add panel: <chart type>"` is quoted verbatim in Help under check 61's own
+    label rule, so renaming it moves two documents and the check with them. Doc-truth check 75
+    holds the WIRING, not the wording — a rule over the noun would be check 14's move, one surface
+    over.~~ ✓ **SHIPPED v988, sw v564 (2026-08-10 — see DONE), both halves in one slice.** The
+    note's split was real but it argued for taking them TOGETHER rather than separately: the
+    family tag is shared (`Add panel` sat on all 54 chart rows AND is what check 61 (b) makes Help
+    publish), so renaming the text command alone would have left the palette printing both nouns
+    at once. **Measured live rather than read:** all 54 types, one family tag, 55 rows. The
+    rename keeps the retired noun as a hidden synonym — typing `panel` still returns all 55 —
+    which is what let a copy change ship without costing anyone the search term they already had.
+    Doc-truth **check 76** derives both nouns from `addTextPanel()` alone (it writes
+    `S.spec.panels` and toasts "Text View added"), corroborates the rendered one against three
+    surfaces, and holds the synonym in both directions against Help's own sentence.
+  * ~~**Measured in the v988 pass and NOT taken, so the next run does not re-derive it — and it is
+    the named candidate for the next N7 slice.** The noun rename stopped at the palette on
+    purpose, and the surface it stopped short of is **Help's own chart-interaction prose**:
+    `docs/index.html` still says "wherever that panel has a detail drawer", "clicking a mark still
+    selects the panel for editing" and similar in the keyboard chapter, where every control it
+    names beside them is a **View**. That is the v875→v876 move exactly (check 14 held the tours'
+    bolded labels, check 15 then held Help's sentences around them), and check 76's header says
+    why it was not taken here: check 76 is scoped to `app/palette.js`, and Help's uses are
+    *prose about the thing under your cursor* rather than a label, so the rule that catches them
+    has to be check 15's stricter shape — outside `<code>`, the word must not appear — which
+    needs a decision about the genuinely legitimate uses first (`spec.panels` is a real key a
+    spec author reads, and SPEC.md documents it). **Pure derivation once that line is drawn**, and
+    it is one document.~~ ✓ **SHIPPED v989, NO sw bump (2026-08-10 — see DONE), and the decision
+    the note left open went the other way for a measured reason.** Check 15's blanket shape is
+    WRONG for this word: a grep of the app's own copy first — before a line of Help was touched —
+    found `panel` in 62 phrases the app itself PRINTS (`Panel title` is a field label in
+    `app/build.js`, `Data panel` is the pane's own `aria-label`, `Open the builder with side
+    panels` is a Settings row), so banning it outright would have made Help contradict the
+    controls it documents. The line drawn instead is the app's, not the page's: **every `panel`
+    in Help must sit inside a two-word phrase the app itself prints** — check 17 (a)'s idiom
+    ("the allowed phrases are read out of app/*.js's own string literals rather than listed
+    here"), one noun over. 21 sentences moved; the panes Help had been calling panels in passing
+    (the View Builder's `Datasets` pane, the What's-new feed's right-hand pane, the Data pane
+    the page introduces as a pane one paragraph above) now read as panes, so the same word stops
+    doing two jobs on one page. One string moved into `<code>` rather than being reworded —
+    the dataset editor's live warning, `3 panels in 2 dashboards read this dataset` — check 15's
+    own sanctioned way to print a string the reader will genuinely see. Doc-truth **check 77**,
+    premise + two rules; rule (a) fails on the real pre-fix tree (21 sites) and in BOTH code-side
+    directions on mutated trees (delete `Panel title` from `app/build.js`, or `Text panels` from
+    `app/studio.js`, and Help's two surviving quotes fail immediately — the exemption is read
+    live, not listed), rule (b) — the no-overshoot half, since the cheap way to satisfy (a) is to
+    replace the word everywhere and rename the panes with it — on a mutated tree, and the premise
+    when `addTextPanel`'s toast stops naming the rendered noun. Check 54's `applyInspSearch` row
+    moved with the document (it held the phrase "the panel inspector's search"). Also measured
+    and **NOT N7's** (it is code, not copy): `app/palette.js`'s
+    matcher comment still illustrates the ANDed-terms rule with *"export panel" reaches "Export
+    the current panel"* — a command label the palette has never printed. It is a comment, so no
+    check can fail on it (check 12's rule) and none should.
+  * ~~**Measured in the v989 pass and NOT taken, so the next run does not re-derive it — and it is
+    the named candidate for the next N7 slice.** Building check 77's exemption set is what
+    surfaced it: **the APP still calls a View a panel in the copy a reader sees**, in more
+    places than the palette ever did, and v988's "the last surface" was true only of the
+    palette.~~ ✓ **SHIPPED v990, sw v565 (2026-08-11 — see DONE), whole, and the product question
+    the note flagged was answered rather than dodged.** The note's list was the start of it, not
+    the size of it: 62 printed phrases across nine modules, including six separate places that
+    counted "6 panels · 2 KPIs" and the builder-note editor's `Panel: <title>` sitting one line
+    under its own *"not tied to a View"*. `Panel title` is now **Title on dashboards** — not
+    "View title", because it sits directly beneath the View's own **Name** field and two boxes
+    both called a title read as the same box twice; the stored `panelTitle` key is untouched.
+    The panes keep the word (`app/index.html` names them that way in the attributes a reader is
+    read to), and the places where one word was doing two jobs moved to **pane** — the v989 move
+    one document over. Doc-truth **check 78** draws the line from that markup rather than from
+    either document, since Help and the app would otherwise hold each other to a fixpoint
+    neither could leave; **rule (a) fails on the real pre-fix tree, 72 sites**, with four more
+    directions measured on mutated trees. Help moved in the same PR (11 sentences + the `<code>`
+    quote) because check 77 reads its exemption out of the app's copy.
+  * ~~**Measured in the v990 pass and NOT taken, so the next run does not re-derive it — and it is
+    the named candidate for the next N7 slice.** Check 78 is scoped to `app/*.js`, which leaves
+    the repo's own front door: **`README.md` walks the builder in the retired noun** — "drop on
+    the canvas to add a panel", "any panels", "a panel" — six item-uses in its Dashboard Builder
+    section (`README.md:139-144`), while its `Data panel` uses are panes and correct. That is
+    the check-77→78 move one document over, into a document check 45 ALREADY holds (it derives
+    README's H1 and the artifacts README and SPEC.md name), so the rule has a home rather than
+    needing a new one. **`SPEC.md`'s two uses are NOT the same thing and must not be swept with
+    them:** that page defines the file format, where `panels` is the key an author writes, and
+    check 45 holds its key table against `emptySpec()` both directions — so the slice has to
+    tell the key from the noun, which is the same distinction check 78 already draws with the
+    quoted-key exemption. Pure derivation, one document, no `sw.js` bump.~~ ✓ **SHIPPED v991, NO
+    sw bump (2026-08-11, steward — see DONE), and the note's own "the rule has a home" was the one
+    thing it got wrong.** Check 45 is *SPEC.md vs the spec it publishes* and check 41 is README's
+    inventories; neither carries the pane vocabulary or the two nouns this rule needs, both of
+    which live in check 78's derivation — so the walk gained its next leg, **check 79**, rather
+    than a rider on a check about something else. The note's six sites were right and there was a
+    seventh it had not seen, in the place a reader meets first: the three-pane ASCII diagram at
+    the top of the page said the inspector edits a *"panel /KPI / dashboard)"* — and its opening
+    bracket had been missing since the diagram was drawn. **SPEC.md was not swept, and rule (c)
+    says so out loud** rather than leaving the exemption implied: the word may appear there only
+    as the key — fenced, backticked, or in a line documenting a real `emptySpec()` key — so a
+    later run cannot grow README-shaped prose one file over and call it the schema.
+  * ~~**Measured in the v991 pass and NOT taken, so the next run does not re-derive it — and it is
+    the named candidate for the next N7 slice.** The sweep of every remaining first-party document
+    found exactly **one** more site, and it is a good one: **`docs/PACKS.md:98`** — *"A pack's
+    **Views** are not its dashboards' panels again"* — a sentence whose whole job is to draw the
+    View/dashboard distinction, drawing it in the noun the last four slices retired. `CLAUDE.md`,
+    `PUBLISH.md`, `docs/COMPAT.md`, `docs/PIPELINE.md` and `docs/BACKLOG.md` are clean (0
+    occurrences each, measured), and the marketing page's one use — `index.html:70`'s alt text,
+    "the data and inspector panels" — is CORRECT: both are panes. So the remainder is one sentence
+    in one document, and the document already has a check: **48** (`docs/PACKS.md` vs the packs it
+    governs) is where the rule belongs, reusing check 79's derivation the way 79 reuses 78's. Pure
+    derivation, no `sw.js` bump. It is small enough that whoever takes it should pair it with the
+    next candidate below it rather than spend a whole slice on one line.~~ ✓ **SHIPPED v992, NO sw
+    bump (2026-08-11, steward — see DONE), and the note's own pairing instruction is what shaped
+    the slice.** The one sentence was fixed and the rule went into check 48, as the note said —
+    and this time "the document already has a check" held, because 48 *is* `docs/PACKS.md` vs the
+    packs it governs. The paired half was found by measuring the same document rather than the
+    reservoir: rule (a) has held *"two of the six shipped packs"* — the two NUMBERS — while the
+    same sentence names all six, split synthetic-vs-real, and nothing read the names. **Rule (g)
+    derives that roster from the registry's own `folder` values.** It has no drift today and says
+    so; it is the rule that keeps the sentence true as the pack program grows.
+    **The noun walk (checks 14 → 15 → 76 → 77 → 78 → 79 → 48 (f)) is now FINISHED**, re-measured
+    in this pass rather than taken on trust: `CLAUDE.md`, `PUBLISH.md`, `docs/COMPAT.md`,
+    `docs/PIPELINE.md` and `docs/BACKLOG.md` are at zero, README's four uses are all the `Data
+    panel` pane, SPEC.md's six are the spec key under check 45 (b), and the marketing page's one
+    is a pane. There is no first-party document left calling a View a panel, so the next N7 slice
+    is a different subject — not the next document.
+  * ~~**Measured in the v992 pass and NOT taken, so the next run does not re-derive it — and it is
+    the named candidate for the next N7 slice.** Check 48 (e) resolves every repo PATH and every
+    `Studio.*` entry point `docs/PACKS.md` names — but its extractor requires the open paren
+    INSIDE the backticks (`/`Studio\.(\w+(?:\.\w+)?)\(/`), so it reads **3 of the ~10 identifiers
+    the contract hands an author**. `Studio.ensurePackDataMaterialized(id)`,
+    `Studio.ensureAllPackDataMaterialized()` and `Studio.packSourceIssues(entry)` are held;
+    `Studio.Build.compute`, `Studio.Build.runBlob`, `Studio.newPanel` and `Studio.runJobSteps`
+    are named without parens and are not, and neither are the four non-`Studio` names the
+    document tells you to copy — `writePack()`, `bdSave`, `reconcilePackDashboards` and
+    `localfile.js typeCell`. **All eleven resolve today (measured in this pass, so the slice is a
+    check, not a fix)** — `Studio.Build` is assembled as an object literal in `app/build.js:2396`
+    and `newPanel` is `app/model.js:2517`, which is exactly why a resolver has to know more than
+    one shape. It is the check-46/48(e) rule taken to the identifiers a runbook's reader actually
+    types, and the PUBLISH.md class of failure it guards is the one this family keeps finding: a
+    contract that names a function nobody can call. Est 1pt, `docs/` + `tools/` only, no `sw.js`
+    bump. **Note for whoever takes it:** the derivation belongs in check 48 beside (e), and it
+    should report the shape it could not resolve rather than silently skipping it.~~ ✓ **SHIPPED
+    v993, NO sw bump (2026-08-11, steward — see DONE), and both of the note's instructions were
+    followed literally.** The rule is **check 48 (h)**, and (e) was NARROWED to the paths its
+    title claims rather than left holding a third of the same job — one derivation each. The
+    note's "~10 identifiers" was low: **nineteen spans are held**, because the entry hooks
+    (`install()`, `seed(csv)`, `afterInstall`) and `sw.js`'s two constants are names an author
+    types too. **All nineteen resolve, so this was a check and not a repair** — as the note
+    predicted — and the interesting half is what a resolver has to know: five SHAPES, because
+    the code defines a name five ways (`Studio.Build`'s members are keys bound to closures 250
+    lines earlier; `typeCell` is a closure inside one adapter; `writePack` an `export function`
+    under `tools/`). **The unreadable bucket is the note's second instruction and it is a FAILING
+    condition, not a log line** — a span that is neither prose nor a shape the resolver knows
+    reports itself by name, which is the only way a rule like this does not rot one span at a
+    time. Two exemptions had to be tightened to make that bucket real: "contains an angle
+    bracket" and "contains a colon" would each have swallowed an unreadable span whole, so a
+    placeholder is now a bracket PAIR and a fragment is the key-value SHAPE. Six directions
+    measured on mutated trees, including the two the old extractor could never have seen.
+  * ~~**Measured in the v993 pass and NOT taken, so the next run does not re-derive it — and it is
+    the named candidate for the next N7 slice.** The obvious move is (h) one document over, and
+    the measurement says it is a bigger slice than it looks: run the same resolver over the other
+    executed documents and `tools/M7-RLS-GOLIVE-RUNBOOK.md` — the PUBLISH.md class, check 46's
+    subject, an operator EXECUTES it against a live security posture — names **11 identifiers of
+    this shape and (h)'s resolver resolves none of the hard ones**: `polecat_is_admin()`,
+    `BOOTSTRAP_DDL`, `RLS_REAL_SQL`, `PROVISION_SECRET`, `SUPABASE_SERVICE_ROLE_KEY`, `gotrueId`,
+    `acctOwner`. **They are not missing — they are in the tree, in three namespaces (h) cannot
+    read**: a SQL function inside a template literal (`polecat_is_admin` is in `app/sources/
+    schema.js` and three more), an Edge-Function const in a **`.ts`** file the corpus excludes by
+    extension (`supabase/functions/polecat-admin/sql.ts`), an env var read through `Deno.env.get`,
+    and a workspace COLUMN — `acctOwner`/`updatedAt` are object properties, and (h)'s definition
+    shapes are all function-or-binding shaped. So the slice is not "point (h) at another file";
+    it is **teaching the resolver those namespaces and only then taking the rule to check 46**,
+    and each namespace needs its own honest resolution rule or the runbook gets a check that
+    green-lights a name nobody can call. `docs/COMPAT.md` (3) and `CLAUDE.md` (1) fall out of the
+    same work; `PUBLISH.md` and `README.md`'s only miss is `CNAME`, a repo FILE their path rules
+    already cover. Est 2pt, `docs/` + `tools/` only, no `sw.js` bump.~~ ✓ **SHIPPED v994, NO sw bump (2026-08-11, steward — see the v994 line below and DONE), and the note's central warning was the slice.**
+  * *The go-live runbook's own names vs the code that has to answer them — v994, NO sw bump
+    (2026-08-11 — see DONE).* The candidate above, and it took **slice 1 of its 2 points** exactly
+    where the note drew the line: the namespaces were the work, not the re-pointing. `tools/
+    M7-RLS-GOLIVE-RUNBOOK.md` is the PUBLISH.md class — the one document here an operator EXECUTES
+    against a live security posture — and check 46 held its counts, artifacts, scripts and PATHS
+    while saying nothing about the names an operator TYPES. **Six namespaces were taught, each
+    with its own honest resolution rule**, because none of the hard ones is a JavaScript name: a
+    SQL function that exists only as text inside a template literal; an Edge-Function binding in a
+    `.ts` file the corpus excluded BY EXTENSION; an env var, which is a binding NOWHERE (the honest
+    question is whether the code reads it, so the roster is every literal handed to `Deno.env.get`);
+    a workspace object PROPERTY; the Edge Function's hyphenated ACTION vocabulary; and a UI field
+    LABEL, which needed a discriminator against SQL — this document writes its keywords in CAPS,
+    so a span leading ALL-CAPS or carrying an operator is a clause and a Capitalised one is a
+    label, derived from the document's own convention rather than an allow-list. **The resolver
+    was LIFTED OUT of check 48 rather than copied**, so both documents share one derivation; (h)
+    is a call now and still holds its same 19 spans. Check 46 (f) holds **24, all resolving
+    today** — a check, not a repair, as the v993 note predicted of its own slice. **One real bug
+    fell out of writing it, in the extractor BOTH rules use:** the fence stripper was anchored at
+    column 0 and this runbook indents its blocks under numbered steps, so three of its nine survived,
+    the backtick pairing unbalanced, and thirty-two whole sentences were being read as
+    identifiers. Eight failure directions measured on mutated trees — one per namespace plus the
+    two invariants (an unreadable span FAILS; and the placeholder exemption held from its own end,
+    since deleting the runbook's *"replace `ADMIN_UUID`"* declaration correctly makes `ADMIN_UUID`
+    a gap). `CLAUDE.md`'s LOC figure moved in the same PR (~67K → ~75K), the v916 precedent.
+    ~~**Measured in this pass and NOT taken, so the next run does not re-derive it — and it is the
+    named candidate for the next N7 slice, because it is this item's own slice 2.** The two
+    documents the v993 note said "fall out of the same work" are the remainder, and they now
+    genuinely do, because the resolver can read their shapes: **`docs/COMPAT.md`** (3 identifiers)
+    and **`CLAUDE.md`** (1). Neither is executed the way the runbook is, but COMPAT.md is the other
+    CONTRACT in `docs/` and check 25's subject, and `CLAUDE.md` is what an agent reads before it
+    merges — check 42's subject, and check 7 already holds its numbers and nothing else. The open
+    question the slice has to answer is **where each rule lives**: 48 (h) and 46 (f) each sit in
+    the check that owns the document, and the same move gives 25 and 42 a rule apiece rather than
+    a third check about identifiers. Est 1pt, `docs/` + `tools/` only, no `sw.js` bump. **Note for
+    whoever takes it:** measure the spans FIRST — the v993 note's "~10" was low for the runbook by
+    more than double, and a count taken from a document's own list rather than from a run is the
+    mistake this family keeps repeating.~~ ✓ **SHIPPED v995, NO sw bump (2026-08-11, steward — see
+    the v995 line below and DONE), and its own "measure FIRST" warning was the finding.**
+  * *The two contracts an agent reads before it changes anything — v995, NO sw bump
+    (2026-08-11 — see DONE).* The candidate above, and this item's slice 2. **The note said 3
+    identifiers and 1; the run says 17 and 18** — the exact mistake its last sentence warned about,
+    made by the note that warned about it, which is the third time this family has under-counted a
+    document from its own summary (v993 said "~10" for the runbook and it was 19 there and 24 here).
+    Both rules live where the note said they should: `docs/COMPAT.md`'s in **check 25**, which owns
+    that document, and `CLAUDE.md`'s in **check 42** — one rule apiece, no third check about
+    identifiers. To make that possible the resolver was **moved up the file** rather than copied:
+    it sat below check 42 and `const` declarations do not hoist, so the shared derivation now
+    precedes the first check that uses it and all four documents read the same one.
+    **COMPAT.md was clean — 17 spans, zero gaps.** It is the contract for changing a workspace's
+    shape and it hands a reader four functions to call first (`WS.compareSchema`,
+    `WS.provisionDeltaSQL`, `Sync.recheckSchema`, `polecat_migrate()`); a migration contract naming
+    a helper that has moved is the PUBLISH.md failure with a database behind it, and nothing had
+    held it. **CLAUDE.md had 6 unresolvable spans and none of them was drift** — the v994 shape
+    exactly: `data-theme` / `data-palette` / `data-app-theme` are HTML ATTRIBUTES, `studio-theme` /
+    `studio-app-theme` are STORAGE KEYS, and `release-vNNN` is a GIT REF. All three are strings
+    rather than bindings, so the hyphenated branch — which had assumed hyphenated meant the Edge
+    Function's action vocabulary, true only for the runbook — called all six missing. Each was
+    TAUGHT, not exempted, and each resolves against the thing that would have to answer for it: an
+    attribute against the stylesheet that styles it AND the code that sets it (both halves are
+    load-bearing — `data-palette` is only ever written, `data-theme` only ever styled), a storage
+    key against `getItem`/`setItem` and the `storageKey:` the shared shell is handed, a ref against
+    the workflow lines that mint one. The ref needed the extra step: `release-vNNN` is a PATTERN no
+    workflow contains, so both sides reduce to the literal stem before comparison.
+    **Six failure directions measured on mutated trees**, three of them from the CODE side so the
+    rules are shown to read the tree and not the document: a renamed `WS.` member, an unreadable
+    span (`Studio::materialize`), the attribute dropped from the app, the storage key renamed in the
+    app, the promotion minting a different tag, and Help naming an attribute that does not exist.
+    **Est 1pt, took 1.**
+    ~~**Measured in this pass and NOT taken, so the next run does not re-derive it — and it is the
+    named candidate for the next N7 slice.** The resolver now reads nine namespaces, so pointing it
+    at the remaining documents is finally cheap — and a probe over the four that have no identifier
+    rule says the work is real, not a formality: **`PUBLISH.md`** (6 spans, 3 gaps, 1 unreadable),
+    **`README.md`** (2 spans, 1 gap, 2 unreadable), **`docs/PIPELINE.md`** (14 spans, 4 gaps, 2
+    unreadable). The gaps are two more namespaces plus one genuine question: a repo FILE with no
+    extension (`CNAME`, named by both PUBLISH.md and README) and a WORKFLOW named without its
+    `.yml` (`promote-to-prod`, `github-pages`) are both resolvable, while `localStorage` — a
+    browser global, in PIPELINE.md — is the honest edge, because "the platform defines it" is not
+    a claim this repo's tree can answer and the right move may be to exempt globals BY SHAPE.
+    `docs/BACKLOG.md` is deliberately excluded: its 15 unreadable spans are ID series and star
+    glyphs, which are this repo's own vocabulary and not names anyone types at code. Est 2pt —
+    PUBLISH.md and README together, then PIPELINE.md — `docs/` + `tools/` only, no `sw.js` bump.
+    **Note for whoever takes it:** the count above came from a run, not a reading, and it is the
+    third pass in a row where the previous note's number was low.~~ ✓ **SLICE 1 SHIPPED as v996,
+    NO sw bump (2026-08-11, steward — see the v996 line below and DONE); PIPELINE.md is slice 2 and
+    is still open.** The note's counts were right this time — the first pass in four where they
+    were — but two of its three CLASSIFICATIONS were wrong, and both mattered: `github-pages` is a
+    deployment ENVIRONMENT, not "a workflow named without its `.yml`" (there is no
+    `github-pages.yml`), and `GitHub Actions` is a settings-UI label, which the note had not
+    spotted at all.
+  * *The two pages the front door forwards to vs the names they print — v996, NO sw bump
+    (2026-08-11 — see DONE).* The candidate above, slice 1 of its 2 points, exactly where the note
+    drew the line: **`PUBLISH.md` (7 spans) and `README.md` (2), all correct today** — a check, not
+    a repair. What earned the slice is that PUBLISH.md is the first document here executed against
+    **GitHub** rather than against this repo's code, so it names things no reading of this
+    codebase's JavaScript can confirm. Three namespaces were taught, each resolving against the
+    thing that would have to answer for it: a deployment **environment** (`github-pages`) against
+    the workflow that declares it; a settings-UI **label** (`GitHub Actions`) against the workflow
+    that REQUIRES the setting — deploy.yml's own NOTE, which is check 44 (a)'s source, so the rule
+    borrows a derivation rather than minting one; and a repo **file with no extension** (`CNAME`,
+    named by both documents) against the tree, the module branch's reasoning one shape over.
+    **The fourth span pair runs the rule BACKWARDS, and it is the find:** § 3's note names
+    `app/gate-config.js` and `window.STUDIO_GATE_SHA256` in a sentence whose whole job is to say
+    they were deleted (v852, AUD-09). "Every name resolves" is the wrong question for those —
+    demanding it would push a TRUE sentence out of the page — so a retirement the document declares
+    is held from the other end: the name must NOT resolve, and if it comes back the note reddens
+    the gate. The declaration is sentence-scoped and shape-derived, the `identPlaceholders` idiom
+    one step further, never an allow-list. Two exemptions were widened in the same pass, both
+    measured: a key-value fragment written without the space (`caps.data:false`) — rejecting a
+    SECOND colon, so `Studio::materialize` stays in the unreadable bucket — and typography, a span
+    of one character (`A` records, the `+` chips). Rules: **check 44 (g)** and **check 41 (h)**,
+    each in the check that owns its document, the v995 placement. **Eight failure directions
+    measured on mutated trees**, four of them from the CODE side.
+    ~~**Measured in this pass and NOT taken, so the next run does not re-derive it — and it is the
+    named candidate for the next N7 slice, because it is this item's own slice 2.**
+    **`docs/PIPELINE.md`: 15 spans, 3 gaps, 1 unreadable** (measured with the taught resolver, not
+    read off the old note — its `window.STUDIO_STAGE` now resolves, which is why the count moved
+    14→15 and the gaps 4→3). The three gaps are the last namespaces and one real question:
+    **`promote-to-prod`** is a WORKFLOW named without its `.yml` — trivially derivable from
+    `.github/workflows/`, and deliberately left here rather than taken early, since PUBLISH.md
+    needed no such span and a roster with no document reading it is a rule that cannot be measured;
+    **`STUDIO_WS_STORE.blockReason()`** is NOT drift and was measured rather than assumed
+    (`app/workspaces.js:141`, exported from the `window.STUDIO_WS_STORE = (function () { … })()`
+    module) — it is a namespace whose base is a GLOBAL bound to an IIFE's return, a shape
+    `identMember` cannot read because it looks for `NAME = {`; and **`localStorage`** is the honest
+    edge, a browser global, where
+    "the platform defines it" is not a claim this repo's tree can answer, so the right move is
+    probably to exempt globals BY SHAPE (a name the app never assigns and never could). The
+    unreadable span is `git revert -m 1`, a command line — the `node …` exemption one tool over.
+    Est 1pt. `docs/` + `tools/` only, no `sw.js` bump.~~ ✓ **SHIPPED v997, NO sw bump (2026-08-11,
+    steward — see the v997 line below and DONE), and this note's counts were right in every
+    particular — the second pass in a row, after four where they were not.** Its one wrong
+    instinct was the `localStorage` remedy: "exempt globals BY SHAPE" would have bought the span
+    out of the rule, and the honest move was the opposite — RESOLVE it, against the narrower
+    question the tree can actually answer.
+  * *The runbook an operator ships by, vs the names and files it prints — v997, NO sw bump
+    (2026-08-11 — see DONE).* The candidate above, this item's slice 2 of 2, and the last
+    document in the family. **15 spans, all correct today** — a check, not a repair, and all
+    four unresolved shapes were taught rather than exempted: a workflow named without its `.yml`
+    (`promote-to-prod`) against the directory; a **command** (`git revert -m 1`) against the
+    `run:` lines of the workflow that performs the rollback, on an ordered token subsequence so
+    `git revert -n 1` fails where the true invocation passes; a **platform global**
+    (`localStorage`) against whether this app calls the name and never binds it — which hands the
+    span back to the binding rule the day someone shadows it; and `STUDIO_WS_STORE.blockReason()`,
+    a namespace whose base is a global bound to an IIFE, taught to `identMember` as a third shape
+    (read the module's closing `return {…}`) so all seven documents share one derivation.
+    **The verification found a real hole and closing it is the slice's other half — rule (h).**
+    The resolver SKIPS any span containing `/` as "a repo path — check 46 (e) / 48 (e)", and for
+    PACKS.md and the RLS runbook that hand-off is true; for this document it lands nowhere.
+    **PIPELINE.md names 15 repo paths and nothing verified that any of them exists.** Measured by
+    mutating the document — `tools/dev-smoke.mjs` → `tools/dev-smoker.mjs` — which came back
+    GREEN across all 40 checks, because rule (a) matches a gate step by STEM and `dev-smoker.mjs`
+    contains `dev-smoke`. **Rule (a) is right to do that** (CLAUDE.md legitimately names some
+    steps by stem alone, so tightening it would fail a true sentence), which is why the fix is the
+    other one: hold the paths AS paths. Three shapes, no allow-list — a leading `/` is a URL
+    prefix, a last segment spelled like a hostname is another repo's slug (the pilot runbook this
+    page defers to, by design not in this checkout), everything else must exist here.
+    **Ten failure directions measured on mutated trees**, five of them from the CODE side.
+    **Est 1pt, took 1.**
+    ~~**Measured in this pass and NOT taken, so the next run does not re-derive it.** Rule (h) is
+    scoped to PIPELINE.md, and the same hole is open one document over: the resolver's path
+    hand-off names checks 46 (e) and 48 (e), which cover PACKS.md and the RLS runbook — so
+    `CLAUDE.md`, `PUBLISH.md`, `README.md` and `docs/COMPAT.md` have no path rule either, and
+    CLAUDE.md's Layout block alone is mostly paths. Whether that is one shared derivation or four
+    rules apiece is the v995 placement question again, and the answer is probably shared this
+    time, since unlike the identifier rules there is nothing document-specific to teach. Est 1pt,
+    `tools/` only, no `sw.js` bump. **Note for whoever takes it:** measure before writing — every
+    count in this family has been taken from a run, not a reading, since v995, and that is the
+    only reason the last two notes were right.~~ ✓ **SHIPPED v998, NO sw bump (2026-08-11,
+    steward — see the v998 line below and DONE).** Shared was right, and so was the warning:
+    46 paths, 4 of them not resolving, and the first cut of the shared reader **passed green
+    over its own drift** because `lib/VERSION` has the shape of an owner/repo slug. Running it
+    against the unfixed document is what caught that — a reading would not have.
+  * *Four more documents' repo paths — v998, NO sw bump (2026-08-11 — see DONE).* The candidate
+    above. `resolvePaths` is now one reading shared by five documents (rule 44 (h) refactored
+    onto it, check 80 the four new rules), the OWNER half of "another repo's slug" is derived
+    from the `<owner>/<host>` form the fleet spells its repos in rather than shaped, and
+    `CLAUDE.md` was a repair as well as a check: it sent an agent to `lib/VERSION` and
+    `scripts/gen-manifest.mjs`, two paths that live in the platform repo, in a sentence that
+    named only "the platform repo". Eight failure directions measured, two on the real pre-fix
+    tree. The boundary is stated in the check: inside a sentence declared foreign nothing can be
+    held, because no tree here can answer for another repo's.
+    **Measured in this pass and NOT taken, so the next run does not re-derive it:** the path
+    rules are now three derivations over seven documents — `resolvePaths` (five), check 46 (e)
+    for the RLS runbook and check 48 (e) for PACKS.md — and the two older ones predate it, so
+    they read paths their own way (an artifact roster and a cited-path list rather than the span
+    shape). Neither is wrong and both hold today, so this is a CONSOLIDATION, not a drift: worth
+    doing the day a third reading is needed and not before, and worth measuring first, since
+    `select/insert/update/delete` in the runbook has the path shape and is a privilege list —
+    the one span that tells you the shared reader cannot simply be pointed at those two
+    documents as it stands. Est 1pt, `tools/` only, no `sw.js` bump.
 > **📋 RECORDED FOR KEVIN, NOT PROMOTED — grooming pass 4, 2026-08-10.** This sits BELOW the queue
 > on purpose: `docs/BACKLOG.md` says the loop never promotes into ▶ NOW on its own, and pass 2's
 > proposal (PR #623) is still unanswered, so pass 4 proposes no batch. This is one finding the
@@ -15853,7 +18430,55 @@
 > half of "the app's maps are weaker than its data" — the packs' choropleths have no pan/zoom
 > because they take the default SVG renderer. Both are map questions; answering them together may
 > be cheaper than either alone.
-
+>
+> ---
+>
+> **📋 THREE MORE, RECORDED THE SAME WAY — grooming pass 5, 2026-08-10.** SP-5 and SP-13 archived
+> at this pass, and their bodies carried these. Same rule as above: recorded, not promoted, and
+> pass 5 opens no batch proposal on top of the unanswered #623. Ordered by how much has already
+> been paid for their absence.
+>
+> **(1) THE 2,000-ROW LIVE CAP TRUNCATES SILENTLY, AND THREE PACKS HAVE NOW PAID FOR IT.**
+> `app/build.js` (`bdLoadRowsFor`) keeps the first 2,000 rows of any live dataset run — **before**
+> the View's own filters — with no badge on the panel, nothing in Help, and no way for a reader to
+> tell a truncated chart from a complete one. Each pack hit it in a form that changed what the
+> chart SAID, not just how much it showed:
+> * **SP-5** — the recipient table arrives in `cmte_id` order, so the hero drew **$2.8B of $3.69B
+>   and 38 of 50 committees**, dropping Trump 47 and Trump National Committee JFC. The app's own
+>   row limit reproduced the exact partisan artifact slice (a) had gone out of its way to avoid.
+> * **SP-13** — the county table is **3,087 rows in FIPS order**, so a national choropleth drew
+>   Alabama through Ohio and stopped: **sixteen states, Ohio through Wyoming, missing, while the
+>   panel still looked like a map.**
+> * **SP-13 (c)** — it reaches the pinned **Views** too, so the same half-map can land on Home
+>   with no dashboard note anywhere near it.
+> Each pack worked around it with an extra job that trims by a readable rule and says so on the
+> dashboard (SP-5: ≥ $200k → 1,293 rows, 97.7% of the dollars, all 50 committees; SP-13: 1,000+
+> households moving → 1,782 counties, 96.5% of all moves, **no state lost**). **That is a
+> workaround three times over, not a fix.** Options in the order the slices recommended them:
+> **(a) disclose it** — a panel/View badge when a run was truncated, which is the honesty rule the
+> app applies everywhere else; (b) raise the cap with a measured budget; (c) both. **Est ★ 1pt for
+> (a) alone**, and (a) is the one the loop would take first: a partial chart that announces itself
+> is a different product from one that does not. Full measurements in `docs/BACKLOG-ARCHIVE.md` →
+> grooming pass 5 → the SP-5 and SP-13 entries.
+>
+> **(2) `DashKit.heatmap` EMITS INVALID SVG WHEN NARROW — and a shipped example does it today.**
+> It divides the width it is given among its columns after reserving a 130px label gutter and never
+> clamps (`cw = (w - labelW - mR)/cols.length`), so a panel's first paint — which happens at ~28px
+> — emits one negative-width `<rect>` per cell: **336 console errors for a 24×7 pivot, and the
+> shipped `conservation-scorecard` example already emits 56.** Vertical bars divide width the same
+> way and fail the same way; horizontal bars, lines, sankeys, scatters and maps do not. `vendor/`
+> is pristine by invariant, so the clamp belongs in `app/studio-charts.js` or a vendored-toolkit
+> update — **a toolkit slice, est ★ 1pt**, not something to smuggle in on a pack. Until it lands a
+> seeded dashboard cannot use a heatmap, which is why SP-5's cycle panel is a line. Note this one
+> is a *defect against the zero-pageerrors bar*, not only a capability gap — it is the strongest
+> candidate here on those grounds alone.
+>
+> **(3) THE COMMITTED COUNTY ATLAS PREDATES THE 2022 BOUNDARY CHANGES.**
+> `vendor/geo/counties-albers-10m.json` has no shape for **all nine Connecticut planning regions
+> or Alaska's Chugach and Copper River** — eleven ids that are in the data and off the map, so
+> Connecticut reads as "no data" on every county choropleth in the app, not just SP-13's. The fix
+> is a refresh from TIGERweb via `tools/build-geo.mjs`; **est ★ 1pt**, and it touches every county
+> map at once. SP-13 (b) declined to smuggle it in and stated the gap on the dashboard instead.
 ### 📦 SAMPLE-PACK PROGRAM (Kevin, 2026-08-07) — the reservoir
 
 > Kevin picked eleven packs from a researched shortlist of twenty, all at "match the existing
@@ -15861,12 +18486,16 @@
 > **SP-1 is in ▶ NOW** (SP-0 shipped 2026-08-08 and was archived at grooming pass 3, so the
 > program's machinery is done and SP-1 is unblocked); the rest wait here and are promoted a few at a time at
 > grooming — do NOT start one straight from the reservoir.
-> **Program status, pass 4 (2026-08-10):** SP-0 ✓ · SP-6 ✓ COMPLETE (three slices, v963–v965, both
-> archived) · SP-1 ⏳ on `hold` PR #689 for its last slice · **SP-5 is the next one to take** and
-> **SP-13 after it** — Kevin promoted all three money-flow packs himself on 2026-08-09, so those two
-> are directed work, not a reservoir graze. Their ⏫ entries below are the spec; mint each a grammar
-> line in ▶ NOW when its first slice starts, the way SP-6's was. Each is **3pt** (≈3 PRs: extract →
-> workspace content → dashboards/Views/docs) and follows the SP-0 real-data convention.
+> **Program status, pass 5 (2026-08-10):** SP-0 ✓ · **SP-6 ✓ · SP-5 ✓ · SP-13 ✓ — all three of
+> Kevin's money-flow packs are COMPLETE and archived** (v963–v965, v966–v968, v969–v971; nine
+> slices against nine points, every one ON estimate) · SP-1 ⏳ on `hold` PR #689 for its last
+> slice. **So the program has NO directed work left**: every ⏫ entry below is unpromoted
+> reservoir, and per `docs/BACKLOG.md` the loop does not start one straight from here — the next
+> pack is Kevin's to promote (SP-12, SP-14, SP-15 and SP-16 are the standing candidates, and the
+> 2026-08-08 steer below ranks them). When he does, mint the pack a grammar line in ▶ NOW as its
+> first slice starts, the way SP-6's, SP-5's and SP-13's were. Each is **3pt** (≈3 PRs: extract →
+> dashboards → Views/tour/docs) and follows the SP-0 real-data convention, which all four packs
+> to date have used without amendment.
 >
 > **Kevin's steer, 2026-08-08 — read this before choosing the next promotion batch.** Two
 > things: (1) *"I like demographics and census type data, I think people find that
@@ -15895,7 +18524,7 @@
 >   shoulder seasons vanished. *NPS Visitor Use Statistics, monthly 1979–2024, public domain.*
 > - **SP-4 [3pt] — Consumer Price Trends.** Inflation by metro and category; which cities
 >   diverge; the same basket compared. *BLS CPI, public domain.*
-> - **SP-5 [3pt] — Campaign Finance.** ⏫ **PROMOTED to ▶ NOW 2026-08-09 (Kevin) — work it there; the scope decisions below are binding.** Donor geography, industry concentration, small-dollar vs
+> - **SP-5 [3pt] — Campaign Finance.** ✓ **SHIPPED v966/v967/v968 (2026-08-10, steward — see DONE). COMPLETE, ON its 3pt estimate; its ▶ NOW entry was archived at grooming pass 5.** The spec below is kept as the provenance record for the pack that shipped — do not re-take it. Donor geography, industry concentration, small-dollar vs
 >   max-out, out-of-state share. *FEC bulk individual contributions, public domain.*
 >   **✅ SCOPE DECIDED — Kevin, 2026-08-08. Do not re-ask; do not re-open it on his behalf.**
 >   The concern was put to him in full — that the FEC bars using contributor names for
@@ -15948,7 +18577,7 @@
 >   belongs in **SP-16**, where the rows are constructed and the addresses are fabricated — and
 >   it is the better demo anyway, since it can plant the messy cases (apartment lines,
 >   non-standard formats, missing components) on purpose instead of by luck.
-> - **SP-6 [3pt] — Federal Contract Awards.** ⏫ **PROMOTED to ▶ NOW 2026-08-09 (Kevin), and STARTED: slice (a) shipped 2026-08-10 — it has a real item line in ▶ NOW now; work it there, not from here.** Who wins federal work, by agency, vendor, NAICS
+> - **SP-6 [3pt] — Federal Contract Awards.** ✓ **SHIPPED v963/v964/v965 (2026-08-10, steward — see DONE). COMPLETE, ON its 3pt estimate; its ▶ NOW entry was archived at grooming pass 4.** The spec below is kept as the provenance record for the pack that shipped — do not re-take it. Who wins federal work, by agency, vendor, NAICS
 >   and district; small-business share. *USASpending.gov, public domain.*
 > - **SP-7 [3pt] — Food Safety Inspections.** A multi-site operations scorecard: violation rates
 >   by chain and neighbourhood, repeat offenders, inspector variance. *City of Chicago open data
@@ -15993,7 +18622,7 @@
 >   is it aging out?* Long time series + county choropleth + a small-multiples "who changed
 >   most" board. *US Census ACS, public domain.* The most obviously interesting of the group to
 >   a general audience, and the cheapest — same API family as SP-1's extract.
-> - **SP-13 ★ [3pt] — Where America Moved.** ⏫ **PROMOTED to ▶ NOW 2026-08-09 (Kevin) — work it there, not from here.** IRS Statistics of Income **county-to-county
+> - **SP-13 ★ [3pt] — Where America Moved.** ✓ **SHIPPED v969/v970/v971 (2026-08-10, steward — see DONE). COMPLETE, ON its 3pt estimate; its ▶ NOW entry was archived at grooming pass 5.** The spec below is kept as the provenance record for the pack that shipped — do not re-take it. IRS Statistics of Income **county-to-county
 >   migration**: for every county pair, how many households moved, how many people, and the
 >   **aggregate income that moved with them**. Almost nobody demos this and everybody finds it
 >   fascinating — it answers "who is winning and losing population, and are the leavers richer

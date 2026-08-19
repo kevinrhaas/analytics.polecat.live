@@ -32,7 +32,15 @@
     { label: "Export editable spec (.studio.json)", hint: "Export", kw: "export download json spec file source", ic: "download", run: function () { studio(); var b = document.querySelector('#menuExport button[data-exp="spec"]'); if (b) b.click(); } },
     { label: "Export all artifacts (bundle)", hint: "Export", kw: "export all bundle zip artifacts", ic: "copy", run: function () { studio(); var b = document.querySelector('#menuExport button[data-exp="all"]'); if (b) b.click(); } },
     // editing
-    { label: "Add text / annotation panel", hint: "Edit", kw: "text annotation note markdown richtext add panel", ic: "edit", run: function () { studio(); click("btnAddText"); } },
+    // The ¶ Text button MOVED out of the Data-panel header into the canvas empty state on
+    // 2026-07-14 (it creates a spec panel, so it belongs with the canvas) and this command kept
+    // clicking `btnAddText`, an id that has not existed since — so ⌘K found the row and the
+    // row did nothing. `#cesText` is static markup wired to addTextPanel, so a programmatic
+    // click works whether or not the empty state is the thing on screen.
+    // N7: the button it drives renders "¶ Add a text View", so the command says View too —
+    // `panel` is the SPEC key (`spec.panels`), not a word the app shows anyone. It stays in
+    // `kw` on purpose: the old noun is still what a long-time reader types (doc-truth 76c).
+    { label: "Add text / annotation View", hint: "Edit", kw: "text annotation note markdown richtext add panel view", ic: "edit", run: function () { studio(); click("cesText"); } },
     { label: "New dataset / connection", hint: "Data", kw: "new dataset connection source data query connect", ic: "db", run: function () { studio(); click("btnNewDS"); } },
     { label: "Undo", hint: "Edit", kw: "undo revert back step", ic: "undo", run: function () { studio(); click("btnUndo"); } },
     { label: "Redo", hint: "Edit", kw: "redo forward step", ic: "redo", run: function () { studio(); click("btnRedo"); } },
@@ -53,6 +61,12 @@
     { label: "Take the tour", hint: "Learn", kw: "tour welcome intro walkthrough onboarding about", ic: "play", run: function () { studio(); if (window.StudioWelcome) StudioWelcome.open(); } },
     { label: "Interactive tutorial", hint: "Learn", kw: "tutorial walkthrough guide learn steps", ic: "metadata", run: function () { studio(); if (window.StudioTutorial) StudioTutorial.open(); } },
     { label: "Keyboard shortcuts", hint: "Learn", kw: "keyboard shortcuts keys hotkeys cheatsheet", ic: "grip", run: function () { studio(); if (window.__studioShowShortcuts) window.__studioShowShortcuts(); } },
+    // N7: the pair, in the order you should try them. A stuck offline copy of the app is
+    // the common complaint and Hard reset is its answer — it drops the service worker and
+    // the caches and touches NO storage. Clear local data wipes the workspace, so having
+    // only IT in the palette put the destructive remedy one keystroke away and left the
+    // safe one reachable through Settings alone. Doc-truth check 75 holds the pairing.
+    { label: "Hard reset…", hint: "Manage", kw: "hard reset stuck stale offline copy service worker cache reload refresh update banner", ic: "refresh", run: function () { goSec("settings"); click("setHardResetBtn"); } },
     { label: "Clear local data…", hint: "Manage", kw: "clear reset wipe local storage cache data", ic: "trash", run: function () { studio(); click("moreClearData"); } },
     { label: "Sign out", hint: "Manage", kw: "sign out logout leave lock", ic: "close", run: function () { studio(); click("moreSignOut"); } }
   ];
@@ -141,11 +155,14 @@
       if (card) card.click();
     }, 30);
   }
+  // N7: the canvas names what this creates — `#dropHint` says "Drop a dataset here to add a
+  // View" and `#cesText` says "¶ Add a text View" — so the prefix and the family tag say View.
+  // `kw` keeps `panel` so the pre-LF52 word still finds the row (doc-truth 76c).
   function chartTypeCommands() {
     var CHARTS = (window.Studio && Studio.CHARTS) || {};
     return Object.keys(CHARTS).map(function (t) {
       var label = CHARTS[t].label || t;
-      return { label: "Add panel: " + label, hint: "Add panel", kw: "add new panel chart type " + t + " " + label, ic: "plus", run: function () { addPanelOfType(t); } };
+      return { label: "Add View: " + label, hint: "Add View", kw: "add new panel view chart type " + t + " " + label, ic: "plus", run: function () { addPanelOfType(t); } };
     });
   }
 

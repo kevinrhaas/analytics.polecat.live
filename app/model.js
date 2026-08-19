@@ -1091,7 +1091,7 @@
           choices: [["top-right", "Top right"], ["top-left", "Top left"], ["bottom-right", "Bottom right"], ["bottom-left", "Bottom left"]],
           hint: "GL renderer only; has no effect when Zoom/pan controls above is Hidden." },
         { key: "channel", type: "text", label: "Ensemble channel", def: "providers",
-          hint: "Panels sharing a channel stay linked: an Ensemble chart's provider toggles re-color this map live." },
+          hint: "Views sharing a channel stay linked: an Ensemble chart's provider toggles re-color this map live." },
         { key: "agg",     type: "select", label: "Combine duplicate rows by", def: "median",
           choices: [["median", "Median (common estimate)"], ["mean", "Mean"], ["sum", "Sum"], ["min", "Min"], ["max", "Max"], ["last", "Last"]] },
         { key: "classes", type: "int",  label: "Color classes", def: 5 },
@@ -3495,9 +3495,9 @@
     if (!spec.name || !/^[a-z0-9][a-z0-9-]*$/.test(spec.name))
       out.push({ level: "error", msg: "Name must be lowercase letters/numbers/dashes (used for file names)." });
     if (!spec.title) out.push({ level: "warn", msg: "Dashboard has no title." });
-    if (!spec.panels.length && !spec.kpis.length) out.push({ level: "warn", msg: "Dashboard has no panels or KPIs." });
+    if (!spec.panels.length && !spec.kpis.length) out.push({ level: "warn", msg: "Dashboard has no Views or KPIs." });
     spec.panels.forEach(function (p) {
-      if (!p.chart.da) out.push({ level: "error", msg: "Panel “" + (p.title || p.id) + "” has no data query bound." });
+      if (!p.chart.da) out.push({ level: "error", msg: "View “" + (p.title || p.id) + "” has no data query bound." });
     });
     // N-DATA innovation idea (added 2026-07-04, "dashboard health score"): flag a declared data
     // access that no panel/KPI actually references — dead config left over from an earlier draft
@@ -3515,7 +3515,7 @@
       if (Studio.isCompoundDA(da)) { if (da.leftId) usedDaIds[da.leftId] = true; if (da.rightId) usedDaIds[da.rightId] = true; }
     });
     das.forEach(function (da) {
-      if (!usedDaIds[da.id]) out.push({ level: "info", msg: "Data access “" + (da.name || da.id) + "” is declared but not used by any panel, KPI, or filter." });
+      if (!usedDaIds[da.id]) out.push({ level: "info", msg: "Data access “" + (da.name || da.id) + "” is declared but not used by any View, KPI, or filter." });
     });
     // N-DATA follow-up (closes the "broken drill-through/detail-drawer target" health-score item):
     // panel/KPI drill-through (`p.drill`/`k.drill`) only ever targets an external URL, which can't
@@ -3526,7 +3526,7 @@
     var daIds = {}; das.forEach(function (da) { daIds[da.id] = true; });
     spec.panels.forEach(function (p) {
       if (p.detail && p.detail.da && !daIds[p.detail.da]) {
-        out.push({ level: "warn", msg: "Panel “" + (p.title || p.id) + "”'s Detail drawer points to a data access that no longer exists — clicking a chart element will silently do nothing." });
+        out.push({ level: "warn", msg: "View “" + (p.title || p.id) + "”'s Detail drawer points to a data access that no longer exists — clicking a chart element will silently do nothing." });
       }
     });
     // N-DATA innovation idea follow-up: the "still open" half of the dashboard health score idea
@@ -3577,7 +3577,7 @@
   Studio.dashboardCompleteness = function (spec) {
     var items = [
       { key: "title",  label: "Give it a title",        done: !!(spec.title && spec.title.trim() && spec.title !== "Untitled Dashboard") },
-      { key: "panel",  label: "Add a panel",             done: (spec.panels || []).length > 0 },
+      { key: "panel",  label: "Add a View",             done: (spec.panels || []).length > 0 },
       { key: "kpi",    label: "Add a KPI tile",          done: (spec.kpis || []).length > 0 },
       { key: "filter", label: "Add a filter",            done: (spec.filters || []).length > 0 },
       { key: "style",  label: "Add your own accent color or logo", done: !!(spec.themeColor || spec.dashboardTheme || spec.paletteKey || spec.headerLogo) },

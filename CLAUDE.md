@@ -1,7 +1,7 @@
 # analytics.polecat.live — agent guide
 
 Analytics Dashboard Studio: a local-first, in-browser analytics workspace and
-visual dashboard builder (~67K LOC vanilla HTML/JS/CSS, no build step, no
+visual dashboard builder (~75K LOC vanilla HTML/JS/CSS, no build step, no
 framework, no runtime deps) deployed from the repo ROOT via GitHub Pages.
 (That LOC figure is first-party source — `app/ css/ tools/ index.html sw.js
 docs/index.html` — excluding `vendor/`, the test suite and `js/changelog.js`;
@@ -107,9 +107,10 @@ they branch from dev and PR into dev per the pipeline rules below.
   precached files (and any shell adoption).
 - **`vendor/polecat-shell/` is READ-ONLY** — a verbatim copy of
   `kevinrhaas/polecat-platform` `lib/` (the test suite sha256-verifies every
-  file against MANIFEST.json; fleet sweeps drift-check it too). Changes belong
-  in the platform repo (bump `lib/VERSION` + run `scripts/gen-manifest.mjs`
-  there) and arrive via `chore: polecat-shell vX.Y.Z` sync PRs. App-side
+  file against MANIFEST.json; fleet sweeps drift-check it too). Changes belong in
+  `kevinrhaas/polecat-platform` — bump that repo's `lib/VERSION` and run its
+  `scripts/gen-manifest.mjs`, neither of which is a path in this one — and they
+  arrive here via `chore: polecat-shell vX.Y.Z` sync PRs. App-side
   skinning lives in this repo's own CSS: the shell-token bridge at the top of
   `app/studio.css` maps the canonical shell tokens onto Studio values, and
   `data-palette` mirrors `data-app-theme` (historical `studio-theme` /

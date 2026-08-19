@@ -305,11 +305,19 @@
   cards are the tours:</p>
   <ul>
     <li><strong>Take the guided tour</strong> — spotlighted walkthroughs of the real app. It opens
-      a picker of topics (getting started, quick analysis, building a dashboard, prepping and
-      connecting your data — plus one for your installed sample pack), each a couple of minutes,
-      with a Back button if you change your mind. <strong>Getting started</strong> walks the left
+      a picker of five topics — <span id="tour-topics"><strong>Getting started</strong>,
+      <strong>Quick analysis</strong>, <strong>Build a dashboard</strong>, <strong>Prep data
+      (Jobs)</strong> and <strong>Connections &amp; Datasets</strong></span> — each a couple of
+      minutes, with a Back button if you change your mind. The last two are separate walks, not
+      one errand: prepping data is the Jobs tour, connecting it is the Connections-and-Datasets
+      one. Sample packs add their own rows <em>below</em> those five — a pack that carries a tour
+      joins the picker the moment you install it and leaves again when you remove it, so the list
+      is as long as your workspace is furnished (which packs those are is noted under
+      <a href="#sample-packs">Sample packs</a>).
+      <strong>Getting started</strong> walks the left
       rail from the top down, group by group — Workspace, then Build, then Manage — so the tour
-      and the rail you're looking at stay in the same order. Every tour brings you back to the
+      and the rail you're looking at stay in the same order; if you have packs installed it also
+      splices in one stop per pack, right after the welcome. Every tour brings you back to the
       welcome screen when it finishes, so you can take another or head off and explore.</li>
     <li><strong>Take a quick tour</strong> — a short step-by-step carousel right in the dialog:
       what the app is, the three places you build (<strong>Quick Views</strong>, the
@@ -318,14 +326,15 @@
       <strong>Repository</strong> and <strong>Home</strong>), exporting a dashboard, and
       bringing your own data in through <strong>Connections</strong>,
       <strong>Datasets</strong> and <strong>Jobs</strong> — so between them the cards name
-      every section on the rail. It's <strong>pack-aware</strong>: a workspace set up with a
-      sample pack (say, Conservation Insight) gets an extra step introducing that pack by
-      name.</li>
+      every section on the rail. It's <strong>pack-aware</strong>: a workspace set up with sample
+      packs gets one extra step per installed pack, each introducing its pack by name — so two
+      packs mean two extra cards, not one.</li>
   </ul>
   <p>Below the tours, smaller shortcuts jump straight into a section (<strong>New View</strong>,
   <strong>Build a dashboard</strong>, <strong>Bring your data</strong>), and a clearly-labeled
   <strong>Skip the tour</strong> button lets you go explore on your own. The welcome shows only
-  once; revisit it anytime from <strong>Settings → Tour</strong>.</p>
+  once; revisit it anytime from <strong>Settings → Presentation</strong>, whose
+  <strong>Welcome tour</strong> row carries a <strong>Take the tour</strong> button.</p>
 
   <h3>The left rail — three groups</h3>
   <!-- IMAGE-SLOT: annotated screenshot of the left rail with the three group labels
@@ -341,13 +350,13 @@
         <li><strong>View Builder</strong> — the full drag-and-drop canvas (shelves, pivots,
           calculations). Its saved results are what the <strong>Views</strong> section above
           lists.</li>
-        <li><strong>Dashboard Builder</strong> — where dashboards are assembled and exported
-          (a.k.a. Studio, described below; visible to <strong>developer</strong> and
+        <li id="builder-access"><strong>Dashboard Builder</strong> — where dashboards are assembled
+          and exported (a.k.a. Studio, described below; visible to <strong>developer</strong> and
           <strong>admin</strong> accounts — a <strong>viewer</strong> opens dashboards through
           the read-only viewer route instead). The <strong>Dashboards</strong> section above is
           the catalog of what it produces.</li>
       </ul></li>
-    <li><strong>Manage</strong> — <strong>Jobs</strong>, <strong>Admin</strong> (admin accounts only:
+    <li id="roles-ladder"><strong>Manage</strong> — <strong>Jobs</strong>, <strong>Admin</strong> (admin accounts only:
       who can sign in, and whether they're an admin, developer, or viewer — each role a superset of
       the one below; its <strong>Section access</strong> card turns any of the other rail sections off
       for the viewer role, and Home and Settings always stay — Settings is where a viewer signs out),
@@ -359,13 +368,14 @@
           indicator to jump to the backend card in Settings</li>
       </ul></li>
     <li><strong>Pinned at the bottom</strong>, below the groups and always available:
-      <strong>Settings</strong> (appearance and colour theme, the workspace-backend card, and
-      where you sign out) and <strong>Help</strong> — this guide, opened inside the app rather
-      than in a new tab.</li>
+      <strong>Settings</strong> — <a href="#settings-cards">one page of cards</a>, from your
+      account and the workspace backend through appearance, mode and presentation to your
+      dashboard defaults, the sample packs and settings backup; it is also where you sign out —
+      and <strong>Help</strong>, this guide, opened inside the app rather than in a new tab.</li>
   </ul>
   <p>Collapse the rail to icons-only with the toggle at its bottom. Your browser's
   <strong>Back</strong>/<strong>Forward</strong> buttons step through sections instead of leaving the
-  app — Back closes an open editor, panel zoom, or slideshow first.</p>
+  app — Back closes an open editor, a zoomed View, or slideshow first.</p>
 
   <h4>Two rail items worth calling out</h4>
   <ul>
@@ -541,8 +551,11 @@
       <p><strong>Install it:</strong> the Studio is an installable, offline-capable app — most browsers offer
       "Add to Home Screen"/"Install app" from the address bar. Once installed (or even just visited once), a
       background service worker caches the app shell so it keeps working with no connection; it always
-      prefers a fresh copy over the network first, falling back to the cached one only when offline. "Clear
-      local data" (⋯ More menu) also clears this cache.</p>
+      prefers a fresh copy over the network first, falling back to the cached one only when offline. If that
+      cached copy ever gets stuck — an update banner that keeps coming back however often you reload —
+      <strong>Settings → App → Hard reset</strong> throws it away and fetches everything fresh, without
+      touching anything you have made. "Clear local data" (⋯ More menu) also clears this cache, but it wipes
+      your workspace with it, so reach for the hard reset first.</p>
     </div>
   </div>
 </section>
@@ -550,7 +563,34 @@
 <!-- ── Home ───────────────────────────────────────────────────── -->
 <section id="home">
   <h2>Home — instant analytics</h2>
-  <p><strong>Home</strong> greets you with your content, live:</p>
+  <p><strong>Home</strong> is where the app opens. The top of the page is a row of quick-start
+  cards — one per way to begin — and everything below them is your own content, live.</p>
+
+  <h4>The quick-start cards</h4>
+  <p>Under the “Welcome back” greeting Home lays out a card per starting point. Clicking one takes
+  you straight there; nothing is created until you save.</p>
+  <ul id="home-quick-cards">
+    <li><strong>New View</strong> — pivot and chart with shelves in the View Builder.</li>
+    <li><strong>New Quick View</strong> — the fast one-chart builder (Quick Views).</li>
+    <li><strong>New dashboard</strong> — a blank canvas in the Dashboard Builder.</li>
+    <li><strong>New connection</strong> — connect to your own data.</li>
+    <li><strong>New dataset</strong> — build a dataset on a connection you already have.</li>
+    <li><strong>Quick import</strong> — drop a CSV, JSON or Excel file and get a dashboard
+      immediately (see “Quick import” above).</li>
+    <li><strong>Sample dashboards</strong> — curated dashboards from your installed sample packs.
+      This card appears only while an installed pack actually contributes examples, so a workspace
+      with every pack removed does not advertise a section with nothing in it.</li>
+    <li><strong>Take the tour</strong> — replay the guided walkthrough of the builder.</li>
+  </ul>
+  <p>A <strong>viewer</strong>-role account sees only the cards it can act on:
+  <span id="home-viewer-cards"><strong>New dashboard</strong>, <strong>Quick import</strong>,
+  <strong>Sample dashboards</strong> and <strong>Take the tour</strong></span> all route into the
+  builder, which viewers never enter, so Home leaves them out rather than offering a dead click.</p>
+  <p>A rotating <strong>tip</strong> sits under the cards; the › button on it steps to the next one.</p>
+
+  <h4>Your content, below</h4>
+  <p>Each content section is <em>hidden while it is empty</em> — except <strong>Dashboards</strong>,
+  which always renders, so a brand-new workspace still has somewhere to land:</p>
   <ul>
     <li><strong>Featured dashboards</strong> — click the small house button on any dashboard card
       to feature it. Featured dashboards render on Home as real, scaled-down live previews (the
@@ -566,8 +606,20 @@
       cards cost nothing. The full-page
       <strong>viewer</strong> is the one place that follows <em>your</em> theme instead — see
       "Open in viewer" below.</li>
-    <li>Each Home section (Featured, Pinned, Favorites, Examples, Dashboards) has a ▲▼ control in
-      its heading — reorder them to taste; the order sticks between visits.</li>
+    <li id="home-sections">Each Home section — <strong>Featured</strong>,
+      <strong>Pinned Views</strong>, <strong>Favorite datasets &amp; connections</strong>,
+      <strong>Examples</strong> and <strong>Dashboards</strong> — has a ▲▼ control in its heading;
+      reorder them to taste and the order sticks between visits. Moving a section swaps it with its
+      nearest section that is actually on screen, so an empty one never blocks the move.</li>
+    <li>The <strong>Dashboards</strong> section holds your own dashboards in two strips:
+      <span id="home-dashboards-strips"><strong>Pinned</strong> — the ones you pinned from a
+      dashboard card, which is a different thing from the Pinned Views section above — and
+      <strong>Recent dashboards</strong></span>, the ones you opened or edited most recently.</li>
+    <li id="home-workbook-chips">Once you have workbooks (Repository → Workbooks) a chip strip
+      appears above the sections and narrows the Dashboards section to one of them:
+      <strong>All</strong>, a chip per workbook, and <strong>Unfiled</strong> for everything not in
+      one, each with its own count. It filters the view only — filing a dashboard into a workbook
+      stays Repository's job.</li>
     <li><strong>Examples</strong> shows sample dashboards from the packs you actually have
       installed (Settings → Sample packs) — removing a pack removes its cards. With more than
       one pack installed the cards group under a heading per pack, each with its own
@@ -585,7 +637,7 @@
   toggles all work) with none of the builder chrome. Handy for sharing with someone who should
   read a dashboard, not edit it.</p>
   <p><strong>Light or dark in the viewer follows you, not the author.</strong> A dashboard's
-  <strong>Appearance</strong> setting (Dashboard panel → Appearance: Light, Dark or Auto) decides
+  <strong>Appearance</strong> setting (Dashboard inspector → Appearance: Light, Dark or Auto) decides
   how the dashboard looks as a finished piece — but inside this app the viewer renders it in
   <em>your</em> light/dark theme instead, because a dark app wrapped around a light dashboard just
   looks broken. Nothing about the dashboard is changed: switch your own theme and the viewer
@@ -596,7 +648,7 @@
   asks the file itself to adapt (see "Appearance" below). The builder's live preview also keeps
   showing the authored Appearance, so you can see what you're making.</p>
   <p id="filters-how"><strong>How dashboard filters find their data:</strong> a filter applies to a
-  panel when the panel's dataset either declares the filter as a query parameter (live SQL engines
+  View when that View's dataset either declares the filter as a query parameter (live SQL engines
   substitute it server-side) or simply has a column with the same name — the rows are then
   filtered to the picked value. A filter named <em>Since …</em> keeps everything from the picked
   value onward (so "Since year 2020" shows 2020 to today, not just 2020). This works the same on
@@ -605,15 +657,31 @@
     <li>A private dashboard's viewer link only works for its owner (or an admin).</li>
     <li>A <strong>viewer</strong>-role account clicking any dashboard lands here directly — the
       builder isn't open to them at all.</li>
+  </ul>
+  <h4 id="viewer-bar">The viewer's top bar</h4>
+  <p>Left to right it carries a back link to <strong>Analytics</strong>, the dashboard's title, a
+  <strong>Viewer — read-only</strong> badge that says plainly what this page is, and these
+  actions:</p>
+  <ul id="viewer-bar-actions">
     <li><strong>Save a copy</strong> (offered to everyone, viewers included) forks the dashboard
       into a brand-new one you own, without touching the original.</li>
-    <li>A <strong>developer</strong> or <strong>admin</strong> also gets an <strong>Edit in
-      Studio</strong> button that jumps straight into the builder on that exact dashboard.</li>
+    <li><strong>Export</strong> (also offered to everyone) downloads what you are looking at — the
+      three formats are below.</li>
+    <li><strong>Edit in Dashboard Builder</strong> — a <strong>developer</strong> or
+      <strong>admin</strong> also gets this button, which jumps straight into the builder on that
+      exact dashboard. A viewer-role account never sees it.</li>
   </ul>
-  <p id="viewer-export">The viewer's top bar also has an <strong>Export</strong> button (available
-  to everyone) offering three of the formats Studio does: <strong>Dashboard (.html)</strong> — a
+  <p id="viewer-bar-phone"><strong>On a phone the bar goes icon-only.</strong> At
+  <strong>640px</strong> and narrower the bar has no room for all of that, so the
+  <strong>Viewer — read-only</strong> badge is dropped and every button loses its text label —
+  Save a copy, Export and Edit in Dashboard Builder become their icons alone, each keeping its
+  name as its tooltip and its screen-reader label. Nothing moves into <strong>⋯ More</strong>
+  here: that is the builder's toolbar (<a href="#phone-more">the toolbar lives in ⋯ More</a>),
+  and the viewer has no ⋯ menu at all.</p>
+  <p id="viewer-export">That <strong>Export</strong> button offers three of the formats Studio
+  does: <span id="viewer-export-formats"><strong>Dashboard (.html)</strong> — a
   self-contained file you can drop on any static host or open offline — <strong>PDF (print)</strong>,
-  and the <strong>editable spec (.json)</strong>. The office formats and the bundle are the
+  and the <strong>Editable spec (.json)</strong></span>. The office formats and the bundle are the
   builder's Export ▾ menu only (see "Exporting" below). A sample or demo dashboard exports with its data baked in,
   so the download is complete on its own; a dashboard backed by a real data source keeps querying
   that source live, in the viewer and in the exported file alike.</p>
@@ -639,31 +707,45 @@
     <li><strong>Views are reusable.</strong> Saved Views appear in the left list here, in
     the builder's Data panel under <strong>Views</strong> (click <em>+ Add to dashboard</em> or drag
     one onto the canvas), and — when pinned with the ★ — as cards on <strong>Home</strong>.</li>
-    <li><strong>Adding a result to a dashboard is unambiguous.</strong> The result panel's
-    <strong>+ New dashboard</strong> button drops your chart into a brand-new dashboard;
+    <li><strong>Adding a result to a dashboard is unambiguous.</strong> The <strong>Result</strong>
+    step's <strong>+ New dashboard</strong> button drops your chart into a brand-new dashboard;
     <strong>Existing dashboard…</strong> opens a picker of your saved dashboards and adds it to
     whichever one you choose. Either way it's saved as a View first if you haven't already.</li>
     <li><strong>Self-contained.</strong> A View embeds its data access, so it keeps working
     (with sample rows) even if the original workspace dataset is later deleted.</li>
     <li><strong>Every scale of chart.</strong> The chart chips include the everyday types plus
     the US choropleth map (county / state / USDA district / watershed / congressional district / ZIP code) and the Ensemble
-    common-estimate chart with its reference-series option. A map's <strong>Renderer</strong>
-    picker (Built-in vs Interactive GL — pan &amp; zoom at any polygon count) is right there too,
-    and the choice is saved with the View. On the Interactive GL renderer, a
-    <strong>Zoom/pan controls</strong> option shrinks the on-map cluster to a compact size or
-    hides it entirely (Show / Compact / Hidden) — handy when the controls compete with a dense
-    dashboard layout; dragging and scroll-to-zoom keep working even when the cluster is hidden.
-    A <strong>Controls position</strong> option docks that same cluster in any corner of the
-    map (top right by default, matching every map saved before this option existed).</li>
+    common-estimate chart.
+    <span id="quickviews-chart-options">Quick Views deliberately offers only the handful of
+    per-chart options that decide what the chart <em>is</em>, and they sit right under the column
+    mapping: <strong>Region scale</strong> and <strong>Renderer</strong> on a map (Built-in vs
+    Interactive GL — pan &amp; zoom at any polygon count), and <strong>Reference series</strong> on
+    an Ensemble chart (a series drawn for context that never joins the estimate).</span> Each is
+    saved with the View. Every <em>other</em> option a chart type has — a GL map's zoom/pan cluster
+    and which corner it docks in, colour classes, value formats, a View's height — lives in the
+    <strong>Dashboard Builder</strong>'s inspector, so save the View here and open it there when
+    you want to tune it.</li>
     <li><strong>Workspace datasets run live</strong> for the table preview and the chart; if a
     live run fails, Explore falls back to typed sample rows and says so.</li>
     <li><strong>Rollups (group-by aggregation).</strong> Under the column mapping, the
-    <strong>Rollup</strong> control lets you aggregate the value column with <em>Sum, Mean,
-    Median, Min, Max</em> or <em>Count</em>, grouped by <strong>one or two</strong> dimensions
-    (Group by / Then by) — so a detail dataset becomes a chart of totals or averages without
-    building a Job first. The rollup is saved onto the View, so it re-aggregates the same way
-    on Home, in any dashboard, and in the exported HTML. (Geo and Ensemble charts carry their own
-    aggregation, so the control is hidden for those.)</li>
+    <strong>Rollup</strong> control lets you aggregate the value column
+    <span id="quickviews-rollup-fns">with <em>Sum</em>, <em>Mean</em>, <em>Median</em>,
+    <em>Min</em>, <em>Max</em> or <em>Count</em></span>, grouped by <strong>two</strong> dimensions
+    at most (Group by / Then by) — so a detail dataset becomes a chart of totals or averages
+    without building a Job first. It starts on <em>No aggregation (raw rows)</em>, which charts the
+    dataset as it comes. The rollup is saved onto the View, so it re-aggregates the same way
+    on Home, in any dashboard, and in the exported HTML.
+    <strong>It is not offered on every chart.</strong> A rollup aggregates <em>one</em> measure by
+    category, so the control appears on
+    <span id="quickviews-rollup-on">the single-measure category charts — <strong>Bar chart</strong>,
+    <strong>Line / area</strong>, <strong>Donut / pie</strong>, <strong>Treemap</strong> and
+    <strong>Table</strong></span>, and is hidden on
+    <span id="quickviews-rollup-off"><strong>Scatter / bubble</strong> and
+    <strong>Heatmap (pivot)</strong>, which position more than one measure at a time and would
+    collapse if one were grouped away, and on <strong>Map (US choropleth)</strong> and
+    <strong>Ensemble (common estimate)</strong>, which do their own aggregation</span>. Those four
+    chart their rows as they arrive; roll them up in a <strong>Job</strong> first if you need
+    totals.</li>
     <li>In <strong>Simple mode</strong>, Quick Views is the default section on first open when
     you have no featured content on Home; your own last-used section always wins.</li>
     <li><strong>New dataset without leaving Explore.</strong> The <strong>+ New</strong>
@@ -681,7 +763,7 @@
   <figure class="fig-slot has-img"><img src="img/viewbuilder.png" alt="The View Builder: dataset outline on the left, fields on the Columns and Rows shelves, the live result in the middle" loading="lazy"/><figcaption>The View Builder</figcaption></figure>
   <p><strong>Views</strong> (left rail, Build group) is Quick Views' power-user sibling: a visual
   pivot/crosstab query builder.</p>
-  <h4>The dataset navigator (left panel)</h4>
+  <h4>The dataset navigator (left pane)</h4>
   <ul>
     <li>Workspace datasets group into their <strong>folders</strong> (nested via "/", each branch
       collapsible, sorted alphabetically); sample data groups by set and collapses once you have
@@ -703,8 +785,8 @@
   which groups by that field instead of summing it; id-like numeric columns (ending in
   <code>_fips</code>, <code>_id</code>, or plain <code>id</code>) default to Category the first
   time you drop them, rather than SUM.</p>
-  <p>When you save, the <strong>Panel title</strong> field names the panel that holds the View on
-  dashboards — it defaults to (and keeps tracking) the View's name until you set your own.</p>
+  <p>When you save, the <strong>Title on dashboards</strong> field names the View where it sits on a
+  dashboard — it defaults to (and keeps tracking) the View's name until you set your own.</p>
   <p>Drop a field on the <strong>Rows</strong> shelf (or use a chip's ⇄ button) and the table
   pivots into a <strong>crosstab</strong>:</p>
   <ul>
@@ -735,7 +817,7 @@
   Heatmap draws as a colour matrix, drawn as flows instead. Filter the measure to keep it readable: a
   diagram with a few dozen ribbons is a picture, one with several hundred is a hairball.</p>
   <p>The chart canvas <strong>fills to the bottom of the screen</strong> by default (like the
-  dataset panel next to it) and is resizable: drag the slim bar under it to make it taller or
+  datasets pane next to it) and is resizable: drag the slim bar under it to make it taller or
   shorter, or the bar on its right edge to make it narrower or wider. The size you set sticks
   across visits; <strong>double-click</strong> a bar to snap that direction back to automatic
   (fill to the bottom / full width). On a phone the canvas just fills the width — no drag bars.</p>
@@ -744,12 +826,12 @@
   the bar, not on every pixel of the drag. The canvas is a <em>preview viewport</em>, though, not
   part of the View: it is one setting for this browser, shared by every View you open here, so
   <strong>saving a View keeps that View's own height</strong> and never picks up the size you last
-  dragged. To change the height a View is stored and exported at, set it where every panel's
+  dragged. To change the height a View is stored and exported at, set it where every View's
   height lives — <strong>Height (px)</strong> in the dashboard builder's Inspector, or by dragging
-  the panel's bottom edge there.</p>
-  <p>The <strong>Datasets panel</strong> resizes the same way: drag its right edge anywhere from
+  the View's bottom edge there.</p>
+  <p>The <strong>Datasets</strong> pane resizes the same way: drag its right edge anywhere from
   200 to 480px when long dataset names get cut off — the width sticks across visits. The chevron
-  in its header collapses the whole panel to a slim vertical strip (more room for the canvas);
+  in its header collapses the whole pane to a slim vertical strip (more room for the canvas);
   click the strip to bring it back.</p>
   <p><strong>Drop a file to start instantly.</strong> Drag a CSV, TSV, JSON, or Excel (.xlsx) file anywhere onto
   the View Builder: it becomes a real dataset (it appears in your Datasets list like any other)
@@ -760,11 +842,11 @@
   <p><strong>Switching datasets never loses your work.</strong> Each dataset keeps its own
   work-in-progress draft: click another dataset and your shelves, filters, calculations, and
   chart pick are stashed; click back and they return exactly as you left them (drafts survive a
-  reload too). Datasets carrying a draft show a small dot in the panel, so you can build on
+  reload too). Datasets carrying a draft show a small dot in the pane, so you can build on
   several and walk through them one by one. The <strong>Clear canvas</strong> button at the right
   end of the chart strip resets just the current dataset to a clean slate.</p>
   <p><strong>KPI</strong> is the odd one out: no dimension at all, just one rolled-up headline number
-  (Save adds it to a dashboard's KPI row, not its panel grid). Put any field on a shelf — a measure
+  (Save adds it to a dashboard's KPI row, not its View grid). Put any field on a shelf — a measure
   aggregates across every row, or a plain field falls back to COUNT — and it collapses the whole
   filtered result down to a single value, the same grand-total rollup the Table chart type would show
   with nothing on Rows and one measure on Columns.</p>
@@ -779,7 +861,7 @@
   <p><strong>Quadrant</strong> takes the same two measures and splits the plot into four labelled
   zones, colouring each point by the zone it lands in — the "where does this one sit?" read that a
   plain scatter leaves to the eye. It splits at the midpoints here; the thresholds and the four
-  zone labels are edited on the dashboard panel (Inspector), and a View that already has its own
+  zone labels are edited in the <strong>Dashboard</strong> inspector, and a View that already has its own
   keeps them when you open and update it from the builder.</p>
   <p><strong>Map</strong> draws a US choropleth from your <em>geographic</em> field (region ids —
   FIPS county code, state FIPS or postal code, USDA district, watershed/HUC8, congressional
@@ -788,7 +870,7 @@
   itself from that field's name and values (a <code>state_fips</code> column opens as States, a
   <code>huc8</code> column as Watersheds) — the <strong>Auto</strong> entry in the Region-scale
   control next to the chart types shows what it inferred, and picking a scale there overrides it.
-  Renderer and styling still live on the saved View's panel like any other map. Put a field on the
+  Renderer and styling still live on the saved View itself like any other map. Put a field on the
   <strong>Color</strong> shelf and the map switches to per-region <strong>series</strong> instead: a
   long table of region × series × value that plugs straight into the Studio ensemble channel, so an
   Ensemble chart's provider toggles elsewhere on the same dashboard re-color it live.</p>
@@ -847,7 +929,7 @@
   sample content, never your real data — and <strong>Remove</strong> takes
   back exactly what Install added. Everything a pack adds is <strong>filed in the pack's own
   folder</strong> (Conservation Insight, Data Management, Market Coverage, Federal Contract
-  Awards) across every section, and its raw sample
+  Awards, Campaign Finance, Where America Moved) across every section, and its raw sample
   tables only appear in the dataset pickers while the pack is installed — an uninstalled pack leaves
   no trace. <strong>The packs are the only sample-content switch there is</strong> — Settings used to
   carry a separate "Sample content" mode toggle that hid everything at once, and it is gone: remove the
@@ -884,7 +966,8 @@
     outlier-detection view, a year-over-year practice-switching view, and a richtext-led narrative
     overview rolling all of it up, each with their own filter bar too, save the overview) to both
     your Dashboards screen and Home's sample gallery — removing the pack takes all fourteen dashboards
-    back out again, so the workspace doesn't get cluttered for everyone else.</li>
+    back out again, so the workspace doesn't get cluttered for everyone else. The pack also carries
+    its own guided tour, which appears in ⌘K → Interactive tutorial once it is installed.</li>
     <li><strong>Market Coverage</strong> is the pack built on real data: US Census county business
     counts and demographics, embedded in the app rather than fetched. It seeds one
     <strong>connection</strong> over three <strong>datasets</strong> — the two committed Census
@@ -896,7 +979,8 @@
     (restaurant supply by county, its grocery twin, and income plotted against supply), the
     demographics behind them (income, age, education), and a shortlist of counties with the income
     but not the restaurants. The shortlist's two rules are ordinary filters on the View — open it in
-    the builder and you can move them.</li>
+    the builder and you can move them. The pack also carries its own guided tour, which appears in
+    ⌘K → Interactive tutorial once it is installed.</li>
     <li><strong>Federal Contract Awards</strong> is the pack about where public money goes:
     USASpending.gov's record of federal contracts obligated in fiscal year 2025, embedded in the
     app rather than fetched. It seeds one <strong>connection</strong> over five
@@ -922,6 +1006,88 @@
     filter behind the numbers — contracts only, one closed fiscal year, the top 25 agencies and
     the top 12 industries and vendors within each — is written down in
     <code>tools/pack-extract/contractawards.mjs</code> and in the pack's
+    <code>SOURCE.json</code>.</li>
+    <li><strong>Campaign Finance</strong> is the pack about who funds federal politics: the
+    Federal Election Commission's own record of itemized individual contributions in the closed
+    2023-24 election cycle — $6.5 billion of them — embedded in the app rather than fetched. It
+    seeds one <strong>connection</strong> over nine <strong>datasets</strong> — giving by donor
+    state, the fifty largest recipient committees, every donor state each of those committees drew
+    from, the top 200 occupations and the top 200 employers, twenty-four months of giving by kind
+    of committee, contributions banded from under $50 to the per-election limit, and the outputs of
+    two prep <strong>jobs</strong>: the first joins a donor state to the committee that received it, so
+    one state's giving reads as a share of that committee and as the share that came from outside
+    the state the candidate is running in, and the second keeps the flows of $200,000 or more —
+    97.7% of the money and all fifty committees — because a View reads a dataset's first 2,000 rows
+    live and the full table is 2,658, so the pack trims by a rule you can open rather than losing
+    the tail silently. The flow table carries the committee <em>id</em> and
+    not its name on purpose: bringing the readable name, the party, the seat and the committee's
+    own total across is exactly what the job is for. On top of them sit three
+    <strong>dashboards</strong> in a <strong>Campaign Finance</strong> folder: <em>Who Funds
+    Whom</em> (the donor-state-to-committee sankey, how much of each Senate candidate's itemized
+    money came from the state they are running in, and the pairs where one state supplied a fifth
+    or more of a committee), <em>Where the Money Comes From</em> (the donor-state map, with the
+    small-gift and max-out shares as calculated columns you can open and edit), and <em>Who Gives
+    It, and How</em> (occupation and employer, a marimekko of cheque size against the kind of
+    committee that received it, and the twenty-four-month arc of the cycle). Four pinned
+    <strong>Views</strong> come with them — the flow as a real sankey, each Senate campaign's
+    own-state share, giving by donor state on the map, and every state with both derived shares
+    as a table — and they are ordinary View Builder Views: the $10M floor on the flow is a filter
+    chip you can drag off, and the small-gift and max-out shares are calculated columns whose
+    formulas are on the shelf. The pack also carries its own guided tour, which appears in
+    ⌘K → Interactive tutorial once it is installed.
+    <strong>Two things to read it with, both of them in the data rather than around it.</strong>
+    First, it is <em>itemized</em> giving: a committee reports a donor once their cycle total
+    passes $200 and reports everything below that as one unitemized lump, so the small
+    contributions here are small gifts from donors who crossed that line — not the small-dollar
+    donor universe, which this source simply does not contain. Second, every recipient committee
+    is counted and not just the campaigns, which is why <code>committee_type</code> exists: the
+    two sides raised through different plumbing — joint fundraising committees that transfer
+    onward on one, earmarked money itemized straight against the campaign on the other — and
+    filtering to candidate committees would have shown a landslide that did not happen. No donor
+    names and no addresses are in the pack: every table is an aggregate, and the FEC's bulk file
+    carries no street address in the first place. Every filter behind the numbers is written down
+    in <code>tools/pack-extract/campaignfinance.mjs</code> and in the pack's
+    <code>SOURCE.json</code>.</li>
+    <li><strong>Where America Moved</strong> is the pack about migration, and about the money that
+    moves with it: the IRS Statistics of Income record of where American households moved between
+    filing years 2022 and 2023, embedded in the app rather than fetched. Because the IRS matches
+    each year's returns to the previous year's, it can publish something no single-county table
+    can — not just how many households left one county for another, but the aggregate income that
+    left with them. It seeds one <strong>connection</strong> over seven <strong>datasets</strong> —
+    every county's arrivals and departures (3,087 of them), the same for the 50 states and DC plus
+    the households that <em>stayed</em>, the 300 largest state-to-state corridors, the biggest
+    county-to-county corridors out of each state, and the outputs of three prep <strong>jobs</strong>:
+    the first derives each county's net position in households and in dollars and sets the average
+    income of its arrivers against its leavers, the second joins each corridor to the state it
+    left, so a corridor reads as a share of everyone who departed that state and its movers' average
+    income can be set against the people who stayed put, and the third keeps the 1,782 counties
+    where at least a thousand households arrived or left — 96.5% of every move in the extract —
+    because a View reads a dataset's first 2,000 rows live and the county table is 3,087, so the
+    pack trims by a rule you can open rather than letting a national map stop halfway across the
+    country. On top of them sit three <strong>dashboards</strong> in a <strong>Where America
+    Moved</strong> folder, split by grain rather than by topic because the two grains measure
+    different universes: <em>Who Is Winning Households</em> (county grain — the net-migration
+    choropleth, the arrivers-versus-leavers income gap as its twin, and the counties at both ends
+    of both), <em>The Corridors</em> (state grain — the state-to-state flow, the corridors carrying
+    a sixth or more of the state they leave, and the biggest county-to-county moves), and
+    <em>Did the Money Move With Them</em> (state grain — net adjusted gross income by state as a
+    calculated column you can open and edit, and the households on each corridor set against the
+    ones who stayed put). Four pinned <strong>Views</strong> come with them — net migration by
+    county, the corridors as a real flow, the income that changed state, and every corridor's
+    movers against the stayers of the state they left — and they are ordinary View Builder Views:
+    each names its grain in its own title, the corridor floor is a filter chip you can drag off,
+    and the net-income column is a calculated column whose formula is on the shelf. The pack also
+    carries its own guided tour, which appears in ⌘K → Interactive tutorial once it is installed.
+    <strong>Three things to read it with, all of them properties of the source rather than the
+    extract.</strong> First, the unit is a tax return, not a person: a "move" here is a household
+    that filed from a new address, and the pack counts US moves only, so a coastal county is not
+    credited with arrivals from abroad it has no measured departures to balance. Second, income is
+    <em>aggregate adjusted gross income in thousands of dollars</em>, exactly as published — every
+    column carrying it is named with a <code>_agi_k</code> suffix and nothing rescales it. Third,
+    the two grains deliberately do not add up: a county's total counts every US move including
+    moves within its own state, while a state's total counts only moves across state lines, so
+    summing a state's counties will not reproduce its state row. Every filter behind the numbers is
+    written down in <code>tools/pack-extract/countymigration.mjs</code> and in the pack's
     <code>SOURCE.json</code>.</li>
     <li><strong>Data Management &amp; Governance</strong> is the built-in generic showcase gallery
     (Data Governance, Data Platform Operations, Product Delivery, Finance, Marketing, Incident
@@ -1042,9 +1208,9 @@
   themed to whichever Studio look you're using.</p>
 
   <p id="whats-new"><strong>What's new:</strong> the <strong>What's new</strong> button in the top bar — present
-  on every section, not just in the builder — opens the full release feed in a right-hand panel: every version,
+  on every section, not just in the builder — opens the full release feed in a right-hand pane: every version,
   newest first, with live search (matches highlighted) and Central-time stamps. A small dot on the button means
-  there are releases you haven't seen yet; opening the panel clears it. Click the button again, the ✕, Escape, or
+  there are releases you haven't seen yet; opening the pane clears it. Click the button again, the ✕, Escape, or
   the backdrop to close it. On a phone the top bar gives that icon's room to the section name, so the route there
   is <strong>⋯ More → What's new</strong> — see <a href="#phone-more">On a phone, the toolbar lives in ⋯ More</a>.</p>
 
@@ -1054,7 +1220,7 @@
     <li><strong>Live preview (center)</strong> — The real dashboard rendered in an iframe. This is byte-identical to what the export produces — no approximation. Click a View to select it; drag the title bar to reorder; drag the right edge to make it wider, or the bottom edge to make it taller — as tall as the whole screen if you like. The height sticks and carries into the viewer and every export.</li>
     <li><strong>Inspector (right)</strong> — Contextual editor for whatever is selected. When nothing is selected, shows the dashboard-level controls. Click a View → View inspector. Click a KPI tile → KPI inspector. Click a filter → filter inspector. Click the title banner itself → Header inspector.</li>
   </ul>
-  <p><strong>The builder opens clean:</strong> both side panels start closed so the dashboard gets the full width — pop them open with the edge chevrons when you need them. Prefer them always open? Flip <strong>Open the builder with side panels</strong> in Settings and every visit starts that way.</p>
+  <p><strong>The builder opens clean:</strong> both side panes start closed so the dashboard gets the full width — pop them open with the edge chevrons when you need them. Prefer them always open? Flip <strong>Open the builder with side panes</strong> in Settings and every visit starts that way.</p>
   <p>The View inspector is <strong>context-aware</strong>: interaction sections like Drill-through, Detail drawer, Cross-filter, Conditional formatting, and Color scale only appear when the selected chart type actually supports them (e.g. Conditional formatting shows for Bar/Donut/Treemap/Lollipop but not for Table or Line — clicking a table row instead opens the Detail drawer). This keeps the inspector focused on settings that do something for the current chart.</p>
 
   <p><strong>Renaming a dashboard:</strong> the dashboard title in the toolbar above the live preview renames in place — click it and it becomes a text field (Enter or clicking away commits, Escape cancels). The Dashboard inspector's <strong>Title</strong> field is the same value, edit whichever is closer. The Title (the display name shown in the dashboard's header/banner) and the <strong>File name (stem)</strong> (the lowercase-with-dashes name used for exported files, e.g. <code>my-dashboard.html</code>) are two independent fields right below it, so you can rename either without the other changing.</p>
@@ -1076,7 +1242,7 @@
 
   <p><strong>Show dashboard header (embed mode):</strong> the <strong>Header</strong> toggle in the Dashboard inspector. Turn it <em>off</em> and the entire title banner and description bar disappear from both the live preview and the exported <code>.html</code>, leaving just the KPIs and Views — a clean, chrome-free dashboard you can drop straight inside your own page. Turn it back on and the title, subtitle and description return, all still editable in the inspector.</p>
 
-  <p id="dashboard-header"><strong>The header as an object:</strong> click anywhere on the title banner in the live preview (not on one of its buttons) to select it, the same way clicking a View or KPI tile does — the Inspector switches to a dedicated <strong>Header</strong> view with quick Title/Subtitle/Alignment fields and a ✕ button that hides the whole banner (the same effect as the Show dashboard header toggle above). Double-clicking the title or subtitle text directly still edits it in place without needing to select first. Logo, link, and light/dark stay on the Dashboard panel (click "‹ Dashboard" at the top of the Inspector to get back there).</p>
+  <p id="dashboard-header"><strong>The header as an object:</strong> click anywhere on the title banner in the live preview (not on one of its buttons) to select it, the same way clicking a View or KPI tile does — the Inspector switches to a dedicated <strong>Header</strong> view with quick Title/Subtitle/Alignment fields and a ✕ button that hides the whole banner (the same effect as the Show dashboard header toggle above). Double-clicking the title or subtitle text directly still edits it in place without needing to select first. Logo, link, and light/dark stay in the Dashboard inspector (click "‹ Dashboard" at the top of the Inspector to get back there).</p>
 
   <p><strong>Alignment:</strong> in that same Header view, the <strong>Alignment</strong> picker (Left / Center / Right) moves the brand mark, title and subtitle within the banner. Left is the standard flush-left layout. Center and Right shift that block toward the middle or the icon cluster on the right — the info/print/waffle icons always stay pinned to the far right either way.</p>
 
@@ -1194,8 +1360,8 @@
   </ul>
   <p><strong>Auto-arrange:</strong> the <strong>Layout</strong> field in the Dashboard inspector (next to Grid columns) has an <strong>Auto-arrange</strong> button that reflows the existing Views for you — chart types with a lot of horizontal detail (Table, Text/annotation, Sankey, Chord, Calendar heatmap) get a full-width row of their own, everything else defaults to a single column, and Views sharing a tag are grouped together. A quick starting point for a first draft; drag-resize still works normally afterward.</p>
 
-  <h3>Undo / Redo</h3>
-  <p>Every structural edit (add, remove, reorder, resize, rename) is snapshotted. Use <kbd>Ctrl Z</kbd> / <kbd>⌘ Z</kbd> to undo and <kbd>Shift Z</kbd> to redo. The ↶/↷ buttons in the topbar work too (they only show while Studio is open; on a phone they are <strong>⋯ More → Undo</strong> and <strong>⋯ More → Redo</strong>). Text-field edits are not tracked individually (to avoid flooding the history).</p>
+  <h3 id="undo-redo">Undo / Redo</h3>
+  <p>Every structural edit (add, remove, reorder, resize, rename) is snapshotted. Use <kbd>Ctrl Z</kbd> / <kbd>⌘ Z</kbd> to undo, and <kbd>Ctrl Shift Z</kbd> / <kbd>⌘ Shift Z</kbd> — or <kbd>Ctrl Y</kbd> / <kbd>⌘ Y</kbd>, the Windows alias for the same action — to redo. The ↶/↷ buttons in the topbar work too (they only show while Studio is open; on a phone they are <strong>⋯ More → Undo</strong> and <strong>⋯ More → Redo</strong>). Text-field edits are not tracked individually (to avoid flooding the history).</p>
 
   <h3>Sample dashboards</h3>
   <p>The bundled sample dashboards — a curated, most-spectacular-first gallery spanning operations, engineering delivery, finance, marketing & growth, reliability, governance, compliance, quality, pipelines, storage, and cost, together covering all 54 chart types at least once (the newest — the Metrics wheel — in the Conservation pack’s own System Metrics dashboard) — live in two places: <strong>Home's sample gallery</strong> (click a tile to open it in the builder) and the <strong>Dashboards</strong> section under the <strong>Sample packs</strong> chip. A great way to explore what's possible before building your own. (The old Studio "Examples ▾" toolbar menu is gone — same dashboards, better homes.)</p>
@@ -1280,31 +1446,47 @@
 <section id="ensembles">
   <h2>Ensembles &amp; scientific honesty</h2>
   <p>When several sources estimate the same thing — several vendors' models, several surveys, several
-  labs — the <strong>Ensemble</strong> chart and the <strong>Map (US choropleth)</strong> chart are built
+  labs — the <strong>Ensemble (common estimate)</strong> chart and the <strong>Map (US choropleth)</strong> chart are built
   around one rule: <strong>the common estimate is the product, not a leaderboard.</strong> The sections
   below explain the design choices behind that rule and how to read (or build) an honest ensemble
   dashboard.</p>
 
-  <h3>The median is bold; providers are supporting evidence</h3>
-  <p>On both charts, the combined value — the <strong>median</strong> of whichever sources are currently
-  toggled on — always renders as the boldest, most prominent element: a thick line on Ensemble, the fill
-  color on the map. Individual providers draw thin and muted (hollow dots, low opacity) — present so you
-  can inspect the underlying evidence, but never competing visually with the estimate itself. Toggling a
-  provider off (click its chip under an Ensemble chart) removes it from the median calculation everywhere
-  it's used, including any map sharing the same <strong>ensemble channel</strong> (the map's Provider/series
-  column option) — both charts recompute and re-render live from the same reduced set.</p>
+  <h3>The common estimate is bold; providers are supporting evidence</h3>
+  <p id="ensemble-estimate">On both charts, the combined value — computed across whichever sources are
+  currently toggled on — always renders as the boldest, most prominent element: a thick line on Ensemble,
+  the fill color on the map. <em>Which</em> combination that is, is yours to set, and the two charts ask it
+  differently: the Ensemble chart's <strong>Common estimate</strong> option offers
+  <strong>Median (recommended)</strong> and <strong>Mean</strong>, while the map's
+  <strong>Combine duplicate rows by</strong> option — how several rows for one region become one color —
+  offers <strong>Median (common estimate)</strong>, <strong>Mean</strong>, <strong>Sum</strong>,
+  <strong>Min</strong>, <strong>Max</strong> and <strong>Last</strong>. Both default to the median, and the
+  median is what this page's honesty argument is written around: it is the choice a single outlying provider
+  cannot drag. The bold line is named by the chart's <strong>Estimate label</strong> option —
+  <strong>Common estimate</strong> unless you change it — and that name is what the legend, the hover
+  tooltip and the downloaded data all print, so what you read follows the setting instead of assuming a
+  median.</p>
+  <p>Individual providers draw thin and muted (hollow dots, low opacity) — present so you can inspect the
+  underlying evidence, but never competing visually with the estimate itself; the
+  <strong>Show provider series</strong> option hides them when you want the estimate alone. Toggling a
+  provider off (click its chip under an Ensemble chart, unless the
+  <strong>Provider on/off toggles</strong> option is off) removes it from the combination everywhere it's
+  used, including any map on the same <strong>Ensemble channel</strong> option — both charts have that
+  option, and the map also needs its <strong>Provider / series column</strong> mapped. Both recompute and
+  re-render live from the same reduced set.</p>
 
   <h3>The agreement band is a confidence signal, not decoration</h3>
-  <p>The translucent band around the Ensemble chart's median line spans the full range of the toggled-on
-  providers at each point. Read it literally: a <strong>tight band means the sources agree</strong> (high
-  confidence in the estimate there), and a <strong>wide band means they don't</strong> (treat that point
-  with more caution). It is not a stylistic flourish — it's the chart's way of showing uncertainty honestly
-  instead of hiding it behind a single confident-looking line.</p>
+  <p>The translucent band around the Ensemble chart's estimate line — drawn by the
+  <strong>Agreement band (confidence)</strong> option, which can also turn it off — spans the full range of
+  the toggled-on providers at each point. Read it literally: a <strong>tight band means the sources
+  agree</strong> (high confidence in the estimate there), and a <strong>wide band means they don't</strong>
+  (treat that point with more caution). It is not a stylistic flourish — it's the chart's way of showing
+  uncertainty honestly instead of hiding it behind a single confident-looking line.</p>
 
   <h3>A reference series is context, never the estimate</h3>
-  <p>Both charts support an optional <strong>reference series</strong> (e.g. an independent census or
-  ground-truth figure) drawn as hollow markers, visually distinct from the provider lines and the median.
-  A reference series is deliberately excluded from the median calculation — it's there to let a viewer
+  <p>Both charts support an optional reference series — the Ensemble chart's
+  <strong>Reference series (excluded from the estimate)</strong> option (e.g. an independent census or
+  ground-truth figure) — drawn as hollow markers, visually distinct from the provider lines and the
+  estimate. A reference series is deliberately excluded from the combination — it's there to let a viewer
   compare the ensemble's estimate against an outside benchmark, not to be folded into the estimate itself.</p>
 
   <h3>No-data is shown, never guessed</h3>
@@ -1334,7 +1516,8 @@
   <p>Both charts' <strong>Download data</strong> button (the same on-canvas control every View has —
   see "Downloading a View's image or data" below) exports exactly the selection currently shown — the
   map's region id/value pairs post-aggregation, or the Ensemble chart's long-format label/provider/value
-  rows for the toggled-on providers plus the computed median and any reference series — instead of the
+  rows for the toggled-on providers plus the computed estimate (under whatever name the
+  <strong>Estimate label</strong> option carries) and any reference series — instead of the
   raw bound query. Re-download after toggling a provider and the file reflects the new selection — a
   quick way to hand a stakeholder the same numbers the chart is drawing from.</p>
 
@@ -1355,23 +1538,26 @@
 
   <h3>Maps</h3>
   <div class="chart-card" id="ct-choropleth"><div class="chart-group"></div><div class="chart-name">Map (US choropleth)</div><div class="chart-desc">US regions colored by a value — counties (FIPS), states, USDA crop-reporting districts, watersheds (HUC8, nationwide), congressional districts (119th Congress, nationwide), 5-digit ZIP codes (ZCTA, nationwide), or your own <b>custom regions</b> ("these counties = this territory" — the Inspector's Region scale &gt; Custom regions lets you <b>Import a CSV</b> of two columns, county FIPS and region name; no new geometry ships, the app merges the existing county shapes per region the same way it merges them into USDA districts, and your value data's region-id column should then use those same region names). Bind a <b>region id column</b> and a <b>value column</b>; when several rows land on one region they combine by the <b>median</b> by default (a single best common estimate). Optionally map a <b>provider/series column</b> and the map joins an <b>ensemble channel</b>: the provider toggles on an Ensemble chart sharing that channel re-color the map live, from the same median. Regions without data render as a hatched "No data" texture, a state-border overlay keeps orientation, and the map auto-zooms to the regions that carry data. Exported dashboards inline the geometry, so maps work offline and from a plain .html file. A <b>Renderer</b> option picks between the built-in renderer (light — the smallest export) and <b>Interactive GL</b> (smooth pan &amp; zoom at any polygon count, with zoom buttons, a pan nudge-pad (up/down/left/right), and hover highlight; adds ~1MB of MapLibre to that dashboard's export, and falls back to the built-in renderer wherever WebGL is unavailable). The View's on-canvas <b>Download data</b> button exports the region id/value pairs currently shown (post-aggregation, post-selection) instead of the raw bound query. An <b>ⓘ Sources</b> button opens a provenance popover showing what fraction of regions actually have data and, when a provider/series column is mapped, each provider's own region count (struck through when toggled off) — so the map's honesty story is always one click away.</div></div>
-  <p>54 chart types are available, grouped by purpose. Select the chart type in the View inspector after clicking a View on the canvas.</p>
+  <p>54 chart types are available, grouped by purpose. Select the chart type in the View inspector after clicking a View on the canvas.
+  <strong>Every card below is titled with the name the picker itself prints</strong> — the same name the ⓘ docs link on
+  a gallery card opens it by, and the same name a View's chart-type filter pill carries — so a name you read here can be
+  typed straight into the gallery's <em>Search chart types…</em> box and will find its card.</p>
   <p>Not sure where to start? Once a View has a query bound, a <strong>"Recommended for this data"</strong> strip appears above the full gallery with 1–3 suggested types (e.g. Line for a date column + a number, Donut for a low-cardinality category) — each button explains its "why" on hover and switches the chart type on click.</p>
   <p>Once you're in a chart type's own options (below the gallery), common toggles like <strong>Sort by value</strong>, <strong>Show legend</strong>, <strong>Smooth curve</strong>, <strong>Show data points</strong>, <strong>Show value/label</strong>, <strong>Show %</strong>, and <strong>Rotate labels</strong> carry a small glyph next to their label — hover it (or Tab to it) for a one-line explanation of what the toggle actually changes. <strong>Sort by value</strong>, <strong>Smooth curve</strong>, <strong>Show legend</strong>, <strong>Show data points</strong>, <strong>Show value/label</strong>, and <strong>Rotate labels</strong> go a step further with a genuine Off → On picture — two tiny side-by-side diagrams showing exactly what the toggle redraws, not just a sentence about it.</p>
 
   <h3>Comparison</h3>
   <div class="chart-grid">
     <div class="chart-card" id="ct-bars"><div class="chart-group"></div><div class="chart-name">Bar chart</div><div class="chart-desc">Side-by-side bars for comparing categories; horizontal or vertical. Options: sort bars by value (largest first), toggle the value labels, and (vertical layout only) a linear/Holt/Holt-Winters trend line fitted across the bars.</div></div>
-    <div class="chart-card" id="ct-lollipop"><div class="chart-group"></div><div class="chart-name">Lollipop</div><div class="chart-desc">Dot on a stem — a cleaner ranked-list alternative to bars.</div></div>
+    <div class="chart-card" id="ct-lollipop"><div class="chart-group"></div><div class="chart-name">Lollipop chart</div><div class="chart-desc">Dot on a stem — a cleaner ranked-list alternative to bars.</div></div>
     <div class="chart-card" id="ct-radar"><div class="chart-group"></div><div class="chart-name">Radar / spider</div><div class="chart-desc">Polygon overlaid on concentric rings; great for multi-metric profiles. Options: fill polygons, show/hide the legend, and show/hide vertex dots.</div></div>
     <div class="chart-card" id="ct-radarSectors"><div class="chart-group"></div><div class="chart-name">Metrics wheel</div><div class="chart-desc">Sectored radar for a system-health snapshot: one score per metric on a circular axis, metrics grouped into tinted category sectors, a numbered rim, and a grouped legend decoding the numbers. Options: axis max, legend, value format.</div></div>
     <div class="chart-card" id="ct-waterfall"><div class="chart-group"></div><div class="chart-name">Waterfall</div><div class="chart-desc">Running total with cumulative deltas; rises green, falls red.</div></div>
     <div class="chart-card" id="ct-funnel"><div class="chart-group"></div><div class="chart-name">Funnel</div><div class="chart-desc">Stage-to-stage conversion; bars shrink proportionally to conversion rate.</div></div>
     <div class="chart-card" id="ct-gantt"><div class="chart-group"></div><div class="chart-name">Gantt / Timeline</div><div class="chart-desc">Horizontal floating bars spanning a start-to-end range — tasks, phases, and project schedules.</div></div>
-    <div class="chart-card" id="ct-dumbbell"><div class="chart-group"></div><div class="chart-name">Dumbbell</div><div class="chart-desc">Gray start dot + colored end dot per row; connector green = improvement, red = decline.</div></div>
-    <div class="chart-card" id="ct-marimekko"><div class="chart-group"></div><div class="chart-name">Marimekko / Mekko</div><div class="chart-desc">Variable-width stacked bars: column width = category share, height segments = composition.</div></div>
+    <div class="chart-card" id="ct-dumbbell"><div class="chart-group"></div><div class="chart-name">Dumbbell chart</div><div class="chart-desc">Gray start dot + colored end dot per row; connector green = improvement, red = decline.</div></div>
+    <div class="chart-card" id="ct-marimekko"><div class="chart-group"></div><div class="chart-name">Marimekko</div><div class="chart-desc">Variable-width stacked bars, also called a Mekko: column width = category share, height segments = composition.</div></div>
     <div class="chart-card" id="ct-divergingBar"><div class="chart-group"></div><div class="chart-name">Diverging bars</div><div class="chart-desc">Positive bars extend right, negative bars extend left from a shared zero baseline.</div></div>
-    <div class="chart-card" id="ct-parallelCoords"><div class="chart-group"></div><div class="chart-name">Parallel coordinates</div><div class="chart-desc">Multi-dimensional entity profiles across N vertical axes — each row is a polyline.</div></div>
+    <div class="chart-card" id="ct-parallelCoords"><div class="chart-group"></div><div class="chart-name">Parallel coords</div><div class="chart-desc">Multi-dimensional entity profiles across N vertical axes (a parallel-coordinates plot) — each row is a polyline.</div></div>
     <div class="chart-card" id="ct-radialBar"><div class="chart-group"></div><div class="chart-name">Radial bar</div><div class="chart-desc">Concentric arc tracks where arc length encodes value — striking for ranking a handful of key metrics in a circular layout.</div></div>
     <div class="chart-card" id="ct-pyramidBar"><div class="chart-group"></div><div class="chart-name">Population pyramid</div><div class="chart-desc">Mirrored horizontal bars from a shared centre axis — compare two groups (e.g. Female / Male) across shared categories.</div></div>
     <div class="chart-card" id="ct-pareto"><div class="chart-group"></div><div class="chart-name">Pareto chart</div><div class="chart-desc">Descending bars + cumulative % line (80/20 rule) — instantly shows which vital few categories account for most of the total.</div></div>
@@ -1398,10 +1584,10 @@
   <div class="chart-grid">
     <div class="chart-card" id="ct-line"><div class="chart-group"></div><div class="chart-name">Line / area</div><div class="chart-desc">Series over time or ordered categories; optional area fill, smooth (curved) lines, show/hide the per-point markers, an optional dashed moving-average trend overlay (configurable window), and a separate trend/forecast line — choose linear regression, Holt's exponential smoothing (tracks recent moves instead of just the overall slope), or seasonal Holt-Winters (adds a repeating seasonal pattern on top of the level/trend, e.g. a recurring quarterly spike — needs at least two full seasons of real data or it falls back to plain Holt) — that can extrapolate a configurable number of periods past the last data point.</div></div>
     <div class="chart-card" id="ct-areaStacked"><div class="chart-group"></div><div class="chart-name">Stacked area</div><div class="chart-desc">Cumulative bands stacked on one baseline; great for volume trends. Options: smooth curve, show legend.</div></div>
-    <div class="chart-card" id="ct-combo"><div class="chart-group"></div><div class="chart-name">Bar + line (combo)</div><div class="chart-desc">Dual-axis: bars on the left scale, line on the right. Options: a linear/Holt/Holt-Winters trend line on the line series, with an optional forecast tail that widens the chart to project past the real data.</div></div>
+    <div class="chart-card" id="ct-combo"><div class="chart-group"></div><div class="chart-name">Bar + line</div><div class="chart-desc">Dual-axis combo chart: bars on the left scale, line on the right. Options: a linear/Holt/Holt-Winters trend line on the line series, with an optional forecast tail that widens the chart to project past the real data.</div></div>
     <div class="chart-card" id="ct-slope"><div class="chart-group"></div><div class="chart-name">Slope chart</div><div class="chart-desc">Before/after per category: green line = rise, red = fall.</div></div>
     <div class="chart-card" id="ct-step"><div class="chart-group"></div><div class="chart-name">Step chart</div><div class="chart-desc">Right-angle horizontal-then-vertical transitions — ideal for step-function or tier data.</div></div>
-    <div class="chart-card" id="ct-bump"><div class="chart-group"></div><div class="chart-name">Bump / ranking</div><div class="chart-desc">Rank positions across periods; crossing lines show competitive overtaking. Options: show/hide the rank number inside each dot.</div></div>
+    <div class="chart-card" id="ct-bump"><div class="chart-group"></div><div class="chart-name">Bump chart</div><div class="chart-desc">Rank positions across periods; crossing lines show competitive overtaking. Options: show/hide the rank number inside each dot.</div></div>
     <div class="chart-card" id="ct-streamgraph"><div class="chart-group"></div><div class="chart-name">Stream graph</div><div class="chart-desc">Centered stacked ribbons with a flowing organic shape — evolving volume or share. Options: show/hide the legend, and adjustable band opacity.</div></div>
     <div class="chart-card" id="ct-candlestick"><div class="chart-group"></div><div class="chart-name">Candlestick / OHLC</div><div class="chart-desc">Open-High-Low-Close bars for time-period ranges, price data, or performance spread.</div></div>
     <div class="chart-card" id="ct-timeline"><div class="chart-group"></div><div class="chart-name">Timeline / milestones</div><div class="chart-desc">Events alternating above/below a horizontal baseline — product roadmaps, releases, project milestones.</div></div>
@@ -1432,7 +1618,7 @@
     <div class="chart-card" id="ct-beeswarm"><div class="chart-group"></div><div class="chart-name">Beeswarm plot</div><div class="chart-desc">Individual points jittered along one axis; optional category groups.</div></div>
     <div class="chart-card" id="ct-histogram"><div class="chart-group"></div><div class="chart-name">Histogram</div><div class="chart-desc">Auto-bins a numeric column into equal-width buckets to show frequency distribution.</div></div>
     <div class="chart-card" id="ct-violin"><div class="chart-group"></div><div class="chart-name">Violin plot</div><div class="chart-desc">KDE-based symmetric silhouette per category showing the full value distribution shape.</div></div>
-    <div class="chart-card" id="ct-ridgeline"><div class="chart-group"></div><div class="chart-name">Ridgeline / joy plot</div><div class="chart-desc">Horizontally stacked KDE density curves per category with configurable overlap — compare distribution shapes across many groups in a single compact view.</div></div>
+    <div class="chart-card" id="ct-ridgeline"><div class="chart-group"></div><div class="chart-name">Ridgeline plot</div><div class="chart-desc">Horizontally stacked KDE density curves per category with configurable overlap (the joy plot) — compare distribution shapes across many groups in a single compact view.</div></div>
   </div>
 
   <h3>Detail</h3>
@@ -1458,14 +1644,14 @@
   <h2>Data sources &amp; data accesses</h2>
   <p>Every chart View is bound to a <strong>data access (DA)</strong> — a named query. The Data panel (left pane) lists everything you can build from, in four groups: <strong>This dashboard's datasets</strong> (the queries the spec owns), <strong>Datasets</strong> (the workspace's shared catalog), <strong>Views</strong> (your saved charts), and — in Advanced mode, once you've authored one — <strong>My queries</strong> at the bottom. (The old "Samples" group of built-in demo queries is gone: sample content comes only via sample packs now, installed from Settings, so there's one source of truth.)</p>
   <p>The <strong>This dashboard's datasets</strong> group collapses by default once it gets long (more than
-  six cards), so the panel leads with an overview instead of a wall of cards — click a
+  six cards), so the pane leads with an overview instead of a wall of cards — click a
   group's header to expand or collapse it any time, and your choice is remembered from then on. Each group
   also carries its own small glyph next to its name (a cube for this dashboard's own datasets, a database for
   the shared workspace catalog, a trend line for saved Views, and a code
-  bracket for your own authored queries), so the panel is scannable by "what kind of thing is this" at a glance.</p>
+  bracket for your own authored queries), so the pane is scannable by "what kind of thing is this" at a glance.</p>
   <p><strong>Select a View on the canvas and the Data panel shows you which dataset it reads from</strong> — that
   dataset's card is ringed in the list, and the same happens when you select a KPI. If the card's group is
-  collapsed, or it's scrolled out of sight, the panel opens the group and brings the card into view; select a
+  collapsed, or it's scrolled out of sight, the pane opens the group and brings the card into view; select a
   View with no query bound to it (an annotation, say) and nothing is highlighted at all.</p>
 
   <h3>Using catalog queries</h3>
@@ -1473,8 +1659,8 @@
     <li>Drag any DA card onto the canvas to create a chart View pre-bound to that query.</li>
     <li>Or select an existing View and use the <strong>Query</strong> picker in the inspector to switch its DA.</li>
     <li>The <strong>Query preview</strong> section in the View inspector shows the SQL snippet, column headers, and 3 sample rows so you can verify the binding without leaving the builder. If that sample has any blank/missing values, a column that's the same value on every row, or duplicate rows, a small note appears right below the table calling it out — a quick data-quality check before you build a chart on top of it.</li>
-    <li>When that View reads a <strong>workspace dataset</strong>, the same section carries an <strong>Edit this query</strong> link. It opens the ordinary dataset editor on top of the dashboard — change the SQL, hit <strong>Preview</strong> to see the rows it returns now, and save. Your dashboard is still there behind it, with the same View selected, and the panel repaints against the query you just saved. A View that carries its own inline rows (a sample-pack View, or a dashboard-only query) has no dataset to open, so it shows no link. If the new query stops returning a column a shelf was using, saving says so by name rather than leaving you with an empty axis.</li>
-    <li>Because that editor is now one click from a canvas, it warns you before a save that could break something you can't see. If you change what a dataset <strong>runs</strong> — its query, the connection behind it, a parameter default, the file it reads — on a dataset that dashboards are bound to, and you haven't pressed <strong>Preview</strong> on what you're about to save, a note appears above the buttons: why it's unproven (never run here, or the last Preview failed and what it said) and what it would reach, counted and named — "3 panels in 2 dashboards read this dataset — …". The dashboard you have open counts too, even if you've never saved it. <strong>Preview, then save</strong> runs the query and, if rows come back, completes the save in the same tap; <strong>Save anyway</strong> goes ahead regardless (there are good reasons to save a query you can't run right now); <strong>Keep editing</strong> puts you back in the query box. Saves that can't break anything are never questioned — renaming, refiling, retagging or re-describing a dataset, a save you've already previewed, and any dataset no dashboard reads yet.</li>
+    <li>When that View reads a <strong>workspace dataset</strong>, the same section carries an <strong>Edit this query</strong> link. It opens the ordinary dataset editor on top of the dashboard — change the SQL, hit <strong>Preview</strong> to see the rows it returns now, and save. Your dashboard is still there behind it, with the same View selected, and the pane repaints against the query you just saved. A View that carries its own inline rows (a sample-pack View, or a dashboard-only query) has no dataset to open, so it shows no link. If the new query stops returning a column a shelf was using, saving says so by name rather than leaving you with an empty axis.</li>
+    <li>Because that editor is now one click from a canvas, it warns you before a save that could break something you can't see. If you change what a dataset <strong>runs</strong> — its query, the connection behind it, a parameter default, the file it reads — on a dataset that dashboards are bound to, and you haven't pressed <strong>Preview</strong> on what you're about to save, a note appears above the buttons: why it's unproven (never run here, or the last Preview failed and what it said) and what it would reach, counted and named — <code>3 Views in 2 dashboards read this dataset — …</code>. The dashboard you have open counts too, even if you've never saved it. <strong>Preview, then save</strong> runs the query and, if rows come back, completes the save in the same tap; <strong>Save anyway</strong> goes ahead regardless (there are good reasons to save a query you can't run right now); <strong>Keep editing</strong> puts you back in the query box. Saves that can't break anything are never questioned — renaming, refiling, retagging or re-describing a dataset, a save you've already previewed, and any dataset no dashboard reads yet.</li>
     <li>For any chart bound to a single value column, an <strong>Insight</strong> section appears right below it with a short, plain-English narration of the View's own sample data — overall trend direction, the single biggest point-to-point move, any outlier more than 2 standard deviations from the mean, and (when the data supports it) a repeating pattern detected via autocorrelation on the trend-removed series, e.g. "It also shows a repeating pattern roughly every 4 points." A <strong>Scatter / bubble</strong> View gets a different read instead: the Pearson correlation between its bound X and Y columns (strength + direction, e.g. "a strong positive correlation"). It's computed entirely client-side (pure JS math, no API key, no network call) and updates automatically as you change the query or column mapping. When the narration flags an outlier or a biggest single move, an <strong>Add callout at "…"</strong> button appears below it — one click drops the View's Callout arrow overlay (see below) right on that point instead of eyeballing the x%/y% sliders yourself.</li>
   </ul>
 
@@ -1650,7 +1836,7 @@
     <li><strong>Generic SQL/HTTP doesn't show the button</strong> — it's an arbitrary JSON API
       with no reliable catalog to introspect.</li>
   </ul>
-  <p>The same panel is one click away while <strong>building a dataset</strong>, not just when editing the connection: the Dataset editor's "Browse schema" button (shown for the same set of connections, once one is picked) opens the identical table/column tree — but here every table and column is clickable. Picking a table fills the <strong>Table</strong> field on a PostgreSQL/PostgREST-shaped dataset; picking a table or column drops its name straight into the <strong>SQL</strong> query at the cursor for every other kind. No more copying names back and forth from a separate tab.</p>
+  <p>The same schema browser is one click away while <strong>building a dataset</strong>, not just when editing the connection: the Dataset editor's "Browse schema" button (shown for the same set of connections, once one is picked) opens the identical table/column tree — but here every table and column is clickable. Picking a table fills the <strong>Table</strong> field on a PostgreSQL/PostgREST-shaped dataset; picking a table or column drops its name straight into the <strong>SQL</strong> query at the cursor for every other kind. No more copying names back and forth from a separate tab.</p>
   <p>Studio's own <strong>New data source</strong> builder (the query editor behind the Data panel's ＋ New ▾ → Dashboard-only query…) has the same button under its Query field for the credentialed kinds — Snowflake, Databricks, BigQuery, DuckDB (remote file) and SQLite (remote .sqlite). Fill in the credentials (or the file URL), click <strong>Browse schema</strong>, and click any table or column to insert its name into the SQL at the cursor. The built-in sample-engine SQL kind and the Generic SQL/HTTP kind have no catalog to introspect, so they don't show the button.</p>
   <p>The same builder also runs a <strong>live sanity check</strong> over the SQL as you type: an unclosed string literal or quoted identifier, unbalanced parentheses, a statement that doesn't start with SELECT/WITH, or a declared column chip the query never mentions each surface a small warning on the line under the query field (and clear the moment you fix them). It's a lightweight shape check across all the supported engines, not a full SQL parser — the <strong>Preview</strong> and <strong>Test connection</strong> buttons remain the way to prove a query actually runs.</p>
 
@@ -1826,14 +2012,14 @@
   its name.</p>
   <p><strong>…and every other search box too.</strong> The same rules run behind every search field in
   the app, not just the catalog pages: the builder's Data panel (all three of its groups —
-  <strong>Datasets</strong>, <strong>Views</strong> and <strong>My queries</strong>), the panel
-  inspector's search, the chart-type gallery, the command palette (<kbd>⌘K</kbd>), the What's-new
+  <strong>Datasets</strong>, <strong>Views</strong> and <strong>My queries</strong>), the
+  Inspector's search, the chart-type gallery, the command palette (<kbd>⌘K</kbd>), the What's-new
   feed, the folder picker, the Quick Views pane, the View Builder's datasets pane and its value filter,
   the auto-build set list, the <strong>Open a dashboard</strong> picker and the "add to dashboard"
   picker that shares its list, and a connection's schema browser. Words in any order, quotes for an
   exact phrase, case-insensitive — wherever you type. The command palette layers its own ranking on top
   (a command whose name <em>starts</em> with what you typed comes first), and the What's-new feed
-  highlights each word it matched. Two boxes work differently, both deliberately: a table panel's own
+  highlights each word it matched. Two boxes work differently, both deliberately: a table View's own
   <strong>Filter rows</strong> box matches one literal string across the row's cells — so
   <code>crops 2024</code> finds a row only where those two words sit side by side — because that table
   travels inside every exported dashboard and carries its own self-contained rules rather than the
@@ -1979,7 +2165,7 @@
       Builder–made View shows best-effort in Quick Views with a dismissible notice (its shelves,
       filters, and calculated columns stay editable only in the View Builder), and a Quick View's
       settings are mapped onto the View Builder shelves as a starting point. The same pair of
-      targets appears on Home's pinned-View cards and in Repository's quick-edit panel.</li>
+      targets appears on Home's pinned-View cards and in Repository's <strong>Quick edit</strong> dialog.</li>
     <li><strong>Chart settings the View Builder can't edit are carried, not dropped.</strong> A
       View may be authored with per-chart options the View Builder has no control for — a
       a map's colour-class count, a table's page size, a quadrant's thresholds and zone labels
@@ -2297,7 +2483,7 @@
   knows about, so one push from a stale tab could quietly drop whatever the newer version added.
   Reading is unaffected — the workspace opens and works normally, and anything you change stays in
   this browser. Reload the page to pick up the newer app (and if the banner keeps coming back, use
-  <strong>Settings → hard reset</strong> to clear a stuck offline copy); once the versions line up,
+  <strong>Settings → App → Hard reset</strong> to clear a stuck offline copy); once the versions line up,
   the changes you made in the meantime push up on the next <strong>Refresh</strong>.</p>
   <p><strong>Upgrading an older workspace.</strong> The opposite case — a workspace made by an
   <em>earlier</em> version of Analytics — is not a problem: every change to the workspace shape has
@@ -2483,7 +2669,7 @@
   (color theme + light/dark) is saved on your own account and applies wherever you sign in. The
   two local demo accounts stay browser-local, since they have no backend identity. Your wider
   personal setup roams as well: Simple mode, the restore-unsaved-work opt-in, the builder's
-  panels-open preference, sample visibility, panel and pane sizes (Studio's side panels, the
+  side-panes preference, sample visibility, pane sizes (Studio's side panes, the
   View Builder's datasets pane and chart canvas), and your tile/list layout picks for Dashboards
   and the Repository — all saved on your own account row and applied when you sign in
   elsewhere.</p>
@@ -2519,9 +2705,9 @@
       Email — adjust, then add the user again).</li>
   </ul>
 
-  <h3>Per-user provisioning defaults (first sign-in)</h3>
-  <p>The Admin page's <strong>Add user</strong> (and <strong>Edit user</strong>) form has a <strong>Default theme</strong> picker and an <strong>"Install the Conservation Insight sample pack on first sign-in"</strong> checkbox. Set either and that new account logs in ready: the app color theme switches to the one you picked and, if checked, the Conservation Insight sample pack installs itself — no manual setup, no digging through Settings. This only ever runs <strong>once</strong>, the very first time the account signs in anywhere; after that it's stamped as provisioned and later logins never fight whatever the user has since changed for themselves. Leaving the theme at "Don't set" or the pack box unchecked simply skips that part.</p>
-  <p>The same form also has a <strong>"Copy my current Dashboard defaults"</strong> button — click it and Studio snapshots every field from your own <strong>Settings → Dashboard defaults</strong> card (default subtitle, accent color, header logo, header background, title size, subtitle style, dashboard theme, and card style) and stashes it on the new account. At their first sign-in, that whole "house style" applies automatically alongside the theme/pack above, same once-only rule. <strong>Clear</strong> removes a previously captured snapshot before saving.</p>
+  <h3 id="prov-defaults">Per-user provisioning defaults (first sign-in)</h3>
+  <p>The Admin page's <strong>Add user</strong> (and <strong>Edit user</strong>) form carries two pickers that set an account up before its owner ever signs in: <strong>Default theme</strong>, and <strong>Sample pack</strong> — a list of every pack this build ships, so an account can arrive with whichever of the <a href="#sample-packs">sample packs</a> suits the work it was created for, not just one. Set either and that new account logs in ready: the app color theme switches to the one you picked, and the pack installs itself — no manual setup, no digging through Settings. This only ever runs <strong>once</strong>, the very first time the account signs in anywhere; after that it's stamped as provisioned and later logins never fight whatever the user has since changed for themselves. Leaving the theme at "Don't set" or the pack at "Don't install one" simply skips that part.</p>
+  <p>The same form also has a <strong>"Copy my current Dashboard defaults"</strong> button — click it and Studio snapshots your own <strong>Settings → Dashboard defaults</strong> (default subtitle, accent color, header logo, header background, title size, subtitle style, dashboard theme and card style), together with your stored <strong>Quick-import creativity</strong> level, and stashes the lot on the new account. That last one is worth naming because you cannot see it: its row on the Settings card is hidden for now, but the stored value is real and it travels with the snapshot like everything else. At their first sign-in, that whole "house style" applies automatically alongside the theme/pack above, same once-only rule. <strong>Clear</strong> removes a previously captured snapshot before saving.</p>
 
   <h3>Disable a user (without deleting them)</h3>
   <p>Every row in the Admin users list has a <strong>Disable</strong> button. Disabling an account blocks sign-in — on every device — with a clear "this account has been disabled" message, and if they're signed in somewhere right now, that session ends the next time the app loads. Nothing is deleted: the account, its role, its provisioning, and everything it owns stay exactly as they were, and <strong>Enable</strong> restores sign-in instantly. You can't disable your own signed-in account, and the last admin still able to sign in can never be disabled (there'd be nobody left to undo it). Use this instead of Remove when someone might be back — or when you want their work to stay attributed while they're away.</p>
@@ -2622,7 +2808,7 @@
     <tbody>
       <tr>
         <td><strong>Dashboard (.html)</strong></td>
-        <td>A fully self-contained <code>.html</code> file with all toolkit JS/CSS inlined. No server required — open in any browser. (Internally this is the <em>Dashboard Framework</em> export — the name you'll see in a text panel's inspector note — but the button says <strong>Dashboard (.html)</strong>.)</td>
+        <td>A fully self-contained <code>.html</code> file with all toolkit JS/CSS inlined. No server required — open in any browser. (Internally this is the <em>Dashboard Framework</em> export — the name you'll see in a text View's inspector note — but the button says <strong>Dashboard (.html)</strong>.)</td>
         <td>Sharing demos, embedding in portals, or hosting as a standalone dashboard on any static web host.</td>
       </tr>
       <tr>
@@ -2708,7 +2894,7 @@
       <tr><td><kbd>Ctrl Y</kbd> / <kbd>⌘ Y</kbd></td><td>Redo — the Windows alias, same action</td></tr>
       <tr><td><kbd>Ctrl S</kbd> / <kbd>⌘ S</kbd></td><td>Save to your Dashboards catalog</td></tr>
       <tr><td><kbd>Ctrl D</kbd> / <kbd>⌘ D</kbd></td><td>Duplicate the selected View or KPI</td></tr>
-      <tr><td><kbd>Ctrl F</kbd> / <kbd>⌘ F</kbd></td><td>Focus the builder's Data panel search — on a phone this opens the panel's drawer first</td></tr>
+      <tr><td><kbd>Ctrl F</kbd> / <kbd>⌘ F</kbd></td><td>Focus the builder's Data panel search — on a phone this opens that pane's drawer first</td></tr>
       <tr><td><kbd>/</kbd></td><td>Focus the chart-type gallery's search box (<em>View selected</em>, gallery on screen)</td></tr>
       <tr><td><kbd>↑</kbd> / <kbd>↓</kbd></td><td>Reorder the selected View up / down</td></tr>
       <tr><td><kbd>Shift ←</kbd> / <kbd>Shift →</kbd></td><td>Resize selected View span narrower / wider</td></tr>
@@ -2718,30 +2904,54 @@
       <tr><td><kbd>?</kbd></td><td>Open / close the keyboard shortcuts reference modal</td></tr>
     </tbody>
   </table>
-  <p>The in-app panel closes with two things that aren't keys, so they have no row above: <strong>double-click a View's title</strong> on the canvas to rename it inline, and the <strong>↗</strong> button on a View zooms it to full screen (<kbd>Escape</kbd> closes it again).</p>
+  <p>The in-app shortcuts overlay closes with two things that aren't keys, so they have no row above: <strong>double-click a View's title</strong> on the canvas to rename it inline, and the <strong>↗</strong> button on a View zooms it to full screen (<kbd>Escape</kbd> closes it again).</p>
 
   <h3>Reading a dashboard without a mouse</h3>
   <p>In the <strong>Viewer</strong> and in any dashboard you've exported as a self-contained file, KPI tiles are buttons: <kbd>Tab</kbd> moves through them, a focus ring shows which one you're on, and <kbd>↵</kbd> or <kbd>Space</kbd> opens that tile's detail — the same drawer of underlying records a click gives you. Inside the drawer, <kbd>Escape</kbd> closes it.</p>
-  <p>The same is true of the <strong>chart marks</strong> that do something when clicked — the bars of a bar chart, the slices of a donut, the tiles of a treemap, wherever that panel has a detail drawer or a click-through set up. <kbd>Tab</kbd> stops on each one and <kbd>↵</kbd> or <kbd>Space</kbd> activates it. Because a bar or a slice has no text of its own, each one announces itself as its label and value — "Snowflake: $84.2K" — so a screen reader reads the same fact the hover tooltip shows. Marks that aren't clickable stay out of the way entirely. On the Studio canvas, clicking a mark still selects the panel for editing, so the builder's keyboard behaviour is unchanged.</p>
+  <p>The same is true of the <strong>chart marks</strong> that do something when clicked — the bars of a bar chart, the slices of a donut, the tiles of a treemap, wherever that View has a detail drawer or a click-through set up. <kbd>Tab</kbd> stops on each one and <kbd>↵</kbd> or <kbd>Space</kbd> activates it. Because a bar or a slice has no text of its own, each one announces itself as its label and value — "Snowflake: $84.2K" — so a screen reader reads the same fact the hover tooltip shows. Marks that aren't clickable stay out of the way entirely. On the Studio canvas, clicking a mark still selects the View for editing, so the builder's keyboard behaviour is unchanged.</p>
   <p><strong>The tooltip opens on focus, too.</strong> Tabbing onto a mark pops the same tooltip card hovering it with a mouse would — the exact figure, the percentage, the share of the total — anchored to the mark itself rather than to a cursor that isn't there. It disappears when you tab away, and <kbd>Escape</kbd> dismisses it on the spot without losing your place, so a card sitting over the next bar is never in your way. Reaching a mark with the mouse is unchanged: the tooltip keeps following the pointer.</p>
   <p><strong>Table rows</strong> that open a detail drawer work the same way from the keyboard — <kbd>Tab</kbd> stops on each clickable row, <kbd>↵</kbd> or <kbd>Space</kbd> opens the drawer — with one deliberate difference: a row is <em>not</em> turned into a button. Doing that would stop it being a row, and a screen reader would lose the table itself (which column you're in, which header a cell belongs to). So the row keeps its table semantics, announces that it opens a dialog, and reads out its own cells rather than a summary. Sorting, filtering and paging redraw the table, and every new page behaves the same; a table with no detail drawer bound keeps its rows out of the tab order.</p>
 
   <h3>Command palette</h3>
-  <p>Press <kbd>Ctrl K</kbd> / <kbd>⌘ K</kbd> anywhere in the app — or click the <strong>Search…</strong> pill in the top bar — to open a fuzzy-searchable list of commands. It covers <strong>every section in the left rail</strong> — and only the ones your account can actually open, so a section your role can't reach (or one an admin has turned off for viewers) never shows up there either — plus dashboard lifecycle (new/open/save/export), editing actions, view/mode toggles, every curated example and recent dashboard you've opened, and an <strong>"Add View: &lt;chart type&gt;"</strong> command for each of the chart-type gallery's types (creates a View bound to a catalog query and switches it straight to that type) — so you can jump straight to any of those by typing part of its name. Recently- and frequently-run commands rise to the top of an empty-query open. Use <kbd>↑</kbd>/<kbd>↓</kbd> to move, <kbd>↵</kbd> to run, <kbd>Escape</kbd> to close.</p>
+  <p id="cmdk-open">Press <kbd>Ctrl K</kbd> / <kbd>⌘ K</kbd> anywhere in the app — or click the <strong>Search…</strong> pill in the top bar — to open a fuzzy-searchable list of commands, then jump straight to any of them by typing part of its name. Use <kbd>↑</kbd>/<kbd>↓</kbd> to move, <kbd>↵</kbd> to run, <kbd>Escape</kbd> to close.</p>
+
+  <p id="cmdk-families">Every row carries a small family tag on the right, and the palette prints fourteen of them.
+  <strong>Section</strong> and <strong>Reference</strong> are the left rail's own places to go — that list is built from the rail itself, so a section your role can't reach (or one an admin has turned off for viewers) is missing from the palette too, rather than being offered and then refused.
+  <strong>Create</strong>, <strong>File</strong> and <strong>Export</strong> are the dashboard lifecycle: a new or a sample dashboard, opening and saving one, and the three export formats.
+  <strong>Edit</strong> is undo, redo, adding a text View and editing the JSON spec; <strong>Data</strong> is a new dataset or connection.
+  <strong>View</strong> and <strong>Present</strong> are the modes — light/dark, Focus mode, Simple mode, Slideshow, Demo mode.
+  <strong>Learn</strong> is the welcome tour, the interactive tutorial and this keyboard reference (it is the family every tour means when it says "⌘K → Interactive tutorial"), and <strong>Manage</strong> is clear local data and sign out.
+  <strong>Sample</strong> and <strong>Recent</strong> are every curated example and every dashboard you've opened, and <strong>Add View</strong> is one command per chart type in the gallery.</p>
+
+  <p id="cmdk-labels">Five of those families are labelled from whatever the workspace currently holds, so each one reads as a fixed prefix plus the thing's own name — and the prefix is what you type to reach the family:
+  <strong>"Go to &lt;section&gt;"</strong> (with <strong>"Open Help &amp; docs"</strong> as the one section that reads as a reference to open rather than a place to go),
+  <strong>"Open sample: &lt;name&gt;"</strong>, <strong>"Open dashboard: &lt;name&gt;"</strong>, and
+  <strong>"Add View: &lt;chart type&gt;"</strong>, which creates a View bound to a catalog query and switches it straight to that type.
+  These are the words the palette matches on, so they are the ones worth typing: search covers a command's visible label, its family tag and its hidden synonyms, and — like every other search box in the app — every term you type has to match, in any order. Those hidden synonyms are why an older word still works: a View on a dashboard used to be called a <strong>panel</strong>, and typing that still finds both commands that add one.</p>
+
+  <p id="cmdk-rank">Open the palette with an empty box and the commands you have run before come first, <strong>most recently run first</strong> — that ordering is recency alone, not a popularity chart. How <em>often</em> you have run something counts only once you start typing, and only as a tie-breaker: how well a command matches what you typed decides the order, and usage separates commands that match equally well.</p>
   <p><strong>Voice command mode:</strong> on a browser with the built-in Speech Recognition API (Chrome, Edge, Safari — no API key, no backend, no sign-up), the palette shows a small mic button beside the search field. Click it, say a command out loud ("add a bar chart", "go to settings", "toggle light dark theme"), and it runs the same way pressing <kbd>↵</kbd> on that text would — fully hands-free. The mic pulses red while listening and stops on its own once you finish speaking. Not shown at all in browsers without the API (e.g. Firefox) — typing still works everywhere.</p>
 </section>
 
 <!-- ── Glossary (#23 — the overview tour's "words, one line each" lives here too) ── -->
 <section id="glossary">
   <h2>Glossary — every term, one line each</h2>
+  <p id="glossary-promise">These are the app's own words, not ours: every kind of thing you can
+  make (the five the <strong>Repository</strong> indexes), every place you make it (the three
+  builders on the rail's <strong>Build</strong> group), and the two ways they are filed. One line
+  each, spelled the way the screen spells it.</p>
   <ul>
     <li><strong>Adapter</strong> — the driver that speaks one backend's language (Postgres, Supabase, Snowflake, BigQuery, Google Sheets, CSV/JSON files…). You never pick one directly — choosing what to connect to picks it for you.</li>
     <li><strong>Connection</strong> — an adapter plus your credentials, pointing at one place data lives. Credentials stay in your browser by default.</li>
     <li><strong>Dataset</strong> — a named, reusable query on a connection; the building block every chart draws from.</li>
+    <li><strong>Data access (DA)</strong> — the named query a View is actually bound to, listed in the builder's Data panel; a dashboard can own one outright or borrow the workspace's Datasets and saved Views.</li>
     <li><strong>Job</strong> — a prep pipeline (rename, filter, aggregate, roll up) whose output lands back in Datasets as a new dataset.</li>
     <li><strong>View</strong> — one chart, KPI, map, or text block; the unit dashboards are made of. Built in Quick Views (fast) or the View Builder (shelves, pivots, calculations).</li>
-    <li><strong>Dashboard</strong> — Views arranged into a page you can feature on Home, share read-only, and export as a self-contained file.</li>
+    <li><strong>Ensemble</strong> — several sources estimating the same thing shown as one common estimate: the median of the providers left toggled on draws bold, and each provider stays visible as supporting evidence.</li>
+    <li><strong>Dashboard</strong> — Views arranged in the Dashboard Builder into a page you can feature on Home, share read-only, and export as a self-contained file.</li>
     <li><strong>Workbook</strong> — a named group of dashboards, used as a filter chip in the Dashboards section.</li>
+    <li><strong>Folder</strong> — a filing path any catalog row can be given — datasets, connections, jobs, dashboards, Views, and Workbooks too — so long lists group instead of sprawling.</li>
+    <li><strong>Repository</strong> — one searchable index over all five catalogs at once (Dashboards, Datasets, Connections, Views, Jobs), with the folder tree beside it and <strong>+ New folder</strong> to seed an empty one.</li>
     <li><strong>Filter</strong> — a dashboard-level control that narrows every View wired to it; "Since …" filters keep everything from the picked value onward.</li>
     <li><strong>Sample pack</strong> — installable demo content (datasets, Views, dashboards, a job) so you can explore before connecting anything. Install/remove from Settings.</li>
     <li><strong>Workspace backend</strong> — where the whole workspace syncs (Supabase, Turso…), so it follows you between devices; Local keeps everything in this browser.</li>
@@ -2763,7 +2973,7 @@
   <p>What it takes away:</p>
   <ul>
     <li>15 chart types shown in the gallery (the most universally understood).</li>
-    <li id="adv-sections">Every advanced section of the panel inspector is hidden — all fifteen
+    <li id="adv-sections">Every advanced section of the View inspector is hidden — all fifteen
       advanced inspector sections, in the order the inspector builds them:
       <strong>Drill-through</strong>, <strong>Detail drawer</strong>,
       <strong>Cross-filter</strong>, <strong>Target line</strong>,
@@ -2774,18 +2984,33 @@
       <strong>Click-through</strong>, <strong>Calculated columns</strong> and
       <strong>Output options</strong>. Nothing is lost — a dashboard that already uses one keeps
       it, and switching back to Advanced mode shows the section again with its settings intact.</li>
-    <li>The <strong>Data</strong> panel is read-only browse + drag: its <strong>＋ New ▾</strong>
-      button, the add control on <strong>My queries</strong> and the per-query actions are all
-      hidden, as are the <strong>Edit data source</strong> jump link in a panel's Data section
-      and the per-dataset actions on the <strong>Repository</strong> page.</li>
+    <li id="simple-hides">The <strong>Data</strong> panel becomes read-only browse + drag, and so
+      does the one link the View inspector offers out of it. Five authoring controls are hidden,
+      all of them in the Dashboard Builder:
+      <ul>
+        <li>the <strong>Data</strong> panel header's <strong>＋ New ▾</strong> button;</li>
+        <li>the <strong>Create a new data source</strong> button on the
+          <strong>This dashboard’s datasets</strong> group header;</li>
+        <li>that same <strong>This dashboard’s datasets</strong> group's per-card
+          <strong>Duplicate</strong> and <strong>Delete</strong> actions;</li>
+        <li>the <strong>My queries</strong> group's per-card <strong>Edit data source</strong>
+          and <strong>Delete data source</strong> actions;</li>
+        <li>and the <strong>Edit data source</strong> jump link in a View's
+          <strong>Data</strong> section.</li>
+      </ul></li>
   </ul>
+  <p id="simple-keeps">Nothing outside the builder changes. The workspace catalog pages keep every
+  authoring control in both modes — the <strong>Repository</strong> page still offers
+  <strong>Quick edit</strong> on a row, <strong>+ New folder</strong>, and the Select bulk bar, and
+  Datasets, Connections, Jobs and Views are untouched. Simple mode is a quieter builder, not a
+  read-only app.</p>
   <p>And what it adds, all of it in the builder:</p>
   <ul>
     <li>A <strong>Simple mode is active</strong> note at the top of the dashboard inspector,
       with a <strong>Switch to Advanced mode</strong> button — the one-click way back.</li>
     <li>A guided <strong>Getting started</strong> checklist while the dashboard is still empty,
-      and a <strong>What's next?</strong> card once the first panel or KPI is on the canvas.</li>
-    <li>Guided column setup in a panel's <strong>Data</strong> section (every chart type except
+      and a <strong>What's next?</strong> card once the first View or KPI is on the canvas.</li>
+    <li>Guided column setup in a View's <strong>Data</strong> section (every chart type except
       Rich text): a nudge when no dataset is bound yet, a warning when the query has no columns,
       and — when the slots are simply empty — an <strong>Auto-pick columns</strong> button that
       assigns them by name.</li>
@@ -2796,8 +3021,56 @@
     <li>All 54 chart types + specialist annotation and interaction tools.</li>
     <li>Full data-source authoring: author SQL (sample engine) and direct-connector data accesses; create compound joins and unions; manage workspace connections and datasets; configure output options.</li>
     <li id="adv-mode-sections">All fifteen advanced inspector sections listed above are on the
-      panel inspector, none of them hidden.</li>
+      View inspector, none of them hidden.</li>
   </ul>
+
+  <h3 id="settings-cards">The Settings page — every card on it</h3>
+  <p>Settings is pinned at the foot of the left rail, and it is one scrolling page of cards. In
+  the order they appear:</p>
+  <ol id="settings-card-list">
+    <li><strong data-set-card="Account">Account</strong> — who you are signed in as, with your
+      role beside the name (and a <em>demo account</em> note when it is one), and the
+      <strong>Sign out</strong> button. This card is why Settings stays in the rail for a viewer
+      even when an admin has switched every other section off.</li>
+    <li><strong data-set-card="Workspace backend">Workspace backend</strong> — which workspace
+      this browser is working in and whether it is syncing, with <strong>Connect</strong> /
+      <strong>Switch backend</strong>, the <strong>Recent sync activity</strong> log and the
+      access-file export. It has a chapter of its own:
+      <a href="#admin-docs">Admin &amp; backend setup</a>.</li>
+    <li><strong data-set-card="Appearance">Appearance</strong> —
+      <strong data-set-row="dark">Dark mode</strong>, plus the
+      <a href="#color-theme">Color theme</a> picker's palette cards.</li>
+    <li><strong data-set-card="Mode">Mode</strong> — three switches:
+      <strong data-set-row="simple">Simple mode</strong>, the subject of this chapter;
+      <strong data-set-row="restore">Restore unsaved work</strong>, off by default, which offers
+      on your next visit to bring back a dashboard you were editing but never saved; and
+      <strong data-set-row="panels">Open the builder with side panes</strong>, also off by
+      default, which decides whether the Dashboard Builder opens with its Data and Inspector
+      panes already out.</li>
+    <li><strong data-set-card="Presentation">Presentation</strong> —
+      <strong data-set-row="demo">Demo mode</strong>, which simulates a live-refreshing feed for a
+      stakeholder demo, and <strong>Welcome tour</strong>, whose <strong>Take the tour</strong>
+      button re-runs the guided walkthrough. This card is where the tour lives; it is not on the
+      top bar, and <kbd>⌘K</kbd> → <strong>Take the tour</strong> reaches the same thing.</li>
+    <li><strong data-set-card="Dashboard defaults">Dashboard defaults</strong> — the house style
+      every brand-new blank dashboard starts from, plus <strong>Style presets</strong>. Detailed
+      immediately below.</li>
+    <li><strong data-set-card="Sample packs">Sample packs</strong> — install or remove each
+      <a href="#sample-packs">sample pack</a>, one pack at a time, with each card naming where its
+      data came from. This is the only sample-content switch there is.</li>
+    <li><strong data-set-card="Data">Data</strong> — <strong>Export settings</strong> /
+      <strong>Import settings</strong>, described under
+      <a href="#backing-up">Backing up your settings</a> below.</li>
+    <li><strong data-set-card="App">App</strong> — <strong>Hard reset</strong>, which throws away
+      this browser's offline copy of Analytics (its service worker and cached files) and reloads so
+      every file is fetched fresh. It is the remedy for an update banner that keeps coming back
+      however often you reload. It removes nothing you have made — your workspace, dashboards,
+      datasets, connections and settings are all untouched — which is what makes it different from
+      <strong>⋯ More → Clear local data</strong>, and the one to try first.</li>
+  </ol>
+  <p>Three more cards look like Settings cards but live on the <strong>Admin</strong> page
+  instead, because they are app-wide rather than yours: <strong>Section access</strong>,
+  <strong>Workspaces</strong> and <strong>Branding &amp; app identity</strong>.</p>
 
   <h3>Dashboard defaults</h3>
   <p>The Settings page's <strong>Dashboard defaults</strong> card sets the house style every
@@ -2818,7 +3091,7 @@
   settings and included in Clear local data.</p>
   <p>Below that, <strong>Style presets</strong> lets you save the current set of defaults above as a named preset — type a name and click "+ Save as preset". Save more than one (e.g. one per client) and click <strong>Apply</strong> on any saved preset to switch which one is the active default; the trash button removes a preset. The preset whose saved fields match your current defaults is marked <strong>Active</strong> (a highlighted row + pill), so you can tell at a glance which house style is live — change any default and the marker clears until a preset matches again. A preset with a saved logo shows a small thumbnail instead of a plain color swatch. Presets travel with Export/Import settings and are included in Clear local data too.</p>
 
-  <h3>Backing up your settings</h3>
+  <h3 id="backing-up">Backing up your settings</h3>
   <p>The Settings page has a <strong>Data</strong> card with <strong>Export settings</strong> / <strong>Import settings</strong>. This saves/restores your theme, mode, workspace connections, and pane-layout preferences as a <code>.json</code> file — handy before clearing local data, or to carry your setup to another browser or device. It only covers app preferences, not dashboard content (use <strong>Save</strong> / <strong>Open</strong> for a <code>.studio.json</code>).</p>
 
   <h3>Branding &amp; app identity</h3>
@@ -2830,14 +3103,27 @@
   </ul>
   <p>Branding is saved with the <strong>workspace</strong> — on a connected workspace it syncs to the backend and applies for everyone who signs in, on every device (a custom logo shows on the sign-in screen too). <strong>Export settings</strong> also carries a copy along. This only affects the app's own chrome — it's independent of any exported dashboard's branding.</p>
 
-  <h3>Sending feedback (and what gets recorded)</h3>
+  <h3 id="feedback">Sending feedback (and what gets recorded)</h3>
   <p>The speech-bubble button in the top bar (next to What's-next) opens a tiny dialog — on a
   phone the top bar keeps only its essentials, so you'll find <strong>Send feedback</strong> in
-  the <strong>⋯</strong> menu instead, right below What's new. Either way: pick
-  <strong>Bug</strong>, <strong>Feature</strong>, <strong>Comment</strong>, or
-  <strong>Question</strong>, optionally say more, and hit Send. Your account name, the section
-  you were on, the open dashboard (if any), and the app version are captured automatically, so
-  a one-word report still tells the team exactly where you were. Reports go to an admin-only
+  the <strong>⋯</strong> menu instead, right below What's new. Either way: pick a kind
+  <span id="feedback-kinds">— <strong>Bug</strong>, <strong>Feature</strong>,
+  <strong>Comment</strong> or <strong>Question</strong> —</span> optionally say more, and hit
+  Send.</p>
+  <p id="feedback-context">Alongside what you typed, the report carries a small block of
+  context, captured automatically so that a one-word report still tells the team exactly where
+  you were. This is the whole of it:
+  <strong data-fb-field="username">your account name</strong> and
+  <strong data-fb-field="gotrue_id">your sign-in id</strong> (both empty if you aren't signed
+  in), <strong data-fb-field="section">the section you were on</strong>,
+  <strong data-fb-field="dashboard">the open dashboard's id</strong> plus
+  <strong data-fb-field="dashboardTitle">its title</strong> (only when one is open),
+  <strong data-fb-field="route">the route in your address bar</strong>,
+  <strong data-fb-field="version">the app version</strong>,
+  <strong data-fb-field="viewport">your window size</strong>, and
+  <strong data-fb-field="ua">your browser's user-agent string</strong>. Nothing else travels
+  with it — not the contents of the page you were on, and none of your workspace data.</p>
+  <p>Reports go to an admin-only
   log in the workspace backend; on a local-only workspace they wait on your device and send
   once a backend is connected. Separately, the backend keeps a concise activity trail —
   sign-ins/outs, dashboard opens, exports, and one time-on-page event per visit — also

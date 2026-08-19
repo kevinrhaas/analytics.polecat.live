@@ -27,6 +27,7 @@
 - [✓ Shipped out of the ▶ NOW queue — grooming pass 1 (2026-08-07)](#groomed-2026-08-07)
 - [✓ Shipped out of the ▶ NOW queue — grooming pass 3 (2026-08-09)](#groomed-2026-08-09)
 - [✓ Shipped out of the ▶ NOW queue — grooming pass 4 (2026-08-10)](#groomed-2026-08-10)
+- [✓ Shipped out of the ▶ NOW queue — grooming pass 5 (2026-08-10)](#groomed-2026-08-10b)
 
 ---
 
@@ -2696,3 +2697,170 @@
   used instead. Consider asserting the same about `provision` itself, as a documented tombstone
   rather than a fix, so nobody re-points an upgrade at it. Related: N20/N21/N22 all touch the
   same provisioning surface; whoever takes N22 should read this first.
+
+---
+
+<a id="groomed-2026-08-10b"></a>
+
+## ✓ Shipped out of the ▶ NOW queue (grooming pass 5, 2026-08-10)
+
+> Struck entries moved verbatim from STATUS.md ▶ NOW per docs/BACKLOG.md grooming — 2 entries,
+> 137 lines, nothing deleted, nothing renumbered, NOW's order untouched. This is the SECOND pass
+> of 2026-08-10 (pass 4 drained the previous 24 hours the same morning), which is why the anchor
+> carries a suffix: the two share a date and an id must stay unique.
+>
+> **Only one of the two triggers fired, and it fired hard.** The carcass count is 2, well under
+> the rule's 5 — but the queue holds **zero ready non-recurring items**, against a threshold of
+> three. That is the whole reason this pass exists so soon after pass 4: what drained here is the
+> last of the work Kevin promoted on 2026-08-09, so the queue emptied rather than shortened.
+>
+> **What drained is Kevin's whole 2026-08-09 promotion, minus the pack pass 4 already took.**
+> SP-6 (Federal Contract Awards) went out with pass 4; SP-5 (Campaign Finance, v966–v968) and
+> SP-13 (Where America Moved, v969–v971) go out here. **Nine slices against nine points, all
+> three packs ON estimate** — the program's cleanest run to date, and the SP-0 convention SP-1
+> proved held for all three without amendment.
+>
+> **THREE findings leave the queue inside these two entries and are deliberately NOT lost.** Pass
+> 4 set the precedent by rescuing SP-6's linear-class-breaks measurement on the way out; the same
+> is done here. All three are recorded — not promoted — at the foot of ▶ NOW in STATUS.md, where
+> pass 4's note already sits: the 2,000-row live cap (three packs have now paid for its absence),
+> `DashKit.heatmap`'s invalid SVG when narrow, and the county atlas that predates the 2022
+> boundary changes. Full measurements are in the entries below.
+
+- ~~**SP-13 ★ [3pt est, 3 slices shipped — ON estimate] — Where America Moved, the third and last
+  of Kevin's three money-flow packs.**~~ ✓ **COMPLETE — v969/v970/v971, all 2026-08-10, steward
+  (see DONE). With it, ALL THREE packs Kevin promoted on 2026-08-09 are shipped, and this queue
+  now has NO ready non-recurring work at all — the next unit is the grooming pass + `hold` batch
+  proposal `docs/BACKLOG.md` calls for, not a reservoir item taken directly.** *(⏳ marker
+  cleared 2026-08-10 by the run that took slice (c): PR #754 had merged, so the claim had
+  expired — the grooming rule "re-check ⏳ markers whose PRs closed".)*
+  IRS Statistics of Income county-to-county migration: for every county
+  pair, how many households moved, how many people, and **the aggregate income that moved with
+  them**. Public domain. Kevin promoted it here himself on 2026-08-09 (the note above is its
+  authority); the reservoir entry in 📦 SAMPLE-PACK PROGRAM carries the original spec and its ⏫
+  marker. Ships as ~3 PRs on the SP-0 convention SP-1, SP-6 and SP-5 all proved — (a) extract +
+  connection/datasets/jobs, (b) dashboards, (c) Views + tour + docs.
+  ✓ **SLICE (a) IS SHIPPED — the data foundation: v969, sw v559 (2026-08-10, steward — see
+  DONE).** The extract over the four 2022-2023 SOI files, four committed tables inside 134.1KB of
+  the 150KB budget (3,087 counties, 51 states with their stayers, 306 state corridors, 153 county
+  corridors), the pack's connection, its six datasets and the two jobs — the county derive chain
+  and the state join. Est 1pt, took 1.
+  **What slice (a) measured that changes how (b) and (c) must be built — read these before
+  starting either:**
+  **(1) THE TWO GRAINS DO NOT ADD UP,** by the source's own definition (county totals include
+  intra-state moves, state totals do not). Any dashboard that puts a county number and a state
+  number in the same KPI row is wrong; say which grain a panel is on, the way the extract's notes
+  and the Help entry do.
+  **(2) THE STAYERS ARE A STATE-GRAIN FACT.** "Are the leavers richer than the stayers" is
+  answerable on the state job's output and nowhere else; at county grain the honest form is
+  arrivers-versus-leavers, which the county job already carries as `income_gap_k`.
+  **(3) ELEVEN COUNTIES HAVE NO SHAPE TO DRAW,** and the hero of this pack is a county
+  choropleth, so (b) has to decide what the map does about them rather than discover it. See the
+  DONE entry: the app's committed county atlas predates the 2022 boundary changes, so all nine
+  Connecticut planning regions and Alaska's Chugach and Copper River are in the data and off the
+  map. The pack keeps them and the suite pins the ids. **The general fix — refreshing
+  `vendor/geo/counties-albers-10m.json` from TIGERweb via `tools/build-geo.mjs` — is a separate
+  ~1pt item affecting every county choropleth in the app, and it is Kevin's to rank.** Until it
+  lands, (b)'s map should state the gap on the dashboard rather than let Connecticut read as
+  no data. (Unrelated but in the same wiring: the file adapter types numeric-looking cells, so a
+  job's output carries `fips` as the NUMBER 1001, not `"01001"` — `geoNormalizeId` re-pads it on
+  the way to a shape, which is why SP-1's choropleth works and why the suite check re-pads before
+  comparing. Nothing to fix; just do not hand-compare a job's fips to a five-character id.)
+  ✓ **SLICE (b) IS SHIPPED — the three dashboards: v970, sw v560 (2026-08-10, steward — see
+  DONE).** Who Is Winning Households (the county net-migration choropleth and its income twin,
+  both diverging at zero, with the counties at both ends of both), The Corridors (the
+  state-to-state sankey, the corridors taking a sixth or more of the state they leave, and the
+  biggest county-to-county moves), and Did the Money Move With Them (net AGI by state as a calc
+  column on the View, and each corridor's movers against the stayers of the state they left).
+  Split by GRAIN rather than by topic, because (1) above says they cannot be mixed — every note
+  panel names the grain it is on. Est 1pt, took 1.
+  **What slice (b) measured and could not un-find, and it is Kevin's to rank rather than the
+  loop's to fix on a pack slice (the SP-5(b) and SP-6(b) precedent):**
+  **THE 2,000-ROW LIVE CAP IS NOW BITING A SECOND PACK, and here it disfigures a map.** SP-5(b)
+  recorded that `app/build.js` (`bdLoadRowsFor`) keeps the first 2,000 rows of any live dataset
+  run, before the View's own filters, with no badge and nothing in Help. This pack's county table
+  is **3,087 rows in FIPS order**, so a national choropleth bound to it draws Alabama through Ohio
+  and simply stops — **sixteen states, Ohio through Wyoming, gone, while the panel still looks
+  like a map.** Slice (b) worked around it exactly the way SP-5 did, with a third job that trims
+  by a readable rule (counties with 1,000+ households arriving or leaving → 1,782 counties, 96.5%
+  of all moves, and **no state lost**), and states the trim on the dashboard. **The general fix is
+  unchanged and still unranked:** (a) disclose it — a panel/View badge when a run was truncated;
+  (b) raise the cap with a measured budget; (c) both. Est 1pt for (a) alone, and two packs have
+  now paid for its absence.
+  ✓ **SLICE (c) IS SHIPPED — the four pinned Views, the pack's own tour and the docs: v971,
+  sw v561 (2026-08-10, steward — see DONE). Nothing remains: SP-13 is complete, ON its 3pt
+  estimate.** Est 1pt, took 1, and it needed no builder work at all — Sankey has been a View
+  Builder chart type since SP-6 (c), so the corridor flow opened as a flow on the first try;
+  that is the third pack to collect the same dividend. The heal chain the note below predicted
+  is exactly what shipped: `ensureCountyMigrationMapJob` → `ensureCountyMigrationDashboards` →
+  `ensureCountyMigrationViews`, and the Views heal declines outright while the map job's output
+  is missing rather than pinning a card with nothing to read.
+  **What slice (c) confirmed rather than discovered:** the 2,000-row live cap reaches the VIEWS
+  too, not just the dashboards — a pinned county View bound to the raw 3,087-row table would
+  draw Alabama through Ohio and stop, on Home, with no dashboard note anywhere near it. The
+  slice inherited slice (b)'s trimmed job output rather than re-inheriting the accident, and the
+  suite now pins the distinction from both ends. **The general fix is unchanged and still
+  Kevin's to rank** — (a) disclose a truncated run with a badge, (b) raise the cap with a
+  measured budget, (c) both; est 1pt for (a) alone, and **three packs have now paid for its
+  absence.**
+
+- ~~**SP-5 ★★ [3pt est, 3 slices shipped — ON estimate] — Campaign Finance, the second of
+  Kevin's three money-flow packs.**~~ ✓ **COMPLETE — v966/v967/v968, all 2026-08-10, steward
+  (see DONE). SP-13 (Where America Moved) is now the ready one of Kevin's three; it sits in the
+  📦 SAMPLE-PACK PROGRAM reservoir with its ⏫ marker, and the promotion note above is its
+  authority to take.** *(⏳ marker cleared 2026-08-10 by the run that took slice (c): PR #751
+  had merged, so the claim had expired — `docs/BACKLOG.md` grooming rule "re-check ⏳ markers
+  whose PRs closed". Grammar line minted 2026-08-10 by the run that started it,
+  the way SP-6's was — the promotion note above named the three packs and gave a line to none of
+  them, so the queue had nothing to mark. The scope decisions in the 📦 SAMPLE-PACK PROGRAM
+  reservoir entry are binding and unchanged.)*
+  ✓ **SLICE (a) IS SHIPPED — the data foundation: v966, sw v556 (2026-08-10, steward — see DONE).**
+  The extract over the FEC's closed 2023-24 bulk files, seven committed tables (95.6KB of the
+  150KB budget, $6.50B of itemized individual giving over 46.2M contributions), the pack's
+  connection, its eight datasets and the job that turns one donor state into a share of the
+  committee it gave to — and, where the committee has a seat, the share that came from outside it.
+  **Three things the item did not anticipate, all found by reading the extract's output:**
+  (1) filtering recipients to candidate committees — the obvious reading of "who funds the
+  candidates" — draws a landslide that never happened, because the two sides raised through
+  different plumbing; `committee_type` is a column now instead. (2) The committee master links
+  some PARTY committees to a candidate id, which filed the NRSC under Alaska. (3) Minnesota's
+  Democrats register as DFL, which put Amy Klobuchar in "other party".
+  **And one thing the item asked for that this source cannot give, measured rather than skipped:**
+  the FEC bulk file has NO street address in it — 21 fields ending at city/state/ZIP — so the
+  Census Geocoder half of the item has nothing to read, the pack's geography is ZIP-derived
+  throughout, and there is no mixture for a `geo_precision` column to disclose. Recorded here
+  because the item's constraints were written expecting one.
+  ✓ **SLICE (b) IS SHIPPED — the three dashboards: v967, sw v557 (2026-08-10, steward — see DONE).**
+  Who Funds Whom (the donor-state→committee sankey, the home-state share, the concentrated pairs),
+  Where the Money Comes From (the state map and the two shares as calc columns), and Who Gives It,
+  and How (the size-band marimekko, the cycle's shape, occupation and employer). Est 1pt, took 1.
+  **What slice (b) found and could not un-find — and both halves are Kevin's to rank, not the
+  loop's to fix on a pack slice (the SP-6(b) precedent):**
+  **(1) THE VIEW BUILDER SILENTLY CHARTS A PREFIX.** `app/build.js` (`bdLoadRowsFor`) keeps the
+  first **2,000 rows** of any live dataset run, BEFORE the View's own filters, with no badge, no
+  note and nothing in Help. On this pack it was not cosmetic: the join's output is 2,658 rows in
+  `cmte_id` order, so the hero drew **$2.8B of $3.69B and 38 of 50 committees**, losing Trump 47
+  and Trump National Committee JFC — i.e. the app's own row limit reproduced exactly the partisan
+  artifact slice (a) had gone out of its way to avoid, and nothing on screen said so. The pack
+  worked around it with a second job (filter ≥ $200k → 1,293 rows, 97.7% of the dollars, all 50
+  committees) and states the trim on the dashboard. **The general fix is not that.** Options, in
+  Kevin's order: (a) disclose it — a panel/View badge when a run was truncated, which is the
+  honesty rule the app applies everywhere else; (b) raise the cap with a measured budget; (c)
+  both. **Est 1pt for (a) alone**, and (a) is the one this loop would recommend taking first: a
+  wrong chart that announces itself is a different product from one that does not.
+  **(2) `DashKit.heatmap` EMITS INVALID SVG WHEN NARROW.** It divides the width it is given among
+  its columns after reserving a 130px label gutter and never clamps
+  (`cw = (w - labelW - mR)/cols.length`), so a panel's first paint — which happens at ~28px — emits
+  one negative-width `<rect>` per cell: **336 console errors** for a 24×7 pivot, and the shipped
+  `conservation-scorecard` example already emits **56 today**. Vertical bars divide width the same
+  way and fail the same way; horizontal bars, lines, sankeys, scatters and maps do not. `vendor/`
+  is pristine by invariant, so the clamp is a **toolkit slice (est 1pt)** in `app/studio-charts.js`
+  or a vendored-toolkit update, not something to smuggle in on a pack. Until then a seeded
+  dashboard cannot use a heatmap, which is why SP-5's cycle panel is a line.
+  ✓ **SLICE (c) IS SHIPPED — the four pinned Views, the pack's own tour and the docs: v968,
+  sw v558 (2026-08-10, steward — see DONE).** Est 1pt, took 1 — and it needed no builder work at
+  all, because SP-6 (c) had already made Sankey a View Builder type; the flow hero opened as a
+  flow on the first try. **Nothing remains: SP-5 is complete.** The two findings above are
+  UNCHANGED and still Kevin's to rank — slice (c) neither fixed nor worked around either one, and
+  (1) is now visible in one more place, since the flow Views read the pack's trimmed second job
+  output for exactly the reason its dashboards do.

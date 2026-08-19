@@ -1137,6 +1137,536 @@ ok(`app/tutorial.js: every tour that walks a catalog names that catalog ROW's ow
   !rowTourGaps.length,
   `${rowTourGaps.join("\n      ")}\n      the row is where the work happens — an unnamed row control is one the reader will never find`);
 
+/* ── the IDENTIFIER RESOLVER (checks 46 (f) and 48 (h)) ─────────────────────
+   N7, 2026-08-11. Check 48 (h) asked a question no other check here asks: not "is this
+   COUNT right" or "does this PATH exist", but **can a reader type the name this document
+   just handed them and have the code answer?** That is the PUBLISH.md class of failure —
+   a contract naming a function nobody can call — and it is the one this family keeps
+   finding. (h) shipped that rule for `docs/PACKS.md` with a resolver that knew five
+   SHAPES, because the JS this repo writes defines a name five ways.
+
+   The v993 measurement said the obvious next move — point it at the other EXECUTED
+   document — is a bigger slice than it looks. `tools/M7-RLS-GOLIVE-RUNBOOK.md` names
+   eleven identifiers of this shape and (h)'s resolver resolved none of the hard ones:
+   `polecat_is_admin()`, `BOOTSTRAP_DDL`, `RLS_REAL_SQL`, `PROVISION_SECRET`,
+   `SUPABASE_SERVICE_ROLE_KEY`, `gotrueId`, `acctOwner`. They are not missing — they are
+   in the tree, in NAMESPACES (h) could not read:
+
+     · a SQL function inside a template literal (`polecat_is_admin` is DDL text, built in
+       `app/sources/schema.js` and three more places — no JS shape describes it);
+     · an Edge-Function binding in a **`.ts`** file the corpus excluded by extension;
+     · an environment variable, which is not a binding at all — it is a string key read
+       through `Deno.env.get`, so the honest resolution is "the code reads this name";
+     · a workspace object PROPERTY (`gotrueId`, `acctOwner`), which is function-shaped
+       nowhere;
+     · the Edge Function's fixed ACTION vocabulary (`go-live`, `create-user`), hyphenated
+       and so not spelled like a JS name at all;
+     · a UI field LABEL (`Admin function URL`) — multi-word, and the thing an operator
+       actually hunts for on screen.
+
+   So this is not "(h) with another file passed in": each namespace needs its OWN honest
+   resolution rule, or the runbook gets a check that green-lights a name nobody can call.
+   The resolver below is (h)'s, taught those namespaces and lifted out of check 48 so the
+   two documents share ONE derivation rather than growing a second copy — the reuse idiom
+   checks 28, 46 and 79 already follow.
+
+   Then 2026-08-11 again, for the two documents the FRONT DOOR forwards to (checks 44 (g)
+   and 41 (h)). Those needed three more namespaces and one INVERSION, and what they have in
+   common is that PUBLISH.md is executed against GITHUB rather than against this code:
+
+     · a deployment ENVIRONMENT (`github-pages`) — hyphenated, so the resolver already read
+       it as "not a JS name", and it was none of the four things that branch knew about;
+     · a settings-UI LABEL (`GitHub Actions`, the Pages source) — a label no app string can
+       answer for, because the screen belongs to GitHub. The thing that CAN answer is the
+       workflow that REQUIRES the setting, which is check 44 (a)'s own source;
+     · a repo FILE with no extension (`CNAME`) — SCREAMING_SNAKE by shape, so it reached the
+       constant rule and failed there; it resolves against the tree, the way the module
+       branch does, because "does this file exist" is a different question from "is this
+       name defined";
+     · a GLOBAL (`window.STUDIO_STAGE`) — `window` is the platform's namespace, not one of
+       this app's, so the namespace branch could not spell it;
+     · and the INVERSION: a span the document declares DELETED must NOT resolve. PUBLISH.md
+       § 3 names `app/gate-config.js` and `window.STUDIO_GATE_SHA256` in a sentence whose
+       whole job is to say they went in v852, so "every name resolves" is the wrong question
+       and demanding it would push a true sentence out of the page. Held from the other end
+       instead: if either name comes back, the sentence saying it is gone reddens the gate.
+
+   Two exemptions were widened in the same pass, both by SHAPE and both measured: a
+   key-value fragment written without the space (`caps.data:false`) — rejecting a SECOND
+   colon, so `Studio::materialize` stays in the unreadable bucket where it belongs — and
+   typography, a span of one character (`A` records, the `+` chips), since nothing this
+   repo defines is one character long.
+
+   Then 2026-08-11 once more, for `docs/PIPELINE.md` (check 42 (g)) — the last document
+   this family had left. Its three gaps were three more namespaces, and none of them was
+   drift; what they have in common is that the runbook describes the DELIVERY MACHINERY, so
+   two of the three are answered by the workflows rather than by the app:
+
+     · a WORKFLOW named without its `.yml` (`promote-to-prod`) — hyphenated, so it never
+       reaches the module rule that resolves `promote-to-prod.yml`, and the roster is simply
+       the directory. Deliberately not taken with PUBLISH.md's namespaces, which needed no
+       such span: a roster no document reads is a rule that cannot be measured;
+     · a COMMAND (`git revert -m 1`) — not a name at all. The `node …` exemption calls its
+       shape unreadable-but-fine because rule (e) holds the script; this one does better,
+       because the sentence's whole claim is that rollback IS that command and
+       `rollback-prod.yml` is the file that runs it. It resolves against the automation
+       instead of being exempted, on an ordered token subsequence so `git revert -n 1`
+       fails where the true invocation passes;
+     · a PLATFORM GLOBAL (`localStorage`) — the honest edge, and the one the v996 note
+       flagged as such. It is the only shape here whose answer is not "this repo defines
+       it", because this repo cannot; "the platform defines it" is not a claim the tree can
+       check. So the rule asks the narrower question the tree CAN answer — does this app use
+       the name as a global, a bare receiver nothing here binds — which is derived rather
+       than an allow-list of web APIs, and hands the name back to the binding rule the day
+       someone shadows it.
+
+   And one shape the namespace branch could not read: a namespace whose base is a GLOBAL
+   bound to an IIFE's return (`window.STUDIO_WS_STORE = (function () { … })()`). Neither
+   `NS.member =` nor `NS = {` describes a module that publishes through its closing
+   `return {…}`, so `identMember` learned that third shape rather than the document learning
+   an exemption.
+
+   Two invariants carried over from (h) unchanged, because they are what stop a rule like
+   this rotting one span at a time:
+     · a span that is neither prose nor a shape the resolver knows is REPORTED BY NAME,
+       not silently skipped. The unreadable bucket is a FAILING condition;
+     · every exemption is a SHAPE, never an allow-list of words. */
+
+// The code corpus — every first-party module a reader could be sent to. `tests/` and the
+// Edge Function's `.ts` are in it because both documents point an operator straight at
+// them; the guard itself is excluded on purpose, so a name resolves against the CODE and
+// never against the check that names it.
+const identCorpus = (() => {
+  const files = {};
+  const walk = (dir, re) => {
+    if (!fs.existsSync(path.join(ROOT, dir))) return;
+    for (const e of fs.readdirSync(path.join(ROOT, dir), { withFileTypes: true })) {
+      const rel = dir + "/" + e.name;
+      if (e.isDirectory()) walk(rel, re);
+      else if (re.test(e.name) && rel !== "tools/doc-truth.mjs") files[rel] = read(rel);
+    }
+  };
+  ["app", "tools", "tests"].forEach((d) => walk(d, /\.m?js$/));
+  walk("supabase", /\.ts$/);
+  files["sw.js"] = read("sw.js");
+  return files;
+})();
+const identAll = Object.values(identCorpus).join("\n");
+// Modules resolve against the TREE by basename, not against the code corpus: a document
+// may legitimately name a workflow or a SQL file, and "does this file exist" is a
+// different question from "is this name defined".
+const identTree = (() => {
+  const names = new Set();
+  const walk = (dir) => {
+    for (const e of fs.readdirSync(path.join(ROOT, dir), { withFileTypes: true })) {
+      if (e.name === "node_modules" || e.name === ".git" || e.name === "dev" || e.name === "site") continue;
+      const rel = dir === "." ? e.name : dir + "/" + e.name;
+      if (e.isDirectory()) walk(rel);
+      else { names.add(e.name); names.add(rel); }
+    }
+  };
+  walk(".");
+  return names;
+})();
+// The DDL corpus: committed `.sql` plus every module that BUILDS SQL in a template
+// literal. `polecat_is_admin` exists only as text inside those literals, which is exactly
+// why a "function" rule written for JS cannot see it.
+const identSql = (() => {
+  let s = "";
+  const walk = (dir) => {
+    for (const e of fs.readdirSync(path.join(ROOT, dir), { withFileTypes: true })) {
+      const rel = dir + "/" + e.name;
+      if (e.isDirectory()) walk(rel);
+      else if (/\.sql$/.test(e.name)) s += "\n" + read(rel);
+    }
+  };
+  ["tools", "supabase"].forEach(walk);
+  return s + "\n" + identAll;
+})();
+// An env var is a string key the code READS — the only honest resolution there is.
+const identEnv = new Set([...identAll.matchAll(/(?:Deno\.env\.get\(\s*["']([A-Z][A-Z0-9_]*)["']|process\.env\.([A-Z][A-Z0-9_]*))/g)]
+  .map((m) => m[1] || m[2]));
+// The Edge Function's action vocabulary, from the comparisons that GATE it — index.ts's
+// own header calls those four "the entire surface", so the branch is the source of truth.
+const identActions = new Set([...read("supabase/functions/polecat-admin/index.ts")
+  .matchAll(/action\s*===\s*"([a-z][\w-]*)"/g)].map((m) => m[1]));
+// An HTML ATTRIBUTE the app really uses — set/read through the DOM api, or styled by an
+// attribute selector. Both halves are needed and neither is redundant: `data-palette` is
+// only ever WRITTEN (`setAttribute`, no rule selects it), while `data-theme` is only ever
+// STYLED (the pre-paint script writes it through a variable, the stylesheet names it).
+const identAttrs = new Set([
+  ...identAll.matchAll(/(?:get|set|remove|has)Attribute\(\s*["']([a-z][\w-]*)["']/g),
+  ...[read("app/studio.css"), read("css/landing.css"), read("app/index.html"), read("index.html")]
+    .join("\n").matchAll(/\[([a-z][a-z0-9]*(?:-[a-z0-9]+)+)(?:[~^|*$]?=|\])/g),
+].map((m) => m[1]));
+// A STORAGE KEY, which is a string and nothing else — the honest question is whether the
+// code reads or writes it. `storageKey:` is in the roster because that is how the shared
+// shell is handed this app's historical keys, and CLAUDE.md names them in exactly that role.
+const identStoreKeys = new Set([...identAll.matchAll(
+  /(?:local|session)Storage\.(?:get|set|remove)Item\(\s*["']([\w.-]+)["']|storageKey:\s*["']([\w.-]+)["']/g)]
+  .map((m) => m[1] || m[2]));
+// A GIT REF the repo MINTS. `release-vNNN` is a PATTERN, not a literal — no workflow
+// contains that string, because the number is interpolated — so both sides reduce to the
+// literal stem before they are compared: `release-v${V}` in the workflow, and the doc's
+// span with its placeholder tail (a run of digits, or of capitals like `NNN`) removed.
+// Scoped to the lines that actually mint a ref, so an unrelated interpolated string
+// elsewhere in a workflow cannot enlarge the roster.
+const identRefStems = (() => {
+  const dir = ".github/workflows";
+  if (!fs.existsSync(path.join(ROOT, dir))) return new Set();
+  const text = fs.readdirSync(path.join(ROOT, dir)).filter((f) => /\.ya?ml$/.test(f))
+    .map((f) => read(dir + "/" + f)).join("\n");
+  const minting = text.split("\n").filter((l) => /git\s+tag|refs\/tags\//.test(l)).join("\n");
+  return new Set([...minting.matchAll(/([A-Za-z][\w.-]*)\$\{/g)].map((m) => m[1]));
+})();
+const identRefStem = (span) => span.replace(/(?:[A-Z]{2,}|\d+)$/, "");
+// Field labels the app really prints, for the multi-word shape.
+const identAppCopy = Object.entries(identCorpus).filter(([r]) => r.startsWith("app/")).map(([, s]) => s).join("\n")
+  + "\n" + read("app/index.html") + "\n" + read("index.html");
+// The workflow YAML, whole — the roster behind the two namespaces PUBLISH.md needs and no
+// document before it did, because it is the only one here whose instructions are executed
+// against GITHUB's settings rather than against this repo's code.
+const identWorkflowYaml = (() => {
+  const dir = ".github/workflows";
+  if (!fs.existsSync(path.join(ROOT, dir))) return "";
+  return fs.readdirSync(path.join(ROOT, dir)).filter((f) => /\.ya?ml$/.test(f))
+    .map((f) => read(dir + "/" + f)).join("\n");
+})();
+// A DEPLOYMENT ENVIRONMENT — `github-pages` is hyphenated, so the resolver reads it as "not
+// a JS name", and it is not one of the four things that branch knew about either. It is a
+// GitHub concept, declared by the workflow that deploys into it, which is exactly the thing
+// that would have to answer for the runbook's claim that it "refuses any other ref".
+const identEnvironments = new Set([
+  ...identWorkflowYaml.matchAll(/^\s*environment:\s*([\w.-]+)\s*$/gm),
+  ...identWorkflowYaml.matchAll(/^\s*environment:\s*\n(?:[^\S\n]*(?:#[^\n]*)?\n)*[^\S\n]*name:\s*([\w.-]+)/gm),
+].map((m) => m[1]));
+// A WORKFLOW named without its `.yml` — `promote-to-prod`, which is how PIPELINE.md names
+// the dispatch it tells an operator to run ("Production ships only on an explicit
+// `promote-to-prod` dispatch"). Hyphenated, so it never reaches the module rule that would
+// have resolved `promote-to-prod.yml`; the roster is the directory itself.
+const identWorkflowNames = new Set([...identTree]
+  .filter((n) => /^\.github\/workflows\/[\w.-]+\.ya?ml$/.test(n))
+  .map((n) => path.basename(n).replace(/\.ya?ml$/, "")));
+// A GLOBAL — `window.STUDIO_GATE_SHA256`, `window.STUDIO_STAGE`. Not a namespace member in
+// the `Studio.x` sense (the resolver's namespace branch is spelled for a Capitalised
+// namespace, and `window` is the platform's), so it needs its own rule: the honest question
+// is whether this app's own code puts the name on the window.
+const identGlobal = (name) => new RegExp(`\\bwindow\\.${name}\\s*=`).test(identAll);
+// A WEB PLATFORM global — `localStorage`. The honest edge the v996 note named, and it is the
+// one shape whose answer is NOT "this repo defines it": this repo cannot define it, and "the
+// platform defines it" is not a claim the tree can check. What the tree CAN answer is whether
+// this app uses the name AS a global — a bare receiver nothing here binds. Both halves matter:
+// the usage is what makes it real rather than a typo, and the absence of a binding is what
+// makes it the platform's. Derived rather than listed, so the day someone shadows the name
+// with a local the shape changes and the binding rule above answers for it instead.
+const identPlatformGlobal = (name) =>
+  !identDefines(identAll, name) && new RegExp(`(^|[^\\w.$])${name}\\s*[.([]`).test(identAll);
+// A COMMAND LINE — `git revert -m 1`. Not a name at all, and the `node …` exemption above
+// treats its own shape as unreadable-but-fine because rule (e) holds the script it names.
+// This one has something better to answer for it: PIPELINE.md says rollback IS that command,
+// and `rollback-prod.yml` is the file that runs it — so the span resolves against this repo's
+// own automation rather than being exempted. Tokens must appear IN ORDER as a subsequence of
+// a real run line (not merely be present in it), so a plausible-but-wrong invocation —
+// `git revert -n 1` — fails where the true one passes.
+const identRunLines = identWorkflowYaml.split("\n").map((l) => l.trim().split(/\s+/));
+const identCommandRun = (span) => {
+  const want = span.split(/\s+/);
+  return identRunLines.some((toks) => {
+    let i = 0;
+    for (const t of toks) if (t === want[i] || t.startsWith(want[i] + ";")) i++;
+    return i === want.length;
+  });
+};
+// A RETIREMENT is declared BY THE DOCUMENT, the placeholder idiom one step further. PUBLISH.md
+// § 3 names `app/gate-config.js` and `window.STUDIO_GATE_SHA256` inside a sentence whose whole
+// job is to say they are GONE (v852, AUD-09) — so "every name resolves" is the wrong question
+// for them and demanding it would push a true sentence out of the document. The rule inverts
+// instead of exempting: a span the document says was deleted must NOT resolve, so if the name
+// ever comes back the note that says it is gone reddens the gate. Sentence-scoped, so the
+// declaration has to be about the span rather than merely near it.
+const identRetired = (doc) => {
+  const out = new Set();
+  for (const sentence of doc.split(/(?<=[.!?])\s+|\n\s*\n/)) {
+    if (!/\b(?:was|were)\s+(?:deleted|retired|removed)\b|\bno readers\b/i.test(sentence)) continue;
+    for (const m of sentence.matchAll(/`([^`]+)`/g)) out.add(m[1].trim().replace(/\s+/g, " "));
+  }
+  return out;
+};
+// Does the tree still answer to this name, in any shape a retired span can take? A file, a
+// global, a namespace member, a binding, a SQL function. Only the retirement rule reads it;
+// the live rules resolve per shape, which reports a MOVED name more precisely than this could.
+const identLives = (span) => {
+  const g = span.match(/^window\.([A-Za-z_$][\w$]*)$/);
+  if (g) return identGlobal(g[1]);
+  if (span.includes("/")) return fs.existsSync(path.join(ROOT, span));
+  const bare = span.replace(/\([^()]*\)$/, "");
+  const ns = bare.match(/^([A-Z]\w*(?:\.\w+)*)\.(\w+)$/);
+  if (ns) return identMember(ns[1], ns[2]);
+  if (!/^[\w.-]+$/.test(bare)) return false;
+  return identTree.has(bare) || identDefines(identAll, bare) || identSqlFn(bare);
+};
+
+// One name, every shape this codebase uses to define one: a declaration, an assignment
+// (to a function, an arrow, an object or an array — `Studio.DEMO_PACKS = {` is as much a
+// definition as `function writePack(`), an object KEY whose value is a function, or a
+// var/let/const binding (which is also how `export const BOOTSTRAP_DDL` reads).
+const identDefines = (src, name) => new RegExp(
+  `\\bfunction\\s+${name}\\s*\\(` +
+  `|\\b${name}\\s*=\\s*(?:async\\s+)?(?:function\\b|\\(|[[{])` +
+  `|\\b${name}\\s*:\\s*(?:async\\s+)?(?:function\\b|\\()` +
+  `|\\b(?:var|let|const)\\s+${name}\\b`).test(src);
+// A namespace member is either assigned onto the namespace (`WS.freshDeploySQL = function`)
+// or a KEY of the object literal the namespace is assigned — how app/build.js writes it
+// (`runBlob: bdRunBlob`, a name bound to a closure defined 250 lines earlier).
+// A THIRD shape, taught for `STUDIO_WS_STORE.blockReason()`: the namespace is a global bound
+// to an IIFE's RETURN value (`window.STUDIO_WS_STORE = (function () { … return { blockReason:
+// blockReason, … }; })()`). Neither branch above can see it — nothing is ever assigned onto
+// the namespace, and `NAME = {` looks at the assignment, where a module like this publishes
+// through its closing `return`. So read the IIFE's own brace block and ask the object literal
+// it returns, which is the only place such a module exposes anything.
+const identMember = (ns, member) => {
+  const esc = ns.replace(/\./g, "\\.");
+  if (new RegExp(`\\b${esc}\\.${member}\\s*=`).test(identAll)) return true;
+  const at = identAll.indexOf(`${ns} = {`);
+  if (at >= 0 && new RegExp(`(^|[\\s,{])${member}\\s*:`).test(braceBlockAt(identAll, identAll.indexOf("{", at)))) return true;
+  const iife = new RegExp(`(?:window\\.)?${esc}\\s*=\\s*\\(\\s*function`).exec(identAll);
+  if (!iife) return false;
+  const body = braceBlockAt(identAll, identAll.indexOf("{", iife.index));
+  const ret = body.lastIndexOf("return {");
+  return ret >= 0 && new RegExp(`(^|[\\s,{])${member}\\s*:`).test(braceBlockAt(body, body.indexOf("{", ret)));
+};
+// A property is read or written somewhere — `.acctOwner` or `acctOwner:`.
+const identProp = (name) => new RegExp(`\\.${name}\\b|\\b${name}\\s*:`).test(identAll);
+// A SQL function is DECLARED in DDL, schema qualifier optional.
+const identSqlFn = (name) => new RegExp(`function\\s+(?:[a-z_]+\\.)?${name}\\s*\\(`, "i").test(identSql);
+
+// The spans a reader is handed. Fenced blocks are code the reader COPIES rather than copy
+// they read (rule 48 (f)'s line) and their contents are not backticked anyway — stripped
+// so every rule over a document sees the same text. The fence may be indented: the runbook
+// indents its blocks under numbered steps, and anchoring at column 0 left half of them in,
+// which unbalanced the backtick pairing and turned whole paragraphs into "spans".
+const identSpans = (doc) => {
+  const body = doc.replace(/^[ \t]*```[^\n]*\n[\s\S]*?^[ \t]*```/gm, "");
+  return [...new Set([...body.matchAll(/`([^`]+)`/g)].map((m) => m[1].trim().replace(/\s+/g, " ")))];
+};
+// A placeholder is declared BY THE DOCUMENT — "replace `ADMIN_UUID`" — rather than guessed
+// from its spelling. `ADMIN_UUID` is SCREAMING_SNAKE and resolves nowhere by design; the
+// only honest way to exempt it is the sentence that tells the operator to substitute it.
+const identPlaceholders = (doc) => new Set([...doc.matchAll(/replace\s+`([^`]+)`/gi)].map((m) => m[1].trim()));
+
+/* ── the repo PATHS a document hands a reader ───────────────────────────────
+   The span shape the identifier resolver skips ("a repo path — check 46 (e) / 48 (e)").
+   That hand-off is true for PACKS.md and the RLS runbook and lands nowhere for every other
+   document here, which is what rule 44 (h) found for docs/PIPELINE.md. This is that rule's
+   derivation, extracted rather than copied: unlike the identifier namespaces there is
+   nothing document-specific to teach — a path either is in this tree or it is not — so the
+   five documents that publish paths share one reading of them.
+
+   Three shapes decide whose tree must answer, and none of them is an allow-list:
+   · a last segment spelled like a HOSTNAME is another repo's slug
+     (`kevinrhaas/jobtracker.polecat.live`, the pilot runbook PIPELINE.md defers to) — by
+     design not in this checkout;
+   · a two-segment OWNER/REPO slug is a REPOSITORY rather than a path
+     (`kevinrhaas/polecat-platform`), and the OWNER half is derived rather than listed — see
+     `pathOwners` below. Deriving it is not ceremony: the first cut of this rule read any
+     dotless two-segment span the tree does not have as a repo, which is exactly the shape of
+     `lib/VERSION`, so the check passed green over the very drift it was written for;
+   · a path in a SENTENCE that names one of those two is a path in THAT repo, the
+     identRetired grain: CLAUDE.md's shell rule sends an agent to the platform repo to bump
+     `lib/VERSION` and run `scripts/gen-manifest.mjs`, two files that must never exist here.
+     The document declares the scope, in the sentence a reader is reading when they meet the
+     path; the rule reads the declaration rather than guessing from the spelling.
+   And the RETIREMENT inversion the identifier resolver already applies, for the same reason
+   and ahead of every exemption: a path the document says was DELETED must NOT resolve, so
+   PUBLISH.md's note about `app/gate-config.js` reddens the day that file comes back. */
+const pathShape = /^[\w.][\w.-]*(?:\/[\w.-]+)+$/;
+const pathHostname = (s) => /^[a-z0-9-]+(?:\.[a-z0-9-]+)*\.(?:com|org|net|io|live|dev)$/.test(s.split("/").pop());
+// Which first segment is a GitHub OWNER rather than a directory? Derived, never listed: the
+// fleet spells its repos `<owner>/<host>` — `kevinrhaas/jobtracker.polecat.live` — a shape
+// nothing in this tree can be confused with, since a directory here is never spelled like a
+// hostname. Every such slug across the repo's own Markdown contributes its owner half, so
+// `kevinrhaas/polecat-platform` reads as a repository while `lib/VERSION` stays a path this
+// tree must answer for. An owner nobody ever spells that way is unknown and the rule fails
+// closed — the path is held here, which is the safe direction for a rule about missing files.
+const pathOwners = (() => {
+  const out = new Set();
+  for (const dir of [ROOT, path.join(ROOT, "docs"), path.join(ROOT, "tools")])
+    for (const f of fs.readdirSync(dir).filter((n) => n.endsWith(".md")))
+      for (const m of fs.readFileSync(path.join(dir, f), "utf8")
+        .matchAll(/`([\w-]+)\/[a-z0-9-]+(?:\.[a-z0-9-]+)*\.(?:com|org|net|io|live|dev)`/g))
+        out.add(m[1]);
+  return out;
+})();
+const pathOtherRepo = (s) => pathHostname(s)
+  || (/^[\w-]+\/[\w-]+$/.test(s) && pathOwners.has(s.split("/")[0]));
+// Every span in a sentence that names another repo — the declaration is sentence-scoped, so
+// naming the platform repo once cannot buy the whole document out of the rule.
+const pathForeign = (doc) => {
+  const out = new Set();
+  for (const sentence of doc.split(/(?<=[.!?])\s+|\n\s*\n/)) {
+    const spans = [...sentence.matchAll(/`([^`]+)`/g)].map((m) => m[1].trim().replace(/\s+/g, " "));
+    if (!spans.some((s) => pathShape.test(s) && pathOtherRepo(s))) continue;
+    for (const s of spans) out.add(s);
+  }
+  return out;
+};
+/* Returns { held, gaps, elsewhere } — `gaps` is the failing bucket, `elsewhere` the spans
+   this tree is not the one to answer for. */
+function resolvePaths(doc) {
+  const retired = identRetired(doc), foreign = pathForeign(doc);
+  const held = [], gaps = [], elsewhere = [];
+  for (const span of identSpans(doc)) {
+    if (!pathShape.test(span)) continue;
+    if (retired.has(span)) {
+      held.push(span);
+      if (fs.existsSync(path.join(ROOT, span)))
+        gaps.push(`${span} — the document says it was deleted, and the tree answers to it again`);
+      continue;
+    }
+    if (pathOtherRepo(span) || foreign.has(span)) { elsewhere.push(span); continue; }
+    held.push(span);
+    if (!fs.existsSync(path.join(ROOT, span)))
+      gaps.push(`${span} — named here, no such file or directory in the tree`);
+  }
+  return { held, gaps, elsewhere };
+}
+
+/* Classify each span by SHAPE, then resolve it in the namespace that shape implies.
+   Returns { held, gaps, unread } — `unread` is the failing bucket. */
+function resolveIdentifiers(doc) {
+  const placeholders = identPlaceholders(doc);
+  const retired = identRetired(doc);
+  const held = [], gaps = [], unread = [];
+  for (const span of identSpans(doc)) {
+    // — the exemptions, every one a shape —
+    // A placeholder family (`Studio.ensure<Pack><Thing>()`, `data/packs/<id>/`) or a
+    // wildcard (`Studio.*`, `steward_test_rls_*`) names a family, not a function. Matched
+    // as a bracket PAIR so a stray `>` cannot buy a span out of the unreadable bucket.
+    if (/<[A-Za-z]\w*>/.test(span) || span.includes("*")) continue;
+    if (placeholders.has(span)) continue;                 // the document declared it
+    // The document says this one is GONE, so the rule inverts rather than exempting: the
+    // name must NOT resolve. It runs before every shape below, including the path
+    // exemption, because a deleted FILE coming back is the same broken sentence as a
+    // deleted global coming back.
+    if (retired.has(span)) {
+      held.push(span);
+      if (identLives(span))
+        gaps.push(`${span} — the document says it was deleted, and the tree answers to it again`);
+      continue;
+    }
+    // Typography, not a name: a single character (`A` records, the `+` chips) or a span
+    // with no word character in it at all. Nothing this repo defines is one character long.
+    if (span.length < 2 || !/\w/.test(span)) continue;
+    if (/^node\s/.test(span)) continue;                   // a command line — rule (e) holds the script
+    // A code FRAGMENT rather than a name: `kind: "licensed"`, `role: "admin"`,
+    // `caps.data:false`, `jsonb_set(data::jsonb,…)`. Scoped to quoting/bracing and the
+    // key-value SHAPE rather than "contains a colon" — `Studio::materialize` is not a
+    // fragment, it is a name in a syntax this repo does not write, and saying so is the
+    // point of the bucket, which is why the key-value form has to reject a SECOND colon
+    // rather than merely allow the space README writes without.
+    if (/[{}"']/.test(span) || /^[A-Za-z_$][\w.$]*\s*:(?!:)\s*\S/.test(span)) continue;
+    if (span.includes("/")) continue;                     // a repo path — check 46 (e) / 48 (e)
+    if (/^[\w.-]+\.(json|md|csv|txt|sql|html|css|svg|png)$/i.test(span)) continue;  // an artifact
+    if (/^\.[a-z0-9]+$/.test(span)) continue;             // a bare extension — a file TYPE
+    if (/^[a-z0-9-]+(?:\.[a-z0-9-]+)*\.(?:com|org|net|io|live|dev)$/.test(span)) continue;  // a hostname
+    // A SQL clause or predicate: it carries an operator, or it leads with the ALL-CAPS
+    // keyword SQL is written in throughout both documents (`TO authenticated`,
+    // `role = admin`, `gotrue_id =`). A UI label never does either.
+    if (/\s/.test(span) && (/[=<>();|]/.test(span) || /^[A-Z]{2,}\b/.test(span))
+        && !/^[\w-]+\.(m?js|ts)\s+\w+$/.test(span)) continue;
+
+    // — the namespaces —
+    let m;
+    if ((m = span.match(/^([\w-]+\.(?:m?js|ts|yml|yaml))(?:\s+(\w+))?$/))) {
+      // A module, optionally qualifying a name inside it. The two halves fail differently
+      // on purpose: a missing FILE is a moved module, a missing function inside a present
+      // file is a moved closure.
+      const [, file, name] = m;
+      held.push(span);
+      const hit = Object.entries(identCorpus).find(([rel]) => rel === file || rel.endsWith("/" + file));
+      if (!hit && !identTree.has(file)) gaps.push(`${file} — named here, no such file in the tree`);
+      else if (name && !hit) gaps.push(`${file} — the module it qualifies ${name} with is not readable code`);
+      else if (name && !identDefines(hit[1], name)) gaps.push(`${span} — the module is there, the function is not`);
+    } else if ((m = span.match(/^([A-Z]\w*(?:\.\w+)*)\.(\w+)(?:\([^()]*\))?$/))) {
+      held.push(span.replace(/\([^()]*\)$/, ""));
+      if (!identMember(m[1], m[2])) gaps.push(`${span} — namespace member, assigned nowhere under app/, tools/, tests/ or supabase/`);
+    } else if ((m = span.match(/^window\.([A-Za-z_$][\w$]*)$/))) {
+      // A GLOBAL. `window` is the platform's namespace, not one of this app's, so the
+      // namespace branch above cannot read it — and the honest question is narrower than
+      // "is this name bound somewhere": it is whether the app's own code puts it there.
+      held.push(span);
+      if (!identGlobal(m[1]))
+        gaps.push(`${span} — named as a global, and nothing under app/, tools/ or tests/ assigns it to window`);
+    } else if ((m = span.match(/^(?:[a-z_]+\.)?([A-Za-z_]\w*)\([^()]*\)$/))) {
+      // A call. It resolves as JS **or** as DDL — `install()` is a registry hook,
+      // `polecat_is_admin()` exists only as text inside a template literal.
+      held.push(span);
+      if (!identDefines(identAll, m[1]) && !identSqlFn(m[1]))
+        gaps.push(`${span} — named here, defined neither in JS nor in any DDL this repo ships`);
+    } else if (/^[A-Z][A-Z0-9_]*$/.test(span)) {
+      // SCREAMING_SNAKE: a constant the code binds, an env var it reads — or a FILE, which
+      // is the shape a repo whose front page names `CNAME` and `LICENSE` writes without an
+      // extension for the artifact rules above to recognise. It resolves against the tree
+      // for the same reason the module branch does: "does this file exist" is a different
+      // question from "is this name defined", and both documents here ask the first one.
+      held.push(span);
+      if (!identDefines(identAll, span) && !identEnv.has(span) && !identTree.has(span))
+        gaps.push(`${span} — neither a binding under app/, tools/, tests/ or supabase/, nor a name the code reads from the environment, nor a file in the tree`);
+    } else if (/^[a-z][\w]*(?:-[\w]+)+$/.test(span)) {
+      // Hyphenated lowercase is not a JS name at all, so it is never one namespace — it is
+      // whichever of FOUR the document meant, and each has its own roster derived from the
+      // code that would have to answer for it. The RLS runbook needed only the first (the
+      // Edge Function's gated action vocabulary); CLAUDE.md, which describes the app's
+      // chrome and the pipeline rather than an admin API, needed the other three, and its
+      // six spans of this shape resolved in none of them until they were taught.
+      held.push(span);
+      if (!identActions.has(span) && !identAttrs.has(span) && !identStoreKeys.has(span)
+          && !identRefStems.has(identRefStem(span)) && !identEnvironments.has(span)
+          && !identWorkflowNames.has(span))
+        gaps.push(`${span} — hyphenated, so not a JS name: neither one of the actions ` +
+          `polecat-admin gates (${[...identActions].join(", ")}), nor an attribute the app ` +
+          "sets or styles, nor a key it reads from storage, nor a ref any workflow mints, " +
+          `nor a deployment environment any workflow declares (${[...identEnvironments].join(", ") || "none"}), ` +
+          "nor a workflow in .github/workflows/ named without its .yml");
+    } else if (/^[A-Za-z_$][\w$]*$/.test(span)) {
+      // A bare word is a NAME only when it is spelled like one — an internal capital.
+      // All-lowercase spans are the registries' own keys, the `kind` vocabulary and SQL
+      // identifiers, which the surrounding rules already hold; the exception is a word
+      // the Edge Function gates, which IS a name an operator types.
+      if (!/[A-Z]/.test(span)) { if (identActions.has(span)) held.push(span); continue; }
+      held.push(span);
+      if (!identDefines(identAll, span) && !identProp(span) && !identPlatformGlobal(span))
+        gaps.push(`${span} — neither a binding, nor a property anything reads or writes, ` +
+          "nor a platform global this app calls and never binds");
+    } else if (/^[A-Z][a-z][\w ]*$/.test(span)) {
+      // A multi-word Capitalised span that survived the SQL test is a UI LABEL — the field
+      // an operator hunts for on screen. It has to be copy this repo really prints, and
+      // that is TWO screens once a runbook is executed against repo settings rather than
+      // against the app: PUBLISH.md § 1's `GitHub Actions` is a value in GitHub's own Pages
+      // UI, which no app string can answer for. The thing that CAN is the workflow that
+      // requires the setting — deploy.yml's NOTE names it, and check 44 (a) already reads
+      // that same file — so a settings label resolves against the workflows or not at all.
+      held.push(span);
+      if (!identAppCopy.includes(span) && !identWorkflowYaml.includes(span))
+        gaps.push(`${span} — named as a control, and no such copy is printed anywhere under app/ ` +
+          "nor named by any workflow this repo runs");
+    } else if (/^[a-z]\w*(?:\.[a-z]\w*)+$/.test(span)) {
+      continue;                                           // `data.files` — a key PATH into an entry
+    } else if (/^[a-z][\w-]*(?:\s+\S+)+$/.test(span)) {
+      // A COMMAND, and the last reading before the unreadable bucket — deliberately last, so
+      // it only ever gets a span no namespace above could spell. It resolves against this
+      // repo's own automation: a document that says rollback IS `git revert -m 1` is answered
+      // by the workflow that runs exactly that.
+      held.push(span);
+      if (!identCommandRun(span))
+        gaps.push(`${span} — read as a command, and no \`run:\` line in .github/workflows/ invokes it`);
+    } else {
+      unread.push(span);                                  // the shape the resolver could not read
+    }
+  }
+  return { held, gaps, unread };
+}
+
 /* ── 25. the workspace schema version vs docs/COMPAT.md's history ───────────
    N18. `WS.SCHEMA_VERSION` is the one number that says what shape a workspace has, and
    the same database gets opened by builds on either side of a bump — so the rules for
@@ -1197,6 +1727,24 @@ ok(`the hand-written provision SQL stamps schema v${schemaVersion}, the version 
 ok("CLAUDE.md sends anyone touching WS.SCHEMA_VERSION or the workspace DDL to docs/COMPAT.md",
   /docs\/COMPAT\.md/.test(read("CLAUDE.md")),
   "the pointer is how the contract gets read at all — it is part of the contract");
+
+// The identifiers — the check-46 (f) / 48 (h) rule, and this is the document with the
+// strongest claim on it after those two. COMPAT.md is the other CONTRACT in `docs/`: the
+// rules above hold its version rows and its table names, and said nothing about the
+// FUNCTIONS it tells a reader to call before bumping anything — `WS.compareSchema`,
+// `WS.provisionDeltaSQL`, `Sync.recheckSchema`, `polecat_migrate()`. A migration contract
+// naming a helper that has moved is the PUBLISH.md failure with a database behind it.
+// Measured before the rule: seventeen spans, ALL resolving — so this is a check, not a
+// repair, which is what a contract read this often should measure.
+const compatIdents = resolveIdentifiers(compat);
+ok(`docs/COMPAT.md: every name it hands a reader resolves in the code (${compatIdents.held.length}: ${
+    [...new Set(compatIdents.held)].sort().join(", ")})`,
+  // The floor sits well under today's count so a rewording can never redden this on its
+  // own; the assertions that matter are the two emptiness checks, and an unreadable span
+  // fails BY DESIGN rather than going quietly out of date.
+  compatIdents.held.length >= 12 && !compatIdents.gaps.length && !compatIdents.unread.length,
+  `unresolved: ${compatIdents.gaps.join("\n      ") || "(none)"}\n      ` +
+  `spans the resolver could not classify: ${compatIdents.unread.map((s) => `\`${s}\``).join(" · ") || "(none)"}`);
 
 /* ── 26. the create-project instructions vs the SQL that depends on them ────
    N19. Help now documents the step before every other Supabase topic — creating the
@@ -2835,7 +3383,7 @@ ok("docs/index.html: the Color theme intro claims parity with the Dashboard them
      **ⓘ Tour**"). Check 13 fixed the same class of claim across the six tours; the route
      is the ⌘K palette's own Interactive tutorial command.
 
-   Seven rules, every one of them reusing a derivation an earlier check already built —
+   Eight rules, every one of them reusing a derivation an earlier check already built —
    this check adds no new source of truth, it points the existing ones at one more document:
    (a) the connector inventory names every connector the picker offers, by the picker's label;
    (b) it names none the registry does not have, and counts them in words (check 38's shape);
@@ -2846,7 +3394,11 @@ ok("docs/index.html: the Color theme intro claims parity with the Dashboard them
        idiom, with `library` inside a code span exempt BY SHAPE rather than by a list;
    (f) the rail list names exactly the rail's sections, in the rail's order (check 9's
        derivation, order-strict as check 39's is — README prints it as a walk);
-   (g) the tour-reopen route names the command palette's own tutorial label (check 13). */
+   (g) the tour-reopen route names the command palette's own tutorial label (check 13);
+   (h) every NAME the page hands a reader to type resolves — the check-25/42/46 (f)/48 (h)
+       rule, added 2026-08-11 with check 44 (g), since README and PUBLISH.md are the two
+       documents the front door forwards to and neither had an identifier rule. Two spans
+       here, both resolving: a check, not a repair. */
 
 // The document minus its fenced code blocks and inline code spans: prose only. Rules (a)–(c)
 // and (e)–(g) are about sentences a reader trusts, and `app/sources/` or `caps.data` inside
@@ -3003,6 +3555,23 @@ ok(`README.md: the tour-reopen route names the palette's own "${paletteTutorial}
   `the sentence reads: ${tourSentence.replace(/\s+/g, " ").trim() || "(no sentence mentions the welcome tour)"}\n      ` +
   "README said \"reopen via ⓘ Tour\", a control the app has never had — the same class of dead " +
   "route check 13 found eleven times across the tours themselves");
+
+// (h) the identifiers — the check-25 / 42 / 46 (f) / 48 (h) rule, and this is the last of
+// the two documents the FRONT DOOR forwards to (PUBLISH.md is the other, check 44 (g)).
+// README hands a reader few names by design: its inventories are labels, its tree is paths,
+// and the rules above already hold both. What was left over is the handful it hands you to
+// TYPE — `Studio.registerSource`, the extension point the Adapters bullet tells you to call
+// — and the file the Publish section says wires the custom domain. Two spans, both resolving:
+// a check, not a repair, which is the right result for a page this often read.
+const readmeIdents = resolveIdentifiers(readme);
+ok(`README.md: every name it hands a reader resolves in the code (${readmeIdents.held.length}: ${
+    [...new Set(readmeIdents.held)].sort().join(", ")})`,
+  // The floor is the whole roster rather than a fraction of it, because two is small enough
+  // that a broken extraction and an honest empty page look identical — the guard has to be
+  // the count itself here, where COMPAT.md's 12-of-17 could afford the slack.
+  readmeIdents.held.length >= 2 && !readmeIdents.gaps.length && !readmeIdents.unread.length,
+  `unresolved: ${readmeIdents.gaps.join("\n      ") || "(none)"}\n      ` +
+  `spans the resolver could not classify: ${readmeIdents.unread.map((s) => `\`${s}\``).join(" · ") || "(none)"}`);
 
 /* ── 42. CLAUDE.md + the pipeline runbook vs the gates the workflows really run ──
    N7, and check 41's own closing note named it: check 7 holds CLAUDE.md's SIZE figures
@@ -3205,6 +3774,82 @@ ok(`CLAUDE.md: the posture bullet names both posture scripts (${postureTests.len
   "LIVE database readable RIGHT NOW?\" — and neither subsumes the other, which is exactly why " +
   "N29 exists: rls.mjs went 81/81 green in the same hour rls-verify found dev wide open");
 
+// (f) the identifiers, and this document has the plainest claim on the rule of any of the
+//     four: CLAUDE.md is what an AGENT reads before it merges. Rule (d) above holds the
+//     workflow names and (e) the posture artifacts; nothing held the names the file hands
+//     someone about to change the code — the two SQL generators, the theme storage keys,
+//     the `<html>` attributes the shell-token bridge switches on, `buildHtml`'s
+//     `frameTheme` opt (the ONE documented exception to export byte-identity, so a stale
+//     name here misstates an invariant), and the release tag a promotion mints.
+//     **Measured before the rule: eighteen spans, six of them unresolvable — and none of
+//     the six was drift.** They are three namespaces the resolver could not read, the
+//     v994 shape exactly: an HTML attribute, a storage key and a git ref are each a
+//     string rather than a binding, so a JS-shaped resolver calls all three missing. The
+//     six were taught, not exempted; with them the file is at zero, so this rule ships as
+//     a check rather than a repair.
+const claudeIdents = resolveIdentifiers(claude);
+ok(`CLAUDE.md: every name it hands an agent resolves in the code (${claudeIdents.held.length}: ${
+    [...new Set(claudeIdents.held)].sort().join(", ")})`,
+  claudeIdents.held.length >= 12 && !claudeIdents.gaps.length && !claudeIdents.unread.length,
+  `unresolved: ${claudeIdents.gaps.join("\n      ") || "(none)"}\n      ` +
+  `spans the resolver could not classify: ${claudeIdents.unread.map((s) => `\`${s}\``).join(" · ") || "(none)"}\n      ` +
+  "the namespaces this rule taught the resolver: HTML attributes the app sets or styles, " +
+  "storage keys the code reads or writes, and git refs the workflows mint");
+
+// (g) the same rule for the OTHER document this check owns, and the last one in the family
+//     (checks 25, 41 (h), 42 (f), 44 (g), 46 (f) and 48 (h) hold the rest). PIPELINE.md is
+//     read by an operator deciding how to ship, and it is the only one of the seven that
+//     describes the DELIVERY MACHINERY rather than the app — so most of what it hands you
+//     to type is a workflow, a gate script or a command. The rules above hold its gate
+//     LISTS; nothing held its names.
+//     **Measured before the rule: 15 spans, three unresolvable and one unreadable — and,
+//     as with CLAUDE.md, none of the four was drift.** They are three namespaces the
+//     resolver could not read plus one shape it could not spell: a workflow named without
+//     its `.yml`, a command line, a platform global, and a namespace whose base is an
+//     IIFE's return value. All four were TAUGHT, not exempted, and each resolves against
+//     the thing that would have to answer for it — `.github/workflows/` for the first two,
+//     the app's own use for the third, the module's closing `return` for the fourth. With
+//     them the file is at zero, so this ships as a check rather than a repair.
+const pipelineIdents = resolveIdentifiers(pipelineMd);
+ok(`docs/PIPELINE.md: every name it hands an operator resolves in the code (${pipelineIdents.held.length}: ${
+    [...new Set(pipelineIdents.held)].sort().join(", ")})`,
+  pipelineIdents.held.length >= 12 && !pipelineIdents.gaps.length && !pipelineIdents.unread.length,
+  `unresolved: ${pipelineIdents.gaps.join("\n      ") || "(none)"}\n      ` +
+  `spans the resolver could not classify: ${pipelineIdents.unread.map((s) => `\`${s}\``).join(" · ") || "(none)"}\n      ` +
+  "the namespaces this rule taught the resolver: workflows named without their .yml, " +
+  "commands the workflows' own run: lines invoke, platform globals the app calls and never " +
+  "binds, and members a module publishes through its closing return");
+
+// (h) the PATHS, and this rule exists because (g)'s verification found the hole rather than
+//     because the slice went looking for one. The resolver SKIPS a span containing `/` with
+//     the comment "a repo path — check 46 (e) / 48 (e)", and for PACKS.md and the RLS runbook
+//     that hand-off is true. For this document it lands nowhere: **PIPELINE.md names 15 repo
+//     paths and nothing verified that any of them exists.** Measured by mutating the doc —
+//     `tools/dev-smoke.mjs` → `tools/dev-smoker.mjs` — which came back GREEN across all 40
+//     checks, because rule (a) above matches a gate step by STEM (`dev-smoker.mjs` contains
+//     `dev-smoke`) and (a) is right to: CLAUDE.md legitimately names some steps by stem alone,
+//     so tightening (a) would fail a true sentence. The honest fix is the other one — hold the
+//     paths AS paths, which is (g)'s own question for the one span shape (g) hands off.
+//     Three shapes, no allow-list: a leading `/` is a URL prefix (`/dev/`, `/stage/`, `/v/`)
+//     and not this tree's to answer for; a last segment spelled like a HOSTNAME is another
+//     repo's slug (`kevinrhaas/jobtracker.polecat.live`, the pilot runbook this page defers
+//     to, which by design is not in this checkout); everything else is a path here and must
+//     exist here.
+//     **The derivation moved to `resolvePaths` (check 80, v998)** and this rule now calls it:
+//     the four documents that had no path rule needed the identical reading, and the shapes
+//     above are not document-specific the way the identifier namespaces are. The shared
+//     reader also gained two shapes this one never needed — an OWNER/REPO slug and the
+//     sentence-scoped foreign-repo declaration — neither of which changes what PIPELINE.md
+//     resolves (its one other-repo span is the hostname-shaped slug it always was).
+const pipelinePaths = resolvePaths(pipelineMd);
+ok(`docs/PIPELINE.md: every repo path it names is in the tree (${pipelinePaths.held.length}, plus ` +
+   `${pipelinePaths.elsewhere.length} another repo's)`,
+  pipelinePaths.held.length >= 10 && !pipelinePaths.gaps.length,
+  `${pipelinePaths.gaps.join("\n      ") || "(no gaps)"}\n      ` +
+  `paths read: ${pipelinePaths.held.join(", ") || "(none — the extraction found nothing, which would pass every other rule here)"}\n      ` +
+  "rule (a) matches a gate step by stem, so a typo inside a path it already accepts — " +
+  "tools/dev-smoker.mjs — was invisible to all of check 42 until this rule");
+
 /* ── 43. Help's own NAVIGATION vs the page it navigates ─────────────────────
    N7, and the surface every check in this family had read THROUGH without ever reading:
    checks 9, 14–21, 28, 34–40 hold what docs/index.html SAYS. Nothing held whether a
@@ -3378,7 +4023,15 @@ ok(`docs/index.html: all ${appAnchors.length} help anchors the app links to reso
    (d) every `tools/…` script the runbook tells you to run exists;
    (e) the tour-reopen route resolves against the command palette (check 13's resolver, one
        document over) and the reset key matches `app/welcome.js`'s own literal;
-   (f) the demo accounts are exactly `app/auth.js`'s first-run SEED, both directions.
+   (f) the demo accounts are exactly `app/auth.js`'s first-run SEED, both directions;
+   (g) every NAME the page hands an operator resolves — added 2026-08-11 with check 41 (h),
+       and this document is where the identifier rule stops being about JavaScript: a
+       runbook executed against GITHUB's settings names a deployment ENVIRONMENT, a
+       settings-UI LABEL only a workflow can answer for, and a repo FILE with no extension,
+       none of which the resolver's earlier nine namespaces could read. Its fourth span pair
+       runs the rule BACKWARDS — § 3's note names `app/gate-config.js` and
+       `window.STUDIO_GATE_SHA256` to say they are GONE, so the check holds them to staying
+       gone rather than demanding a true sentence resolve.
 
    Deliberately NOT held: the retired module's NAME. Rule (d) kills the bullet's actionable
    half (a script that is not there), and the fix removed the name with it, but "no module
@@ -3480,6 +4133,23 @@ ok(`PUBLISH.md: § 3's demo accounts are exactly the ${seedAccounts.length} the 
   `seeded, not in the runbook: ${missingSeed.join(", ") || "(none)"}\n      ` +
   `in the runbook, not seeded: ${straySeed.join(", ") || "(none)"}\n      ` +
   "app/auth.js's SEED is what a fresh browser gets — § 3 is where an operator reads it");
+
+// (g) the identifiers — the check-25 / 42 / 46 (f) / 48 (h) rule, and PUBLISH.md is the
+// document with the strongest claim on it after the RLS runbook: the other page here whose
+// instructions an operator EXECUTES, and against GitHub's settings rather than this repo's
+// code. That is what its three namespaces have in common and why no earlier document needed
+// them — a deployment ENVIRONMENT (`github-pages`, the thing rule (c) says refuses every
+// other ref), a settings-UI LABEL that only a workflow can answer for (`GitHub Actions`,
+// rule (a)'s own subject), and a repo FILE with no extension (`CNAME`, the custom domain).
+// The fourth is the interesting one and it runs the rule BACKWARDS: § 3's note names
+// `app/gate-config.js` and `window.STUDIO_GATE_SHA256` to say they were DELETED (v852,
+// AUD-09), so the check holds them to staying gone. Seven spans, all correct today.
+const publishIdents = resolveIdentifiers(publish);
+ok(`PUBLISH.md: every name it hands an operator resolves — or, where the page says it was ` +
+   `deleted, stays deleted (${publishIdents.held.length}: ${[...new Set(publishIdents.held)].sort().join(", ")})`,
+  publishIdents.held.length >= 5 && !publishIdents.gaps.length && !publishIdents.unread.length,
+  `unresolved: ${publishIdents.gaps.join("\n      ") || "(none)"}\n      ` +
+  `spans the resolver could not classify: ${publishIdents.unread.map((s) => `\`${s}\``).join(" · ") || "(none)"}`);
 
 /* ── 45. SPEC.md vs the spec it publishes ───────────────────────────────────
    N7, and the document check 44's own note named as the last one answering to no rule at
@@ -3775,6 +4445,31 @@ ok(`${rlsRunbookPath}: every repo file it points an operator at exists (${runboo
   `named in the runbook, absent from the tree: ${runbookDangling.join(", ") || "(none)"}\n      ` +
   `paths found: ${runbookPaths.join(", ") || "(none — the extractor matched nothing)"}`);
 
+// (f) the identifiers, and it is (e)'s other half done properly — the check-48 (h) move,
+//     one EXECUTED document over. (e) resolves the repo files the runbook points at; it
+//     says nothing about the names an operator TYPES, and this document is almost nothing
+//     but those: a SQL function pasted into the editor, two DDL constants inside the Edge
+//     Function, four environment variables, the four action names, two workspace columns
+//     and the field on screen the admin URL goes into. Measured before the rule: eleven
+//     spans of this shape, and (h)'s resolver could resolve none of the hard ones — not
+//     because they are missing but because they live in namespaces a JS-shaped resolver
+//     cannot read. They all resolve today, so this rule is a CHECK and not a repair, and
+//     the failure it guards is the one an operator pays for mid-go-live: a runbook naming
+//     a function, a secret or a field that is not there.
+const runbookIdents = resolveIdentifiers(rlsRunbook);
+ok(`${rlsRunbookPath}: every name it hands an operator resolves in the code (${
+    runbookIdents.held.length}: ${[...new Set(runbookIdents.held)].sort().join(", ")})`,
+  // The floor is well under today's count, so a rewording can never redden this on its
+  // own; the assertions that matter are the two emptiness checks. An unreadable span
+  // fails BY DESIGN — a resolver that shrugs at a shape it does not know goes quietly
+  // out of date, one span at a time.
+  runbookIdents.held.length >= 15 && !runbookIdents.gaps.length && !runbookIdents.unread.length,
+  `unresolved: ${runbookIdents.gaps.join("\n      ") || "(none)"}\n      ` +
+  `spans the resolver could not classify: ${runbookIdents.unread.map((s) => `\`${s}\``).join(" · ") || "(none)"}\n      ` +
+  "the namespaces this rule taught the resolver: DDL functions inside template literals, " +
+  "Edge-Function .ts bindings, Deno.env names, the gated action vocabulary, workspace " +
+  "properties, and the UI labels an operator hunts for on screen");
+
 /* ── 47. THIRD-PARTY-NOTICES.md vs what the repo actually redistributes ─────
    N7, and the class of document this repo had not yet held to anything: not copy a
    reader skims but a LEGAL notice, whose only job is to be a complete and current list
@@ -3948,8 +4643,87 @@ ok(`${tpnPath}: every third-party row cites licence text that is in the tree (${
        precached in `sw.js`'s `SHELL_FILES` — rule 1, finally enforced;
    (d) the author's checklist names `sw.js` whenever a registered pack ships committed
        data, so the step (c) now fails on is one the checklist actually tells you to do;
-   (e) the negative half — every repo path and every `Studio.*` entry point the document
-       names resolves in the tree (the check-46 rule, one document over). */
+   (e) the negative half — every repo path the document names resolves in the tree (the
+       check-46 rule, one document over). It held the entry points too until rule (h)
+       took them off it, whole.
+
+   Two more, added 2026-08-11 (N7), and they are different questions from (a)-(e):
+
+   (f) THE NOUN — the last leg of the check 14 → 15 → 76 → 77 → 78 → 79 walk. Those
+       retired "panel" as the name of a thing on a dashboard from the ⌘K palette, from
+       Help, from the app's own copy and from README; each is scoped to the surface it
+       holds, and the sweep of every remaining first-party document found exactly ONE
+       site left. It is here, and it is a good one: **`docs/PACKS.md`'s "A pack's Views
+       are not its dashboards' panels again"** — a sentence whose whole job is to draw
+       the View/dashboard distinction, drawing it in the retired noun. (`CLAUDE.md`,
+       `PUBLISH.md`, `docs/COMPAT.md`, `docs/PIPELINE.md` and `docs/BACKLOG.md` carry
+       zero occurrences; the marketing page's one use is a pane and correct.) The line
+       is check 78's, re-derived here the way 79 re-derives it rather than reached for
+       across blocks — a pane is a panel because `app/index.html` says so in the
+       attributes a reader is read to; a thing on a dashboard is a View. Backticks are
+       check 15's <code> idiom, which is what lets this document keep `Studio.newPanel`
+       and a `spec.panels` key in its prose without an allow-list, and a ```js fence is
+       code the reader copies rather than copy they read.
+   (g) THE NAMES — the half (a) leaves open, and it is the same shape as every other
+       "the count is held, the roster is not" gap this family has closed. (a) holds
+       "two of the six shipped packs" against the registry's arithmetic; the SAME
+       sentence then names all six in a parenthetical, on the two sides of the
+       synthetic/real split, and nothing read those words. Rename a pack's folder, or
+       move one across the split while the totals happen to hold, and (a) still passes
+       on a sentence that has gone wrong. The names are the registry's `folder` values
+       verbatim — the name a reader sees in the app — so this is a derivation, not a
+       list kept here.
+
+   One more, added 2026-08-11 (N7), and it is (e)'s other half done properly:
+
+   (h) THE IDENTIFIERS — every name the contract hands an author, not the ones that
+       happened to be written with an open paren. (e)'s extractor was
+       `/`Studio\.(\w+(?:\.\w+)?)\(/` — the paren INSIDE the backticks — so it read 3 of
+       the ~11 names on the page. `Studio.Build.compute`, `Studio.Build.runBlob`,
+       `Studio.newPanel`, `Studio.runJobSteps` and `Studio.DEMO_PACKS` are written
+       without one and were unheld; so were the four non-`Studio` names the document
+       tells you to COPY — `writePack()`, `bdSave`, `reconcilePackDashboards` and
+       `localfile.js typeCell` — and `sw.js`'s two constants and the entry hooks
+       (`install()`, `seed(csv)`, `afterInstall`). Nineteen spans are held now, and ALL
+       of them resolve today (measured), so this rule is a check rather than a fix: it
+       is the check-46/48(e) rule taken to the identifiers a runbook's reader actually
+       TYPES, and the failure it guards is this family's favourite — a contract that
+       names a function nobody can call.
+
+       A resolver has to know more than one shape, because the code does: `Studio.Build`
+       is an object literal (app/build.js:2396) whose members are keys bound to closures
+       (`runBlob: bdRunBlob`), `Studio.newPanel` is an assignment (app/model.js:2517),
+       `writePack` an `export function` under tools/, `typeCell` a closure inside ONE
+       adapter file, `afterInstall` a key of a registry entry. So each backticked span is
+       CLASSIFIED by shape first and resolved by the rule that shape implies — and a span
+       that is neither prose nor a shape the resolver knows is REPORTED rather than
+       silently skipped, which is the only way a rule like this does not rot one
+       unreadable span at a time. Bare lowercase words are the registry's own keys and
+       the `kind` vocabulary (`folder`, `seeds`, `public`…), held by (a)-(d) and by the
+       entry contract; a bare word counts as a NAME only when it is spelled like one.
+
+   Measured: (f) fails on the real pre-fix tree, naming the sentence. Its code side is
+   the PREMISE's rather than the rule's — deliberately, the way checks 78 and 79 do it:
+   break the derivation and it refuses to run rather than turning a correct "Data panel"
+   into a finding (measured twice on mutated trees — the toast stops naming the rendered
+   noun, and the function both literals are read from is renamed). (g) has NO drift
+   today; it is the rule that keeps the sentence true as the program grows, and all
+   three of its directions were measured on mutated trees — a folder renamed in the
+   registry (which fails both ways at once, as an uncovered pack AND an invented name),
+   a pack moved to the wrong side of the semicolon while the totals still hold, and a
+   name in the document that no pack's folder matches.
+
+   (h) likewise has NO drift today — all nineteen spans resolve, which is the measurement
+   that made it a check and not a fix — so every direction of it was measured on mutated
+   trees instead, six of them: `Studio.Build.runBlob` with its member renamed inside the
+   object literal (the shape (e) could never have read at all); `Studio.newPanel` with its
+   assignment renamed; `localfile.js typeCell` with the closure renamed, and separately
+   with the DOCUMENT pointing at a module that is not there (the two halves report
+   differently on purpose — a moved module is not a moved function); `writePack()` with
+   the export removed from tools/; `bdSave` renamed, the bare-name shape; and an
+   unreadable span added to the document (`Studio::materialize`), which reports the span
+   rather than passing. The GUARD itself is out of the corpus: a name may not resolve
+   against the check that names it. */
 const packsDoc = read("docs/PACKS.md");
 const packsPath = "docs/PACKS.md";
 
@@ -4037,24 +4811,129 @@ ok(`${packsPath}: the author's checklist names sw.js while a pack ships committe
   `names SHELL_FILES: ${/SHELL_FILES/.test(packsChecklist)}\n      ` +
   "the precache step lived in the prose above and in no step of the list an author works through");
 
-// (e) the negative half. Same extractor shape as check 47 (b), and the Studio entry points
-//     this document promises are held the way check 41 holds README's.
+// (e) the negative half. Same extractor shape as check 47 (b): every repo PATH the document
+//     names resolves in the tree. Its other half — the entry points — is rule (h), which
+//     reads all of them rather than the three this extractor could see.
 const packsCited = [...new Set([...packsDoc.matchAll(
   /`((?:app|tools|data|tests|docs|js|supabase|vendor)\/[\w./-]*(?:\/|\.\w{2,5}))`/g)].map((m) => m[1]))]
   .filter((p) => !/<id>/.test(p));
 const packsDangling = packsCited.filter((p) => !fs.existsSync(path.join(ROOT, p)));
-const appSrcAll = fs.readdirSync(path.join(ROOT, "app"))
-  .filter((f) => f.endsWith(".js")).map((f) => read(`app/${f}`)).join("\n");
-const packsApis = [...new Set([...packsDoc.matchAll(/`Studio\.(\w+(?:\.\w+)?)\(/g)].map((m) => m[1]))];
-const packsApiGaps = packsApis.filter((a) => !new RegExp(`Studio\\.${a.replace(".", "\\.")}\\s*=|\\b${a.split(".").pop()}\\s*:\\s*function`).test(appSrcAll));
-ok(`${packsPath}: every repo path and Studio entry point it names resolves (${packsCited.length} path(s), ${packsApis.length} api(s))`,
-  // The floors only assert the extractors found the document at all — set below what the
-  // pre-fix file carried (4 paths, 3 entry points) on purpose, so a legitimate rewording
-  // can never redden this rule. The real assertions are the two emptiness checks.
-  packsCited.length >= 3 && packsApis.length >= 2 && !packsDangling.length && !packsApiGaps.length,
+ok(`${packsPath}: every repo path it names resolves (${packsCited.length} path(s))`,
+  // The floor only asserts the extractor found the document at all — set below what the
+  // pre-fix file carried (4 paths) on purpose, so a legitimate rewording can never redden
+  // this rule. The real assertion is the emptiness check.
+  packsCited.length >= 3 && !packsDangling.length,
   `dangling paths: ${packsDangling.join(", ") || "(none)"}\n      ` +
-  `unresolved entry points: ${packsApiGaps.map((a) => `Studio.${a}()`).join(", ") || "(none)"}\n      ` +
-  "a contract that names a script or a function nobody can find is not executable");
+  "a contract that names a script nobody can find is not executable");
+
+// (f) the noun. Check 78's line, re-derived rather than shared: a rule that reached into
+//     another check's block would break the day that block is edited, and the two cannot
+//     disagree while both read the same two literals — `spec.panels` gives the retired
+//     word, addTextPanel's own toast gives the rendered one.
+const addTextSrc48 = (() => {
+  const at = studioJs.indexOf("function addTextPanel(");
+  return at < 0 ? "" : searchBlockAt(studioJs, studioJs.indexOf("{", at), "{", "}");
+})();
+const specKey48 = (addTextSrc48.match(/spec\.(\w+)\.push\(/) || [])[1] || "";            // "panels"
+const retired48 = specKey48.replace(/s$/, "");                                           // "panel"
+const toast48 = (addTextSrc48.match(/toast\("([^"]*?)\s+added\b/) || [])[1] || "";
+const rendered48 = (toast48.match(/\b[A-Z][a-z]+\b(?!.*\b[A-Z][a-z]+\b)/) || [])[0] || "";
+const NOUN48 = retired48 ? new RegExp(`^${retired48}s?$`, "i") : /$^/;
+// The pane vocabulary, off the same two sources checks 78/79 read: the mobile tab roster
+// and the shell markup's own readable attributes. A pane IS a panel; only a thing on a
+// dashboard is not.
+const paneTabs48 = [...fnBody(studioJs, "setupMobileTabs")
+  .matchAll(/\{\s*id:\s*"\w+",\s*label:\s*"([^"]+)"/g)].map((m) => m[1]);
+const panePhrases48 = new Set(paneTabs48.map((l) => l.toLowerCase() + " " + retired48));
+const words48 = (s) => s.replace(/[’']/g, "'").match(/[A-Za-z][A-Za-z'-]*/g) || [];
+const shell48 = read("app/index.html").replace(/<!--[\s\S]*?-->/g, " ");
+const harvest48 = (text) => {
+  const w = words48(text);
+  w.forEach((tok, i) => {
+    if (NOUN48.test(tok.replace(/'s$/, "")) && i > 0) panePhrases48.add(w[i - 1].toLowerCase() + " " + retired48);
+  });
+};
+harvest48(shell48.replace(/<[^>]*>/g, " "));
+[...shell48.matchAll(/\b(?:title|aria-label|placeholder)="([^"]*)"/g)].forEach((m) => harvest48(m[1]));
+// The document's COPY: a ```lang fence is code the reader copies, an inline `span` is
+// check 15's <code> idiom, and what is left is prose. Line by line, so a report names the
+// sentence and a phrase never pairs across a break it does not span.
+const packsProse48 = packsDoc
+  .replace(/^```[a-zA-Z][\w+-]*\n[\s\S]*?^```/gm, (m) => m.replace(/[^\n]/g, " "))
+  .replace(/`[^`\n]*`/g, " ")
+  .split("\n");
+const packsPremise48 = ok(`${packsPath}: the contract parsed for the noun rule (${packsProse48.length} line(s), ${panePhrases48.size} pane phrase(s))`,
+  !!retired48 && !!rendered48 && retired48 !== rendered48 && rendered48 === savedNoun &&
+    paneTabs48.length >= 3 && panePhrases48.has("data " + retired48) && packsProse48.length > 100,
+  `retired "${retired48 || "?"}" (spec.${specKey48 || "?"}) · rendered "${rendered48 || "?"}" ` +
+  `(addTextPanel's toast, and check 14's "${savedNoun}")\n      ` +
+  `pane phrases: ${[...panePhrases48].sort().join(" · ") || "(none)"}\n      ` +
+  "the nouns and the panes are check 78's own literals — this rule adds a document, not a " +
+  "source of truth, so it refuses to run rather than report on a derivation it could not make");
+if (packsPremise48) {
+  const strayPacks48 = [];
+  packsProse48.forEach((line, i) => {
+    const w = words48(line);
+    w.forEach((tok, j) => {
+      if (!NOUN48.test(tok.replace(/'s$/, ""))) return;
+      const before = j > 0 ? w[j - 1].toLowerCase() : "";
+      if (before && panePhrases48.has(before + " " + retired48)) return;
+      strayPacks48.push(`${packsPath}:${i + 1}: "${line.trim().slice(0, 110)}"`);
+    });
+  });
+  ok(`${packsPath}: the contract calls a thing on a dashboard a "${rendered48}" — "${retired48}" only where the app's markup names a pane`,
+    !strayPacks48.length,
+    `${[...new Set(strayPacks48)].join("\n      ") || "(none)"}\n      ` +
+    `the panes: ${[...panePhrases48].sort().join(" · ")}\n      ` +
+    `checks 76-79 retired this noun in the palette, in Help, in the app and on the front page; ` +
+    `the sentence here drawing the View/dashboard distinction was drawing it in the retired word`);
+}
+
+// (g) the names. (a) holds the arithmetic of the sentence that splits the packs by kind;
+//     the parenthetical in the SAME sentence names all of them, and nothing read it. The
+//     roster is the registry's own `folder` values — what the reader sees in the app.
+const packsSplit48 = (packsDoc.match(/\S+\s+of\s+the\s+\S+\s+(?:shipped|registered)\s+packs\b[^(]*\(([^)]*)\)/i) || [, ""])[1];
+const [synthSide48, realSide48] = packsSplit48.split(";");
+const namesIn48 = (side) => (side || "").split(/,| and /)
+  .map((frag) => (frag.trim().match(/^[A-Z][^\s]*(?:\s+[A-Z][^\s]*)*/) || [""])[0].trim())
+  .filter(Boolean);
+const claimed48 = { synthetic: namesIn48(synthSide48), real: namesIn48(realSide48) };
+const packsNameGaps48 = [];
+for (const p of packRegistry) {
+  const side = p.sourceKind === "synthetic" ? "synthetic" : "real";
+  const other = side === "synthetic" ? "real" : "synthetic";
+  if (claimed48[side].includes(p.folder)) continue;
+  packsNameGaps48.push(claimed48[other].includes(p.folder)
+    ? `"${p.folder}" is listed as ${other === "real" ? "real" : "synthetic"} data, but its registry entry declares kind:"${p.sourceKind}"`
+    : `"${p.folder}" (kind:"${p.sourceKind}") is named on neither side of the sentence`);
+}
+const packsInvented48 = [...claimed48.synthetic, ...claimed48.real]
+  .filter((n) => !packRegistry.some((p) => p.folder === n))
+  .map((n) => `"${n}" is named here and is no pack's folder in the registry`);
+ok(`${packsPath}: the sentence naming the packs names every one of them, on the side its \`source.kind\` puts it (${
+  packRegistry.map((p) => `${p.folder}: ${p.sourceKind || "?"}`).join(" · ")})`,
+  !!packsSplit48 && !!synthSide48 && !!realSide48 && !packsNameGaps48.length && !packsInvented48.length,
+  `${[...packsNameGaps48, ...packsInvented48].join("\n      ") || "(no parenthetical of this shape found — the sentence naming the packs was removed or reworded)"}\n      ` +
+  `the document says synthetic: ${claimed48.synthetic.join(", ") || "(none)"} · real: ${claimed48.real.join(", ") || "(none)"}\n      ` +
+  "rule (a) holds the two NUMBERS in this sentence; a pack renamed, or moved across the " +
+  "split while the totals happen to hold, leaves them both right and the roster wrong");
+
+// (h) the identifiers, and it is now ONE derivation rather than two: the resolver this
+//     rule shipped lives above check 46, which taught it the six namespaces the RLS
+//     runbook needs and re-points both documents at the same code. Nothing about what (h)
+//     holds here changed — every span this document hands an author is still classified by
+//     SHAPE and resolved by the rule that shape implies, and a span the resolver cannot
+//     read is still a FAILING condition rather than a log line.
+const packsIdents = resolveIdentifiers(packsDoc);
+ok(`${packsPath}: every name it hands an author resolves in the code (${packsIdents.held.length}: ${
+    [...new Set(packsIdents.held)].sort().join(", ")})`,
+  // The floor is well under today's count, so a rewording can never redden this rule; the
+  // real assertions are the two emptiness checks.
+  packsIdents.held.length >= 8 && !packsIdents.gaps.length && !packsIdents.unread.length,
+  `unresolved: ${packsIdents.gaps.join("\n      ") || "(none)"}\n      ` +
+  `spans the resolver could not classify: ${packsIdents.unread.map((s) => `\`${s}\``).join(" · ") || "(none)"}\n      ` +
+  "rule (e)'s extractor wanted the open paren inside the backticks, so it read 3 of these; " +
+  "a contract that names a function nobody can call is this family's favourite failure");
 
 /* ── 49. Help's app-bar chrome vs the bar the app renders ───────────────────
    N7, and the check-21 move one paragraph over. Checks 9 and 43 hold Help's rail and
@@ -5053,7 +5932,9 @@ const SEARCH_SURFACES = [
   ["studio.js:buildLibrary", "the Data panel's My queries group", /\bMy queries\b/, "dataPanel"],
   ["studio.js:buildWorkspaceDatasets", "the Data panel's Datasets group", /\bDatasets\b/, "dataPanel"],
   ["explore.js:buildAnalysesLib", "the Data panel's Views group", /\bViews\b/, "dataPanel"],
-  ["studio.js:applyInspSearch", "the panel inspector's search", /panel inspector/i],
+  // N7/check 77 renamed Help's prose noun: the pane is the Inspector, and the thing it
+  // inspects is a View — so the phrase this row holds moved with the document.
+  ["studio.js:applyInspSearch", "the Inspector's search", /inspector[’']s search/i],
   // The gallery opens FROM the inspector, so its top-level home is renderPanelInspector —
   // a different surface from applyInspSearch's, with its own box and its own row.
   ["studio.js:renderPanelInspector", "the chart-type gallery", /chart-type gallery/i],
@@ -5115,7 +5996,7 @@ ok("docs/index.html: this page runs its own search, and the paragraph still says
   `own box, kit absent from the page: ${helpBoxIsOwn} · published as an exception: ${helpBoxPublished}\n      ` +
   "the one search box on this page is the one box these rules do not reach");
 
-// (e) the table panel's Filter rows box — the exception a reader meets inside their own
+// (e) the table View's Filter rows box — the exception a reader meets inside their own
 //     dashboard, and inside every export. Measured from the renderer, not asserted.
 const chartsSrc = read("app/studio-charts.js");
 const tableBody = (() => {
@@ -5126,7 +6007,7 @@ const tableBody = (() => {
 const tableBoxIsPlain = /class\s*=\s*"tbl-filter"|className = "tbl-filter"/.test(tableBody) &&
   /indexOf\(q\)\s*>=\s*0/.test(tableBody) && !/catalogSearch/.test(chartsSrc);
 const tableBoxPublished = /filter rows/i.test(boxPara) && /literal/i.test(boxPara) && /export/i.test(boxPara);
-ok("app/studio-charts.js + docs/index.html: a table panel's Filter rows box matches one literal string, and Help says so",
+ok("app/studio-charts.js + docs/index.html: a table View's Filter rows box matches one literal string, and Help says so",
   tableBoxIsPlain && tableBoxPublished,
   `plain substring match, kit absent from the renderer: ${tableBoxIsPlain} · published as an exception: ${tableBoxPublished}\n      ` +
   `paragraph: ${boxPara || "(not found)"}\n      ` +
@@ -6079,7 +6960,9 @@ if (kitLive) {
    (e) the count word — every "<n> advanced … sections" claim is the registry's number;
    (f) the routes — every control that toggles the mode is published, and a toggle the page
        calls its neighbour must really neighbour it (the rail's other quick switch, or a
-       member of Simple mode's own Settings group);
+       member of Simple mode's own Settings group). Amended 2026-08-10: the neighbour half
+       reads the chapter with `#settings-card-list` cut out, so it partitions with check 73
+       instead of firing on a list whose whole job is to file each switch under its own card;
    (g) what the mode ADDS — every label its own UI prints, held in bold, plus the badge from
        both ends (Help may describe one only while `#simpleBadge` is in the markup);
    (h) the boot section, held from both ends — while the expression is conditional, every
@@ -6190,8 +7073,15 @@ if (kitLive) {
     ...railLbls.filter((l) => l !== "Simple mode"),
     ...toggles.filter((t) => simpleTog && t.grp === simpleTog.grp && t.id !== "simple").map((t) => t.t),
   ]);
+  // …and it is read over the chapter with the SETTINGS CARD INVENTORY cut out, so 59 (f) and
+  // 73 partition the section rather than contradict each other (check 70's idiom over check
+  // 36's table). #settings-card-list names every switch WITH the card it is filed under —
+  // the opposite of calling it Simple mode's neighbour — and check 73 (c) is what holds each
+  // one to the right card. Everywhere else in the chapter, naming a switch beside Simple mode
+  // still means what it meant when this rule was written.
+  const smNeighbourText = flat(smSec.replace(/<ol id="settings-card-list">[\s\S]*?<\/ol>/, " "));
   const badNeighbours = toggles
-    .filter((t) => t.id !== "simple" && !legalNeighbour.has(t.t) && new RegExp(`\\b${esc(t.t)}\\b`, "i").test(smText));
+    .filter((t) => t.id !== "simple" && !legalNeighbour.has(t.t) && new RegExp(`\\b${esc(t.t)}\\b`, "i").test(smNeighbourText));
   const groupPublished = !!simpleTog &&
     new RegExp(`<strong>${esc(simpleTog.grp)}</strong> group`).test(smSec);
   ok(`docs/index.html: all ${smLive.length} ways into Simple mode are published, and its neighbours are real`,
@@ -6243,6 +7133,3138 @@ if (kitLive) {
     `claims: ${bootClaims.length} · out of step with the code: ${bootBare.map((s) => `"${flat(s)}"`).join(" · ") || "(none)"}\n      ` +
     `app/studio.js branches on featured content: ${bootCond}\n      ` +
     "one section said Home-when-featured and another said Explore flat — neither wrong alone, both wrong together");
+}
+
+/* ── 60. The authoring controls Simple mode hides vs the controls it really hides ────────
+   N7. Check 59 holds what Simple mode does to the panel INSPECTOR — which advanced sections
+   go away, how you turn the mode on, what it adds — and it says in its own closing note why
+   it stopped where it did: the authoring controls the mode hides live in CSS
+   (`body.simple-mode …{display:none!important}`), and a SELECTOR is not a name a reader
+   knows a button by. That mapping is hand-written, which is check 21's idiom, so it needed
+   its own slice. This is that slice, and the sentence it holds was wrong in three ways.
+
+   Measured 2026-08-10, before the fix. Help published one sentence: *"The **Data** panel is
+   read-only browse + drag: its **＋ New ▾** button, the add control on **My queries** and the
+   per-query actions are all hidden, as are the **Edit data source** jump link in a panel's
+   Data section and the per-dataset actions on the **Repository** page."*
+   · **The add control is on the wrong group.** `.mine-add` is built by
+     `buildMyDataSources()`, whose header prints **This dashboard’s datasets** — not
+     **My queries**, which is a different group (`buildLibrary()`'s `.lib-samples`) with its
+     own, different per-card actions. Both groups exist, so the sentence read as plausible.
+   · **"the per-query actions" is one phrase for two different sets.** `.da-mine-acts`
+     (Duplicate / Delete, on This dashboard’s datasets) and `.da-acts` (Edit data source /
+     Delete data source, on My queries) are separate controls on separate groups; the page
+     named neither the groups nor the four actions, so a reader who lost the Duplicate button
+     could not confirm from Help that losing it was the mode.
+   · **The Repository claim is false in BOTH directions.** `.repo-ds-acts` — the selector the
+     clause was written about — is hidden by `app/studio.css:718` and rendered by NOTHING:
+     `.repo-ds-card` has no renderer anywhere in `app/`, so the rule is dead CSS. Meanwhile
+     the Repository page's real per-row authoring controls (`repo-edit` = **Quick edit**,
+     `repo-folder-add` = **+ New folder**, and the `dash-bulk-bar` Select bar) are hidden by
+     no rule at all. So Help told a reader in Simple mode that catalog authoring was locked
+     down when it is fully available, and the one control it named had not existed for
+     however long `.repo-ds-card` has been gone.
+
+   Six rules. The hand-written half is the TABLE below — which selector is which control, and
+   which group a reader finds it on; everything else is derived from the CSS, from the
+   functions that build the controls, and from the group labels those functions print:
+   (a) the premise — the hide rules parse, the table's every selector is really hidden (or,
+       for the JS-guarded jump link, really guarded), and Help's two anchors exist;
+   (b) the table covers the CSS both ways — a new `body.simple-mode` hide rule with no table
+       entry fails here rather than going quietly unpublished (the advanced-inspector and
+       chart-gallery selectors are check 59's and checks 2/3/4's, and are named as theirs);
+   (c) live vs dead — a selector nothing renders may not be published as a hidden control, so
+       every bolded name in the list has to be a label or a group the app really prints;
+   (d) each live control is published WITH its group — one bullet naming the control's own
+       labels and the group header it sits under, both in bold, so the two groups cannot be
+       collapsed into one vague phrase again;
+   (e) the count word — every "<n> authoring controls" claim is the live count;
+   (f) the other direction — the catalog pages' authoring controls are hidden by nothing, and
+       the page says so instead of leaving the reader to assume the builder's restriction is
+       app-wide.
+   Measured: (d), (e) and (f) fail on the REAL pre-fix tree, and so does the premise — the page
+   had no such list to hold, which is the honest reading of "one sentence, three errors". (c)
+   could not fail there for the same reason (an absent list bolds nothing), so it was measured
+   on a mutated tree that re-publishes the Repository clause. Every code-side direction was
+   measured too: a hide rule nothing claims, a selector renamed out from under the table, a
+   group header renamed in the app, a control relabelled in BOTH its title and its aria-label
+   (renaming only one correctly changes nothing — the app still prints the name), and Simple
+   mode starting to hide the Repository page's Quick edit, which correctly reddens (b) and (f)
+   together.
+   Deliberately NOT taken here: DELETING the dead `body.simple-mode .repo-ds-acts` rule (and
+   the four `.repo-ds-*` rules above it). `app/studio.css` is precached, so a five-line
+   deletion costs an `sw.js` CACHE bump — issue #631's territory — for dead CSS no user can
+   see. Rule (b) keeps the entry visible as `dead: true` rather than letting it rot unnamed;
+   it belongs to whichever slice next opens that file for a reason of its own. */
+{
+  const acStudio = read("app/studio.js");
+  const acCss = read("app/studio.css").replace(/\/\*[\s\S]*?\*\//g, "");
+  const acIndex = read("app/index.html");
+
+  // The hand-written half. `group` is the header a reader finds the control under; `labels`
+  // are the names the control prints (button text, or the title/aria-label of an icon-only
+  // one). Both are VERIFIED against the app below — this table says what to look for, never
+  // what is true.
+  const AUTHORING = [
+    { sel: "#btnNewDS", where: "html", group: "Data", labels: ["＋ New ▾"] },
+    { sel: ".mine-add", where: "fn", group: "This dashboard’s datasets", labels: ["Create a new data source"] },
+    { sel: ".da-mine-acts", where: "fn", group: "This dashboard’s datasets", labels: ["Duplicate", "Delete"] },
+    { sel: ".da-acts", where: "fn", group: "My queries", labels: ["Edit data source", "Delete data source"] },
+    // Dead CSS: hidden by app/studio.css, rendered by nothing. See the note above.
+    { sel: ".repo-ds-acts", where: "fn", group: null, labels: [] },
+    // Not CSS at all — the panel inspector simply does not build it in Simple mode.
+    { sel: ".edit-src-link", where: "guard", group: "Data", labels: ["Edit data source"] },
+  ];
+  // Held elsewhere, and named here so rule (b) can tell "someone else's" from "unpublished".
+  const NOT_AUTHORING = { ".adv-sect": "check 59", ".adv-chart": "checks 2/3/4", ".cg-label.adv-grp": "checks 2/3/4" };
+  // The Repository page's own authoring controls — rule (f)'s subjects, same idiom.
+  const REPO_KEEPS = [
+    { cls: "repo-edit", label: "Quick edit" },
+    { cls: "repo-folder-add", label: "+ New folder" },
+    { cls: "dash-bulk-bar", label: null },
+  ];
+
+  // ── derived: every selector body.simple-mode hides outright.
+  const acHidden = new Set();
+  for (const m of acCss.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+    if (!/display\s*:\s*none/.test(m[2])) continue;
+    for (const sel of m[1].split(",")) {
+      const g = /^\s*body\.simple-mode\s+(\S[^\s].*?)\s*$/.exec(sel);
+      if (g) acHidden.add(g[1]);
+    }
+  }
+
+  // ── derived: the function that builds a control, and the group label it (or its caller) prints.
+  const unescU = (s) => s.replace(/\\u([0-9a-fA-F]{4})/g, (_, h) => String.fromCharCode(parseInt(h, 16)));
+  const apos = (s) => String(s == null ? "" : s).replace(/[’‘]/g, "'").replace(/\s+/g, " ").trim();
+  const fnAt = (at) => {
+    const start = acStudio.lastIndexOf("\n  function ", at);
+    if (start < 0) return null;
+    const name = /\n {2}function (\w+)/.exec(acStudio.slice(start, start + 80));
+    const brace = acStudio.indexOf("{", acStudio.indexOf("(", start));
+    if (!name || brace < 0) return null;
+    return { name: name[1], body: searchBlockAt(acStudio, brace, "{", "}") };
+  };
+  // A group header is `<span class="nm">Label</span>`; interpolated ones (' + esc(stem) + ')
+  // are a per-item name, not a group, so they are dropped rather than guessed at.
+  const nmOf = (body) => [...body.matchAll(/class="nm">([^<]*)</g)].map((m) => m[1])
+    .filter((s) => !/['"+]/.test(s)).map((s) => apos(unescU(s)));
+  const buildsIt = (e) => {
+    if (e.where === "html") {
+      const at = acIndex.indexOf(e.sel.slice(1));
+      if (at < 0) return null;
+      const aside = acIndex.slice(acIndex.lastIndexOf("<aside", at), acIndex.indexOf("</aside>", at));
+      const h = /<div class="pane-h">[\s\S]*?<span>([^<]+)<\/span>/.exec(aside);
+      return { body: aside, groups: h ? [apos(h[1])] : [], via: "app/index.html" };
+    }
+    const needle = e.where === "guard" ? `"${e.sel.slice(1)}"` : `"${e.sel.replace(/^[.#]/, "")}"`;
+    const at = acStudio.indexOf(needle);
+    if (at < 0) return null;
+    const fn = fnAt(at);
+    if (!fn) return null;
+    // The jump link's group is the inspector SECTION it is appended to, not a library header.
+    if (e.where === "guard") {
+      const sec = [...fn.body.slice(0, fn.body.indexOf(needle)).matchAll(/section\(body, "([^"]+)"/g)].pop();
+      return { body: fn.body, groups: sec ? [apos(sec[1])] : [], via: `${fn.name}()` };
+    }
+    let groups = nmOf(fn.body), via = `${fn.name}()`;
+    if (!groups.length) {
+      // One caller level: a per-card renderer takes its group from the builder that calls it.
+      for (const c of acStudio.matchAll(new RegExp(`\\b${fn.name}\\(`, "g"))) {
+        const up = fnAt(c.index);
+        if (!up || up.name === fn.name) continue;
+        const g = nmOf(up.body);
+        if (g.length) { groups = g; via = `${fn.name}() ← ${up.name}()`; break; }
+      }
+    }
+    return { body: fn.body, groups, via };
+  };
+  const prints = (body, label) => new RegExp(`(?:["']\\s*|>\\s*)${esc(label)}(?![\\w-])`).test(body);
+  const acBuilt = new Map(AUTHORING.map((e) => [e.sel, buildsIt(e)]));
+  const acLive = AUTHORING.filter((e) => acBuilt.get(e.sel));
+
+  // ── Help's two anchors.
+  const acFlat = (s) => apos(s.replace(/<[^>]+>/g, " ").replace(/&amp;/g, "&").replace(/&nbsp;/g, " "));
+  const acBold = (h) => [...h.matchAll(/<strong>([\s\S]*?)<\/strong>/g)].map((m) => acFlat(m[1]));
+  const hidesAt = help.indexOf('<li id="simple-hides">');
+  const keepsAt = help.indexOf('<p id="simple-keeps">');
+  const hidesBlock = hidesAt >= 0 && keepsAt > hidesAt ? help.slice(hidesAt, keepsAt) : "";
+  const keepsBlock = keepsAt >= 0 ? help.slice(keepsAt, help.indexOf("</p>", keepsAt)) : "";
+  const hidesBullets = (() => {
+    const u = hidesBlock.indexOf("<ul>");
+    if (u < 0) return [];
+    return [...hidesBlock.slice(u, hidesBlock.indexOf("</ul>", u)).matchAll(/<li[^>]*>([\s\S]*?)<\/li>/g)].map((m) => m[1]);
+  })();
+
+  // (a) the premise — and the table's own honesty. The labels below are hand-written, so they
+  // are the half most able to go stale: a control relabelled in the app would otherwise leave
+  // rules (c)/(d) happily holding Help to a word nothing prints any more.
+  const acGuarded = /if \(p\.chart\.da && !S\.simpleMode\)/.test(acStudio);
+  const acMisdeclared = AUTHORING.filter((e) => (e.where === "guard" ? !acGuarded : !acHidden.has(e.sel)));
+  const acMislabelled = acLive.filter((e) => !e.labels.every((l) => prints(acBuilt.get(e.sel).body, l)));
+  ok(`app/studio.css: Simple mode's ${AUTHORING.length} authoring controls parsed for check 60 ` +
+    `(${acHidden.size} selector(s) hidden in all)`,
+    acHidden.size >= 5 && !acMisdeclared.length && !acMislabelled.length &&
+      hidesBlock.length > 0 && keepsBlock.length > 0,
+    `in the table but not hidden by the app: ${acMisdeclared.map((e) => e.sel).join(", ") || "(none)"}\n      ` +
+    `in the table under a name the app no longer prints: ` +
+    `${acMislabelled.map((e) => `${e.sel} (${e.labels.join(" / ")})`).join(", ") || "(none)"}\n      ` +
+    `hidden: ${[...acHidden].join(", ")}\n      ` +
+    `<li id="simple-hides"> found: ${hidesBlock.length > 0} · <p id="simple-keeps"> found: ${keepsBlock.length > 0}\n      ` +
+    "the other five rules read these — a renamed selector or control must fail here rather than let them pass over nothing");
+
+  // (b) the table covers the CSS both ways.
+  const acUnclaimed = [...acHidden].filter((s) => !NOT_AUTHORING[s] && !AUTHORING.some((e) => e.sel === s));
+  ok("app/studio.css: every selector Simple mode hides is either an authoring control this check holds or another check's",
+    !acUnclaimed.length,
+    `hidden but claimed by nothing: ${acUnclaimed.join(", ") || "(none)"}\n      ` +
+    `held elsewhere: ${Object.entries(NOT_AUTHORING).map(([s, c]) => `${s} (${c})`).join(", ")}\n      ` +
+    "a control that starts vanishing in Simple mode and is documented nowhere reads as a bug, not as a mode");
+
+  // (c) live vs dead — nothing published that the app does not render.
+  const acDead = AUTHORING.filter((e) => !acBuilt.get(e.sel));
+  const acLegal = new Set(acLive.flatMap((e) => [...e.labels, ...(acBuilt.get(e.sel).groups || [])].map(apos)));
+  const acInvented = acBold(hidesBlock).filter((b) => !acLegal.has(b));
+  ok(`docs/index.html: every name the hidden-controls list bolds is one the app prints (${acLive.length} live control(s), ${acDead.length} dead)`,
+    !acInvented.length,
+    `bolded but not a label or group the app renders: ${acInvented.join(", ") || "(none)"}\n      ` +
+    `dead selectors (hidden by CSS, built by nothing): ${acDead.map((e) => e.sel).join(", ") || "(none)"}\n      ` +
+    `the app prints: ${[...acLegal].join(" · ")}`);
+
+  // (d) each live control is published WITH the group a reader finds it on.
+  const acUnpublished = acLive.filter((e) => {
+    const groups = acBuilt.get(e.sel).groups.map(apos);
+    return !hidesBullets.some((li) => {
+      const bold = acBold(li);
+      return e.labels.every((l) => bold.includes(apos(l))) && groups.some((g) => bold.includes(g));
+    });
+  });
+  ok(`docs/index.html: all ${acLive.length} controls Simple mode hides are published with the group they sit on`,
+    !acUnpublished.length && hidesBullets.length >= acLive.length,
+    `not published as a control + its group: ${acUnpublished.map((e) => `${e.sel} (${(acBuilt.get(e.sel).groups[0] || "?")}: ${e.labels.join(" / ")})`).join(" · ") || "(none)"}\n      ` +
+    `measured: ${acLive.map((e) => `${e.sel} → ${acBuilt.get(e.sel).via} → "${acBuilt.get(e.sel).groups.join('", "')}"`).join("\n        ")}\n      ` +
+    `bullets: ${hidesBullets.length}\n      ` +
+    "two groups collapsed into one phrase is how the add button came to be documented on the wrong one");
+
+  // (e) the count word.
+  const AC_NUM = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten"];
+  const acClaims = [...acFlat(hidesBlock).matchAll(/\b(\d+|[a-z]+)\s+authoring\s+controls?\b/gi)]
+    .filter((m) => /^\d+$/.test(m[1]) || AC_NUM.includes(m[1].toLowerCase()));
+  const acWordOk = (w) => /^\d+$/.test(w) ? Number(w) === acLive.length : AC_NUM.indexOf(w.toLowerCase()) === acLive.length;
+  ok(`docs/index.html: every "<n> authoring controls" claim reads ${acLive.length}`,
+    acClaims.length >= 1 && acClaims.every((m) => acWordOk(m[1])),
+    `claims: ${acClaims.map((m) => `"${m[0]}"`).join(", ") || "(none — the list publishes no count)"}` +
+    ` — the app hides ${acLive.length}`);
+
+  // (f) the other direction: the catalog pages keep theirs, and the page says so.
+  const repoFn = (() => {
+    const at = acStudio.indexOf("\n  function renderRepository()");
+    return at < 0 ? "" : searchBlockAt(acStudio, acStudio.indexOf("{", acStudio.indexOf("(", at)), "{", "}");
+  })();
+  // A class token, not a prefix: `.repo-folder-add` ships as `class="wb-add repo-folder-add"`.
+  const repoBuilt = REPO_KEEPS.filter((r) => new RegExp(`["'\\s]${esc(r.cls)}(?=["'\\s])`).test(repoFn));
+  const repoHiddenNow = REPO_KEEPS.filter((r) => acHidden.has("." + r.cls));
+  const keepsBold = acBold(keepsBlock);
+  const repoUnsaid = repoBuilt.filter((r) => r.label && !keepsBold.includes(apos(r.label)));
+  ok(`docs/index.html: the Repository page's ${repoBuilt.length} authoring controls are hidden by nothing, and the page says so`,
+    repoBuilt.length === REPO_KEEPS.length && !repoHiddenNow.length && keepsBlock.length > 0 &&
+      !repoUnsaid.length && /Repository/.test(keepsBold.join(" ")),
+    `rendered by renderRepository(): ${repoBuilt.map((r) => r.cls).join(", ") || "(none)"}\n      ` +
+    `now hidden in Simple mode: ${repoHiddenNow.map((r) => r.cls).join(", ") || "(none)"}\n      ` +
+    `named in the page's own sentence: ${keepsBold.join(" · ") || "(none)"}` +
+    (repoUnsaid.length ? `\n      unpublished: ${repoUnsaid.map((r) => r.label).join(", ")}` : "") + "\n      " +
+    "Help told a Simple-mode reader that catalog authoring was locked down while every one of these stayed live");
+}
+
+/* ── Check 61 — the command palette: the families it prints, and the labels Help QUOTES.
+   The ⌘K palette is one registry with two published descriptions, and Help's was the stale
+   copy in both halves. It quoted an `"Add View: <chart type>"` command the app has never
+   printed — the label is `"Add panel: " + label`, and LF52's widget→View sweep renamed the
+   PAGE's quote (from an equally wrong "Add widget:") while the app's own string was never a
+   widget to begin with — so the one thing the paragraph told you to type found nothing. And
+   it published four of the palette's fourteen family tags, silently dropping Data, Present,
+   Manage and Learn, the last of which is the family every tour's "⌘K → Interactive tutorial"
+   route (check 13) lands in.
+   The source of truth is app/palette.js: the static COMMANDS array is EVALUATED rather than
+   regexed (its `run` bodies only dereference their helpers when called, so the literal stands
+   alone), and the four builders that mint commands from live state give up their label prefix
+   and their family word from the object literal each returns. Rule (e) then PROBES
+   Studio.catalogSearch — check 55's idiom — with the very string the page prints, because
+   "type part of its name" is a promise a quoted label either keeps or does not. */
+{
+  const pal = read("app/palette.js");
+
+  const staticCmds = (() => {
+    const at = pal.indexOf("var COMMANDS = [");
+    if (at < 0) return null;
+    try {
+      const arr = new Function("return " + searchBlockAt(pal, pal.indexOf("[", at), "[", "]") + ";")();
+      return Array.isArray(arr) && arr.every((c) => c && typeof c.label === "string" &&
+        typeof c.hint === "string" && typeof c.kw === "string") ? arr : null;
+    } catch { return null; }
+  })();
+
+  // The builders that mint commands from live state. `label` is a fixed prefix (the rail's
+  // also carries one exact label) plus the thing's own name; `hint` is the family word the
+  // row prints on the right. Both are read out of the object literal the builder returns.
+  const DYN = ["navCommands", "exampleCommands", "recentCommands", "chartTypeCommands"];
+  const palStrs = (s) => [...(s || "").matchAll(/"((?:[^"\\]|\\.)*)"/g)].map((m) => m[1]);
+  const dyn = DYN.map((name) => {
+    const at = pal.indexOf("function " + name + "(");
+    const body = at < 0 ? "" : searchBlockAt(pal, pal.indexOf("{", pal.indexOf(")", at)), "{", "}");
+    return {
+      name, body,
+      labels: palStrs((body.match(/label:([\s\S]*?),\s*hint:/) || [])[1]),
+      hints: palStrs((body.match(/hint:([\s\S]*?),\s*kw:/) || [])[1]),
+    };
+  });
+  const palFamilies = staticCmds
+    ? [...new Set([...staticCmds.map((c) => c.hint), ...dyn.flatMap((d) => d.hints)])]
+    : [];
+  // Every published form of a label: a static command's exact label, or a builder's prefix.
+  const palForms = staticCmds
+    ? [
+      ...staticCmds.map((c) => ({ form: c.label, exact: true, hay: [c.label, c.hint, c.kw] })),
+      ...dyn.flatMap((d) => d.labels.map((l) => ({ form: l, exact: false, hay: [l, ...d.hints] }))),
+    ]
+    : [];
+
+  // ── Help's three anchors. `dec` finishes what htmlText starts: the page writes a label's
+  // placeholder as an entity, and a reader sees the angle brackets.
+  const palP = (id) => {
+    const at = help.indexOf(`<p id="${id}">`);
+    return at < 0 ? "" : help.slice(at, help.indexOf("</p>", at) + 4);
+  };
+  const dec = (s) => apos(htmlText(s).replace(/&lt;/g, "<").replace(/&gt;/g, ">"));
+  const palBold = (h) => [...h.matchAll(/<strong>([\s\S]*?)<\/strong>/g)].map((m) => dec(m[1]));
+  const famHtml = palP("cmdk-families"), labHtml = palP("cmdk-labels"), rankHtml = palP("cmdk-rank");
+  const famText = dec(famHtml), rankText = dec(rankHtml);
+
+  // (a) the premise. Everything below reads these, so a registry that stops parsing — or a
+  // paragraph that loses its id — must fail HERE rather than let five rules pass over nothing.
+  const palPremise = ok(`app/palette.js: the command palette's registry parsed for check 61 ` +
+    `(${staticCmds ? staticCmds.length : 0} static command(s), ${dyn.filter((d) => d.labels.length).length} ` +
+    `builder(s) of live commands, ${palFamilies.length} family tag(s))`,
+    !!staticCmds && staticCmds.length >= 20 && palFamilies.length >= 10 && !!searchKit &&
+      dyn.every((d) => d.labels.length >= 1 && d.hints.length >= 1) &&
+      !!famHtml && !!labHtml && !!rankHtml,
+    `static array evaluated: ${!!staticCmds} · kit evaluable: ${!!searchKit}\n      ` +
+    `builders: ${dyn.map((d) => `${d.name} → ${d.labels.map((l) => `"${l}"`).join(" / ") || "(none)"} ` +
+      `[${d.hints.join(" / ") || "(none)"}]`).join("\n        ")}\n      ` +
+    `families: ${palFamilies.join(", ") || "(none)"}\n      ` +
+    `anchors — #cmdk-families: ${!!famHtml} · #cmdk-labels: ${!!labHtml} · #cmdk-rank: ${!!rankHtml}`);
+
+  if (palPremise) {
+    const famBold = palBold(famHtml);
+
+    // (b) every family the palette prints is published, and the count word agrees.
+    const PAL_NUM = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine",
+      "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen"];
+    const famMissing = palFamilies.filter((f) => !famBold.includes(f));
+    const famCounts = [...famText.matchAll(/\b(\d+|[a-z]+)\s+of\s+them\b/gi)]
+      .filter((m) => /^\d+$/.test(m[1]) || PAL_NUM.includes(m[1].toLowerCase()));
+    const famCountOk = (w) => (/^\d+$/.test(w) ? Number(w) : PAL_NUM.indexOf(w.toLowerCase())) === palFamilies.length;
+    ok(`docs/index.html: all ${palFamilies.length} family tags the palette prints are published, and the count word says so`,
+      !famMissing.length && famCounts.length >= 1 && famCounts.every((m) => famCountOk(m[1])),
+      `unpublished: ${famMissing.join(", ") || "(none)"}\n      ` +
+      `count claim(s): ${famCounts.map((m) => `"${m[0]}"`).join(", ") || "(none — the paragraph publishes no count)"}\n      ` +
+      `the palette prints: ${palFamilies.join(" · ")}\n      ` +
+      "four families went unmentioned for months, Learn among them — the one every tour's \"⌘K → Interactive tutorial\" lands in");
+
+    // (c) and it invents none: a family word that is not a hint sends a reader looking for a
+    // tag no row carries.
+    const famInvented = famBold.filter((b) => !palFamilies.includes(b));
+    ok("docs/index.html: the families paragraph bolds no tag the palette does not print",
+      !famInvented.length,
+      `bolded but not a family: ${famInvented.join(", ") || "(none)"}\n      ` +
+      `real families: ${palFamilies.join(" · ")}`);
+
+    // (d) every label the page QUOTES is one the app really prints — exactly, for a fixed
+    // command, or as the prefix a builder puts in front of the thing's own name.
+    const labQuoted = palBold(labHtml).filter((b) => /^".*"$/.test(b)).map((b) => b.slice(1, -1));
+    const labResolve = (q) => {
+      const bare = q.replace(/<[^>]*>/g, "");
+      return palForms.find((f) => (f.exact ? apos(f.form) === bare.trim() : apos(f.form) === bare)) ||
+        palForms.find((f) => !f.exact && apos(f.form).trim() === bare.trim());
+    };
+    const labBogus = labQuoted.filter((q) => !labResolve(q));
+    ok(`docs/index.html: every command label the page quotes is one the palette prints (${labQuoted.length} quoted)`,
+      labQuoted.length >= 4 && !labBogus.length,
+      `quoted but never printed: ${labBogus.map((q) => `"${q}"`).join(", ") || "(none)"}\n      ` +
+      `quoted: ${labQuoted.map((q) => `"${q}"`).join(" · ") || "(none)"}\n      ` +
+      `the builders print: ${dyn.flatMap((d) => d.labels).map((l) => `"${l}"`).join(" · ")}\n      ` +
+      "the page quoted \"Add View: <chart type>\" while the app printed \"Add panel: \" — a rename that swept the doc and missed nothing in the app");
+
+    // (e) the probe, and the rule that would have caught it: the page says "type part of its
+    // name", so every label it quotes must FIND its own command through the palette's matcher.
+    const labUnfindable = labQuoted.filter((q) => {
+      const f = labResolve(q);
+      const query = q.replace(/<[^>]*>/g, "").trim();
+      return !f || !query || !kitFinds(query, f.hay);
+    });
+    ok("docs/index.html: typing a quoted label into the palette finds the command it names — probed on Studio.catalogSearch",
+      !labUnfindable.length,
+      `finds nothing: ${labUnfindable.map((q) => `"${q}"`).join(", ") || "(none)"}\n      ` +
+      `probed: ${labQuoted.map((q) => `"${q.replace(/<[^>]*>/g, "").trim()}"`).join(" · ")}\n      ` +
+      "a label the page prints that the palette's own search cannot find is worse than no label at all");
+
+    // (f) the Section family is the rail's, filtered by what the account may open — the half
+    // of the old paragraph that was RIGHT, kept and now derived rather than asserted.
+    const navBody = dyn[0].body;
+    const navFromRail = /__studioRailSections/.test(navBody) && /\.visible/.test(navBody);
+    ok("app/palette.js + docs/index.html: the rail builds the Go-to commands and filters them by visibility, and the page says both",
+      navFromRail && /built from the rail/i.test(famText) && /missing from the palette/i.test(famText),
+      `navCommands() reads the rail: ${/__studioRailSections/.test(navBody)} · filters on .visible: ${/\.visible/.test(navBody)}\n      ` +
+      `the page says it is built from the rail: ${/built from the rail/i.test(famText)} · ` +
+      `that a section you cannot reach is absent: ${/missing from the palette/i.test(famText)}\n      ` +
+      "drop the filter and the palette navigates into a section the account was told it does not have");
+
+    // (g) the ranking, which the page had backwards: recency alone on an empty open, frequency
+    // only as a tie-break once you type.
+    const refAt = pal.indexOf("function refresh()");
+    const refBody = refAt < 0 ? "" : searchBlockAt(pal, pal.indexOf("{", pal.indexOf(")", refAt)), "{", "}");
+    const elseAt = refBody.indexOf("} else {");
+    const emptyArm = elseAt > 0 ? refBody.slice(refBody.indexOf("if (!q)"), elseAt) : "";
+    const typedArm = elseAt > 0 ? refBody.slice(elseAt) : "";
+    const rankHolds = !!emptyArm && /\.last/.test(emptyArm) && !/\.count/.test(emptyArm) && /\.count/.test(typedArm);
+    const rankSaid = /recency alone/i.test(rankText) && /only once you start typing/i.test(rankText) &&
+      /(tie-breaker|breaks ties|equally well)/i.test(rankText);
+    ok("app/palette.js + docs/index.html: an empty open ranks by recency alone and frequency only breaks ties on a typed query, and the page says which is which",
+      rankHolds && rankSaid,
+      `empty-query arm sorts on .last: ${/\.last/.test(emptyArm)} · reads .count: ${/\.count/.test(emptyArm)}` +
+      ` · typed arm reads .count: ${/\.count/.test(typedArm)}\n      ` +
+      `the page states recency alone: ${/recency alone/i.test(rankText)} · frequency only on typing: ` +
+      `${/only once you start typing/i.test(rankText)} · as a tie-break: ${/(tie-breaker|breaks ties|equally well)/i.test(rankText)}\n      ` +
+      "the page credited the empty open with frequency it has never used, and said nothing about the ranking you actually see when you type");
+  }
+}
+
+/* ── 62. the NAME on a Help chart card vs the name the picker prints ─────────
+   Check 2 (the oldest check in this file) holds Help's chart cards to the registry's
+   KEYS — every type has a card, no card invents a type. Nothing has ever held the
+   NAME printed on the card, and seven of the fifty-five had drifted away from the
+   picker's own label: "Parallel coordinates" (picker: "Parallel coords"), "Bar + line
+   (combo)" ("Bar + line"), "Lollipop" ("Lollipop chart"), "Dumbbell" ("Dumbbell
+   chart"), "Bump / ranking" ("Bump chart"), "Marimekko / Mekko" ("Marimekko") and
+   "Ridgeline / joy plot" ("Ridgeline plot").
+
+   That is not a synonyms quibble, because the app WIRES the two together three ways:
+   every gallery card carries an ⓘ link to `docs/index.html#ct-<type>` titled
+   "Docs: <label>" (app/studio.js), so a reader clicks "Docs: Parallel coords" and
+   lands on a card headed "Parallel coordinates"; the gallery's own search box matches
+   label + desc through Studio.catalogSearch, so a name Help publishes that the picker
+   never prints finds NOTHING when typed in; and the Views catalog's chart-type filter
+   pills print the same label (app/views.js `vwChartLabel`). Help even says so itself,
+   in the facets chapter: the pills print "the chart's own name from the gallery" — a
+   sentence that was true of the app and false of this page for seven types.
+
+   The rules below are the check-38→40 idiom (a picker's roster holds the page that
+   documents it), with check 61's probe: a published name must be FINDABLE, not merely
+   spelled right. `ct-kpi` is the one documented extra, exactly as check 2 has it — the
+   KPI tile is a panel kind, not a Studio.CHARTS entry — so rule (a) walks the registry
+   and never reaches it.
+
+   ADOPTED, NOT RIVALLED — two neighbouring derivations already exist and this check
+   deliberately adds neither. Check 50 holds every card to the GROUP the picker files
+   it under (both directions, plus the picker's own grouping as its premise), and check
+   45(d) holds the facets chapter's volunteered chart names to the registry, reading
+   the kpi exception out of `vwChartLabel` itself. Between them the shelf and the pill
+   were covered; the NAME on the card was the gap. */
+{
+  // The registry, entry by entry: the label the picker prints, and the desc it prints
+  // beneath it — the other half of the haystack the gallery's search box matches on.
+  const chartEntries = (() => {
+    const src = read("app/model.js");
+    const at = src.indexOf("Studio.CHARTS = {");
+    if (at < 0) return [];
+    const block = searchBlockAt(src, src.indexOf("{", at), "{", "}");
+    const marks = [...block.matchAll(/\n {4}([A-Za-z_]\w*): \{/g)];
+    return marks.map((m, i) => {
+      const seg = block.slice(m.index, i + 1 < marks.length ? marks[i + 1].index : block.length);
+      return {
+        key: m[1],
+        // `label:  "…"` (two spaces) is as common in this file as one — match on the
+        // 6-space entry-level indent, not on the spacing after the colon.
+        label: (seg.match(/\n {6}label:\s*"([^"]+)"/) || [])[1] || "",
+        desc: (seg.match(/\n {6}desc:\s*"([^"]*)"/) || [])[1] || ""
+      };
+    });
+  })();
+
+  // Help's chart chapter, card by card. The empty `.chart-group` div is part of the
+  // shape (the page styles it), so matching it keeps a stray `chart-name` elsewhere on
+  // the page out of the set.
+  const helpCards = [...help.matchAll(
+    /id="ct-([A-Za-z0-9]+)"><div class="chart-group"><\/div><div class="chart-name">([^<]*)<\/div>/g)]
+    .map((m) => ({ key: m[1], name: m[2].trim() }));
+  const cardByKey = Object.fromEntries(helpCards.map((c) => [c.key, c]));
+
+  // The wiring that makes a card name a promise rather than a caption: the gallery
+  // prints c.label into .lb, and links each card at this page's own per-type anchor.
+  const galleryJs = read("app/studio.js");
+  const galleryPrintsLabel = /<div class="lb">' \+ c\.label \+ '<\/div>/.test(galleryJs);
+  const galleryLinksHere = /docs\/index\.html#ct-" \+ t/.test(galleryJs);
+
+  const introPara = (help.match(/<p>\d+ chart types are available[\s\S]*?<\/p>/) || [""])[0];
+
+  const premise = ok("app/model.js + docs/index.html: the chart registry and Help's chart cards both parse, and the gallery still links each card here by its own label — the premise the rules below measure against",
+    chartEntries.length > 40 && chartEntries.every((e) => e.label && e.desc) &&
+    helpCards.length === chartEntries.length + 1 && galleryPrintsLabel && galleryLinksHere && !!searchKit,
+    `registry entries: ${chartEntries.length} (all with a label and a desc: ${chartEntries.every((e) => e.label && e.desc)}) · ` +
+    `Help cards parsed: ${helpCards.length}, expected ${chartEntries.length + 1} (the types plus the documented ct-kpi)\n      ` +
+    `the gallery prints c.label into .lb: ${galleryPrintsLabel} · links docs/index.html#ct-<type>: ${galleryLinksHere} · ` +
+    `search kit evaluable: ${!!searchKit}\n      ` +
+    "if the card grid or the registry stops parsing in this shape these rules must fail, not pass over nothing");
+
+  if (premise) {
+    // (a) the name a reader arrives at is the name they clicked. Exact, not a
+    //     superset: the ⓘ link's own title IS the picker's label.
+    const misnamed = chartEntries.filter((e) => cardByKey[e.key] && cardByKey[e.key].name !== e.label);
+    ok(`docs/index.html: every chart card is titled with the label the picker prints (${chartEntries.length} types)`,
+      !misnamed.length,
+      misnamed.map((e) => `ct-${e.key}: card "${cardByKey[e.key].name}" vs picker "${e.label}"`).join("\n      ") ||
+      "(none)");
+
+    // (b) the negative half — a card must not wear ANOTHER type's name. A rename that
+    //     swaps two labels satisfies (a) for neither and this rule for both, which is
+    //     the failure a coverage-only rule reads straight past.
+    const labelOwner = new Map(chartEntries.map((e) => [e.label, e.key]));
+    const stolen = helpCards.filter((c) => labelOwner.has(c.name) && labelOwner.get(c.name) !== c.key);
+    ok("docs/index.html: no chart card wears a different chart type's name",
+      !stolen.length,
+      stolen.map((c) => `ct-${c.key} is titled "${c.name}", which is ${labelOwner.get(c.name)}'s label`).join("\n      ") ||
+      "(none)");
+
+    // (c) the probe (check 61's idiom): the intro tells the reader a name here can be
+    //     typed into the gallery's search box, so run it. Names carrying an editorial
+    //     "A / B" alias are probed on each alternative — the registry uses that idiom
+    //     itself ("Line / area"), and half a findable name is still a dead end.
+    const unfindable = [];
+    for (const e of chartEntries) {
+      const c = cardByKey[e.key]; if (!c) continue;
+      for (const alt of [c.name, ...c.name.split("/")].map((s) => s.trim()).filter(Boolean)) {
+        if (!kitFinds(alt, [e.label, e.desc])) unfindable.push(`ct-${e.key}: "${alt}" finds nothing (the picker prints "${e.label}" / "${e.desc}")`);
+      }
+    }
+    ok("docs/index.html: typing a chart card's name into the gallery's search box finds that chart — probed on Studio.catalogSearch",
+      !unfindable.length,
+      [...new Set(unfindable)].join("\n      ") || "(none)");
+
+    // (d) the promise itself. Without it (a)-(c) hold a caption nobody was told to
+    //     trust — the intro has to state that these ARE the picker's names, and name
+    //     the three places the app spends them, or the rules above are a private
+    //     convention rather than something a reader can rely on.
+    const introSays = /the name the picker itself prints/i.test(introPara) &&
+      /ⓘ/.test(introPara) && /filter pill/i.test(introPara) && /Search chart types/i.test(introPara);
+    ok("docs/index.html: the chart chapter states that its card titles are the picker's own names",
+      introSays && !!cardByKey.kpi,
+      `intro paragraph states it — picker: ${/the name the picker itself prints/i.test(introPara)} · ` +
+      `ⓘ docs link: ${/ⓘ/.test(introPara)} · filter pill: ${/filter pill/i.test(introPara)} · ` +
+      `search box: ${/Search chart types/i.test(introPara)}\n      ` +
+      `ct-kpi (the documented extra check 2 carves out) present: ${!!cardByKey.kpi}\n      ` +
+      `intro: ${htmlText(introPara).slice(0, 220) || "(paragraph not found)"}…`);
+  }
+}
+
+/* ── Check 63 — the Glossary: "every term, one line each", held to the app's own nouns.
+   The page's dictionary chapter was the last one nothing derived, and its title makes the
+   strongest promise on the site. Measured: it defined ten terms and OMITTED three the app
+   renders as first-class — **Repository** (a Workspace-group rail section, and the page every
+   other chapter sends you to for folders), **Dashboard Builder** (the only one of the rail's
+   three builders the chapter never named, while Quick Views and the View Builder both got a
+   clause), and **Folder** (the noun the ORGANIZE program turns on, printed by every catalog,
+   by the Repository's own tree, and by the `+ New folder` button). Two more were added in the
+   same pass on the page's own evidence rather than a rule — **Data access** and **Ensemble**,
+   each of which owns a Help `<h2>` and a bolded defining sentence there, so the chapter was
+   sending readers to words its dictionary did not carry.
+   The sources of truth are all in `app/`: the rail's own IA comment groups its sections into
+   Workspace ("the things you HAVE") and Build ("the places you MAKE them"), so the group
+   labels and the `aria-label`s beneath them are parsed straight out of `app/index.html`;
+   `REPO_TYPES` in `app/studio.js` is EVALUATED (a plain literal) for the five object kinds;
+   and the two organizer nouns are read off the creation buttons that print them. Rule (g)
+   closes the loop in the other direction — a term defined here has to be one the page itself
+   spends elsewhere, so the dictionary cannot grow words the documentation never uses. */
+{
+  const railSrc = read("app/index.html");
+  const studioSrc = read("app/studio.js");
+
+  // ── the rail, by group. Walk the markup once: a group label opens a group, every
+  // rail-item button after it belongs to that group until the next label.
+  const railGroups = (() => {
+    const out = new Map();
+    let cur = null;
+    const re = /<div class="rail-group-lbl[^"]*"[^>]*>([^<]+)<\/div>|<button[^>]*\bdata-sec="[a-z]+"[^>]*\baria-label="([^"]+)"/g;
+    for (const m of railSrc.matchAll(re)) {
+      if (m[1] != null) { cur = htmlText(m[1]); if (!out.has(cur)) out.set(cur, []); }
+      else if (cur) out.get(cur).push(m[2]);
+    }
+    return out;
+  })();
+  const workspaceSecs = railGroups.get("Workspace") || [];
+  const buildSecs = railGroups.get("Build") || [];
+
+  // ── the five workspace object kinds. A plain literal, so evaluate it rather than regex it.
+  const repoTypes = (() => {
+    const at = studioSrc.indexOf("var REPO_TYPES = [");
+    if (at < 0) return null;
+    try {
+      const arr = new Function("return " + searchBlockAt(studioSrc, studioSrc.indexOf("[", at), "[", "]") + ";")();
+      return Array.isArray(arr) && arr.every((t) => t && typeof t.singular === "string" &&
+        typeof t.label === "string") ? arr : null;
+    } catch { return null; }
+  })();
+
+  // ── the two organizers, read off the buttons that mint them: "+ Workbook" and
+  //    "+ New folder". The noun is what survives stripping the "+ New " / "+ " prefix.
+  const btnNoun = (id) => {
+    const m = studioSrc.match(new RegExp('id="' + id + '"[^>]*>\\s*\\+\\s*(?:New\\s+)?([A-Za-z ]+?)\\s*<'));
+    return m ? m[1].trim() : "";
+  };
+  const organizers = [btnNoun("wbAddBtn"), btnNoun("repoNewFolderBtn")].filter(Boolean);
+
+  // ── the chapter itself.
+  const glosAt = help.indexOf('<section id="glossary">');
+  const glosHtml = glosAt < 0 ? "" : help.slice(glosAt, help.indexOf("</section>", glosAt) + 10);
+  const glosItems = [...glosHtml.matchAll(/<li>([\s\S]*?)<\/li>/g)].map((m) => m[1]);
+  // The TERM is the first <strong> of the line; the rest is its one-line definition. A body
+  // may bold a cross-reference (Repository's "+ New folder" does) — only the head is the term.
+  const glosEntries = glosItems.map((li) => {
+    const m = li.match(/^\s*<strong>([\s\S]*?)<\/strong>\s*—\s*([\s\S]+)$/);
+    return m ? { term: htmlText(m[1]), def: htmlText(m[2]), raw: li } : null;
+  });
+  const glosTerms = glosEntries.filter(Boolean).map((e) => e.term);
+  // The naming rules read the ENTRY LIST only, never the promise paragraph above it — the
+  // paragraph names Repository and Build to state the contract, and letting that count would
+  // make rules (c)/(d) satisfiable by the sentence that announces them.
+  const glosText = htmlText(glosItems.join(" "));
+  const promiseAt = glosHtml.indexOf('<p id="glossary-promise">');
+  const promise = promiseAt < 0 ? "" : htmlText(glosHtml.slice(promiseAt, glosHtml.indexOf("</p>", promiseAt)));
+
+  // A term "names" a thing when the chapter's prose contains it, singular or plural.
+  const glosNames = (s) => {
+    const forms = [s, s.replace(/ies$/, "y"), s.replace(/s$/, ""), s + "s"];
+    return forms.some((f) => f && new RegExp("\\b" + f.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\b", "i").test(glosText));
+  };
+  const hasEntry = (s) => glosTerms.some((t) => {
+    const head = t.replace(/\s*\([^)]*\)\s*$/, "");   // "Data access (DA)" → "Data access"
+    return head.toLowerCase() === s.toLowerCase() || head.toLowerCase() === s.toLowerCase() + "s" ||
+      head.toLowerCase() + "s" === s.toLowerCase();
+  });
+
+  // (a) the premise. Six rules read these; a chapter that stops parsing, a rail whose groups
+  // lose their labels, or a registry that stops evaluating must fail HERE rather than let the
+  // rules below pass over nothing. It also holds the title's OTHER half — "one line each"
+  // means one <li> per term, so a nested list inside an entry is itself the failure.
+  const nested = glosItems.filter((li) => /<ul|<ol|<br/i.test(li));
+  const unparsed = glosEntries.map((e, i) => (e ? null : i)).filter((i) => i !== null);
+  const glosPremise = ok(`docs/index.html: the Glossary parsed for check 63 ` +
+    `(${glosTerms.length} term(s), ${workspaceSecs.length} Workspace + ${buildSecs.length} Build rail section(s), ` +
+    `${repoTypes ? repoTypes.length : 0} object kind(s), ${organizers.length} organizer(s))`,
+    glosTerms.length >= 10 && !unparsed.length && !nested.length && !!promise &&
+      workspaceSecs.length >= 5 && buildSecs.length >= 3 && !!repoTypes && repoTypes.length >= 5 &&
+      organizers.length === 2,
+    `entries that are not "<strong>Term</strong> — one line": ${unparsed.length ? unparsed.join(", ") : "(none)"}\n      ` +
+    `entries carrying a nested list or <br>: ${nested.length}\n      ` +
+    `Workspace group: ${workspaceSecs.join(" · ") || "(none)"}\n      ` +
+    `Build group: ${buildSecs.join(" · ") || "(none)"}\n      ` +
+    `REPO_TYPES evaluated: ${!!repoTypes} · organizers: ${organizers.join(" / ") || "(none)"}\n      ` +
+    `#glossary-promise present: ${!!promise}`);
+
+  if (glosPremise) {
+    // (b) every kind of thing the workspace stores gets its OWN entry — the five REPO_TYPES
+    // singulars. These are the nouns the whole app is made of; a dictionary that misses one
+    // is not a dictionary.
+    const kindsMissing = repoTypes.map((t) => t.singular).filter((s) => !hasEntry(s));
+    ok(`docs/index.html: the Glossary defines all ${repoTypes.length} workspace object kinds by their own name`,
+      !kindsMissing.length,
+      `undefined: ${kindsMissing.join(", ") || "(none)"}\n      ` +
+      `REPO_TYPES prints: ${repoTypes.map((t) => t.singular).join(" · ")}\n      ` +
+      `the Glossary defines: ${glosTerms.join(" · ")}`);
+
+    // (c) the rail's Workspace group — "the things you HAVE", per the rail's own IA comment.
+    // Repository was the miss: the section every other chapter routes folder work through.
+    const wsMissing = workspaceSecs.filter((s) => !glosNames(s));
+    ok(`docs/index.html: the Glossary names every Workspace section on the rail (${workspaceSecs.length})`,
+      !wsMissing.length,
+      `unnamed: ${wsMissing.join(", ") || "(none)"}\n      ` +
+      `the rail's Workspace group: ${workspaceSecs.join(" · ")}\n      ` +
+      "Repository went unnamed while three other chapters sent the reader to it by name");
+
+    // (d) the rail's Build group — "the places you MAKE them". The chapter gave Quick Views
+    // and the View Builder a clause each and left the Dashboard Builder out of its own app.
+    const buildMissing = buildSecs.filter((s) => !glosNames(s));
+    ok(`docs/index.html: the Glossary names all ${buildSecs.length} builders on the rail`,
+      !buildMissing.length,
+      `unnamed: ${buildMissing.join(", ") || "(none)"}\n      ` +
+      `the rail's Build group: ${buildSecs.join(" · ")}`);
+
+    // (e) the two organizers, each with its own entry — read off the buttons that create them,
+    // so renaming "+ New folder" in the app moves this rule with it.
+    const orgMissing = organizers.filter((n) => !hasEntry(n));
+    ok(`docs/index.html: the Glossary defines both filing nouns the app's own buttons print (${organizers.join(", ")})`,
+      !orgMissing.length,
+      `undefined: ${orgMissing.join(", ") || "(none)"}\n      ` +
+      "Folder is the noun the ORGANIZE program turns on — every catalog prints it and the dictionary did not");
+
+    // (f) and the promise is stated, so (b)-(e) are something a reader can rely on rather than
+    // a private convention — the check-62 move, one chapter over.
+    ok("docs/index.html: the Glossary states what it covers and that the names are the app's own",
+      /Repository/.test(promise) && /Build/.test(promise) && /filed/i.test(promise) &&
+        /one line each/i.test(promise + " " + glosText),
+      `promise: ${promise.slice(0, 200) || "(no #glossary-promise paragraph)"}`);
+
+    // (g) the other direction: a term defined here must be one the page itself spends. A
+    // dictionary is only useful for the words its own document uses, and this is what would
+    // catch a retired noun lingering after a rename (the "analysis"→View sweep's shape).
+    const restOfPage = help.slice(0, glosAt) + help.slice(glosAt + glosHtml.length);
+    const restBold = new Set([...restOfPage.matchAll(/<strong>([\s\S]*?)<\/strong>/g)]
+      .map((m) => htmlText(m[1]).toLowerCase()));
+    const unspent = glosTerms.filter((t) => {
+      const head = t.replace(/\s*\([^)]*\)\s*$/, "").toLowerCase();
+      return ![head, head + "s", head.replace(/s$/, "")].some((f) =>
+        restBold.has(f) || new RegExp("<strong>[^<]*\\b" + f.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\b", "i").test(restOfPage));
+    });
+    ok(`docs/index.html: every Glossary term is a word the rest of the page actually bolds (${glosTerms.length} checked)`,
+      !unspent.length,
+      `defined but never used elsewhere on the page: ${unspent.join(", ") || "(none)"}\n      ` +
+      "a glossary entry for a word the docs never say is a rename that only half landed");
+  }
+}
+
+/* ── Check 64 — "Ensembles & scientific honesty": the chapter that argues the app's honesty
+   case, held to the two registries it argues about. It was the last `<h2>` nothing derived,
+   and the drift ran straight through its thesis. The chapter said the combined value IS "the
+   median" — unconditionally, five times — while both charts make the combination a SETTING:
+   `ensembleSeries.agg` is a select (Median (recommended) / Mean) that `_ensembleSeries` feeds
+   to `aggValues` for the bold line, and `choropleth.agg` offers six ways (median / mean / sum /
+   min / max / last) to turn several rows for one region into one colour. Worse for a reader
+   looking for the word: the chart never PRINTS "median" — the legend, the hover tooltip and the
+   Download-data rows all print `medianLabel`, whose default is "Common estimate" — so the page
+   named the estimate one thing and the product another. The same paragraph stated four display
+   behaviours (providers drawn, chips clickable, band drawn, reference series hollow) as facts,
+   where each is an inspector option that can be off.
+   Sources of truth: `Studio.CHARTS` EVALUATED (the shared `M` model, so labels, choices and
+   defaults are exact), plus the renderer's own fallback string — rule (e) holds those two to
+   each other as well as to the page, since a fallback that drifted from the registry default
+   would make the docs wrong without either file looking wrong alone. Rule (f) uses the
+   chapter's own idiom — "the <strong>X</strong> option" — so naming a control that no longer
+   exists fails here rather than reading plausibly forever. */
+{
+  const ens = M.CHARTS.ensembleSeries, choro = M.CHARTS.choropleth;
+  const optOf = (c, key) => ((c && c.opts) || []).find((o) => o.key === key) || null;
+  const ensAgg = optOf(ens, "agg"), choroAgg = optOf(choro, "agg"), estOpt = optOf(ens, "medianLabel");
+  const choiceLabels = (o) => ((o && o.choices) || []).map((c) => c[1]);
+  // The renderer's own name for the estimate — the string the legend swatch, the tooltip and
+  // the CSV rows fall back to. One expression, spent three times in app/studio-charts.js.
+  const rendererFallback = (read("app/studio-charts.js").match(/cfg\.medianLabel \|\| "([^"]+)"/) || [])[1] || "";
+
+  const ensAt = help.indexOf('<section id="ensembles">');
+  const ensHtml = ensAt < 0 ? "" : help.slice(ensAt, help.indexOf("</section>", ensAt) + 10);
+  const estAt = ensHtml.indexOf('<p id="ensemble-estimate">');
+  const estPara = estAt < 0 ? "" : ensHtml.slice(estAt, ensHtml.indexOf("</p>", estAt));
+  const estText = htmlText(estPara);
+  // `[^<]*` rather than a lazy any: a bolded phrase never nests a tag, and a lazy match would
+  // happily run from one paragraph's <strong> to another's </strong> to satisfy the idiom below.
+  const boldIn = (html) => [...html.matchAll(/<strong>([^<]*)<\/strong>/g)].map((m) => htmlText(m[1]).trim());
+  const estBold = new Set(boldIn(estPara));
+  const chapterBold = new Set(boldIn(ensHtml));
+  // The chapter's idiom for naming a control: "the <strong>X</strong> option". Only these read
+  // as option NAMES — a bolded value (the label's own default, printed a second time) does not.
+  const namedOptions = [...ensHtml.matchAll(/<strong>([^<]*)<\/strong>\s*option\b/g)]
+    .map((m) => htmlText(m[1]).trim());
+  const allOptLabels = new Set([...((ens && ens.opts) || []), ...((choro && choro.opts) || [])].map((o) => o.label));
+
+  // (a) the premise. Five rules dereference these registries and this chapter; an empty
+  // chapter, a renamed anchor or a registry that stops evaluating must fail HERE rather than
+  // let the coverage rules pass over nothing.
+  const ensPremise = ok(`docs/index.html: the Ensembles chapter parsed for check 64 ` +
+    `(${choiceLabels(ensAgg).length} estimate choice(s), ${choiceLabels(choroAgg).length} map combine choice(s), ` +
+    `${namedOptions.length} option(s) named, ${chapterBold.size} bolded phrase(s))`,
+    !!ensHtml && !!estPara && !!ensAgg && !!choroAgg && !!estOpt &&
+      choiceLabels(ensAgg).length >= 2 && choiceLabels(choroAgg).length >= 2 &&
+      !!estOpt.def && !!rendererFallback && namedOptions.length >= 6,
+    `<section id="ensembles"> found: ${!!ensHtml} · <p id="ensemble-estimate"> found: ${!!estPara}\n      ` +
+    `ensembleSeries.agg: ${ensAgg ? choiceLabels(ensAgg).join(" / ") : "(missing)"}\n      ` +
+    `choropleth.agg: ${choroAgg ? choiceLabels(choroAgg).join(" / ") : "(missing)"}\n      ` +
+    `medianLabel default: ${estOpt ? JSON.stringify(estOpt.def) : "(missing)"} · ` +
+    `renderer fallback: ${JSON.stringify(rendererFallback)}`);
+
+  if (ensPremise) {
+    // (b) the Ensemble chart's own question. Every way it can combine the toggled-on providers
+    // is published, by the label the inspector prints, and the control is named AS a control —
+    // the half the chapter was missing entirely while asserting one of the two answers.
+    const ensMissing = choiceLabels(ensAgg).filter((l) => !estBold.has(l));
+    ok(`docs/index.html: all ${choiceLabels(ensAgg).length} ways the Ensemble chart can combine its providers are published, and the control is named`,
+      !ensMissing.length && namedOptions.includes(ensAgg.label),
+      `unpublished choice(s): ${ensMissing.join(", ") || "(none)"}\n      ` +
+      `the inspector offers: ${choiceLabels(ensAgg).join(" · ")}\n      ` +
+      `"${ensAgg.label}" named as an option: ${namedOptions.includes(ensAgg.label)}`);
+
+    // (c) the map's, which is the wider one — six answers, and four of them (sum/min/max/last)
+    // are not a "common estimate" at all, so a page arguing the median's honesty owes the
+    // reader the fact that its own map will happily total the rows instead.
+    const choroMissing = choiceLabels(choroAgg).filter((l) => !estBold.has(l));
+    ok(`docs/index.html: all ${choiceLabels(choroAgg).length} ways the map can combine duplicate rows are published, and the control is named`,
+      !choroMissing.length && namedOptions.includes(choroAgg.label),
+      `unpublished choice(s): ${choroMissing.join(", ") || "(none)"}\n      ` +
+      `the inspector offers: ${choiceLabels(choroAgg).join(" · ")}\n      ` +
+      `"${choroAgg.label}" named as an option: ${namedOptions.includes(choroAgg.label)}`);
+
+    // (d) the negative half, and it is exhaustive by construction rather than by a word list:
+    // this paragraph bolds exactly three kinds of thing — an option's label, an option's own
+    // default value, and a combination method — so anything bolded here that is not one of the
+    // first two has to be a method a chart really offers. A shape rule ("Median|Mean|Sum…")
+    // would read straight past an invented method with a new name, which is the likelier drift.
+    // Read on the estimate paragraph alone: "Last updated" in the popover list below is a
+    // heading, not a method.
+    const methods = new Set([...choiceLabels(ensAgg), ...choiceLabels(choroAgg)]);
+    const invented = [...estBold].filter((b) => !methods.has(b) && !allOptLabels.has(b) && b !== String(estOpt.def));
+    ok("docs/index.html: the estimate paragraph bolds no combination method the charts do not offer",
+      !invented.length,
+      `bolded but offered by neither chart: ${invented.join(", ") || "(none)"}\n      ` +
+      `the two registries offer: ${[...methods].join(" · ")}`);
+
+    // (e) the NAME the reader will actually see. The registry default and the renderer's
+    // fallback are held to each other first (a silent split there makes both files look right),
+    // then to the page — and the page has to say WHERE the name is spent, because "median" was
+    // findable in none of those three places.
+    const printed = String(estOpt.def);
+    ok(`docs/index.html: the estimate's on-screen name ("${printed}") is published, and the registry and the renderer agree on it`,
+      printed === rendererFallback && estBold.has(printed) && namedOptions.includes(estOpt.label) &&
+        /legend/i.test(estText) && /tooltip/i.test(estText) && /downloaded data/i.test(estText),
+      `registry default: ${JSON.stringify(printed)} · renderer fallback: ${JSON.stringify(rendererFallback)}\n      ` +
+      `published in the estimate paragraph: ${estBold.has(printed)} · ` +
+      `"${estOpt.label}" named as an option: ${namedOptions.includes(estOpt.label)}\n      ` +
+      `names where it is printed — legend: ${/legend/i.test(estText)} · tooltip: ${/tooltip/i.test(estText)} · ` +
+      `downloaded data: ${/downloaded data/i.test(estText)}`);
+
+    // (f) the four behaviours the chapter states as facts are each an option that can be off,
+    // so each is named by the label the inspector prints for it — derived by KEY, so renaming
+    // one in the registry moves this rule with it. The other direction closes the loop: an
+    // option name the chapter spends must still exist, which is the `ⓘ Tour` class of drift
+    // (check 41 (g), check 44 (f)) one chapter over.
+    const governing = ["showBand", "showProviders", "showToggles", "refSeries"]
+      .map((k) => optOf(ens, k)).filter(Boolean).map((o) => o.label);
+    const unnamed = governing.filter((l) => !namedOptions.includes(l));
+    const dead = namedOptions.filter((n) => !allOptLabels.has(n));
+    ok(`docs/index.html: every behaviour the chapter states as a fact names the option that governs it (${governing.length}), and every option it names is real`,
+      !unnamed.length && !dead.length && governing.length === 4,
+      `stated without naming its option: ${unnamed.join(", ") || "(none)"}\n      ` +
+      `named here but offered by neither chart: ${dead.join(", ") || "(none)"}\n      ` +
+      `the chapter names: ${namedOptions.join(" · ")}`);
+  }
+}
+
+/* ── Check 65 — the ROLE VOCABULARY: the three roles the app really has, and every document
+   that names one. N7. Checks 9–64 hold what the app can DO — its charts, panes, menus, packs,
+   pickers and prose. Nothing held WHO can do it, and the marketing page had invented a role:
+   "admin, editor and viewer roles" on the "Bring your team" card, where `app/auth.js` offers
+   admin / developer / VIEWER and has never had an editor. Not a label drift — a reader who
+   signs up for the role that card sells cannot find it in Admin → Add user, because the middle
+   rung of the ladder is called something else.
+   Sources of truth, all three in `app/auth.js`: `ROLES` (the canonical set the UI offers),
+   `ROLE_LABELS` (its keys, so a set that stops matching its labels fails the premise rather
+   than half a rule), and `canDevelop()`'s own body — the capability split the app enforces, and
+   therefore the only honest basis for "who builds" and "who is read-only". The read-only set is
+   derived as its complement, so adding a fourth role reclassifies it here rather than needing a
+   second list. Rule (e) runs the direction that would cost a reader the most: no document may
+   promise the builder to a role the code will not let in.  */
+{
+  const authSrc = read("app/auth.js");
+  const litList = (re) => [...((authSrc.match(re) || [, ""])[1]).matchAll(/"([^"]+)"/g)].map((m) => m[1]);
+  const roles = litList(/var ROLES = \[([^\]]*)\]/);
+  const labelKeys = [...((authSrc.match(/var ROLE_LABELS = \{([^}]*)\}/) || [, ""])[1])
+    .matchAll(/([A-Za-z_]\w*)\s*:/g)].map((m) => m[1]);
+  // The capability ladder as the code enforces it, not as a comment describes it: canDevelop is
+  // the one gate on the Dashboard Builder, so the roles its body accepts ARE the builders.
+  const developRoles = litList(/function canDevelop\([^)]*\)\s*\{([^}]*)\}/);
+  const readRoles = roles.filter((r) => !developRoles.includes(r));
+  const names = (text, r) => new RegExp("\\b" + r + "\\b", "i").test(text);
+
+  // The marketing card, by its own idiom: "<list> roles".
+  const teamAt = marketing.indexOf('id="feat-team"');
+  const teamText = teamAt < 0 ? "" : htmlText(marketing.slice(teamAt, marketing.indexOf("</div>", teamAt)));
+  const teamEnum = (teamText.match(/([a-z]+(?:,\s+[a-z]+)*\s+and\s+[a-z]+)\s+roles\b/i) || [, ""])[1];
+  // Split on the separators, not on ", and" as a unit — the Oxford comma in Help's own list
+  // would otherwise leave "or viewer" as a token and read as a role the app does not have.
+  const teamRoles = teamEnum.split(/\s*(?:,|\band\b)\s*/).map((s) => s.trim()).filter(Boolean);
+
+  // Help's, by its own: "whether they're an <list>".
+  const ladderAt = help.indexOf('id="roles-ladder"');
+  const ladderText = ladderAt < 0 ? "" : htmlText(help.slice(ladderAt, help.indexOf(")", ladderAt)));
+  const ladderEnum = (ladderText.match(/whether they'?re an? ([a-z]+(?:,\s*[a-z]+)*,?\s+or\s+[a-z]+)/i) || [, ""])[1];
+  const ladderRoles = ladderEnum.split(/\s*(?:,|\bor\b)\s*/).map((s) => s.trim()).filter(Boolean);
+
+  // Help's builder-access parenthetical, split at its own em dash: who it is visible to, and
+  // who is sent to the read-only route instead.
+  const baAt = help.indexOf('id="builder-access"');
+  const baParen = baAt < 0 ? "" : (help.slice(baAt, help.indexOf("</li>", baAt)).match(/\(([\s\S]*?)\)/) || [, ""])[1];
+  const [grantSide, denySide] = baParen.split("—").map((s) => htmlText(s || ""));
+
+  // (a) the premise. Four rules dereference these three literals and three passages; a renamed
+  // anchor, a reworded enumeration or a role model that stops parsing must fail HERE rather
+  // than let a coverage rule pass over an empty string.
+  const rolePremise = ok(`app/auth.js: the role model parsed for check 65 ` +
+    `(${roles.join(" / ") || "(none)"} — builds: ${developRoles.join(" + ") || "(none)"}, ` +
+    `read-only: ${readRoles.join(" + ") || "(none)"})`,
+    roles.length >= 2 && labelKeys.length === roles.length && roles.every((r) => labelKeys.includes(r)) &&
+      developRoles.length >= 1 && developRoles.every((r) => roles.includes(r)) && readRoles.length >= 1 &&
+      !!teamRoles.length && !!ladderRoles.length && !!grantSide && !!denySide,
+    `ROLES: ${roles.join(", ") || "(missing)"} · ROLE_LABELS keys: ${labelKeys.join(", ") || "(missing)"}\n      ` +
+    `canDevelop accepts: ${developRoles.join(", ") || "(missing)"}\n      ` +
+    `index.html #feat-team enumeration: ${JSON.stringify(teamEnum)}\n      ` +
+    `docs/index.html #roles-ladder enumeration: ${JSON.stringify(ladderEnum)}\n      ` +
+    `docs/index.html #builder-access: granted ${JSON.stringify(grantSide || "")} · denied ${JSON.stringify(denySide || "")}`);
+
+  if (rolePremise) {
+    // (b) the marketing card, both directions in one rule because they are one sentence: it
+    // must offer every role the app has, and no role it does not. The second half is the one
+    // that was failing — "editor" read as a perfectly ordinary product noun for weeks.
+    const teamMissing = roles.filter((r) => !teamRoles.includes(r));
+    const teamInvented = teamRoles.filter((r) => !roles.includes(r));
+    ok(`index.html: the team card offers exactly the ${roles.length} roles the app has`,
+      !teamMissing.length && !teamInvented.length,
+      `offered by the app, missing from the card: ${teamMissing.join(", ") || "(none)"}\n      ` +
+      `sold by the card, not a role: ${teamInvented.join(", ") || "(none)"}\n      ` +
+      `the card enumerates: ${teamRoles.join(" · ") || "(nothing)"} · app/auth.js offers: ${roles.join(" · ")}`);
+
+    // (c) Help's ladder, same both directions. This is the sentence an admin reads before
+    // assigning a role, so an omission here is a role nobody knows they can grant.
+    const ladderMissing = roles.filter((r) => !ladderRoles.includes(r));
+    const ladderInvented = ladderRoles.filter((r) => !roles.includes(r));
+    ok(`docs/index.html: the Admin ladder names exactly the ${roles.length} roles the app has`,
+      !ladderMissing.length && !ladderInvented.length,
+      `offered by the app, missing from the ladder: ${ladderMissing.join(", ") || "(none)"}\n      ` +
+      `named in the ladder, not a role: ${ladderInvented.join(", ") || "(none)"}\n      ` +
+      `Help names: ${ladderRoles.join(" · ") || "(nothing)"}`);
+
+    // (d) the capability split, held role by role against canDevelop() itself: a role is named
+    // on the granted side if and only if the gate lets it in, and on the read-only side if and
+    // only if it does not. A fourth role, or a change to the gate, moves this rule with it.
+    const wrongSide = roles.filter((r) =>
+      names(grantSide, r) !== developRoles.includes(r) || names(denySide, r) !== readRoles.includes(r));
+    ok(`docs/index.html: the Dashboard Builder is documented as visible to exactly the role(s) canDevelop() admits (${developRoles.join(" + ")})`,
+      !wrongSide.length,
+      `documented on the wrong side of the gate: ${wrongSide.join(", ") || "(none)"}\n      ` +
+      `canDevelop() admits: ${developRoles.join(", ")} · read-only: ${readRoles.join(", ")}\n      ` +
+      `Help grants it to: ${JSON.stringify(grantSide)}\n      ` +
+      `Help sends to the viewer route: ${JSON.stringify(denySide)}`);
+
+    // (e) the negative half that costs the most if it is wrong, run page-wide rather than on an
+    // anchor: nowhere may a document say a read-only role builds or edits a dashboard. The verb
+    // set is the vocabulary these three documents actually use for authoring; the distance
+    // limits and the clause-ending characters keep it inside one clause, so "a viewer opens
+    // dashboards through the read-only viewer route" (Help, true) does not read as a promise.
+    const AUTHOR = "(?:builds?|edits?|authors?|creates?|designs?)";
+    const overpromised = [];
+    for (const [docName, text] of [
+      ["index.html", htmlText(marketing.slice(marketing.indexOf("<main>"), marketing.indexOf("</main>")))],
+      ["docs/index.html", htmlText(helpMain)],
+      ["README.md", readme]
+    ]) {
+      for (const r of readRoles) {
+        const m = text.match(new RegExp("\\b" + r + "s?\\b[^.;)]{0,40}?\\b" + AUTHOR + "\\b[^.;)]{0,30}?\\bdashboards?\\b", "i"));
+        if (m) overpromised.push(`${docName}: "${m[0].trim()}"`);
+      }
+    }
+    ok(`no document promises the builder to a read-only role (${readRoles.join(", ")})`,
+      !overpromised.length,
+      `${overpromised.join("\n      ") || "(none)"}\n      ` +
+      `canDevelop() is the gate, and it admits only: ${developRoles.join(", ")}`);
+  }
+}
+
+/* ── Check 66 — the Admin user editor's PROVISIONING controls vs the copy that documents
+   them. N7, and the `ⓘ Tour` class check 41 (g) deleted from README and check 44 (f) from
+   PUBLISH.md: Help documented a control the app no longer has. `openUserEditor` used to carry
+   an "Install the Conservation Insight sample pack on first sign-in" CHECKBOX; SP-0 replaced it
+   with a `Sample pack (installed at first sign-in)` SELECT built from `Studio.DEMO_PACKS`, so an
+   admin can assign ANY registered pack. Help still described the checkbox — and named the one
+   pack it used to mean — which both sends a reader looking for a control that is not there and
+   hides every other pack the build ships. The same passage enumerates what the "Copy my current
+   Dashboard defaults" button captures, and `snapshotDashboardDefaults()` returns one more field
+   than it lists.
+   Sources of truth, all derived, none new: `openUserEditor`'s own brace-matched body in
+   app/studio.js (each control's element kind, its label, and the text of the option that means
+   "skip this"), `packRegistry` (check 34's reading of the pack registry), and the KEYS
+   `snapshotDashboardDefaults()` returns in app/defaults.js. Rule (b) is the one that was
+   failing twice: a select is not a checkbox, and a control offering the whole registry must not
+   be published as installing one named pack. Rule (d)'s vocabulary is keyed by the RETURNED KEY,
+   so a tenth captured field falls out of the table and fails the premise loudly rather than
+   passing green while the copy omits it.
+   The provisioning inventory is the controls whose own label says "first sign-in", plus the two
+   the save handler writes onto the account without that phrasing — `usrEditForceTour` and
+   `usrEditBackend`, looked up by id, so renaming either fails the premise rather than a rule. */
+{
+  const editorAt = studioSrc.indexOf("function openUserEditor(");
+  const editorBody = editorAt < 0 ? "" : braceBlockAt(studioSrc, studioSrc.indexOf("{", editorAt));
+  const straight = (s) => (s || "").replace(/[’‘]/g, "'").replace(/[“”]/g, '"');
+
+  // Every `<span>…</span>` field label in the editor, in source order, so a control's own label
+  // is the nearest one above its `.id = "usrEdit…"` assignment.
+  const fieldLabels = [...editorBody.matchAll(/innerHTML = "<span>([^<]*)<\/span>"/g)]
+    .map((m) => ({ label: straight(m[1]), at: m.index }));
+  const controls = new Map();
+  for (const m of editorBody.matchAll(/(\w+)\.id = "(usrEdit\w+)"/g)) {
+    const above = fieldLabels.filter((f) => f.at < m.index).pop();
+    controls.set(m[2], { varName: m[1], label: above ? above.label : "", at: m.index });
+  }
+  // A button names itself in its own textContent; a checkbox names itself in the text node its
+  // label appends beside it. Both are read off the control, so a rename moves the rule with it.
+  for (const m of editorBody.matchAll(/(\w+)\.id = "(usrEdit\w+)";[\s\S]{0,80}?\1\.textContent = "([^"]+)"/g))
+    if (controls.has(m[2])) controls.get(m[2]).label = straight(m[3]);
+
+  // The element each control IS, and — for the selects — the text of the option whose value is
+  // "", i.e. the choice that means "skip this part". That option is what the copy has to quote
+  // when it tells a reader how to leave a default unset.
+  for (const [, c] of controls) {
+    c.kind = (editorBody.match(new RegExp(`\\b${c.varName} = el\\("(\\w+)"`)) || [, ""])[1];
+    if (c.kind === "input")
+      c.kind = (editorBody.match(new RegExp(`\\b${c.varName}\\.type = "(\\w+)"`)) || [, "text"])[1];
+    if (c.kind === "checkbox") {
+      const lab = (editorBody.match(new RegExp(`(\\w+)\\.appendChild\\(${c.varName}\\)`)) || [, ""])[1];
+      const txt = lab && editorBody.match(new RegExp(`${lab}\\.appendChild\\(document\\.createTextNode\\("([^"]*)"\\)\\)`));
+      if (txt) c.label = straight(txt[1]).trim();
+    }
+    const none = editorBody.match(new RegExp(
+      `(\\w+)\\.value = ""; \\1\\.textContent = "([^"]+)";[\\s\\S]{0,120}?${c.varName}\\.appendChild\\(\\1\\)`));
+    // The clause before the em dash — "Don't set", "Don't install one" — is the part a sentence
+    // can quote naturally; holding the whole label would make the copy read like a screenshot.
+    c.skipOption = none ? straight(none[2]).split("—")[0].trim() : "";
+  }
+  const packCtl = controls.get("usrEditPack") || {};
+  const themeCtl = controls.get("usrEditTheme") || {};
+  // The premise for rule (b): the pack picker's options ARE the registry, so `packRegistry` is
+  // the right roster to hold the copy to.
+  const packFromRegistry = /Object\.keys\(Studio\.DEMO_PACKS[^)]*\)\.forEach/.test(editorBody);
+  const packShortNames = packRegistry.map((p) => {
+    const at = registryBlock.indexOf(`\n    ${p.id}: {`);
+    const body = at < 0 ? "" : braceBlockAt(registryBlock, registryBlock.indexOf("{", at));
+    return { id: p.id, short: ((body.match(/name:\s*"([^"]+)"/) || [, ""])[1]).split("—")[0].trim() };
+  }).filter((p) => p.short);
+
+  // What the "Copy my current Dashboard defaults" button really captures.
+  const ddSrc = read("app/defaults.js");
+  const ddAt = ddSrc.indexOf("function snapshotDashboardDefaults(");
+  const ddKeys = ddAt < 0 ? [] : [...braceBlockAt(ddSrc, ddSrc.indexOf("{", ddSrc.indexOf("return", ddAt)))
+    .matchAll(/(\w+):\s*default\w+\(\)/g)].map((m) => m[1]);
+  const DD_NOUN = {
+    subtitle: "subtitle", accentColor: "accent color", logo: "header logo", headerBg: "header background",
+    titleSize: "title size", subtitleStyle: "subtitle style", dashboardTheme: "dashboard theme",
+    cardSkin: "card style", quickModeCreativity: "Quick-import creativity"
+  };
+
+  const adminAt = help.indexOf('<section id="admin-docs"');
+  const adminText = adminAt < 0 ? "" : straight(htmlText(help.slice(adminAt, help.indexOf("</section>", adminAt))));
+  const provAt = help.indexOf('id="prov-defaults"');
+  const provText = provAt < 0 ? "" : straight(htmlText(help.slice(provAt, help.indexOf("<h3", provAt + 10))));
+  // WHICH controls are provisioning controls is derived from the save handler, not from a list
+  // kept here: the operands of `opts.provisioning = (…)` and `opts.forceTour = …`, resolved one
+  // hop back to the element each reads (`X.value` / `X.checked`, or the button whose onclick
+  // assigns it). A control that stops being written onto the account drops out of the rule with
+  // it, and a new one joins it the day it is wired.
+  const savedFrom = new Set();
+  for (const m of editorBody.matchAll(/opts\.(?:provisioning|forceTour)\s*=\s*\(?([^;{?]*)/g))
+    for (const n of m[1].matchAll(/\b([A-Za-z_]\w*)\b/g)) savedFrom.add(n[1]);
+  const controlVars = new Set([...controls.values()].map((c) => c.varName));
+  for (const name of [...savedFrom]) {
+    if (controlVars.has(name)) continue;
+    // The whole initializer, not just its head — `provBackend` is read out of a ternary, and a
+    // control reached that way is no less written onto the account than one read directly.
+    for (const m of editorBody.matchAll(new RegExp(`\\b${name}\\s*=\\s*([^;]*);`, "g")))
+      for (const v of m[1].matchAll(/\b(\w+)\.(?:value|checked)\b/g)) savedFrom.add(v[1]);
+    for (const m of editorBody.matchAll(new RegExp(`(\\w+)\\.onclick = function \\(\\) \\{\\s*${name}\\s*=`, "g")))
+      savedFrom.add(m[1]);
+  }
+  const provisioningIds = [...controls.keys()].filter((id) => savedFrom.has(controls.get(id).varName));
+
+  // (a) the premise. Four rules dereference this parse, the pack roster and the snapshot's keys;
+  // a renamed control, a retired anchor or a newly captured default must fail HERE rather than
+  // let a coverage rule pass over an empty string.
+  const provPremise = ok(`app/studio.js: the user editor's provisioning controls parsed for check 66 ` +
+    `(${provisioningIds.map((id) => `${id}=${controls.get(id).kind}`).join(" · ") || "(none)"}; ` +
+    `pack picker offers ${packShortNames.length} registered pack(s); snapshot captures ${ddKeys.length} field(s))`,
+    !!editorBody && provisioningIds.length >= 4 && !!packCtl.kind && !!themeCtl.kind &&
+      !!packCtl.skipOption && !!themeCtl.skipOption && packFromRegistry &&
+      packShortNames.length >= 2 && ddKeys.length >= 2 && ddKeys.every((k) => DD_NOUN[k]) &&
+      !!adminText && !!provText && provisioningIds.every((id) => controls.get(id).label),
+    `controls: ${[...controls.keys()].join(", ") || "(none)"}\n      ` +
+    `pack picker: kind=${packCtl.kind || "(unparsed)"} skip=${JSON.stringify(packCtl.skipOption || "")} ` +
+    `from-registry=${packFromRegistry}\n      ` +
+    `theme picker: kind=${themeCtl.kind || "(unparsed)"} skip=${JSON.stringify(themeCtl.skipOption || "")}\n      ` +
+    `snapshotDashboardDefaults keys: ${ddKeys.join(", ") || "(none)"}` +
+    (ddKeys.filter((k) => !DD_NOUN[k]).length
+      ? ` — no noun registered for: ${ddKeys.filter((k) => !DD_NOUN[k]).join(", ")}` : "") + `\n      ` +
+    `docs/index.html #prov-defaults: ${provText ? provText.slice(0, 80) + "…" : "(anchor missing)"}`);
+
+  if (provPremise) {
+    // (b) the control is documented as the control it IS. Both halves were failing: the copy
+    // called a <select> a checkbox, and named ONE registry pack as the thing it installs — the
+    // reading a reader takes away is "this account can be given Conservation Insight", when the
+    // form offers every pack the build registers. Naming none (deferring to the pack chapter) or
+    // all of them is fine; naming exactly one is the drift.
+    const calledCheckbox = packCtl.kind === "select" &&
+      (provText.match(/\b(checkbox|check(?:ed)? this box|the pack box|unchecked|tick(?:ed)?)\b/i) || [])[0];
+    const namedPacks = packShortNames.filter((p) => provText.includes(p.short));
+    ok(`docs/index.html: the sample-pack provisioning control is documented as the ${packCtl.kind} over the registry that it is`,
+      !calledCheckbox && namedPacks.length !== 1,
+      `the form renders <${packCtl.kind}> "${packCtl.label}", populated from Studio.DEMO_PACKS\n      ` +
+      `checkbox-shaped wording in the copy: ${calledCheckbox ? JSON.stringify(calledCheckbox) : "(none)"}\n      ` +
+      `packs named in the copy: ${namedPacks.map((p) => p.short).join(", ") || "(none)"} ` +
+      `— the registry offers ${packShortNames.length}: ${packShortNames.map((p) => p.short).join(", ")}`);
+
+    // (c) the two "leave it unset" choices are quoted from the controls themselves, so the
+    // sentence telling an admin how to skip a default points at a label the form really prints.
+    const unquoted = [themeCtl, packCtl].filter((c) => !provText.includes(c.skipOption));
+    ok(`docs/index.html: the copy quotes each provisioning picker's own "skip this" option (${
+      [themeCtl, packCtl].map((c) => JSON.stringify(c.skipOption)).join(" / ")})`,
+      !unquoted.length,
+      `not quoted: ${unquoted.map((c) => `${c.label} → ${JSON.stringify(c.skipOption)}`).join(" · ") || "(none)"}`);
+
+    // (d) the enumeration of what the snapshot captures, both directions. The vocabulary is keyed
+    // by the returned key, so a field added to snapshotDashboardDefaults() fails the premise
+    // above until it has a noun, and then fails here until the copy prints it.
+    const ddMissing = ddKeys.filter((k) => !new RegExp(DD_NOUN[k].replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i").test(provText));
+    const ddStray = Object.keys(DD_NOUN).filter((k) => !ddKeys.includes(k) &&
+      new RegExp(DD_NOUN[k].replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i").test(provText));
+    ok(`docs/index.html: the Dashboard-defaults snapshot is published as all ${ddKeys.length} field(s) it captures`,
+      !ddMissing.length && !ddStray.length,
+      `captured by snapshotDashboardDefaults(), missing from the copy: ${
+        ddMissing.map((k) => `${k} (“${DD_NOUN[k]}”)`).join(", ") || "(none)"}\n      ` +
+      `published by the copy, not captured: ${ddStray.map((k) => DD_NOUN[k]).join(", ") || "(none)"}`);
+
+    // (e) coverage, over the whole Admin chapter rather than the one anchor — the assigned
+    // workspace and the one-shot tour are documented in their own sections. Each control is
+    // matched on the distinguishing words of its OWN label, so a rename moves the rule with it.
+    const uncovered = provisioningIds.filter((id) => {
+      const words = controls.get(id).label.replace(/\(.*$/, "").trim();
+      return !adminText.toLowerCase().includes(words.toLowerCase());
+    });
+    ok(`docs/index.html: the Admin chapter names every provisioning control the user editor renders (${provisioningIds.length})`,
+      !uncovered.length,
+      `rendered by openUserEditor, named nowhere in the chapter: ${
+        uncovered.map((id) => `${id} (“${controls.get(id).label}”)`).join(" · ") || "(none)"}`);
+  }
+}
+
+/* ── Check 67 — the guided-tour CHOOSER vs the tours it really offers ────────
+   N7. Checks 12/13/14/19/20/22/23/24 all read INSIDE the tours — their steps, their spotlight
+   targets, their nouns. Nothing had ever read the LIST: the chooser is built from TOUR_ORDER,
+   its pack rows are gated by TOUR_GATES, and Help's account of it was written when there were
+   four general topics and one pack tour.
+   There are five general topics and FOUR pack tours now. Help's "Your first sign-in" bullet
+   listed four lowercase paraphrases — and one of them, "prepping and connecting your data",
+   silently merged the two separate walks `jobs` ("Prep data (Jobs)") and `connect`
+   ("Connections & Datasets") into a single phrase, so a reader counted four rows and the picker
+   drew five. The pack half said "plus one for your installed sample pack", singular, of a
+   chooser that adds a row per installed pack and of two engines (welcome.js's carousel and the
+   overview tour) that each splice one step PER pack.
+   The same drift reached the Sample packs chapter from the other end: Campaign Finance and
+   Where America Moved each say "The pack also carries its own guided tour", the idiom rules
+   (c)/(d) below read — and Conservation Insight and Market Coverage, which have had tours for
+   just as long, said nothing, while Federal Contract Awards and Data Management (which have
+   none) correctly said nothing either. So the page's silence meant two different things.
+   Sources of truth, all in app/tutorial.js: `TOUR_ORDER` (the chooser's own order),
+   `TOUR_GATES` (which keys are pack rows, and which pack each one really asks about), and each
+   entry's own `label:` — the string the picker prints. The premise holds the join the copy
+   depends on: a gate must ask about the pack whose key it is, and that pack must be one
+   `packRegistry` knows, or (c)/(d) would be attaching sentences to the wrong entry.
+   Rule (a) runs both directions inside `#tour-topics` — a retired tour still listed fails just
+   as loudly as a new one missing — and it reads the picker's label VERBATIM, so renaming a tour
+   moves the rule with it rather than leaving a plausible paraphrase behind. */
+{
+  const tourOrder = ((tutorialSrc.match(/var TOUR_ORDER = \[([^\]]*)\]/) || [, ""])[1]
+    .match(/"([^"]+)"/g) || []).map((s) => s.slice(1, -1));
+
+  // Which keys are PACK rows, and which pack id each gate really asks about — read from the
+  // gate's own body, not from the key, because the whole point of (c)/(d) is the join.
+  const gatesAt = tutorialSrc.indexOf("var TOUR_GATES = {");
+  const gatesBody = gatesAt < 0 ? "" : braceBlockAt(tutorialSrc, tutorialSrc.indexOf("{", gatesAt));
+  const gates = new Map();
+  for (const m of gatesBody.matchAll(/\n {4}(\w+): function[\s\S]*?demoPackInstalled\("([^"]+)"\)/g))
+    gates.set(m[1], m[2]);
+
+  // The label the chooser PRINTS for a tour — the first `label:` inside that entry's own block.
+  const tourLabel = (key) => {
+    const at = tutorialSrc.indexOf(`\n    ${key}: {`);
+    if (at < 0) return "";
+    const body = braceBlockAt(tutorialSrc, tutorialSrc.indexOf("{", at));
+    return (body.match(/label: "((?:[^"\\]|\\.)*)"/) || [, ""])[1];
+  };
+  const generalKeys = tourOrder.filter((k) => !gates.has(k));
+  const generalLabels = generalKeys.map(tourLabel);
+
+  const ents = (s) => s.replace(/&amp;/g, "&").replace(/&nbsp;/g, " ").replace(/\s+/g, " ").trim();
+  const topicsSpan = (help.match(/<span id="tour-topics">([\s\S]*?)<\/span>/) || [, ""])[1];
+  const topicNames = [...topicsSpan.matchAll(/<strong>([\s\S]*?)<\/strong>/g)].map((m) => ents(m[1]));
+  const countWord = (help.match(/picker of (\S+) topics/) || [, ""])[1] || "";
+  const claimedCount = asNumber(countWord);
+
+  const packIds = new Set(packRegistry.map((p) => p.id));
+  const tourClaim = /carries its own guided tour/i;
+
+  // (a) the premise. Everything below dereferences this parse; a renamed tour, a gate that
+  // stops naming its own pack, or a lost anchor must fail HERE rather than let a coverage
+  // rule pass over an empty string.
+  const tourPremise = ok(`app/tutorial.js: the tour chooser parsed for check 67 ` +
+    `(${tourOrder.length} tour(s): ${generalLabels.join(" · ") || "(none)"}; ` +
+    `${gates.size} gated on a pack: ${[...gates.keys()].join(", ") || "(none)"})`,
+    tourOrder.length >= 5 && generalKeys.length >= 2 && generalLabels.every(Boolean) &&
+      gates.size >= 1 && [...gates.keys()].every((k) => tourOrder.includes(k)) &&
+      [...gates.entries()].every(([k, id]) => k === id && packIds.has(id)) &&
+      !!topicsSpan && topicNames.length > 0 && claimedCount !== undefined,
+    `TOUR_ORDER: ${tourOrder.join(", ") || "(unparsed)"}\n      ` +
+    `gates (tour key → pack it asks about): ${[...gates.entries()].map(([k, id]) => `${k}→${id}`).join(", ") || "(none)"}\n      ` +
+    `registered packs: ${[...packIds].join(", ")}\n      ` +
+    `docs/index.html #tour-topics: ${topicsSpan ? topicNames.join(" | ") : "(anchor missing)"}\n      ` +
+    `"picker of N topics": ${JSON.stringify(countWord)}\n      ` +
+    "a gate keyed on one tour but asking about another pack would attach rules (c)/(d)'s " +
+    "sentence to the wrong entry, so it fails the premise rather than a rule");
+
+  if (tourPremise) {
+    // (b) every general topic is listed, and nothing else is. Both directions, because a
+    // chooser row nobody documented and a documented row the chooser dropped are the same
+    // defect seen from either end.
+    const topicMissing = generalLabels.filter((l) => !topicNames.includes(l));
+    const topicStray = topicNames.filter((t) => !generalLabels.includes(t));
+    ok(`docs/index.html: #tour-topics lists the picker's ${generalLabels.length} general topics verbatim`,
+      !topicMissing.length && !topicStray.length,
+      `offered by the chooser, not listed: ${topicMissing.join(", ") || "(none)"}\n      ` +
+      `listed, not offered: ${topicStray.join(", ") || "(none)"}\n      ` +
+      "the label is what the reader clicks — a paraphrase (\"prepping and connecting your data\" " +
+      "for two separate walks) reads fine and cannot be found in the picker");
+
+    // (c) the count beside the list. Its own claim, so a topic added to the chooser and to the
+    // list while the sentence still says "four" fails here rather than passing on (b) alone.
+    ok(`docs/index.html: "a picker of ${countWord} topics" is the ${generalLabels.length} the chooser draws`,
+      claimedCount === generalLabels.length,
+      `TOUR_ORDER has ${tourOrder.length} tour(s), ${gates.size} of them gated on an installed ` +
+      `pack, leaving ${generalLabels.length} always-visible topic(s); the copy says ${countWord}`);
+
+    // (d) a pack WITH a tour says so, in the idiom the page already uses. The gate is what
+    // puts the row in front of the reader, so the gate is what the sentence answers to.
+    const tourGaps = [];
+    for (const p of packRegistry) {
+      const item = itemFor(p)[0] && itemProse(itemFor(p)[0]);
+      if (!item) continue;                       // check 34 (a) owns "every pack has an entry"
+      if (gates.has(p.id) && !tourClaim.test(item))
+        tourGaps.push(`"${p.folder}" has a tour in the chooser, but its Help entry never says so`);
+    }
+    ok(`docs/index.html: every pack whose tour the chooser offers says so in its Help entry (${[...gates.keys()].join(", ")})`,
+      !tourGaps.length,
+      `${tourGaps.join("\n      ")}\n      ` +
+      "two of the four said it and two did not, so the page's silence meant both \"no tour\" and " +
+      "\"nobody wrote the sentence\" — which is no signal at all");
+
+    // (e) the negative half: a pack with no tour must not be sold one. Federal Contract Awards
+    // and Data Management are the live proof this rule can pass honestly.
+    const tourStray = [];
+    for (const p of packRegistry) {
+      const item = itemFor(p)[0] && itemProse(itemFor(p)[0]);
+      if (!item) continue;
+      if (!gates.has(p.id) && tourClaim.test(item))
+        tourStray.push(`"${p.folder}" claims its own guided tour, but no TOUR_GATES entry offers one`);
+    }
+    ok(`docs/index.html: no pack without a tour is documented as carrying one (${
+      packRegistry.filter((p) => !gates.has(p.id)).map((p) => p.folder).join(", ") || "(none)"})`,
+      !tourStray.length,
+      `${tourStray.join("\n      ")}\n      ` +
+      "sending a reader to ⌘K → Interactive tutorial for a row that is not there is the more " +
+      "expensive direction of this drift");
+  }
+}
+
+/* ── Check 68 — the Quick Views EDITOR's own controls vs the chapter documenting them ─────
+   N7. Check 32 reads the Quick Views editor's four numbered steps (Data / Chart / Mapping /
+   Result) and the marketing shot framed around them; nothing had ever read what step 3 puts
+   INSIDE the mapping grid. That grid is where a reader is sent to find a control, and the
+   chapter had drifted in both of the ways that matters.
+
+   It documented two controls Quick Views does not have. `xpMapEditorHtml()` is the sole
+   producer of the mapping grid and it pushes exactly three per-chart options — `scale` and
+   `renderer` for a map, `refSeries` for an Ensemble chart. The chapter walked the reader
+   through those and then through the GL map's **Zoom/pan controls** (Show / Compact / Hidden)
+   and **Controls position** (any corner), which are `Studio.CHARTS.choropleth` options rendered
+   by the Dashboard Builder's generic inspector table and by nothing in `app/explore.js`. Both
+   sentences read as instructions for the pane the bullet is about, so the reader hunts a grid
+   with three rows for a fourth and a fifth.
+
+   And it named two of the four chart types the Rollup control is hidden on. The copy said
+   "Geo and Ensemble charts carry their own aggregation, so the control is hidden for those",
+   while `XP_AGG_TYPES` shows the control for five of the nine chips — scatter and heatmap are
+   excluded too, for a reason the code states outright (a rollup aggregates ONE measure by
+   category; scatter carries x+y and heatmap is a row×column pivot, so grouping one measure away
+   would collapse them). Two of the four exclusions were therefore silent.
+
+   Sources of truth, all evaluated rather than pattern-matched where possible: `XP_TYPES` and
+   `XP_AGG_TYPES` in app/explore.js, that file's own `data-xp-opt=` / `data-xp-agg=` attributes
+   (the controls it really renders), and the shared `M` model for every LABEL — chart names
+   verbatim, option names by their pre-parenthesis stem, because Explore and the registry word
+   the same option's tail differently ("never joins the estimate" / "excluded from the
+   estimate") and the reader is looking for the name, not the aside. So renaming a chart type
+   or an option moves these rules with it instead of leaving a plausible label behind. */
+{
+  const exploreSrc = read("app/explore.js");
+  const arrLit = (name) => ((exploreSrc.match(new RegExp(`var ${name} = \\[([^\\]]*)\\]`)) || [, ""])[1]
+    .match(/"([^"]+)"/g) || []).map((s) => s.slice(1, -1));
+  const xpTypes = arrLit("XP_TYPES");
+  const xpAggTypes = arrLit("XP_AGG_TYPES");
+  const xpNoAggTypes = xpTypes.filter((t) => !xpAggTypes.includes(t));
+
+  // What step 3 really renders. xpMapEditorHtml() is the only producer of the mapping grid,
+  // so its own attributes ARE the control list — no second place to keep in sync.
+  const mapEdAt = exploreSrc.indexOf("function xpMapEditorHtml()");
+  const mapEdBody = mapEdAt < 0 ? "" : braceBlockAt(exploreSrc, exploreSrc.indexOf("{", mapEdAt));
+  const xpOptKeys = [...new Set([...mapEdBody.matchAll(/data-xp-opt="(\w+)"/g)].map((m) => m[1]))];
+  const xpGroupBys = [...new Set([...mapEdBody.matchAll(/data-xp-agg="(g\d+)"/g)].map((m) => m[1]))];
+
+  // The option pool: every option any Quick Views chart type HAS, keyed the way Explore keys
+  // it, so an option the pane skips is still nameable and rule (b)'s stray half can find it.
+  const optStem = (s) => s.replace(/\s*\(.*$/, "").replace(/&amp;/g, "&").replace(/\s+/g, " ").trim();
+  const optLabel = new Map();
+  for (const t of xpTypes)
+    for (const o of ((M.CHARTS[t] || {}).opts || []))
+      if (!optLabel.has(o.key)) optLabel.set(o.key, optStem(o.label));
+  const chartLabel = (t) => ((M.CHARTS[t] || {}).label || t);
+  const aggStems = (M.AGG_FNS || []).map((f) => optStem(f[1]));
+
+  const deEnt = (s) => s.replace(/&amp;/g, "&").replace(/&nbsp;/g, " ").replace(/\s+/g, " ").trim();
+  const spanOf = (id) => (help.match(new RegExp(`<span id="${id}">([\\s\\S]*?)</span>`)) || [, ""])[1];
+  const taggedIn = (span, tag) =>
+    [...span.matchAll(new RegExp(`<${tag}>([\\s\\S]*?)</${tag}>`, "g"))].map((m) => deEnt(m[1]));
+
+  const optSpan = spanOf("quickviews-chart-options");
+  const onSpan = spanOf("quickviews-rollup-on");
+  const offSpan = spanOf("quickviews-rollup-off");
+  const fnSpan = spanOf("quickviews-rollup-fns");
+  const dimWord = (help.match(/grouped by <strong>(\w+)<\/strong> dimensions/) || [, ""])[1] || "";
+
+  // (a) the premise. Everything below dereferences this parse. The join worth asserting is
+  // that every key Explore renders resolves in the chart registry — that is what lets rules
+  // (b) and (c) read the registry's label rather than a second copy of it in the pane.
+  const xpPremise = ok(`app/explore.js: the Quick Views mapping grid parsed for check 68 ` +
+    `(${xpTypes.length} chart chip(s); Rollup on ${xpAggTypes.length}, hidden on ${xpNoAggTypes.length}; ` +
+    `per-chart option(s): ${xpOptKeys.map((k) => `${k}="${optLabel.get(k) || "?"}"`).join(" · ") || "(none)"}; ` +
+    `${xpGroupBys.length} group-by select(s))`,
+    xpTypes.length >= 5 && xpAggTypes.length >= 1 && xpNoAggTypes.length >= 1 &&
+      xpAggTypes.every((t) => xpTypes.includes(t)) &&
+      xpTypes.every((t) => M.CHARTS[t]) &&
+      xpOptKeys.length >= 1 && xpOptKeys.every((k) => optLabel.has(k)) &&
+      xpGroupBys.length >= 1 && aggStems.length >= 2 &&
+      !!optSpan && !!onSpan && !!offSpan && !!fnSpan && !!dimWord,
+    `XP_TYPES: ${xpTypes.join(", ") || "(unparsed)"}\n      ` +
+    `XP_AGG_TYPES: ${xpAggTypes.join(", ") || "(unparsed)"}\n      ` +
+    `data-xp-opt keys in xpMapEditorHtml(): ${xpOptKeys.join(", ") || "(none)"}\n      ` +
+    `unknown to the chart registry: ${xpOptKeys.filter((k) => !optLabel.has(k)).join(", ") || "(none)"}\n      ` +
+    `Studio.AGG_FNS: ${aggStems.join(", ") || "(none)"}\n      ` +
+    `docs/index.html anchors — options: ${optSpan ? "ok" : "MISSING"}, rollup-on: ${onSpan ? "ok" : "MISSING"}, ` +
+    `rollup-off: ${offSpan ? "ok" : "MISSING"}, rollup-fns: ${fnSpan ? "ok" : "MISSING"}, ` +
+    `"grouped by <strong>N</strong> dimensions": ${JSON.stringify(dimWord)}`);
+
+  if (xpPremise) {
+    // (b) the per-chart options, both directions and inside the anchor only — the sentence
+    // that says where the OTHER options live sits outside it on purpose, so telling a reader
+    // "the GL cluster is in the builder" stays legal while presenting it as a Quick Views
+    // control does not. The stray half is the half that was failing.
+    const wantOpts = xpOptKeys.map((k) => optLabel.get(k));
+    const gotOpts = taggedIn(optSpan, "strong");
+    const optMissing = wantOpts.filter((l) => !gotOpts.includes(l));
+    const optStray = gotOpts.filter((l) => !wantOpts.includes(l));
+    ok(`docs/index.html: #quickviews-chart-options names the ${wantOpts.length} per-chart option(s) ` +
+      `the Quick Views mapping grid renders, and no others`,
+      !optMissing.length && !optStray.length,
+      `rendered by xpMapEditorHtml(), not named: ${optMissing.join(", ") || "(none)"}\n      ` +
+      `named as a Quick Views control, not rendered there: ${optStray.join(", ") || "(none)"}\n      ` +
+      `(options the registry has for these chart types but this pane skips: ${
+        [...optLabel.entries()].filter(([k]) => !xpOptKeys.includes(k)).map(([, l]) => l).join(", ") || "(none)"})`);
+
+    // (c) the chart types the Rollup control APPEARS on, both directions. Verbatim registry
+    // labels: these are the words on the chips the reader is choosing between.
+    const wantOn = xpAggTypes.map(chartLabel);
+    const gotOn = taggedIn(onSpan, "strong");
+    ok(`docs/index.html: #quickviews-rollup-on lists the ${wantOn.length} chart type(s) XP_AGG_TYPES ` +
+      `shows the Rollup control for`,
+      !wantOn.filter((l) => !gotOn.includes(l)).length && !gotOn.filter((l) => !wantOn.includes(l)).length,
+      `shows the control, not listed: ${wantOn.filter((l) => !gotOn.includes(l)).join(", ") || "(none)"}\n      ` +
+      `listed, does not show it: ${gotOn.filter((l) => !wantOn.includes(l)).join(", ") || "(none)"}`);
+
+    // (d) the other direction of the same list, and the half that was wrong: the copy named
+    // Geo and Ensemble and stopped, leaving scatter and heatmap silently excluded.
+    const wantOff = xpNoAggTypes.map(chartLabel);
+    const gotOff = taggedIn(offSpan, "strong");
+    ok(`docs/index.html: #quickviews-rollup-off names all ${wantOff.length} chart type(s) the Rollup ` +
+      `control is hidden on`,
+      !wantOff.filter((l) => !gotOff.includes(l)).length && !gotOff.filter((l) => !wantOff.includes(l)).length,
+      `hidden on it, not named: ${wantOff.filter((l) => !gotOff.includes(l)).join(", ") || "(none)"}\n      ` +
+      `named as excluded, but the control is shown: ${gotOff.filter((l) => !wantOff.includes(l)).join(", ") || "(none)"}\n      ` +
+      "an unnamed exclusion is the expensive direction — the reader picks the chip, the row is " +
+      "not there, and the page never said it would not be");
+
+    // (e) the aggregate functions themselves, both directions, matched on the stem of the
+    // option's own printed label so "Mean (average)" is found by "Mean".
+    const gotFns = taggedIn(fnSpan, "em");
+    ok(`docs/index.html: #quickviews-rollup-fns publishes all ${aggStems.length} function(s) ` +
+      `Studio.AGG_FNS offers`,
+      !aggStems.filter((l) => !gotFns.includes(l)).length && !gotFns.filter((l) => !aggStems.includes(l)).length,
+      `offered by the registry, not published: ${aggStems.filter((l) => !gotFns.includes(l)).join(", ") || "(none)"}\n      ` +
+      `published, not offered: ${gotFns.filter((l) => !aggStems.includes(l)).join(", ") || "(none)"}`);
+
+    // (f) how many dimensions the rollup groups by — its own claim, because the Group by /
+    // Then by pair is what a reader plans a dataset around.
+    ok(`docs/index.html: "grouped by ${dimWord} dimensions" is the ${xpGroupBys.length} group-by ` +
+      `select(s) the mapping grid renders`,
+      asNumber(dimWord) === xpGroupBys.length,
+      `xpMapEditorHtml() renders ${xpGroupBys.join(" + ") || "(none)"}; the copy says ${JSON.stringify(dimWord)}`);
+  }
+}
+
+/* ── Check 69 — Home's OWN page vs the chapter that introduces it ─────────────
+   N7, and the altitude move check 67 made for the tour chooser: eight checks read things a
+   reader reaches THROUGH Home, and nothing had ever read the page Home renders first.
+
+   The chapter opened its list at the fourth thing on the screen. `renderHome()` paints a
+   "Welcome back" hero, then a grid of quick-start cards, then a rotating tip, then (once the
+   workspace has workbooks) a chip strip — and only then the content sections the chapter
+   described. All EIGHT cards were undocumented here: four of them are named in passing in other
+   chapters (Quick import in Getting started, Sample dashboards in the packs chapter, Take the
+   tour in Admin, New Quick View in the builder chapter) and four — New View, New dashboard, New
+   connection, New dataset — appeared nowhere as a Home affordance at all. The card grid is the
+   only thing a first-time reader sees above the fold, so the page documenting Home began below it.
+
+   Three more drifts, all in the same direction — the reader is told less than the page shows:
+   · the reorderable-section list published the labels as **Featured, Pinned, Favorites,
+     Examples, Dashboards**, and two of those are not what the headings say: the sections render
+     **Pinned Views** and **Favorite datasets & connections**. A reader scanning headings for
+     "Favorites" finds nothing;
+   · the **Dashboards** section draws TWO nested strips, **Pinned** and **Recent dashboards**, and
+     only the second was named — even though the chapter's own "Clear recents" bullet points at
+     that heading. So pinned dashboards (`loadPins()`, the ★ on a dashboard card) were invisible
+     on the page, while pinned VIEWS had a section of their own three bullets above — the exact
+     pair a reader confuses;
+   · the workbook chip strip was absent, and a section that silently hides itself when empty was
+     never stated as doing so.
+
+   Sources of truth, all inside `renderHome()` so there is no second copy to keep in sync: the
+   `cards` array literal (its `t:` titles are the words on the buttons), the
+   `currentUserCanDevelop()` filter's own act list, `HOME_SECTION_LABELS`, the `home-sub-nested`
+   headings in the `dashboards:` section body, and `wbChipDefs`' two fixed chips. Five rules:
+   (a) the card list names every card the grid renders, and no card it does not (both directions,
+       inside its own anchor, so the viewer paragraph's repeats below cannot satisfy it);
+   (b) the viewer-role paragraph names exactly the cards the filter removes — a card that stops
+       being builder-only leaves this rule with it;
+   (c) the reorderable-section list is the rendered LABEL set, verbatim, both directions;
+   (d) the Dashboards section's nested strips are both named;
+   (e) the workbook strip's two fixed chips are named. */
+{
+  const homeSrc = read("app/studio.js");
+  const cardsAt = homeSrc.indexOf("var cards = [");
+  const cardsBlock = cardsAt < 0 ? "" : homeSrc.slice(cardsAt, homeSrc.indexOf("var meName = currentUserName();", cardsAt));
+  const homeCards = [...cardsBlock.matchAll(/\{ act: "(\w+)", ic: "[\w-]+", t: "([^"]+)", d: "([^"]+)" \}/g)]
+    .map((m) => ({ act: m[1], title: m[2] }));
+  // The acts Home withholds from a viewer-role account, read from the filter that withholds
+  // them rather than from a list beside it (check 18's idiom: one source, no twin to drift).
+  const viewerHiddenActs = ((cardsBlock.match(/\[((?:\s*"\w+",?)+)\]\.indexOf\(c\.act\) < 0/) || [, ""])[1]
+    .match(/"(\w+)"/g) || []).map((s) => s.slice(1, -1));
+  const viewerHidden = homeCards.filter((c) => viewerHiddenActs.includes(c.act)).map((c) => c.title);
+
+  const homeSectionLabels = [...((homeSrc.match(/var HOME_SECTION_LABELS = \{([\s\S]*?)\};/) || [, ""])[1])
+    .matchAll(/(?:"[\w-]+"|\w+):\s*"([^"]+)"/g)].map((m) => m[1]);
+
+  // The two strips the Dashboards section really draws — scoped to that section's own body, so
+  // the Examples section's per-pack headings (same class, an attribute in between) stay out.
+  const dashAt = homeSrc.indexOf("dashboards: function () {");
+  const dashBody = dashAt < 0 ? "" : braceBlockAt(homeSrc, homeSrc.indexOf("{", dashAt + 20));
+  const dashStrips = [...dashBody.matchAll(/home-sub home-sub-nested">([^'<]+)/g)].map((m) => m[1].trim());
+
+  // The workbook strip's two FIXED chips. The chips in between carry the reader's own
+  // workbook names, so these are the only two a document can be held to.
+  const wbChips = [(homeSrc.match(/var wbChipDefs = \[\{ id: "", name: "(\w+)"/) || [, ""])[1],
+    (homeSrc.match(/\{ id: "__unfiled", name: "(\w+)"/) || [, ""])[1]].filter(Boolean);
+
+  const deHome = (s) => s.replace(/&amp;/g, "&").replace(/&nbsp;/g, " ").replace(/\s+/g, " ").trim();
+  // The anchor is named with its own container tag so a list closes on </ul> and not on the
+  // first </li> inside it; the enumerations that sit mid-sentence get a <span> of their own
+  // (check 68's idiom) so the prose around them cannot satisfy or fail a rule.
+  const homeAnchor = (id, container) => {
+    const block = (help.match(new RegExp(`<${container} id="${id}">([\\s\\S]*?)</${container}>`)) || [, null])[1];
+    return block === null ? null : [...block.matchAll(/<strong>([\s\S]*?)<\/strong>/g)].map((m) => deHome(m[1]));
+  };
+  const cardsSaid = homeAnchor("home-quick-cards", "ul");
+  const viewerSaid = homeAnchor("home-viewer-cards", "span");
+  const sectionsSaid = homeAnchor("home-sections", "li");
+  const stripsSaid = homeAnchor("home-dashboards-strips", "span");
+  const chipsSaid = homeAnchor("home-workbook-chips", "li");
+
+  const homePremise = ok(`app/studio.js: Home's own page parsed for check 69 ` +
+    `(${homeCards.length} quick-start card(s), ${viewerHidden.length} hidden from a viewer, ` +
+    `${homeSectionLabels.length} content section(s), ${dashStrips.length} strip(s) in Dashboards, ` +
+    `workbook chips: ${wbChips.join(" + ") || "(none)"})`,
+    homeCards.length >= 6 && viewerHiddenActs.length >= 1 &&
+      viewerHiddenActs.every((a) => homeCards.some((c) => c.act === a)) &&
+      homeSectionLabels.length >= 4 && dashStrips.length >= 2 && wbChips.length === 2 &&
+      cardsSaid && viewerSaid && sectionsSaid && stripsSaid && chipsSaid,
+    `cards: ${homeCards.map((c) => `${c.title} (${c.act})`).join(" · ") || "(unparsed)"}\n      ` +
+    `viewer-hidden acts: ${viewerHiddenActs.join(", ") || "(unparsed)"}` +
+    `${viewerHiddenActs.filter((a) => !homeCards.some((c) => c.act === a)).length
+      ? ` — unknown to the card grid: ${viewerHiddenActs.filter((a) => !homeCards.some((c) => c.act === a)).join(", ")}` : ""}\n      ` +
+    `HOME_SECTION_LABELS: ${homeSectionLabels.join(" · ") || "(unparsed)"}\n      ` +
+    `Dashboards strips: ${dashStrips.join(" · ") || "(unparsed)"}\n      ` +
+    `docs/index.html anchors — cards: ${cardsSaid ? "ok" : "MISSING"}, viewer: ${viewerSaid ? "ok" : "MISSING"}, ` +
+    `sections: ${sectionsSaid ? "ok" : "MISSING"}, strips: ${stripsSaid ? "ok" : "MISSING"}, ` +
+    `chips: ${chipsSaid ? "ok" : "MISSING"}`);
+
+  if (homePremise) {
+    const bothWays = (want, got) => ({
+      missing: want.filter((w) => !got.includes(w)),
+      stray: got.filter((g) => !want.includes(g)),
+    });
+
+    // (a) every card on the grid, and nothing else. The stray half matters as much as the
+    // missing one: "Sample dashboards" is conditional already, and a retired card would
+    // otherwise sit in the list forever sending readers to a button that is not there.
+    const cardTitles = homeCards.map((c) => c.title);
+    const cardD = bothWays(cardTitles, cardsSaid);
+    ok(`docs/index.html: #home-quick-cards names the ${cardTitles.length} quick-start card(s) Home renders, and no others`,
+      !cardD.missing.length && !cardD.stray.length,
+      `on the grid, not documented: ${cardD.missing.join(", ") || "(none)"}\n      ` +
+      `documented, not on the grid: ${cardD.stray.join(", ") || "(none)"}\n      ` +
+      "these are the words on the buttons — the card grid is the whole above-the-fold of Home");
+
+    // (b) the four the builder gate removes. Named, not counted: a reader who cannot see a
+    // card needs to know which ones are missing and why, not how many.
+    const viewerD = bothWays(viewerHidden, viewerSaid);
+    ok(`docs/index.html: #home-viewer-cards names exactly the ${viewerHidden.length} card(s) Home hides from a viewer-role account`,
+      !viewerD.missing.length && !viewerD.stray.length,
+      `hidden by the filter, not named: ${viewerD.missing.join(", ") || "(none)"}\n      ` +
+      `named as hidden, still offered: ${viewerD.stray.join(", ") || "(none)"}`);
+
+    // (c) the section labels, verbatim — the drift was two paraphrases ("Pinned", "Favorites")
+    // for headings that print something else, which is the one thing a reader scans for.
+    const secD = bothWays(homeSectionLabels, sectionsSaid);
+    ok(`docs/index.html: #home-sections names the ${homeSectionLabels.length} section heading(s) Home renders, verbatim`,
+      !secD.missing.length && !secD.stray.length,
+      `rendered as a heading, not named: ${secD.missing.join(", ") || "(none)"}\n      ` +
+      `named, not a heading Home renders: ${secD.stray.join(", ") || "(none)"}\n      ` +
+      "paraphrasing a heading is the expensive kind of near-miss — the reader scans for the word");
+
+    // (d) both strips inside Dashboards. The chapter already pointed at "Recent dashboards"
+    // from its Clear-recents bullet; "Pinned" is the one that was invisible.
+    const stripD = bothWays(dashStrips, stripsSaid);
+    ok(`docs/index.html: #home-dashboards-strips names both strip(s) the Dashboards section draws (${dashStrips.join(", ")})`,
+      !stripD.missing.length && !stripD.stray.length,
+      `drawn, not named: ${stripD.missing.join(", ") || "(none)"}\n      ` +
+      `named, not drawn: ${stripD.stray.join(", ") || "(none)"}\n      ` +
+      "pinned dashboards and Pinned Views are different sections — leaving one unnamed is why they get confused");
+
+    // (e) the workbook strip's two fixed chips (the per-workbook chips in between are the
+    // reader's own names, so only the fixed pair can be held).
+    const chipD = bothWays(wbChips, chipsSaid);
+    ok(`docs/index.html: #home-workbook-chips names the ${wbChips.length} fixed chip(s) Home's workbook strip renders`,
+      !chipD.missing.length && !chipD.stray.length,
+      `rendered by wbChipDefs, not named: ${chipD.missing.join(", ") || "(none)"}\n      ` +
+      `named as a fixed chip, not rendered: ${chipD.stray.join(", ") || "(none)"}`);
+  }
+}
+
+/* ── Check 70 — the keyboard chords Help prints OUTSIDE its shortcuts table ────
+   N7, and check 36's move one ALTITUDE up rather than one document over. Check 36 holds
+   Help's <table class="kbd-table"> to the app's "?" panel and to the keydown block behind it,
+   and its own header says so: "Scoped to the TABLE, not the whole section". Nothing had ever
+   read a chord Help prints anywhere ELSE on the page — and the page prints nineteen of them
+   outside that table, 1,500 lines above it.
+
+   Measured 2026-08-10, before the fix. The Undo / Redo chapter published the exact chord
+   check 36 had just deleted from the table:
+   · **`Shift Z` to redo — a chord the builder has never had.** Same defect, same page, same
+     week: v923 fixed the table's Redo row and the prose keeps the corpse alive. The handler is
+     one block opening `if (!(e.metaKey || e.ctrlKey)) return;`, so bare Shift+Z reaches
+     nothing. Rule (b) is that early return stated at page altitude — check 36's rule (c) with
+     the table cut out instead of cut to.
+   · **And the chapter named ONE of the three chords its own two buttons fire.** The undo/redo
+     branches implement `Ctrl/⌘+Z`, `Ctrl/⌘+Shift+Z` and `Ctrl/⌘+Y`; the chapter had undo, a
+     chord that does not exist, and no mention of either real redo — so a reader who wanted to
+     redo could not get there from the chapter about redoing. The Windows alias `Ctrl/⌘+Y` was
+     added to the table by v923 and to the panel by the same slice; this is the third document.
+
+   The chain is transitive on purpose: rule (c) holds the prose to the "?" panel, and check 36
+   already holds that panel to the handler — so a retired chord has to be deleted in one place,
+   not three. Rule (d) reads the handler directly instead, because it needs each branch's own
+   ACTION (which chords are redo) and not just the chord inventory.
+
+   Two premises and three rules:
+   (a) — the premises, split in two on purpose: the page-wide parse gates (b)/(c), the anchor
+       parse gates (d). A single premise would have let the missing anchor SILENCE the rule the
+       real drift was failing, which is the pre-fix tree this check was written against;
+   (b) no letter chord without Ctrl/⌘ anywhere in the prose (this is what `Shift Z` failed);
+   (c) every Ctrl/⌘ letter chord the prose prints is one the "?" panel publishes — the
+       negative half, so a retired chord cannot outlive its removal in a paragraph;
+   (d) the Undo / Redo chapter names exactly the chords the handler's `undoAct()`/`redoAct()`
+       branches fire, both directions.
+
+   A FOURTH rule was written and then deleted, which is worth recording so nobody writes it
+   again: this chapter's phone route ("⋯ More → Undo" / "→ Redo") is ALREADY held — check 21
+   resolves every ⋯ More route Help names against #menuMore's markup, page-wide, and its
+   mutation fails right beside this check's. Check 13's header says docs/index.html is out of
+   ITS scope, which reads like a gap and is not one: check 21 covers the page. Adopting the
+   existing check beats minting a rival for it (N44 slice 1's lesson, one tool over). */
+{
+  // Help minus the table check 36 owns — every rule below reads the remainder, so the two
+  // checks partition the page rather than overlapping on it.
+  const helpProse = help.replace(/<table class="kbd-table">[\s\S]*?<\/table>/, " ");
+  // Two spellings the page uses that `chordsOf` (check 36's parser, written for the table's
+  // own "Ctrl / ⌘  +  Shift+Z" style) would otherwise read as gestures and skip: the prose
+  // writes "⌘K" closed up and "Ctrl-K" hyphenated. Normalised HERE rather than in chordsOf,
+  // so check 36's cells keep parsing exactly as they did. How a chord is SPELLED is editorial
+  // and stays unheld; what it resolves to is not.
+  const openUp = (cell) => cell.replace(/(⌘|Ctrl|Shift|Alt)(?=[A-Za-z])/g, "$1 ").replace(/-(?=[A-Za-z])/g, " ");
+  const proseCells = [...helpProse.matchAll(/<kbd>([^<]+)<\/kbd>/g)].map((m) => openUp(m[1].trim()));
+
+  // The undo/redo branches of the SAME keydown block check 36 reads, but kept per-action:
+  // each `else if` is one branch, each `||` disjunct one chord, and the call inside the branch
+  // body says what that chord does. That is what lets rule (d) ask for completeness — "name
+  // every chord that redoes" — rather than only "invent none".
+  const chordsByAction = (() => {
+    const src = read("app/studio.js");
+    const at = src.indexOf("if (!(e.metaKey || e.ctrlKey)) return;");
+    if (at < 0) throw new Error("doc-truth: the Ctrl/⌘ keydown block not found in app/studio.js");
+    let depth = 1, i = at;
+    for (; i < src.length; i++) {
+      if (src[i] === "{") depth++;
+      else if (src[i] === "}" && --depth === 0) break;
+    }
+    const out = new Map();
+    for (const branch of src.slice(at, i).split(/\belse if\b|\bif\b/).slice(1)) {
+      const act = (branch.match(/\b(\w+Act)\(\)/) || [, null])[1];
+      if (!act) continue;
+      for (const disjunct of (branch.split("{")[0] || "").split("||")) {
+        const letter = disjunct.match(/k === "([a-z])"/);
+        if (!letter) continue;
+        const shift = /(?<!!)e\.shiftKey/.test(disjunct);
+        if (!out.has(act)) out.set(act, new Set());
+        out.get(act).add(canon([...(shift ? ["mod", "shift"] : ["mod"]), letter[1]]));
+      }
+    }
+    return out;
+  })();
+  const historyChords = new Set([...(chordsByAction.get("undoAct") || []), ...(chordsByAction.get("redoAct") || [])]);
+
+  const undoBlock = (helpProse.match(/<h3 id="undo-redo">[\s\S]*?<\/p>/) || [, null])[0] || null;
+  const undoCells = undoBlock ? [...undoBlock.matchAll(/<kbd>([^<]+)<\/kbd>/g)].map((m) => openUp(m[1].trim())) : [];
+
+  // Two premises, not one, and the split is deliberate: rules (b)/(c) read the whole page and
+  // must keep running even when the anchor rules (d)/(e) cannot — the pre-fix tree had no
+  // #undo-redo anchor at all (it is part of this slice), and a single premise would have made
+  // the missing anchor SILENCE the page-wide rule the drift was failing.
+  const chordPremise = ok(`docs/index.html + app/studio.js: the prose chords parsed for check 70 ` +
+    `(${proseCells.length} <kbd> outside the table, history chords: ${prettyList(historyChords)})`,
+    proseCells.length > 5 && panelChords.size > 0 &&
+      (chordsByAction.get("undoAct") || new Set()).size > 0 && (chordsByAction.get("redoAct") || new Set()).size > 1,
+    `undoAct: ${prettyList(chordsByAction.get("undoAct") || [])} · ` +
+    `redoAct: ${prettyList(chordsByAction.get("redoAct") || [])}\n      ` +
+    "an empty parse would pass every rule below while measuring nothing — check 36's premise, one altitude up");
+  const anchorPremise = ok(`docs/index.html: the #undo-redo chapter parsed for check 70 (${undoCells.length} <kbd>)`,
+    !!undoBlock && undoCells.length > 0,
+    `#undo-redo: ${undoBlock ? "found" : "MISSING"} — rules (d) and (e) read that anchor, and a ` +
+    "chapter that loses it would otherwise pass both by naming nothing");
+
+  if (chordPremise) {
+    const proseChords = chordSet(proseCells);
+
+    // (b) the early return, at page altitude. `Shift Z` lived here for months precisely because
+    // check 36 stops at the table's edge.
+    const proseModless = [...proseChords].filter((c) => c.split("+").some((t) => LETTER.test(t)) && !c.split("+").includes("mod"));
+    ok("docs/index.html: every letter chord its PROSE documents names Ctrl/⌘, not just Shift",
+      !proseModless.length,
+      `documented without a modifier: ${prettyList(proseModless)}\n      ` +
+      "app/studio.js's chord handler opens with `if (!(e.metaKey || e.ctrlKey)) return;` — a bare " +
+      "letter reaches nothing, and check 36 only ever read the shortcuts table");
+
+    // (c) the negative half, against the panel check 36 holds to the handler.
+    const proseInvented = [...proseChords].filter((c) => c.includes("mod") && c.split("+").some((t) => LETTER.test(t)) && !panelChords.has(c));
+    ok("docs/index.html: its prose documents no Ctrl/⌘ chord the app's \"?\" panel does not publish",
+      !proseInvented.length,
+      `in Help's prose, not in the app's panel: ${prettyList(proseInvented)}\n      ` +
+      "a chord named in a paragraph is as real to a reader as one in the table, and outlives its " +
+      "removal just as long");
+
+  }
+
+  if (anchorPremise) {
+    // (d) completeness, both directions — the chapter ABOUT undo and redo is the one place a
+    // reader is entitled to the whole set.
+    const undoChords = chordSet(undoCells);
+    const undoMissing = [...historyChords].filter((c) => !undoChords.has(c));
+    const undoStray = [...undoChords].filter((c) => !historyChords.has(c));
+    ok(`docs/index.html: #undo-redo names the ${historyChords.size} chord(s) the builder's undo/redo really fire (${prettyList(historyChords)})`,
+      !undoMissing.length && !undoStray.length,
+      `fired by undoAct()/redoAct(), not named: ${prettyList(undoMissing)}\n      ` +
+      `named here, fired by neither: ${prettyList(undoStray)}\n      ` +
+      "the chapter about redoing is where a reader looks for the chord that redoes");
+
+  }
+}
+
+/* ── 71. the VIEWER's own top bar vs the chapter that documents it ───────────────────────
+   N7, and the CHROME of the app's second page. Checks 16–21 hold the builder's chrome, 49 the
+   app bar, 69 Home — every one of them inside app/index.html. `app/viewer.html` is a second,
+   standalone document, and the one thing ever read from it was the export MENU (check 37, whose
+   rule (c) holds this chapter's format list in the missing direction). The BAR around that menu
+   — its buttons, its badge, and what a phone does to both — answered to nothing.
+
+   Measured 2026-08-10, before the fix:
+   · **Help named an "Edit in Studio" button. The bar renders "Edit in Dashboard Builder".**
+     Not a paraphrase — the label was RENAMED in a67d30c ("LIVE-a slice 2: sweep remaining
+     Explore/Studio strings to Quick Views/Dashboard Builder"), which swept the app and left
+     the Help page behind. The sentence had been written with the button itself, in d73dc81
+     (LF23 slice 2), and was true the day it landed. Its two neighbours, **Save a copy** and
+     **Export**, are still right, which is exactly what makes a stale third one expensive: the
+     reader has no reason to doubt the list.
+   · **The chapter documented the bar in the desktop's terms only.** `app/studio.css`'s
+     `@media(max-width:640px)` block drops the "Viewer — read-only" badge outright and hides
+     every `.viewer-btn-txt` label plus the export caret, so on a phone the three actions are
+     icons alone and the badge that tells you the page is read-only is gone. Help has a whole
+     `#phone-more` chapter for the BUILDER's toolbar (check 21) and gave the viewer nothing —
+     and the viewer is the route a reader is most likely to open on a phone, because it is the
+     one you send someone in a link.
+
+   Sources of truth, all app-side: `app/viewer.html`'s `#viewerBar` — the labelled controls it
+   REVEALS (`hidden` in the markup, un-hidden by viewer.js once the dashboard loads), the badge's
+   own text, and the export menu's `data-exp` items — plus the phone band read off
+   `app/studio.css`'s own media query rather than a number kept here. Four rules:
+   (a) the actions list names every revealed control, by the label the bar prints, and no other
+       — the FIRST <strong> in each <li> is the control that bullet documents, so the role words
+       later in a bullet cannot satisfy or fail it (check 68/69's scoping idiom);
+   (b) the phone paragraph names the real band, the badge the band drops, and every action whose
+       label it hides;
+   (c) the export menu's items, both directions, inside their own span — check 37 (c) already
+       asks that none go UNNAMED; this adds the negative half (the check-24→28 move, one
+       direction over) in a span of its own, so the paragraph's own bolded "Export" and the
+       prose around it can neither satisfy nor fail it;
+   (d) the "no ⋯ menu here" claim answers to viewer.html — the day the viewer grows one, the
+       sentence sending readers to the builder's must go with it. */
+{
+  const viewerHtml = read("app/viewer.html");
+  const barAt = viewerHtml.indexOf('<div id="viewerBar">');
+  const bar = barAt < 0 ? "" : viewerHtml.slice(barAt, viewerHtml.indexOf('<div id="viewerStage">', barAt));
+
+  // The bar's own controls. A control is an ACTION here if the markup ships it `hidden` —
+  // viewer.js reveals it once the dashboard (and, for Edit, the account's role) checks out.
+  // That is the structural difference between the three actions and the always-there back
+  // link, so the split is derived rather than a list kept beside them.
+  const barControls = [...bar.matchAll(/<(?:button|a) id="(viewer\w+)"([^>]*)>[\s\S]*?<span class="viewer-btn-txt">([^<]+)<\/span>/g)]
+    .map((m) => ({ id: m[1], revealed: /\shidden\b/.test(m[2]), label: m[3].trim() }));
+  const barActions = barControls.filter((c) => c.revealed).map((c) => c.label);
+  const barBadge = ((bar.match(/<span class="viewer-badge">([^<]+)<\/span>/) || [, ""])[1]).trim();
+  const exportItems = [...bar.matchAll(/data-exp="\w+"><span data-ic="[\w-]+"><\/span>([^<]+)</g)]
+    .map((m) => m[1].trim());
+
+  // The phone band the viewer bar really collapses at, found by the rule that drops the badge
+  // rather than by matching a width — so a re-banded stylesheet re-bands the check with it.
+  const viewerPhone = (() => {
+    const css = read("app/studio.css");
+    const at = /@media\s*([^{]*)\{/g;
+    let m;
+    while ((m = at.exec(css))) {
+      let depth = 1, i = at.lastIndex;
+      for (; i < css.length && depth; i++) { if (css[i] === "{") depth++; else if (css[i] === "}") depth--; }
+      const block = css.slice(at.lastIndex, i - 1).replace(/\/\*[\s\S]*?\*\//g, "");
+      if (!/\.viewer-badge\s*\{[^}]*display\s*:\s*none/.test(block)) continue;
+      const hides = [...block.matchAll(/([^{}]+)\{([^{}]*)\}/g)]
+        .filter((r) => /display\s*:\s*none/.test(r[2]))
+        .flatMap((r) => r[1].split(",").map((s) => s.trim()));
+      return { band: (m[1].match(/max-width:\s*(\d+)px/) || [, null])[1], hides };
+    }
+    return null;
+  })();
+
+  const deV = (s) => s.replace(/&amp;/g, "&").replace(/&nbsp;/g, " ").replace(/\s+/g, " ").trim();
+  const blockById = (id, tag) => (help.match(new RegExp(`<${tag} id="${id}"[^>]*>([\\s\\S]*?)</${tag}>`)) || [, null])[1];
+
+  // The premise reads the APP only. The three anchors below are part of this slice, and gating
+  // on them would have let the pre-fix page pass in silence (check 70's split, same reason).
+  const viewerPremise = ok(`app/viewer.html + app/studio.css: the viewer's top bar parsed for check 71 ` +
+    `(actions: ${barActions.join(" · ") || "(none)"}; badge: ${JSON.stringify(barBadge)}; ` +
+    `${exportItems.length} export format(s); phone band: ${viewerPhone ? viewerPhone.band + "px" : "(unparsed)"})`,
+    barActions.length >= 3 && !!barBadge && exportItems.length >= 3 &&
+      !!viewerPhone && !!viewerPhone.band && viewerPhone.hides.includes(".viewer-btn-txt"),
+    `controls: ${barControls.map((c) => `${c.label} (#${c.id}${c.revealed ? ", revealed" : ""})`).join(" · ") || "(unparsed)"}\n      ` +
+    `export menu: ${exportItems.join(" · ") || "(unparsed)"}\n      ` +
+    `phone block hides: ${viewerPhone ? viewerPhone.hides.join(" · ") : "(no @media drops .viewer-badge)"}`);
+
+  if (viewerPremise) {
+    // (a) the actions list — the drift was here, and in both directions at once.
+    const actsBlock = blockById("viewer-bar-actions", "ul");
+    const actsSaid = actsBlock === null ? null
+      : [...actsBlock.matchAll(/<li>([\s\S]*?)<\/li>/g)]
+        .map((m) => (m[1].match(/<strong>([\s\S]*?)<\/strong>/) || [, ""])[1])
+        .map(deV).filter(Boolean);
+    ok(`docs/index.html: #viewer-bar-actions names the ${barActions.length} action(s) the viewer's bar renders, by their own labels`,
+      !!actsSaid && !barActions.filter((a) => !actsSaid.includes(a)).length &&
+        !actsSaid.filter((a) => !barActions.includes(a)).length,
+      actsSaid === null ? "docs/index.html has no <ul id=\"viewer-bar-actions\"> — the viewer's bar is documented nowhere a check can read"
+        : `on the bar, not documented: ${barActions.filter((a) => !actsSaid.includes(a)).join(", ") || "(none)"}\n      ` +
+          `documented, not on the bar: ${actsSaid.filter((a) => !barActions.includes(a)).join(", ") || "(none)"}\n      ` +
+          "these are the words printed on the buttons — a renamed one outlives its rename in a reader's head");
+
+    // (b) the phone half. Every action carries a .viewer-btn-txt, so the band that hides that
+    // class hides all three labels; the badge goes entirely.
+    const phoneBlock = blockById("viewer-bar-phone", "p");
+    const phoneTxt = phoneBlock === null ? null : deV(phoneBlock.replace(/<[^>]+>/g, " "));
+    const phoneMissing = phoneTxt === null ? [] : [
+      ...(phoneTxt.includes(viewerPhone.band + "px") ? [] : [`the band (${viewerPhone.band}px)`]),
+      ...(phoneTxt.includes(barBadge) ? [] : [`the badge it drops (${barBadge})`]),
+      ...barActions.filter((a) => !phoneTxt.includes(a)).map((a) => `the label it hides (${a})`),
+    ];
+    ok(`docs/index.html: #viewer-bar-phone states what the ${viewerPhone.band}px band does to the viewer's bar`,
+      phoneTxt !== null && !phoneMissing.length,
+      phoneTxt === null ? "docs/index.html has no <p id=\"viewer-bar-phone\"> — the chapter documents the bar in the desktop's terms only, "
+        + `while app/studio.css drops ${viewerPhone.hides.join(" + ")} below the band`
+        : `not stated: ${phoneMissing.join("; ")}\n      ` +
+          "the viewer is the route you send someone in a link, so it is the one most often opened on a phone");
+
+    // (c) the formats, both directions, in their own span.
+    const fmtBlock = blockById("viewer-export-formats", "span");
+    const fmtSaid = fmtBlock === null ? null
+      : [...fmtBlock.matchAll(/<strong>([\s\S]*?)<\/strong>/g)].map((m) => deV(m[1]));
+    ok(`docs/index.html: #viewer-export-formats names the ${exportItems.length} format(s) the viewer's Export menu offers, and no others`,
+      !!fmtSaid && !exportItems.filter((f) => !fmtSaid.includes(f)).length &&
+        !fmtSaid.filter((f) => !exportItems.includes(f)).length,
+      fmtSaid === null ? "docs/index.html has no <span id=\"viewer-export-formats\">"
+        : `in the menu, not named: ${exportItems.filter((f) => !fmtSaid.includes(f)).join(", ") || "(none)"}\n      ` +
+          `named, not in the menu: ${fmtSaid.filter((f) => !exportItems.includes(f)).join(", ") || "(none)"}\n      ` +
+          "the builder's own Export menu is check 37's — this is the shorter list the viewer really has, " +
+          "and the stray half is the direction check 37 (c) leaves open");
+
+    // (d) the negative half of (b): the sentence that sends a phone reader to the BUILDER's
+    // ⋯ More is only safe while this page has no ⋯ of its own.
+    const viewerHasMore = /id="menuMore"|⋯/.test(bar);
+    ok("app/viewer.html: the viewer's bar still has no ⋯ More menu, as #viewer-bar-phone tells readers",
+      !viewerHasMore,
+      "the bar grew a ⋯ menu — #viewer-bar-phone's \"the viewer has no ⋯ menu at all\" is now wrong, " +
+      "and check 21's route rules apply to this page too");
+  }
+}
+
+/* ── 72. what a feedback report CARRIES vs the chapter that promises to say ──────────────
+   N7, and the one chapter on the page whose own title makes the promise: "Sending feedback
+   (and what gets recorded)". Every check in this family so far has asked whether Help names
+   the controls the app renders; this one asks whether it names the DATA the app sends, which
+   is the same question with a privacy answer instead of a navigation one.
+
+   Measured 2026-08-10, before the fix:
+   · **The chapter named four of the nine fields a report carries.** `Studio.Activity.feedback`
+     (`app/activity.js`) sends `gotrue_id` + `username` beside the typed kind/message, and a
+     `context` block built by `ctx()`: `section`, `dashboard`, `dashboardTitle`, `route`,
+     `version`, `viewport` and a 160-char `ua`. Help listed "your account name, the section you
+     were on, the open dashboard (if any), and the app version" — so the sign-in id, the route,
+     the window size and the **browser's user-agent string** were unpublished.
+   · **And the paragraph BELOW it read as the denial.** The anonymous-trail paragraph is the
+     one place the page discusses route/referrer/viewport/IP/UA, and it is scoped to
+     `polecat_activity` rows — so a reader comparing the two chapters would fairly conclude
+     that a feedback report is the smaller payload. It is the larger one.
+
+   Sources of truth, both app-side and both derived, never listed here: the `send("polecat_
+   feedback", { … })` row literal, minus the fields built from `feedback()`'s OWN parameters
+   (so what the reader typed is never counted as captured context), with its `context:` pair
+   expanded into `ctx()`'s keys — the initializer's plus every `c.<key> =` the body adds. Three
+   rules:
+   (a) the `#feedback-context` paragraph marks every captured field with `data-fb-field`, both
+       directions — a field the app starts sending is undocumented until someone writes a phrase
+       for it, and a phrase for a field the app stopped sending fails just as loudly;
+   (b) each mark carries real prose, not the key echoed back (a rule (a) can be satisfied
+       mechanically, and a reader learns nothing from `ua`);
+   (c) the kinds the dialog offers, both directions, in their own span — the pick-a-kind list is
+       the sentence a fifth kind would silently falsify.
+
+   `ctx(extra)`'s caller-supplied `extra` is deliberately NOT held: the one caller
+   (`openFeedbackModal`) passes none, so there is nothing static to derive, and a rule over an
+   empty parameter would measure nothing. */
+{
+  const activity = read("app/activity.js");
+
+  // Brace-match the block/literal opening at or after `from` — the idiom checks 19/22 use, kept
+  // local because this is the only place that needs it on a second file.
+  const braced = (src, from) => {
+    const open = src.indexOf("{", from);
+    if (open < 0) return "";
+    let depth = 0;
+    for (let i = open; i < src.length; i++) {
+      if (src[i] === "{") depth++;
+      else if (src[i] === "}" && --depth === 0) return src.slice(open, i + 1);
+    }
+    return "";
+  };
+  // `key: expr` pairs at the literal's own top level — commas inside a nested call, array or
+  // object belong to that nesting, not to this list.
+  const topPairs = (lit) => {
+    const body = lit.slice(1, -1);
+    const out = [];
+    let depth = 0, start = 0;
+    for (let i = 0; i <= body.length; i++) {
+      const ch = body[i];
+      if (ch === "{" || ch === "(" || ch === "[") depth++;
+      else if (ch === "}" || ch === ")" || ch === "]") depth--;
+      if (i === body.length || (ch === "," && depth === 0)) {
+        const m = body.slice(start, i).trim().match(/^(\w+)\s*:\s*([\s\S]+)$/);
+        start = i + 1;
+        if (m) out.push({ key: m[1], expr: m[2].trim() });
+      }
+    }
+    return out;
+  };
+
+  // ctx()'s keys: the initializer's, plus every one the body goes on to assign.
+  const ctxAt = activity.indexOf("function ctx(");
+  const ctxBody = ctxAt < 0 ? "" : braced(activity, ctxAt);
+  const ctxInit = ctxBody ? braced(ctxBody, ctxBody.indexOf("var c =")) : "";
+  const ctxKeys = new Set([
+    ...topPairs(ctxInit).map((p) => p.key),
+    ...[...ctxBody.matchAll(/\bc\.(\w+)\s*=/g)].map((m) => m[1]),
+  ]);
+
+  // The row, and the split between what the reader TYPED and what the app captured: a pair
+  // whose expression is built from feedback()'s own parameters is the former.
+  const fbParams = ((activity.match(/feedback:\s*function\s*\(([^)]*)\)/) || [, ""])[1])
+    .split(",").map((s) => s.trim()).filter(Boolean);
+  const rowLit = braced(activity, activity.indexOf('send("polecat_feedback"'));
+  const captured = new Set();
+  for (const p of topPairs(rowLit)) {
+    if (/\bctx\s*\(/.test(p.expr)) { ctxKeys.forEach((k) => captured.add(k)); continue; }
+    if (!fbParams.some((param) => new RegExp(`\\b${param}\\b`).test(p.expr))) captured.add(p.key);
+  }
+
+  // The dialog's own kind list, by the stem before its explanatory dash.
+  const kindsAt = studioJs.indexOf('kSel.id = "fbKind"');
+  const kinds = kindsAt < 0 ? [] : [...studioJs.slice(kindsAt, kindsAt + 800).matchAll(/\["(\w+)", "([^"]+)"\]/g)]
+    .map((m) => m[2].split("—")[0].trim());
+
+  const premise = ok("app/activity.js + app/studio.js: the feedback payload parsed for check 72 " +
+    `(${captured.size} captured field(s): ${[...captured].join(", ") || "(none)"}; kinds: ${kinds.join(" / ") || "(none)"})`,
+    captured.size >= 6 && captured.has("username") && ctxKeys.size >= 5 && kinds.length >= 3 &&
+      fbParams.includes("message") && !captured.has("message"),
+    `ctx() keys: ${[...ctxKeys].join(", ") || "(unparsed)"} · feedback() params: ${fbParams.join(", ") || "(unparsed)"}\n      ` +
+    "an empty parse would pass both rules below while measuring nothing, and this rule is the " +
+    "one that notices the day `message` stops being read as something the user typed");
+
+  if (premise) {
+    // (a) completeness, both directions.
+    const block = (help.match(/<p id="feedback-context">([\s\S]*?)<\/p>/) || [, null])[1];
+    const marked = block === null ? null
+      : [...block.matchAll(/<strong data-fb-field="(\w+)">([\s\S]*?)<\/strong>/g)]
+        .map((m) => ({ key: m[1], text: m[2].replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim() }));
+    const undocumented = marked === null ? [] : [...captured].filter((k) => !marked.some((x) => x.key === k));
+    const invented = marked === null ? [] : marked.filter((x) => !captured.has(x.key)).map((x) => x.key);
+    ok(`docs/index.html: #feedback-context names all ${captured.size} field(s) a feedback report carries, and no others`,
+      marked !== null && !undocumented.length && !invented.length,
+      marked === null ? "docs/index.html has no <p id=\"feedback-context\"> — the chapter's own title promises "
+        + `"what gets recorded" and the app sends ${captured.size} fields with every report`
+        : `sent, not documented: ${undocumented.join(", ") || "(none)"}\n      ` +
+          `documented, not sent: ${invented.join(", ") || "(none)"}\n      ` +
+          "the chapter below this one publishes route/viewport/UA for the ANONYMOUS trail, so a " +
+          "field missing here does not read as an omission — it reads as a promise that it is not collected");
+
+    // (b) a mark is only documentation if it says something.
+    const bare = (marked || []).filter((x) => !x.text || x.text.toLowerCase() === x.key.toLowerCase());
+    ok("docs/index.html: every #feedback-context field is described in words, not just tagged",
+      !bare.length,
+      `tagged with no prose of their own: ${bare.map((x) => x.key).join(", ")}\n      ` +
+      "rule (a) can be satisfied by echoing the key, and \"ua\" tells a reader nothing");
+
+    // (c) the kinds, both directions, in their own span so the prose around them cannot
+    // satisfy or fail it (check 71 (c)'s idiom).
+    const kindBlock = (help.match(/<span id="feedback-kinds">([\s\S]*?)<\/span>/) || [, null])[1];
+    const kindSaid = kindBlock === null ? null
+      : [...kindBlock.matchAll(/<strong>([\s\S]*?)<\/strong>/g)].map((m) => m[1].trim());
+    ok(`docs/index.html: #feedback-kinds names the ${kinds.length} kind(s) the dialog offers (${kinds.join(", ")})`,
+      kindSaid !== null && !kinds.filter((k) => !kindSaid.includes(k)).length &&
+        !kindSaid.filter((k) => !kinds.includes(k)).length,
+      kindSaid === null ? "docs/index.html has no <span id=\"feedback-kinds\">"
+        : `offered, not named: ${kinds.filter((k) => !kindSaid.includes(k)).join(", ") || "(none)"}\n      ` +
+          `named, not offered: ${kindSaid.filter((k) => !kinds.includes(k)).join(", ") || "(none)"}\n      ` +
+          "the picker is the first thing the dialog asks for, so its list is the one sentence a " +
+          "new kind falsifies without touching another word on the page");
+  }
+}
+
+/* ── 73. the SETTINGS page's own cards vs the section that documents them ────────────────────
+   N7, and check 69's ALTITUDE move one page over: eight checks read things a reader reaches
+   THROUGH Settings (39 the backend chooser, 40 the theme rosters, 35 the pack cards, 59/60 the
+   mode), and nothing had ever read the PAGE those cards sit on — the same gap check 69 found
+   for Home.
+
+   Measured 2026-08-10, before the fix:
+   · **Help named three of the eight cards.** The rail bullet published Settings as
+     "appearance and colour theme, the workspace-backend card, and where you sign out"; the page
+     renders Account, Workspace backend, Appearance, Mode, Presentation, Dashboard defaults,
+     Sample packs and Data. **Presentation was named nowhere on the page at all**, and neither
+     were the Account card or the Mode card's membership — `Restore unsaved work` and `Open the
+     builder with side panels` each appeared once, as a bare "flip it in Settings".
+   · **And one route pointed at a card that does not exist.** The welcome chapter closed on
+     "revisit it anytime from **Settings → Tour**". There is no Tour card: the tour is a row
+     inside **Presentation**, whose button reads **Take the tour**.
+
+   Sources of truth, all app-side and all derived, never listed here: `renderSettings()`'s own
+   body, in the order it emits cards — `accountCardHtml()` and the `#wsBackendCard` slot resolved
+   to the `<h2>` each of those two renderers prints, the `groups.map` expanded to
+   `SETTINGS_TOGGLES`' groups in declaration order, and the literal `settings-card` headings in
+   place. Four rules:
+   (a) `#settings-card-list` marks every card with `data-set-card`, in the app's own ORDER and
+       both directions — the section's first sentence promises "in the order they appear", so a
+       card that moves, arrives or leaves falsifies it (check 11's ordering rule, one page over);
+   (b) each mark carries real prose, not the heading echoed back (check 72 (b)'s idiom — a rule
+       (a) is satisfiable mechanically, and "Data" tells a reader nothing);
+   (c) every `SETTINGS_TOGGLES` row is marked with `data-set-row` and named by the label the
+       switch PRINTS, both directions — the toggles are the part of the page a reader is sent to
+       flip, and a renamed or retired switch is exactly what left `Restore unsaved work` reading
+       like a footnote;
+   (d) every bolded `Settings → …` route on the page resolves to a real card. Scoped to
+       `<strong>` deliberately and not by hand: the page bolds its OWN routes and italicises
+       another product's (measured — nine `<strong>` ours, one `<em>` for Databricks'
+       `Settings → Developer → Access tokens`), so the markup already draws the line.
+
+   **(d) was WIDENED on 2026-08-10 (N7), and the carve-out it used to carry is gone.** It held
+   only routes whose first segment was upper-case, because there was exactly one lower-case
+   one — `Settings → hard reset` — and it resolved to NOTHING: no such control existed anywhere
+   in `app/`, while the app's own read-only schema banner printed the same dead route, so
+   correcting Help alone would have made the two documents disagree. That slice shipped: the
+   control now exists (`Settings → App → Hard reset`, `Studio.hardResetApp`), both surfaces name
+   it, and the rule reads every bolded route regardless of case. Casing is part of the claim now —
+   a route that lower-cases a card name sends the reader hunting for a heading the page does not
+   print. **The app's own side of that agreement is check 74**, which reads the routes `app/`
+   prints and is the one that would notice the next dead one.
+
+   One thing deliberately NOT held, so the next run does not re-derive it: the Admin page's three
+   settings-shaped cards (Section access, Workspaces, Branding) — the paragraph naming them is
+   prose about where they are NOT, and check 66 already holds the one with controls in it. */
+{
+  const braced = (src, from) => {
+    const open = src.indexOf("{", from);
+    if (open < 0) return "";
+    let depth = 0;
+    for (let i = open; i < src.length; i++) {
+      if (src[i] === "{") depth++;
+      else if (src[i] === "}" && --depth === 0) return src.slice(open, i + 1);
+    }
+    return "";
+  };
+
+  // The switches, in declaration order — their groups ARE cards, their labels are rule (c).
+  const togStart = studioJs.indexOf("var SETTINGS_TOGGLES = [");
+  const togSrc = togStart < 0 ? "" : studioJs.slice(togStart, studioJs.indexOf("\n  ];", togStart));
+  const toggles = [...togSrc.matchAll(/\{\s*grp:\s*"([^"]+)",\s*id:\s*"([^"]+)",\s*t:\s*"([^"]+)"/g)]
+    .map((m) => ({ grp: m[1], id: m[2], t: m[3] }));
+  const groups = [...new Set(toggles.map((t) => t.grp))];
+
+  // The two cards renderSettings() delegates: each named by the <h2> its own renderer prints.
+  const accountName = (studioJs.match(/id="accountCard"><h2>([^<]+)<\/h2>/) || [, ""])[1];
+  const backendName = (studioJs.match(/card\.innerHTML = '<h2>([^<]+)<\/h2>/) || [, ""])[1];
+
+  // renderSettings()'s body, read in emission order: a delegated card, the group loop, or a
+  // heading written in place. `[^<'+]` keeps the loop's `'<h2>' + esc(g) + '</h2>'` out of the
+  // literal arm — it belongs to the group expansion below, not to itself.
+  const settingsBody = braced(studioJs, studioJs.indexOf("function renderSettings()"));
+  const found = [];
+  const at = (re, names) => {
+    for (const m of settingsBody.matchAll(re)) found.push({ i: m.index, names: names(m) });
+  };
+  at(/accountCardHtml\(\)/g, () => [accountName]);
+  at(/class="settings-card" id="wsBackendCard"/g, () => [backendName]);
+  at(/class="settings-card"><h2>'\s*\+\s*esc\(g\)/g, () => groups);
+  at(/class="settings-card"><h2>([^<'+]+)<\/h2>/g, (m) => [m[1].replace(/&amp;/g, "&").trim()]);
+  const cards = found.sort((a, b) => a.i - b.i).flatMap((f) => f.names).filter(Boolean);
+
+  const premise = ok(`app/studio.js: the Settings page parsed for check 73 (${cards.length} card(s): ` +
+    `${cards.join(" → ") || "(none)"}; ${toggles.length} switch(es))`,
+    cards.length >= 7 && new Set(cards).size === cards.length &&
+      cards.includes("Account") && cards.includes("Data") && toggles.length >= 4 &&
+      groups.every((g) => cards.includes(g)),
+    `groups: ${groups.join(", ") || "(unparsed)"} · switches: ${toggles.map((t) => t.t).join(", ") || "(unparsed)"}\n      ` +
+    "an empty or duplicated parse would let the rules below pass while measuring nothing, and " +
+    "this is the rule that notices the day a card stops going through renderSettings()");
+
+  if (premise) {
+    const list = (help.match(/<ol id="settings-card-list">([\s\S]*?)<\/ol>/) || [, null])[1];
+    const items = list === null ? null : [...list.matchAll(/<li>([\s\S]*?)<\/li>/g)].map((m) => m[1]);
+
+    // (a) every card, in the app's own order, and no invented one.
+    const said = (items || []).map((li) => (li.match(/data-set-card="([^"]+)"/) || [, ""])[1]).filter(Boolean);
+    ok(`docs/index.html: #settings-card-list names all ${cards.length} Settings card(s), in render order`,
+      items !== null && said.join(" → ") === cards.join(" → "),
+      items === null ? "docs/index.html has no <ol id=\"settings-card-list\"> — the rail bullet is the only " +
+        `place Settings is described, and the page renders ${cards.length} cards`
+        : `rendered: ${cards.join(" → ")}\n      ` +
+          `documented: ${said.join(" → ") || "(none)"}\n      ` +
+          "the section's own first sentence says \"in the order they appear\", so this is an " +
+          "ordering claim as well as a completeness one");
+
+    // (b) a mark is only documentation if the line says something the heading doesn't.
+    const thin = (items || []).filter((li) => {
+      const name = (li.match(/data-set-card="([^"]+)"/) || [, ""])[1];
+      if (!name) return false;
+      const prose = li.replace(/<[^>]+>/g, " ").replace(/&amp;/g, "&")
+        .replace(new RegExp(name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "g"), " ")
+        .replace(/\s+/g, " ").trim();
+      return prose.length < 40;
+    }).map((li) => (li.match(/data-set-card="([^"]+)"/) || [, ""])[1]);
+    ok("docs/index.html: every Settings card is described in words, not just listed",
+      !thin.length,
+      `named with no prose of their own: ${thin.join(", ")}\n      ` +
+      "rule (a) is satisfied by a bare list, and a card called \"Data\" tells a reader nothing");
+
+    // (c) the switches, by the label they print, both directions.
+    const rows = list === null ? [] : [...list.matchAll(/data-set-row="([^"]+)">([\s\S]*?)<\/strong>/g)]
+      .map((m) => ({ id: m[1], text: m[2].replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim() }));
+    const missing = toggles.filter((t) => !rows.some((r) => r.id === t.id)).map((t) => `${t.id} (${t.t})`);
+    const wrong = rows.filter((r) => {
+      const t = toggles.find((x) => x.id === r.id);
+      return !t || t.t !== r.text;
+    }).map((r) => `${r.id} → "${r.text}"`);
+    ok(`docs/index.html: #settings-card-list names all ${toggles.length} Settings switch(es) by their own labels`,
+      !missing.length && !wrong.length,
+      `rendered, not documented: ${missing.join(", ") || "(none)"}\n      ` +
+      `documented under a name the app does not print: ${wrong.join(", ") || "(none)"}\n      ` +
+      `the app's labels: ${toggles.map((t) => `${t.id}="${t.t}"`).join(", ")}`);
+
+    // (d) the routes. Bolded ones are the page's own; the first segment must be a real card.
+    const routes = [...help.matchAll(/<strong>Settings\s*→\s*([\s\S]*?)<\/strong>/g)]
+      .map((m) => m[1].replace(/<[^>]+>/g, " ").replace(/&amp;/g, "&").replace(/\s+/g, " ").trim())
+      .map((r) => ({ route: r, head: r.split("→")[0].trim() }));
+    const held = routes;
+    const unresolved = [...new Set(held.filter((r) => !cards.includes(r.head)).map((r) => r.route))];
+    ok(`docs/index.html: all ${held.length} bolded "Settings → …" route(s) reach a card that exists`,
+      !unresolved.length,
+      `routes that resolve to nothing: ${unresolved.join(" · ")}\n      ` +
+      `the cards on the page: ${cards.join(", ")}\n      ` +
+      "a route naming a card the page does not render sends the reader looking for it — this is " +
+      "check 13's rule for \"⋯ More → X\", one menu over");
+  }
+}
+
+/* ── 74. the `Settings → …` routes the APP itself prints ─────────────────────────────────────
+   N7, and check 73's own move one document over — the check-16→17 idiom the track keeps using,
+   except this time the two documents are Help and the APP, and the app was the one that had
+   never been read. Check 73 (d) holds the routes `docs/index.html` bolds; nothing had ever held
+   the routes `app/` prints into a banner, a toast, a hint or a tour card, even though those are
+   the ones a reader follows WHILE the problem is on screen.
+
+   Measured 2026-08-10, before the fix — three drifts, and the worst of them was the reason this
+   check exists:
+   · **`Settings → hard reset` resolved to NOTHING.** The read-only schema banner
+     (`renderVersionBanner`) offered it as the remedy for a stuck offline copy, Help offered the
+     same route, and no such control existed anywhere in `app/`. The nearest thing was
+     ⋯ More → **Clear local data**, which wipes the workspace — emphatically not what someone
+     with a stale service worker should be told to press. Fixed by building the control
+     (`Studio.hardResetApp`, the **App** card's **Hard reset** row), not by deleting the promise:
+     the failure mode is real and it had no other answer.
+   · **`Settings → Tour` in `app/welcome.js`** — the SAME dead route check 73 (d) had just
+     deleted from Help, still printed by the welcome hero's own closing note. There is no Tour
+     card; the tour is a row in **Presentation**. This is exactly the case check 73's header
+     warned about: fixing one document leaves the other contradicting it.
+   · **`see Settings → workspace backend`** in a sync-failure toast — the card is **Workspace
+     backend**, and a lower-cased card name sends a reader hunting for a heading the page does
+     not print.
+
+   Sources of truth, all derived: the cards come from `renderSettings()`'s emission order exactly
+   as check 73 parses them, and the CONTROLS come from the labels the page prints — the `<b>…</b>`
+   row headings and `>…</button>` texts inside `renderSettings()` plus the two renderers it
+   delegates to (`accountCardHtml()`, `renderWorkspaceBackendCard()`). Three rules:
+   (a) every route's first segment is a card the page renders, case included;
+   (b) a route that goes DEEPER than the card names a control the page really prints — a card
+       name alone is a pointer, but `→ Hard reset` is an instruction, and an instruction that
+       names a button nobody can find is the defect this whole check is about;
+   (c) the agreement half: a deep route the app prints must be printed by Help too, verbatim.
+       One-segment routes are exempt on purpose — the app points at a card in half a dozen
+       toasts and Help is under no obligation to bold each one — but a remedy detailed enough to
+       name a button is a claim two documents now make together, and check 73 (d) holds Help's
+       end of it.
+
+   Scoping, and why it is not an exemption list: the scan reads the app's own chrome —
+   `app/*.js` + `app/*.html` — and NOT `app/sources/**`. The adapter layer's credential hints
+   describe the REMOTE product's console (Supabase's `Settings → API → Project URL`, Databricks'
+   `Settings → Developer → Access tokens`), which is the same distinction Help draws by
+   italicising a foreign route and bolding its own. A fourth rule guards the scoping itself: if
+   an adapter ever starts pointing at OUR Settings page, the exclusion has stopped being safe and
+   this check says so rather than going quietly blind.
+
+   Routes are read out of QUOTED STRING LITERALS, so a `//` or block comment discussing a route
+   is not held. That is a deliberate limit, not an oversight: a comment cannot send a reader
+   anywhere. A route quoted inside a comment WILL be read (the scan is textual) and must resolve
+   — which is harmless, since a comment naming a real route is true. */
+{
+  const braced = (src, from) => {
+    const open = src.indexOf("{", from);
+    if (open < 0) return "";
+    let depth = 0;
+    for (let i = open; i < src.length; i++) {
+      if (src[i] === "{") depth++;
+      else if (src[i] === "}" && --depth === 0) return src.slice(open, i + 1);
+    }
+    return "";
+  };
+
+  // The cards, parsed exactly as check 73 parses them (same four arms, same order).
+  const togStart = studioJs.indexOf("var SETTINGS_TOGGLES = [");
+  const togSrc = togStart < 0 ? "" : studioJs.slice(togStart, studioJs.indexOf("\n  ];", togStart));
+  const groups = [...new Set([...togSrc.matchAll(/\{\s*grp:\s*"([^"]+)"/g)].map((m) => m[1]))];
+  const accountName = (studioJs.match(/id="accountCard"><h2>([^<]+)<\/h2>/) || [, ""])[1];
+  const backendName = (studioJs.match(/card\.innerHTML = '<h2>([^<]+)<\/h2>/) || [, ""])[1];
+  const settingsBody = braced(studioJs, studioJs.indexOf("function renderSettings()"));
+  const found = [];
+  const at = (re, names) => {
+    for (const m of settingsBody.matchAll(re)) found.push({ i: m.index, names: names(m) });
+  };
+  at(/accountCardHtml\(\)/g, () => [accountName]);
+  at(/class="settings-card" id="wsBackendCard"/g, () => [backendName]);
+  at(/class="settings-card"><h2>'\s*\+\s*esc\(g\)/g, () => groups);
+  at(/class="settings-card"><h2>([^<'+]+)<\/h2>/g, (m) => [m[1].replace(/&amp;/g, "&").trim()]);
+  const cards = found.sort((a, b) => a.i - b.i).flatMap((f) => f.names).filter(Boolean);
+
+  // The controls: every label the Settings page PRINTS, from the three renderers that build it.
+  // `<b>…</b>` is the row heading idiom and `>…</button>` the button one; interpolated labels
+  // (a pack's own name, a preset's) fall out on their own because they carry a `+`.
+  const controlSrc = settingsBody +
+    braced(studioJs, studioJs.indexOf("function accountCardHtml()")) +
+    braced(studioJs, studioJs.indexOf("function renderWorkspaceBackendCard()"));
+  const controls = new Set([
+    ...[...controlSrc.matchAll(/<b>([^<'"+]{2,60})<\/b>/g)].map((m) => m[1]),
+    ...[...controlSrc.matchAll(/>([^<>'"+]{2,60})<\/button>/g)].map((m) => m[1]),
+    ...[...togSrc.matchAll(/\bt:\s*"([^"]+)"/g)].map((m) => m[1]),
+  ].map((s) => s.replace(/&amp;/g, "&").replace(/\s+/g, " ").trim()).filter(Boolean));
+
+  // The routes, read out of quoted string literals in the app's own chrome.
+  const ROUTE = /(["'])((?:[^\\\n]|\\.)*?Settings\s*→(?:[^\\\n]|\\.)*?)\1/g;
+  const chrome = fs.readdirSync(path.join(ROOT, "app"), { withFileTypes: true })
+    .filter((e) => e.isFile() && /\.(js|html)$/.test(e.name)).map((e) => "app/" + e.name).sort();
+  const adapters = fs.readdirSync(path.join(ROOT, "app/sources"), { withFileTypes: true })
+    .filter((e) => e.isFile() && e.name.endsWith(".js")).map((e) => "app/sources/" + e.name).sort();
+  // A route's segments are matched against the app's OWN vocabulary rather than guessed at with
+  // punctuation: these routes are printed mid-sentence ("…and Settings → Workspace backend
+  // manages, so…"), so nothing in the text says where the segment stops — but the page's own
+  // card and control labels do. Longest match first, and the character after it must not be a
+  // word character, so `App` can never be read out of `Appearance`.
+  const longest = (text, vocab) => {
+    for (const v of vocab) {
+      if (text.startsWith(v) && !/\w/.test(text.charAt(v.length))) return v;
+    }
+    return null;
+  };
+  const byLength = (set) => [...set].sort((a, b) => b.length - a.length);
+  const cardVocab = byLength(new Set(cards)), ctlVocab = byLength(controls);
+  const routesIn = (files) => {
+    const out = [];
+    for (const f of files) {
+      const src = read(f);
+      for (const m of src.matchAll(ROUTE)) {
+        const lit = m[2].replace(/<[^>]*>/g, "|").replace(/\\'/g, "'").replace(/&amp;/g, "&");
+        for (const hit of lit.matchAll(/Settings\s*→\s*/g)) {
+          const tail = lit.slice(hit.index + hit[0].length);
+          const head = longest(tail, cardVocab);
+          const r = { file: f, head, parts: [], tail: tail.slice(0, 60) };
+          if (!head) { out.push(r); continue; }
+          r.parts.push(head);
+          const after = tail.slice(head.length).replace(/^[\s|]*/, "");
+          if (after.startsWith("→")) {
+            const rest = after.slice(1).replace(/^[\s|]*/, "");
+            const leaf = longest(rest, ctlVocab);
+            r.parts.push(leaf || rest.slice(0, 40).trim());
+            r.leafOk = !!leaf;
+            r.tail = rest.slice(0, 60);
+          }
+          out.push(r);
+        }
+      }
+    }
+    return out;
+  };
+  const appRoutes = routesIn(chrome);
+
+  const premise = ok(`app/: the Settings routes the app prints, parsed for check 74 ` +
+    `(${appRoutes.length} route(s) across ${chrome.length} chrome file(s); ` +
+    `${cards.length} card(s), ${controls.size} control label(s))`,
+    cards.length >= 7 && controls.size >= 15 && appRoutes.length >= 5 &&
+      controls.has("Hard reset") && cards.includes("App"),
+    `routes: ${appRoutes.map((r) => r.parts.join(" → ")).join(" · ") || "(none)"}\n      ` +
+    `cards: ${cards.join(", ") || "(unparsed)"}\n      ` +
+    "an empty parse would let all three rules below pass while measuring nothing");
+
+  if (premise) {
+    // (a) the card the route opens on.
+    const badHead = [...new Set(appRoutes.filter((r) => !r.head)
+      .map((r) => `"Settings → ${r.tail.trim()}…" (${r.file})`))];
+    ok(`app/: all ${appRoutes.length} "Settings → …" route(s) the app prints open on a card that exists`,
+      !badHead.length,
+      `routes that resolve to nothing: ${badHead.join(" · ")}\n      ` +
+      `the cards renderSettings() emits: ${cards.join(", ")}\n      ` +
+      "casing is part of the claim — the page prints its headings, and a lower-cased one sends " +
+      "the reader looking for a heading that is not there");
+
+    // (b) the control at the end of a deep route.
+    const deep = appRoutes.filter((r) => r.parts.length > 1);
+    const badLeaf = [...new Set(deep.filter((r) => !r.leafOk)
+      .map((r) => `${r.parts[0]} → "${r.tail.trim()}…" (${r.file})`))];
+    ok(`app/: all ${deep.length} deep route(s) end on a control the Settings page really prints`,
+      !badLeaf.length,
+      `leaves that name no control: ${badLeaf.join(" · ")}\n      ` +
+      `the labels the page prints: ${[...controls].sort().join(", ")}\n      ` +
+      "this is the rule that would have caught Settings → hard reset the day it was written");
+
+    // (c) and Help says the same thing.
+    const helpText = help.replace(/<[^>]*>/g, "").replace(/&amp;/g, "&").replace(/\s+/g, " ");
+    const missingFromHelp = [...new Set(deep
+      .filter((r) => !helpText.includes("Settings → " + r.parts.join(" → ")))
+      .map((r) => `${r.parts.join(" → ")} (${r.file})`))];
+    ok(`app/ + docs/index.html: every deep route the app prints is printed by Help too`,
+      !missingFromHelp.length,
+      `the app sends people somewhere Help never mentions: ${missingFromHelp.join(" · ")}\n      ` +
+      "a remedy detailed enough to name a button is a claim both documents make, and the two " +
+      "drifting apart is how Settings → hard reset survived in two places at once");
+
+    // (d) the scoping guard: adapters describe OTHER products' consoles, never ours.
+    const ourInAdapters = [...new Set(routesIn(adapters).filter((r) => r.head)
+      .map((r) => `${r.parts.join(" → ")} (${r.file})`))];
+    ok(`app/sources/: the adapter layer still names only other products' Settings pages (${adapters.length} adapter(s) scanned)`,
+      !ourInAdapters.length,
+      `adapters now pointing at OUR Settings page: ${ourInAdapters.join(" · ")}\n      ` +
+      "rules (a)-(c) skip app/sources/ because its credential hints describe the remote " +
+      "product's console — the moment that stops being true the exclusion is hiding real routes");
+  }
+}
+
+/* ── 75. the ⌘K palette drives controls that EXIST, and offers the safe remedy ───────────────
+   N7. Check 74 asked whether a route the app PRINTS resolves; this asks the same question of
+   the routes the app WIRES. `app/palette.js` is built on one promise, written into its own
+   header: every command "simply drives an existing control (clicks a real button…), so it
+   reuses all existing wiring and can never drift out of sync with the app." That is true of
+   the mechanism and false of the id — a `click("x")` for an `x` that has been renamed or
+   deleted is a silent no-op, and the palette row still renders, still ranks, still highlights.
+
+   Measured 2026-08-10, before the fix — two findings, one of each kind:
+   · **`Add text / annotation panel` clicked `btnAddText`, an id deleted on 2026-07-14.** The
+     ¶ Text button moved out of the Data-panel header into the canvas empty state (`#cesText`)
+     because it creates a PANEL; the suite even asserts the old id is gone
+     (`oldHeaderBtnGone`). The palette entry was never repointed, so for ~4 weeks ⌘K → that
+     command did nothing at all — no error, no toast, no panel.
+   · **The palette reached `Clear local data…` and not the hard reset.** v986 had just built
+     `Settings → App → Hard reset` for the stuck-offline-copy failure mode precisely because
+     ⋯ More → Clear local data — which WIPES the workspace — was the wrong answer to it. With
+     only the destructive one in the palette, the remedy you should try first was absent from
+     the keyboard surface and the one you should try last was a keystroke away.
+
+   Sources of truth. The registry is EVALUATED, check 61's idiom (the `run` bodies only
+   dereference their helpers when called, so the literal stands alone), and each command's
+   wiring is read back off its own function source — both idioms it uses: the `click("<id>")`
+   helper and a `#id`-anchored `querySelector`. The inventory it is checked against is every
+   id the app can render: `id="…"` across `app/*.html` and the markup `app/*.js` builds as
+   strings. Three rules:
+   (a) every control id a command drives is one the app really renders. This is the general
+       rule, and the one `btnAddText` fails;
+   (b) the remedy PAIR ships together, safe one first, in one family. The two ids are named
+       here rather than derived, and that is deliberate: "this button wipes your workspace and
+       that one does not" is a product fact about consequences, not a shape any parse can read
+       out of the source. What the rule derives around them is everything else — the family
+       word from the commands' own `hint`, the order from the registry's own index;
+   (c) the safe command's label NAMES the control it drives, so someone who read
+       `Settings → App → Hard reset` in the banner and reached for ⌘K instead types the same
+       words. A trailing ellipsis is the palette's own idiom for "this will ask first" and is
+       stripped before the comparison.
+
+   Deliberately not held: the dynamic builders (`navCommands` and friends) mint commands from
+   live DOM they hold a reference to and click THAT node, so there is no id to resolve — check
+   61 already reads their label prefixes. Rule (a) covers the static registry, which is where
+   every hand-written id lives. */
+{
+  const pal = read("app/palette.js");
+
+  // The static registry, evaluated exactly as check 61 evaluates it.
+  const cmds = (() => {
+    const at = pal.indexOf("var COMMANDS = [");
+    if (at < 0) return null;
+    try {
+      const arr = new Function("return " + searchBlockAt(pal, pal.indexOf("[", at), "[", "]") + ";")();
+      return Array.isArray(arr) && arr.every((c) => c && typeof c.label === "string" &&
+        typeof c.hint === "string" && typeof c.run === "function") ? arr : null;
+    } catch { return null; }
+  })();
+
+  // What a command drives, read off its own source: the registry's `click("<id>")` helper and
+  // any `#id`-anchored selector. Both are hand-written ids, which is what makes them driftable.
+  const drivenBy = (c) => {
+    const src = String(c.run);
+    return [...new Set([
+      ...[...src.matchAll(/\bclick\(\s*"([\w-]+)"\s*\)/g)].map((m) => m[1]),
+      ...[...src.matchAll(/["'`]#([A-Za-z][\w-]*)/g)].map((m) => m[1]),
+    ])];
+  };
+  const wired = (cmds || []).map((c) => ({ label: c.label, hint: c.hint, ids: drivenBy(c) }))
+    .filter((c) => c.ids.length);
+
+  // Every id the app can put in the DOM: static markup plus the markup its JS builds as strings.
+  const appFiles = fs.readdirSync(path.join(ROOT, "app"), { withFileTypes: true })
+    .filter((e) => e.isFile() && /\.(js|html)$/.test(e.name)).map((e) => "app/" + e.name).sort();
+  const realIds = new Set(appFiles.flatMap((f) =>
+    [...read(f).matchAll(/\bid=\\?"([\w-]+)\\?"/g)].map((m) => m[1])));
+
+  // The pair. Named, not derived — see the header: which of two buttons destroys your work is
+  // a fact about consequences, and the source says nothing about that either way.
+  const SAFE = "setHardResetBtn", DESTRUCTIVE = "moreClearData";
+  const cmdFor = (id) => wired.filter((c) => c.ids.includes(id))[0] || null;
+  const safeCmd = cmdFor(SAFE), destructiveCmd = cmdFor(DESTRUCTIVE);
+  // The label the Settings page prints on the safe control, read off the button it renders.
+  const safeLabel = (studioJs.match(/id="setHardResetBtn"[^>]*>([^<]+)<\/button>/) || [, ""])[1].trim();
+
+  const palPremise = ok(`app/palette.js: the palette's wiring parsed for check 75 ` +
+    `(${cmds ? cmds.length : 0} static command(s), ${wired.length} of them driving a named ` +
+    `control, against ${realIds.size} id(s) the app renders)`,
+    !!cmds && cmds.length >= 20 && wired.length >= 8 && realIds.size >= 50 && !!safeLabel,
+    `registry evaluated: ${!!cmds} · Settings' own label for the safe control: ` +
+    `"${safeLabel || "(unparsed)"}"\n      ` +
+    `driven ids: ${wired.flatMap((c) => c.ids).join(", ") || "(none)"}\n      ` +
+    "an empty parse would let all three rules below pass while measuring nothing");
+
+  if (palPremise) {
+    // (a) the general rule: a command that clicks a ghost is a row that does nothing.
+    const dead = wired.flatMap((c) => c.ids.filter((id) => !realIds.has(id))
+      .map((id) => `"${c.label}" → #${id}`));
+    ok(`app/palette.js: all ${wired.flatMap((c) => c.ids).length} control id(s) the palette drives are controls the app renders`,
+      !dead.length,
+      `commands wired to nothing: ${dead.join(" · ")}\n      ` +
+      "a click() on a missing id throws nothing and shows nothing — the palette row renders, " +
+      "ranks and highlights exactly as it would if it worked, which is how btnAddText survived " +
+      "four weeks after the button it names was deleted");
+
+    // (b) the pair, in the order you should try them.
+    const iSafe = wired.indexOf(safeCmd), iDestructive = wired.indexOf(destructiveCmd);
+    ok("app/palette.js: the palette reaches the SAFE remedy wherever it reaches the destructive one, first and in the same family",
+      !destructiveCmd || (!!safeCmd && safeCmd.hint === destructiveCmd.hint && iSafe < iDestructive),
+      `safe (#${SAFE}): ${safeCmd ? `"${safeCmd.label}" [${safeCmd.hint}]` : "(NOT IN THE PALETTE)"}\n      ` +
+      `destructive (#${DESTRUCTIVE}): ${destructiveCmd ? `"${destructiveCmd.label}" [${destructiveCmd.hint}]` : "(absent)"}\n      ` +
+      "Hard reset drops the offline copy and touches no storage; Clear local data wipes the " +
+      "workspace. Offering only the second from the keyboard puts the destructive remedy one " +
+      "keystroke away and leaves the one it should be tried before reachable through Settings alone");
+
+    // (c) and it calls the control what the control calls itself.
+    const palLabel = safeCmd ? safeCmd.label.replace(/[….]+$/, "").trim() : "";
+    ok(`app/palette.js: the safe remedy's command names the control it drives ("${safeLabel}")`,
+      !!safeCmd && palLabel === safeLabel,
+      `the palette prints "${safeCmd ? safeCmd.label : "(no command)"}" · Settings prints "${safeLabel}"\n      ` +
+      "the banner and Help both spell this remedy out as Settings → App → Hard reset, so the " +
+      "words someone types into ⌘K are the words that route ends on — a rename on either side " +
+      "that skips the other makes the palette unfindable by the only name anyone has been given");
+  }
+}
+
+/* ── 76. the ⌘K palette's own NOUN for the thing its Add commands create ─────────────────────
+   N7. Check 75 holds the palette's WIRING — every command clicks a control that exists. This
+   holds its WORDING, and it is check 14's move one surface over: derive the internal noun and
+   the rendered one from the SAME function, then forbid the internal one where a reader reads.
+
+   Measured 2026-08-10, before the fix. LF52/LF57 made **View** the user-facing name for a
+   chart on a dashboard and swept the controls; the palette's copy was left behind, so ⌘K was
+   the last surface still offering the pre-rename word:
+   · `Add text / annotation panel` drove `#cesText`, a button whose own label reads
+     **¶ Add a text View** — the command and the control it clicks disagreed about what they
+     make, which is check 75 (c)'s failure one field over (there the label named the wrong
+     control, here it names the right control by the wrong noun);
+   · `chartTypeCommands` minted `"Add panel: " + label` for all 55 types and printed
+     **Add panel** as the family tag on every one of those rows — the single most repeated
+     string in the palette, and Help quoted it verbatim under check 61 (d), so the retired
+     noun was published as the thing to type.
+
+   Sources of truth. `addTextPanel()` in app/studio.js is the handler behind BOTH the canvas
+   ¶ button and the palette's own Add-text command, and it names both nouns in five lines: it
+   pushes into `S.spec.panels` (the spec key — internal, and deliberately unrenamed) and
+   toasts "Text View added" to the reader. The premise then corroborates that rendered noun
+   against three independent surfaces — check 14's library group (`buildAnalysesLib`), the
+   canvas empty state's ¶ button and `#dropHint` — because a one-function derivation that
+   nothing agrees with is a typo, not a vocabulary. The registry is EVALUATED, check 61's
+   idiom, and the builders give up their label prefix, family word and synonyms the same way.
+
+   Three rules:
+   (a) every ADD command's visible copy — its label and its family tag — names the rendered
+       noun and never the internal one. Scoped to the commands that CREATE one, by their own
+       "Add" verb: `panel` is still the right word for a pane of the UI (the Data panel, the
+       Inspector panel), so a blanket ban would be wrong the day someone adds a toggle for
+       one. The positive half matters as much as the negative: "Add text / annotation" with
+       the noun simply dropped would satisfy a ban and still leave the reader guessing.
+   (b) a command that drives a NAMED control agrees with that control's own label about it —
+       check 75 (c) generalised from one hand-named pair to the noun, so the palette can never
+       again offer to add a "panel" by clicking a button that says View.
+   (c) the rename costs no discoverability, and the page says so only while it is true. The
+       retired noun stays in `kw` — the palette's hidden synonyms — and rule (c) PROBES
+       Studio.catalogSearch (check 61 (e)'s idiom, run the other way: not "can you find what
+       we published" but "can you still find it by the word you learned first"). Held in
+       BOTH directions against Help's own sentence, the parity-only-when-true idiom: promise
+       the old word works and it must, drop it from the synonyms and the promise must go too.
+
+   Deliberately not held: the app's non-palette copy. `spec.panels` is a real key a spec author
+   reads, Help's chart-interaction prose says "panel" about the thing under a cursor, and
+   rewriting those is a vocabulary decision across two documents rather than a derivation —
+   check 15 is the model for the day someone takes it. */
+{
+  const pal = read("app/palette.js");
+  const appIndex = read("app/index.html");
+
+  // ── the two nouns, out of one function (check 14's idiom).
+  const addTextSrc = (() => {
+    const at = studioJs.indexOf("function addTextPanel(");
+    return at < 0 ? "" : searchBlockAt(studioJs, studioJs.indexOf("{", at), "{", "}");
+  })();
+  const internalKey = (addTextSrc.match(/spec\.(\w+)\.push\(/) || [])[1] || "";      // "panels"
+  const internalNoun = internalKey.replace(/s$/, "");                                 // "panel"
+  // The toast the same function shows: "Text View added — …". The noun is the last capitalised
+  // word before "added", so the phrase may grow an adjective without the rule losing its grip.
+  const toastPhrase = (addTextSrc.match(/toast\("([^"]*?)\s+added\b/) || [])[1] || "";
+  const renderedNoun = (toastPhrase.match(/\b[A-Z][a-z]+\b(?!.*\b[A-Z][a-z]+\b)/) || [])[0] || "";
+
+  // The three surfaces that must agree with it, so a typo cannot become the vocabulary.
+  const btnLabel = (id) =>
+    (appIndex.match(new RegExp(`<button[^>]*\\bid="${id}"[^>]*>([^<]*)</button>`)) || [, ""])[1].trim();
+  const cesTextLabel = btnLabel("cesText");
+  const dropHint = (appIndex.match(/id="dropHint"[^>]*>([^<]*)</) || [, ""])[1].trim();
+  const nounRe = renderedNoun ? new RegExp(`\\b${renderedNoun}s?\\b`) : /$^/;
+  const staleRe = internalNoun ? new RegExp(`\\b${internalNoun}s?\\b`, "i") : /$^/;
+
+  // ── the registry, evaluated exactly as checks 61 and 75 evaluate it.
+  const cmds76 = (() => {
+    const at = pal.indexOf("var COMMANDS = [");
+    if (at < 0) return null;
+    try {
+      const arr = new Function("return " + searchBlockAt(pal, pal.indexOf("[", at), "[", "]") + ";")();
+      return Array.isArray(arr) && arr.every((c) => c && typeof c.label === "string" &&
+        typeof c.hint === "string" && typeof c.kw === "string") ? arr : null;
+    } catch { return null; }
+  })();
+  // The builders mint their strings around a live name; the literals are the published parts.
+  const palStr1 = (body, key, next) => {
+    const seg = (body.match(new RegExp(`${key}:([\\s\\S]*?),\\s*${next}:`)) || [, ""])[1];
+    return [...seg.matchAll(/"((?:[^"\\]|\\.)*)"/g)].map((m) => m[1])[0] || "";
+  };
+  const builderCmd = (name) => {
+    const at = pal.indexOf("function " + name + "(");
+    if (at < 0) return null;
+    const body = searchBlockAt(pal, pal.indexOf("{", pal.indexOf(")", at)), "{", "}");
+    return { label: palStr1(body, "label", "hint"), hint: palStr1(body, "hint", "kw"),
+      kw: palStr1(body, "kw", "ic"), ids: [], from: name + "()" };
+  };
+  const chartCmd = builderCmd("chartTypeCommands");
+  const driven76 = (c) => [...new Set([...String(c.run || "")
+    .matchAll(/\bclick\(\s*"([\w-]+)"\s*\)/g)].map((m) => m[1]))];
+  const allCmds = [
+    ...(cmds76 || []).map((c) => ({ label: c.label, hint: c.hint, kw: c.kw, ids: driven76(c), from: "COMMANDS" })),
+    ...(chartCmd ? [chartCmd] : []),
+  ];
+  // The commands that CREATE one, named by their own verb rather than by a list here.
+  const addCmds = allCmds.filter((c) => /^add\b/i.test(c.label.trim()) || /^add\b/i.test(c.hint.trim()));
+
+  const nounPremise = ok(`app/studio.js + app/palette.js: the two nouns derived for check 76 ` +
+    `(internal "${internalNoun || "?"}" from spec.${internalKey || "?"}, rendered ` +
+    `"${renderedNoun || "?"}" from addTextPanel's own toast) across ${addCmds.length} Add command(s)`,
+    !!internalNoun && !!renderedNoun && internalNoun !== renderedNoun && !!searchKit &&
+      renderedNoun === savedNoun && nounRe.test(cesTextLabel) && nounRe.test(dropHint) &&
+      !!cmds76 && cmds76.length >= 20 && !!chartCmd && addCmds.length >= 2,
+    `addTextPanel parsed: ${!!addTextSrc} · toast phrase: "${toastPhrase || "(none)"}"\n      ` +
+    `corroboration — check 14's library group: "${savedNoun}" · #cesText: "${cesTextLabel || "(none)"}" · ` +
+    `#dropHint: "${dropHint || "(none)"}"\n      ` +
+    `Add commands: ${addCmds.map((c) => `"${c.label}" [${c.hint}]`).join(" · ") || "(none)"}\n      ` +
+    "one function's word is a typo until three other surfaces say it too — the premise is what " +
+    "makes the rules below a vocabulary rather than a transcription");
+
+  if (nounPremise) {
+    // (a) the noun a reader reads.
+    const nounGaps = addCmds.flatMap((c) => [
+      ...(staleRe.test(c.label) ? [`${c.from}: label "${c.label}" says "${internalNoun}"`] : []),
+      ...(staleRe.test(c.hint) ? [`${c.from}: family tag "${c.hint}" says "${internalNoun}"`] : []),
+      ...(!nounRe.test(c.label) && !nounRe.test(c.hint)
+        ? [`${c.from}: "${c.label}" [${c.hint}] names neither "${renderedNoun}" nor anything else it makes`] : []),
+    ]);
+    ok(`app/palette.js: every Add command calls what it makes a "${renderedNoun}", the app's own word for it, and never a "${internalNoun}"`,
+      !nounGaps.length,
+      `${nounGaps.join("\n      ") || "(none)"}\n      ` +
+      `"${internalNoun}" is the spec key (spec.${internalKey}) and stays one — what LF52/LF57 renamed ` +
+      "is every word the reader sees, and ⌘K was the last surface still on the old one, on 55 rows at once");
+
+    // (b) the command and the control it clicks agree.
+    const disagree = addCmds.flatMap((c) => c.ids
+      .map((id) => ({ id, ctl: btnLabel(id) }))
+      .filter((x) => x.ctl && nounRe.test(x.ctl) && !nounRe.test(c.label))
+      .map((x) => `"${c.label}" clicks #${x.id}, which the app renders as "${x.ctl}"`));
+    ok(`app/palette.js: no Add command names by one noun a control the app labels with the other`,
+      !disagree.length,
+      `${disagree.join("\n      ") || "(none)"}\n      ` +
+      "check 75 (c) holds one hand-named pair to each other's words; this is the same rule over " +
+      "the noun, so a control renamed on the canvas can never leave the keyboard offering the old one");
+
+    // (c) the old word still finds the row — probed on the app's own matcher — and the page
+    //     promises that exactly while it is true.
+    const unfindable = addCmds
+      .filter((c) => !kitFinds(internalNoun, [c.label, c.hint, c.kw]))
+      .map((c) => `"${c.label}" — synonyms: "${c.kw}"`);
+    const labP = (() => {
+      const at = help.indexOf('<p id="cmdk-labels">');
+      return at < 0 ? "" : help.slice(at, help.indexOf("</p>", at) + 4);
+    })();
+    const helpPromises = new RegExp(`<strong>${internalNoun}</strong>`, "i").test(labP);
+    ok(`app/palette.js + docs/index.html: typing "${internalNoun}" still finds every Add command, and Help promises that only while it does`,
+      !unfindable.length && helpPromises === !unfindable.length,
+      `finds nothing: ${unfindable.join("\n      ") || "(none)"}\n      ` +
+      `Help's #cmdk-labels promises the old word works: ${helpPromises} · it does: ${!unfindable.length}\n      ` +
+      "a rename that quietly drops the word half the readers learned first is a regression wearing " +
+      "a tidy label — the synonym is the whole reason this rename costs nobody anything");
+  }
+}
+
+/* ── 77. Help's own PROSE for the thing on a dashboard — check 76's move one document over ───
+   N7, and the check-14→15 move for a second noun: check 76 held the ⌘K palette's LABELS to the
+   app's rendered word ("View"), and its own header named what it deliberately left — "Help's
+   chart-interaction prose says 'panel' about the thing under a cursor", a vocabulary decision
+   across a whole document rather than a label rule. This is that decision, drawn the only way
+   that is a derivation rather than an opinion.
+
+   THE LINE, and it is the app's to draw, not the page's. `panel` is still the right word for a
+   PANE of the UI and for the app's own labels — the Data panel, the Panel title field, Open the
+   builder with side panels — so check 15's blanket ban ("outside <code>, the word must not
+   appear") would be wrong here in a way it was not wrong for `analyses`. What Help may NOT do is
+   invent the word: if the app never prints "<qualifier> panel", Help printing it is Help's own
+   vocabulary, and for the thing on a dashboard the app's word has been **View** since LF52/LF57.
+   So the exemption is READ OUT OF THE APP's own copy (check 17 (a)'s idiom, one noun over), and
+   the rule is what is left: every `panel` in Help sits inside a two-word phrase the app itself
+   prints, or it is drift.
+
+   Measured 2026-08-10, before the fix — 64 occurrences, 21 of them the page's own word:
+   · "a filter applies to a panel when the panel's dataset…" (#filters-how), "wherever that panel
+     has a detail drawer", "clicking a mark still selects the panel for editing" — the three the
+     v988 note named, and the last two are in the chapter about reading a dashboard by keyboard,
+     where every control named beside them is a View;
+   · the properties: "where every panel's height lives", "the panel's bottom edge", "value
+     formats, panel height", "not its panel grid", "the saved View's panel" — a View owning a
+     panel that owns the View;
+   · "the panel inspector" ×3, where Help's own Query-preview paragraph already says "the View
+     inspector";
+   · and the PANES, called panels where Help elsewhere calls them panes ("the dataset panel next
+     to it", "the Datasets panel", "in a right-hand panel", "the panel leads with an overview").
+     Those are not drift toward the retired noun so much as the same word doing two jobs — and
+     the second job is what let the first hide.
+
+   Two things stayed, because the app prints them: `Panel title` is a real field label
+   (app/build.js) and `text panel` is the inspector note's own phrase (app/studio.js). One moved
+   into <code> — the dataset editor's live warning, `3 panels in 2 dashboards read this dataset`
+   — check 15's sanctioned way to print a string the reader will genuinely see, and the app-side
+   drift it quotes is recorded in STATUS.md rather than fixed here (it is code in a precached
+   file, so it costs an sw.js CACHE bump).
+
+   Sources of truth. The two nouns come from `addTextPanel()` exactly as check 76 derives them
+   (the spec key it pushes into, the toast it shows), so the two checks can never disagree about
+   which word is retired. The exemption comes from the app's own copy: every two-word phrase
+   around `panel` in a string literal of any app/*.js module (check 18's lexer, and its by-shape
+   identifier rule) plus app/index.html's text nodes AND its title/aria-label attributes — the
+   pane's own "Collapse Data panel" lives there and nowhere else. Closed-class words (the, a,
+   this, every, no, of, in, and, …) are NOT qualifiers: the app prints "a panel" and "the panel"
+   too, and honouring those would exempt every drift site on the page.
+
+   Two rules:
+   (a) every `panel(s)` in Help, outside <code> and outside the one paragraph check 76 (c) owns,
+       is part of a phrase the app itself prints. The <p id="cmdk-labels"> exemption is derived
+       rather than chosen: check 76 (c) REQUIRES that paragraph to say the retired word, in both
+       directions, for exactly as long as the palette keeps it as a hidden synonym.
+   (b) the negative half — no overshoot. A word-sweep that renames every "panel" also renames
+       the panes, so Help must never call one of the builder's own panes a View: the pane roster
+       is setupMobileTabs()'s labels (check 19 (b)'s source), and none of them may be followed
+       by the rendered noun. */
+{
+  // ── the two nouns, derived the way check 76 derives them (one source, no twin to drift).
+  const addTextSrc77 = (() => {
+    const at = studioJs.indexOf("function addTextPanel(");
+    return at < 0 ? "" : searchBlockAt(studioJs, studioJs.indexOf("{", at), "{", "}");
+  })();
+  const internalKey77 = (addTextSrc77.match(/spec\.(\w+)\.push\(/) || [])[1] || "";     // "panels"
+  const internalNoun77 = internalKey77.replace(/s$/, "");                               // "panel"
+  const toastPhrase77 = (addTextSrc77.match(/toast\("([^"]*?)\s+added\b/) || [])[1] || "";
+  const renderedNoun77 = (toastPhrase77.match(/\b[A-Z][a-z]+\b(?!.*\b[A-Z][a-z]+\b)/) || [])[0] || "";
+
+  // ── the app's own copy, and the two-word phrases it prints around that noun.
+  const APP_JS = fs.readdirSync(path.join(ROOT, "app"))
+    .filter((f) => f.endsWith(".js")).map((f) => "app/" + f).sort();
+  const stripTags = (s) => s.replace(/<[^>]*>/g, " ");
+  const words = (s) => stripTags(s).replace(/[’']/g, "'").match(/[A-Za-z][A-Za-z'-]*/g) || [];
+  // Closed classes only — determiners, quantifiers, pronouns, prepositions, conjunctions,
+  // auxiliaries and cardinals. A qualifier has to NAME something; "the panel" names nothing,
+  // and the app says "the panel" too, so honouring it would exempt the whole page.
+  const CLOSED = new Set(("the a an this that these those its it their there our your my his her " +
+    "each every any no some all both other another same such one two three four five six seven " +
+    "eight nine ten and or but if so than then of in on at to for with from by into onto per as " +
+    "is are was were be been being has have had which who whom whose what when where while not " +
+    "you we they he she i me us them do does did can could will would should may might must").split(" "));
+  const NOUN_RE = internalNoun77 ? new RegExp(`^${internalNoun77}s?$`, "i") : /$^/;
+  const norm = (w) => w.toLowerCase().replace(/'s$/, "").replace(/^(.*?)s$/, (m, b) =>
+    NOUN_RE.test(m) ? internalNoun77 : m);
+  // Every phrase the app prints AROUND the noun: "<qualifier> panel" and "panel <head>".
+  const appPhrases = new Set();
+  const harvest = (text, src) => {
+    const w = words(text);
+    w.forEach((tok, i) => {
+      if (!NOUN_RE.test(tok.replace(/'s$/, ""))) return;
+      const before = i > 0 ? norm(w[i - 1]) : "", after = i + 1 < w.length ? norm(w[i + 1]) : "";
+      if (before && !CLOSED.has(before)) appPhrases.add(before + " " + internalNoun77);
+      if (after && !CLOSED.has(after)) appPhrases.add(internalNoun77 + " " + after);
+    });
+    return src;
+  };
+  const IDENTISH77 = /^[#.]?[a-z][\w.:>[\]="-]*$/;      // check 18's by-shape identifier rule
+  const appLits = APP_JS.flatMap((f) => [...read(f).matchAll(
+    /\/\*[\s\S]*?\*\/|\/\/[^\n]*|"(?:[^"\\\n]|\\.)*"|'(?:[^'\\\n]|\\.)*'/g)]
+    .map((m) => m[0]).filter((s) => s[0] === '"' || s[0] === "'").map((s) => s.slice(1, -1))
+    .filter((s) => !IDENTISH77.test(s)));
+  appLits.forEach((s) => harvest(s));
+  const appMarkup = read("app/index.html").replace(/<!--[\s\S]*?-->/g, " ");
+  // Text nodes AND the attributes a reader is read to: "Collapse Data panel" is an aria-label
+  // and lives nowhere else, so a text-node-only sweep would miss the pane's own name for itself.
+  harvest(appMarkup.replace(/<[^>]*>/g, " "));
+  [...appMarkup.matchAll(/\b(?:title|aria-label|placeholder)="([^"]*)"/g)].forEach((m) => harvest(m[1]));
+
+  // ── the pane roster, off setupMobileTabs (check 19 (b)'s source).
+  const paneLabels77 = [...fnBody(studioJs, "setupMobileTabs")
+    .matchAll(/\{\s*id:\s*"\w+",\s*label:\s*"([^"]+)"/g)].map((m) => m[1]);
+
+  const premise77 = ok(`app/*.js + app/index.html: the noun and the app's own "${internalNoun77 || "?"}" phrases ` +
+    `parsed for check 77 (${appPhrases.size} phrase(s), ${paneLabels77.length} pane label(s))`,
+    !!internalNoun77 && !!renderedNoun77 && internalNoun77 !== renderedNoun77 &&
+      renderedNoun77 === savedNoun && appPhrases.size >= 8 && appPhrases.has("data " + internalNoun77) &&
+      paneLabels77.length >= 3 && appLits.length > 500,
+    `internal "${internalNoun77 || "?"}" (spec.${internalKey77 || "?"}) · rendered "${renderedNoun77 || "?"}" ` +
+    `(addTextPanel's toast, and check 14's "${savedNoun}")\n      ` +
+    `app phrases: ${[...appPhrases].sort().join(" · ") || "(none)"}\n      ` +
+    `panes: ${paneLabels77.join(" · ") || "(none)"} · app copy literals: ${appLits.length}\n      ` +
+    "the exemption IS this set — if it cannot be read out of the app, rule (a) below is an " +
+    "opinion about words rather than a measurement, and it must fail loudly instead");
+
+  if (premise77) {
+    // (a) Help's own uses, held to the app's phrases. <code> is the sanctioned way to print a
+    //     string the reader will see (check 15), and #cmdk-labels is check 76 (c)'s paragraph.
+    const helpProse77 = help
+      .replace(/<!--[\s\S]*?-->/g, " ")
+      .replace(/<code>[\s\S]*?<\/code>/g, " ")
+      .replace(/<p id="cmdk-labels">[\s\S]*?<\/p>/g, " ");
+    const flat = stripTags(helpProse77).replace(/[’']/g, "'").replace(/\s+/g, " ");
+    const toks = [...flat.matchAll(/[A-Za-z][A-Za-z'-]*/g)];
+    const strayHelp = [];
+    toks.forEach((m, i) => {
+      const tok = m[0];
+      // "side-panels" is one token to a reader and two to the rule: split it the same way.
+      const parts = tok.split("-");
+      const hitAt = parts.findIndex((p) => NOUN_RE.test(p.replace(/'s$/, "")));
+      if (hitAt < 0) return;
+      const before = hitAt > 0 ? norm(parts[hitAt - 1]) : (i > 0 ? norm(toks[i - 1][0].split("-").pop()) : "");
+      const after = hitAt + 1 < parts.length ? norm(parts[hitAt + 1])
+        : (i + 1 < toks.length ? norm(toks[i + 1][0].split("-")[0]) : "");
+      if (appPhrases.has(before + " " + internalNoun77) || appPhrases.has(internalNoun77 + " " + after)) return;
+      strayHelp.push(`docs/index.html: "…${flat.slice(Math.max(0, m.index - 60), m.index + 40).trim()}…"`);
+    });
+    ok(`docs/index.html: Help calls the thing on a dashboard a "${renderedNoun77}" — "${internalNoun77}" only in a phrase the app itself prints`,
+      !strayHelp.length,
+      `${strayHelp.join("\n      ") || "(none)"}\n      ` +
+      `the app prints: ${[...appPhrases].sort().join(" · ")}\n      ` +
+      `LF52/LF57 renamed every word the reader sees; Help kept the old one in its own sentences, ` +
+      `where a "${internalNoun77}" owned a "${renderedNoun77}" that owned a "${internalNoun77}"`);
+
+    // (b) the negative half: a sweep of this word must not rename the PANES with it.
+    const overshoot = paneLabels77.flatMap((lab) =>
+      [...stripTags(help).matchAll(new RegExp(`\\b${esc(lab)}\\s+${esc(renderedNoun77)}s?\\b`, "g"))]
+        .map((m) => `docs/index.html: "${m[0]}" — "${lab}" is a pane of the builder, not a ${renderedNoun77}`));
+    ok(`docs/index.html: no pane of the builder (${paneLabels77.join(", ")}) is renamed to a "${renderedNoun77}"`,
+      !overshoot.length,
+      `${[...new Set(overshoot)].join("\n      ") || "(none)"}\n      ` +
+      "the cheapest way to satisfy rule (a) is to replace the word everywhere, which would " +
+      "rename the panes too — this is the half of the vocabulary that must NOT move");
+  }
+}
+
+/* ── 78. The APP's own copy for the thing on a dashboard — check 77's move one document over ──
+   N7, and the last leg of the check 14 → 15 → 76 → 77 walk. Check 76 held the ⌘K palette's
+   LABELS to the app's rendered word, check 77 held Help's PROSE to the phrases the app prints —
+   and building check 77's exemption set is what surfaced this: the app itself was the widest
+   offender. v988's "the last surface" was true only of the palette.
+
+   Measured 2026-08-11, before the fix — the retired noun in the copy a reader is shown, across
+   nine modules:
+   · the canvas item's own controls — `Zoom panel full-screen`, `Duplicate panel`,
+     `Delete panel`, `Drag to make this panel taller or shorter` (app/studio-render.js);
+   · its states and toasts — `Panel duplicated`, `Panel removed`, `Panels auto-arranged`,
+     `No panels to arrange yet.`, `Previous panel (← key)`, `No panels configured yet.`, and the
+     default title a duplicate is given (`"Panel" + " copy"`);
+   · the inspector's own section header `Panels (n)` and the field `Panel accent`;
+   · the validator and the completeness checklist — `Dashboard has no panels or KPIs.`,
+     `Panel “…” has no data query bound.`, `Add a panel` (app/model.js);
+   · every COUNT a catalog, Home tile, search row, recents list or version history prints
+     ("6 panels · 2 KPIs"), in six separate places;
+   · the dataset editor's impact warning `3 panels in 2 dashboards read this dataset`
+     (app/datasets.js — the string check 77 had just moved into <code> in Help for want of this
+     slice), and the builder-note editor's `Panel: <title>` one line under its own
+     "not tied to a View" (app/versions.js);
+   · and `Panel title` (app/build.js), the one place the retired noun was the LABEL a reader
+     typed into. That half carried a product question the others did not, and it is answered
+     here deliberately rather than swept: the field is renamed **Title on dashboards**, not
+     "View title", because it sits directly beneath the View's own **Name** field and the two
+     would have read as the same thing. Nothing about the stored `panelTitle` key moves.
+
+   THE LINE, and it is the app's markup that draws it — not a taste call, and not check 77's
+   set (the two documents would otherwise hold each other to a fixpoint and neither could move).
+   A PANE is a panel: app/index.html names its own panes that way in the attributes a reader is
+   read to ("Expand Data panel", "Collapse panel"), and check 77 (b) already exists to stop a
+   word-sweep renaming them. A thing on a DASHBOARD is a View, and has been since LF52/LF57.
+   So: every `panel` the app prints is part of a phrase app/index.html itself prints, or one
+   built from the pane roster setupMobileTabs() renders, or it is drift.
+
+   Three exemptions, each derived rather than chosen:
+   · app/palette.js — check 76 (c) REQUIRES the retired word there, in both directions, for as
+     long as the palette keeps it as a hidden search synonym. Holding it here would make the two
+     checks contradict each other, so the file check 76 owns is named and skipped.
+   · the spec KEY in quotes — app/versions.js prints `Spec must have a "panels" array` at a
+     reader pasting JSON, and `panels` is the key SPEC.md documents. That is check 15's <code>
+     idiom with the only quoting a plain string has, so an occurrence wrapped in double quotes
+     is allowed — and the key it must match is read off addTextPanel(), not listed.
+   · identifiers, CSS custom properties and attribute selectors — check 18's by-shape rule plus
+     a strip of `--custom-props` and `[data-*]`, so `--panel-bg` and `[data-panel-id]` stay.
+
+   Two rules, the same shape as check 77's:
+   (a) every `panel(s)` in the app's own copy is a pane phrase, or it is the retired noun.
+   (b) the negative half — no overshoot. A sweep of this word must not rename the panes: no
+       pane label may be followed by the rendered noun in the app's copy either. */
+{
+  const addTextSrc78 = (() => {
+    const at = studioJs.indexOf("function addTextPanel(");
+    return at < 0 ? "" : searchBlockAt(studioJs, studioJs.indexOf("{", at), "{", "}");
+  })();
+  const specKey78 = (addTextSrc78.match(/spec\.(\w+)\.push\(/) || [])[1] || "";        // "panels"
+  const retired78 = specKey78.replace(/s$/, "");                                       // "panel"
+  const toast78 = (addTextSrc78.match(/toast\("([^"]*?)\s+added\b/) || [])[1] || "";
+  const rendered78 = (toast78.match(/\b[A-Z][a-z]+\b(?!.*\b[A-Z][a-z]+\b)/) || [])[0] || "";
+
+  // ── the pane vocabulary, off the markup that names the panes and the mobile tab roster.
+  const NOUN78 = retired78 ? new RegExp(`^${retired78}s?$`, "i") : /$^/;
+  // A literal that BUILDS markup hides half its copy in attributes — `title="Delete panel"` is
+  // gone the moment tags are stripped — so the readable attributes are added back before the
+  // strip. (Measured: without this, rule (a) misses every one of the canvas item's own
+  // action tooltips, which is where this slice started.)
+  const readable78 = (s) => s.replace(/<[^>]*>/g, " ") + " " +
+    [...s.matchAll(/\b(?:title|aria-label|placeholder|alt)="([^"]*)"/g)].map((m) => m[1]).join(" ");
+  const wordsOf = (s) => readable78(s).replace(/[’']/g, "'").match(/[A-Za-z][A-Za-z'-]*/g) || [];
+  const paneTabs78 = [...fnBody(studioJs, "setupMobileTabs")
+    .matchAll(/\{\s*id:\s*"\w+",\s*label:\s*"([^"]+)"/g)].map((m) => m[1]);
+  const panePhrases78 = new Set(paneTabs78.map((l) => l.toLowerCase() + " " + retired78));
+  const shellMarkup78 = read("app/index.html").replace(/<!--[\s\S]*?-->/g, " ");
+  const harvestPane = (text) => {
+    const w = wordsOf(text);
+    w.forEach((tok, i) => {
+      if (!NOUN78.test(tok.replace(/'s$/, ""))) return;
+      if (i > 0) panePhrases78.add(w[i - 1].toLowerCase() + " " + retired78);
+    });
+  };
+  harvestPane(shellMarkup78.replace(/<[^>]*>/g, " "));
+  [...shellMarkup78.matchAll(/\b(?:title|aria-label|placeholder)="([^"]*)"/g)].forEach((m) => harvestPane(m[1]));
+
+  // ── the app's own copy: check 18's lexer, its by-shape identifier rule, and a strip of the
+  //    two shapes that carry the word without printing it (custom properties, data selectors).
+  const OWNED_BY_76 = "app/palette.js";
+  const COPY_FILES78 = fs.readdirSync(path.join(ROOT, "app"))
+    .filter((f) => f.endsWith(".js")).map((f) => "app/" + f).filter((f) => f !== OWNED_BY_76).sort();
+  const IDENTISH78 = /^[#.]?[a-z][\w.:>[\]="-]*$/;                    // check 18's rule
+  //    A selector-shaped token is stripped only when a CSS delimiter follows it, so ".dk-panel-note{"
+  //    goes and a sentence never does (prose puts a space after its full stops).
+  const deCss78 = (s) => s.replace(/--[a-z][\w-]*/gi, " ").replace(/\[data-[\w-]+/g, " ")
+    .replace(/[.#][A-Za-z][\w-]*(?=[{,>[:;\s]|$)/g, " ");
+  const KEY_QUOTED78 = specKey78 ? new RegExp(`\\\\?"${specKey78}\\\\?"`, "g") : /$^/;
+  const copyLits78 = [];
+  for (const f of COPY_FILES78) {
+    const src = read(f);
+    for (const m of src.matchAll(/\/\*[\s\S]*?\*\/|\/\/[^\n]*|"(?:[^"\\\n]|\\.)*"|'(?:[^'\\\n]|\\.)*'/g)) {
+      const lit = m[0];
+      if (lit[0] !== '"' && lit[0] !== "'") continue;                  // comments are not copy
+      const body = lit.slice(1, -1);
+      if (IDENTISH78.test(body)) continue;
+      const text = deCss78(body.replace(/\\"/g, '"')).replace(KEY_QUOTED78, " ");   // the documented spec key
+      if (!NOUN78.test("x") && !/[A-Za-z]/.test(text)) continue;
+      copyLits78.push({ f, line: src.slice(0, m.index).split("\n").length, body, text });
+    }
+  }
+
+  const premise78 = ok(`app/: the app's own copy parsed for check 78 (${copyLits78.length} literal(s) across ` +
+    `${COPY_FILES78.length} module(s), ${panePhrases78.size} pane phrase(s))`,
+    !!retired78 && !!rendered78 && retired78 !== rendered78 && rendered78 === savedNoun &&
+      paneTabs78.length >= 3 && panePhrases78.has("data " + retired78) &&
+      panePhrases78.size >= 4 && copyLits78.length > 500 &&
+      COPY_FILES78.length >= 8 && !COPY_FILES78.includes(OWNED_BY_76),
+    `retired "${retired78 || "?"}" (spec.${specKey78 || "?"}) · rendered "${rendered78 || "?"}" ` +
+    `(addTextPanel's toast, and check 14's "${savedNoun}")\n      ` +
+    `pane phrases: ${[...panePhrases78].sort().join(" · ") || "(none)"}\n      ` +
+    `panes: ${paneTabs78.join(" · ")} · ${OWNED_BY_76} skipped (check 76 (c) requires the retired word there)\n      ` +
+    "the pane roster IS the exemption — read out of the markup that names the panes, not out of " +
+    "Help, so the two documents cannot hold each other to a fixpoint neither can leave");
+
+  if (premise78) {
+    // (a) the app's word for a thing on a dashboard.
+    const strayApp78 = [];
+    for (const lit of copyLits78) {
+      const w = wordsOf(lit.text);
+      w.forEach((tok, i) => {
+        const parts = tok.split("-");
+        const hitAt = parts.findIndex((p) => NOUN78.test(p.replace(/'s$/, "")));
+        if (hitAt < 0) return;
+        const before = hitAt > 0 ? parts[hitAt - 1] : (i > 0 ? w[i - 1].split("-").pop() : "");
+        if (before && panePhrases78.has(before.toLowerCase() + " " + retired78)) return;
+        strayApp78.push(`${lit.f}:${lit.line}: "${lit.body.replace(/\s+/g, " ").slice(0, 110)}"`);
+      });
+    }
+    ok(`app/: the app calls a thing on a dashboard a "${rendered78}" — "${retired78}" only where its own markup names a pane`,
+      !strayApp78.length,
+      `${[...new Set(strayApp78)].join("\n      ") || "(none)"}\n      ` +
+      `the panes: ${[...panePhrases78].sort().join(" · ")}\n      ` +
+      `LF52/LF57 renamed the object; the copy attached to it kept the old word, so the app was ` +
+      `still teaching the noun both other checks in this family exist to retire`);
+
+    // (b) the negative half: the panes are NOT Views. Check 77 (b), one document over.
+    const overshoot78 = [];
+    for (const lit of copyLits78) {
+      const flat = readable78(lit.text).replace(/\s+/g, " ");
+      paneTabs78.forEach((lab) => {
+        const re = new RegExp(`\\b${esc(lab)}\\s+${esc(rendered78)}s?\\b`, "g");
+        if (re.test(flat)) overshoot78.push(`${lit.f}:${lit.line}: "${flat.slice(0, 110)}" — "${lab}" is a pane, not a ${rendered78}`);
+      });
+    }
+    ok(`app/: no pane of the builder (${paneTabs78.join(", ")}) is renamed to a "${rendered78}"`,
+      !overshoot78.length,
+      `${[...new Set(overshoot78)].join("\n      ") || "(none)"}\n      ` +
+      "the cheap way to satisfy rule (a) is to replace the word everywhere, which renames the " +
+      "panes with it — this is the half of the vocabulary that must NOT move");
+  }
+}
+
+/* ── 79. README.md's own copy for the thing on a dashboard — check 78's move one document over ─
+   N7, and the last leg of the check 14 → 15 → 76 → 77 → 78 walk. Check 78 held the APP's copy
+   to the app's own markup and its header called the app "the widest offender"; it is scoped to
+   `app/*.js`, which leaves the repo's FRONT DOOR answering to nothing on this word.
+
+   Measured 2026-08-11, before the fix — README still walks the builder in the retired noun:
+   · the Direct manipulation list, six item-uses in five bullets (`README.md:139-144`) — "drag a
+     panel by its header", "drop between any panels", "a panel's right edge", "a panel title",
+     "click any panel or KPI";
+   · and the three-pane ASCII diagram at the top of the page (`README.md:17`), where the
+     Inspector column reads "panel /KPI / dashboard)" — the one occurrence a reader meets before
+     any prose at all. (Its missing "(" is fixed with it; the column is still 15 cells wide.)
+   Every `Data panel` use in the same document is a PANE and was already correct, which is why
+   this is a noun rule and not a sweep.
+
+   THE LINE IS CHECK 78'S, read from the same markup — not restated here, because two documents
+   that hold each other decide nothing. A pane is a panel (`app/index.html` says so in the
+   attributes a reader is read to); a thing on a dashboard is a View, and has been since
+   LF52/LF57. The two nouns come from `addTextPanel()` alone, exactly as check 78 derives them,
+   so this check cannot drift away from that one: `spec.panels` gives the retired word, the
+   function's own toast gives the rendered one.
+
+   WHAT COUNTS AS README'S COPY, and both halves of it are derived rather than chosen:
+   · a ```lang fence is a COMMAND the reader types (`bash`), so it is stripped;
+   · a bare ``` fence is a DIAGRAM the reader reads — the pane box and the file tree — so it
+     stays, which is what puts the diagram above inside the rule;
+   · an inline `code` span is check 15's <code> idiom in markdown, so it is exempt — and that
+     exemption is what lets the spec key keep its name in prose without an allow-list.
+
+   `SPEC.md` IS NOT SWEPT WITH IT, and rule (c) is why the distinction is safe to make. That
+   page defines the FILE FORMAT, where `panels` is the key an author writes and check 45 (b)
+   already holds it both directions against `emptySpec()`. Rule (c) states the boundary instead
+   of trusting it: the word may appear there only as the key — fenced, backticked, or in a line
+   documenting a real spec key — so a future run cannot quietly grow README-style prose in the
+   retired noun one file over and call it the schema.
+
+   Three rules, the check 77/78 shape plus the boundary:
+   (a) every `panel(s)` in README's copy is a pane phrase, or it is the retired noun;
+   (b) the negative half — no overshoot: a sweep must not rename the panes ("Data View");
+   (c) SPEC.md's uses are the KEY, not the noun.
+
+   Measured: (a) fails on the real pre-fix tree at all six sites above; (b) on a mutated tree
+   ("out of the Data View onto the canvas"); (c) on a mutated tree (one sentence of README-shaped
+   prose appended to SPEC.md). The code-side direction is the PREMISE's, not rule (a)'s, and
+   deliberately so — check 78 does the same: strip the Data pane out of the app's markup and the
+   tab roster and the premise refuses to run rather than turning README's correct "Data panel"
+   into a finding. Measured both ways (the toast stops naming the rendered noun; the app stops
+   naming a Data pane). */
+{
+  const addTextSrc79 = (() => {
+    const at = studioJs.indexOf("function addTextPanel(");
+    return at < 0 ? "" : searchBlockAt(studioJs, studioJs.indexOf("{", at), "{", "}");
+  })();
+  const specKey79 = (addTextSrc79.match(/spec\.(\w+)\.push\(/) || [])[1] || "";        // "panels"
+  const retired79 = specKey79.replace(/s$/, "");                                       // "panel"
+  const toast79 = (addTextSrc79.match(/toast\("([^"]*?)\s+added\b/) || [])[1] || "";
+  const rendered79 = (toast79.match(/\b[A-Z][a-z]+\b(?!.*\b[A-Z][a-z]+\b)/) || [])[0] || "";
+  const NOUN79 = retired79 ? new RegExp(`^${retired79}s?$`, "i") : /$^/;
+
+  // ── the pane vocabulary, off the same two sources check 78 reads: the mobile tab roster and
+  //    the shell markup's own readable attributes. Re-derived rather than shared, because a
+  //    document rule that reached into another check's block would break the day that block is
+  //    edited — but derived from the SAME literals, so the two cannot disagree.
+  const paneTabs79 = [...fnBody(studioJs, "setupMobileTabs")
+    .matchAll(/\{\s*id:\s*"\w+",\s*label:\s*"([^"]+)"/g)].map((m) => m[1]);
+  const panePhrases79 = new Set(paneTabs79.map((l) => l.toLowerCase() + " " + retired79));
+  const words79 = (s) => s.replace(/[’']/g, "'").match(/[A-Za-z][A-Za-z'-]*/g) || [];
+  const shell79 = read("app/index.html").replace(/<!--[\s\S]*?-->/g, " ");
+  const harvest79 = (text) => {
+    const w = words79(text);
+    w.forEach((tok, i) => {
+      if (NOUN79.test(tok.replace(/'s$/, "")) && i > 0) panePhrases79.add(w[i - 1].toLowerCase() + " " + retired79);
+    });
+  };
+  harvest79(shell79.replace(/<[^>]*>/g, " "));
+  [...shell79.matchAll(/\b(?:title|aria-label|placeholder)="([^"]*)"/g)].forEach((m) => harvest79(m[1]));
+
+  // ── README's copy: commands out, diagrams in, inline code exempt. Line by line, so a report
+  //    names the sentence and so a phrase never pairs across a line break it does not span.
+  const proseLines79 = (md) => md
+    .replace(/^```[a-zA-Z][\w+-]*\n[\s\S]*?^```/gm, (m) => m.replace(/[^\n]/g, " "))   // commands
+    .replace(/`[^`\n]*`/g, " ")                                                        // check 15's idiom
+    .split("\n");
+  const readmeLines79 = proseLines79(read("README.md"));
+  const specLines79 = read("SPEC.md").split("\n");
+
+  const premise79 = ok(`README.md: the page parsed for check 79 (${readmeLines79.length} line(s), ` +
+    `${panePhrases79.size} pane phrase(s))`,
+    !!retired79 && !!rendered79 && retired79 !== rendered79 && rendered79 === savedNoun &&
+      paneTabs79.length >= 3 && panePhrases79.has("data " + retired79) &&
+      readmeLines79.length > 100 && specLines79.length > 50 &&
+      readmeLines79.some((l) => /Direct manipulation/.test(l)),
+    `retired "${retired79 || "?"}" (spec.${specKey79 || "?"}) · rendered "${rendered79 || "?"}" ` +
+    `(addTextPanel's toast, and check 14's "${savedNoun}")\n      ` +
+    `pane phrases: ${[...panePhrases79].sort().join(" · ") || "(none)"}\n      ` +
+    "the nouns and the panes are check 78's own literals — this check adds a document, not a " +
+    "source of truth");
+
+  if (premise79) {
+    // (a) README's word for a thing on a dashboard.
+    const strayReadme79 = [];
+    readmeLines79.forEach((line, i) => {
+      const w = words79(line);
+      w.forEach((tok, j) => {
+        if (!NOUN79.test(tok.replace(/'s$/, ""))) return;
+        const before = j > 0 ? w[j - 1].toLowerCase() : "";
+        if (before && panePhrases79.has(before + " " + retired79)) return;
+        strayReadme79.push(`README.md:${i + 1}: "${line.trim().slice(0, 110)}"`);
+      });
+    });
+    ok(`README.md: the page calls a thing on a dashboard a "${rendered79}" — "${retired79}" only where the app's markup names a pane`,
+      !strayReadme79.length,
+      `${[...new Set(strayReadme79)].join("\n      ") || "(none)"}\n      ` +
+      `the panes: ${[...panePhrases79].sort().join(" · ")}\n      ` +
+      `checks 76-78 retired this noun in the palette, in Help and in the app itself; the repo's ` +
+      `own front page was the document none of them read`);
+
+    // (b) the negative half: the panes are NOT Views. Check 78 (b), one document over.
+    const overshoot79 = [];
+    readmeLines79.forEach((line, i) => {
+      paneTabs79.forEach((lab) => {
+        if (new RegExp(`\\b${esc(lab)}\\s+${esc(rendered79)}s?\\b`).test(line)) {
+          overshoot79.push(`README.md:${i + 1}: "${line.trim().slice(0, 110)}" — "${lab}" is a pane, not a ${rendered79}`);
+        }
+      });
+    });
+    ok(`README.md: no pane of the builder (${paneTabs79.join(", ")}) is renamed to a "${rendered79}"`,
+      !overshoot79.length,
+      `${[...new Set(overshoot79)].join("\n      ") || "(none)"}\n      ` +
+      "the cheap way to satisfy rule (a) is to replace the word everywhere, which renames the " +
+      "panes with it — the pane box at the top of the page is where that would show first");
+
+    // (c) the boundary: SPEC.md documents the KEY, so the word lives there in key context only.
+    //     `emptySpec()` names the key (check 45 (b) holds it both directions); a line documenting
+    //     one of its keys in backticks is the only place prose may carry the word.
+    const specKeys79 = new Set(Object.keys(M.emptySpec()));
+    const strayspec79 = [];
+    let fenced79 = false, keyUses79 = 0;
+    specLines79.forEach((line, i) => {
+      if (/^\s*```/.test(line)) { fenced79 = !fenced79; return; }
+      const ticks = [...line.matchAll(/`([^`\n]+)`/g)].map((m) => m[1]);
+      const bare = line.replace(/`[^`\n]*`/g, " ");
+      if (fenced79 || ticks.some((t) => new RegExp(`\\b${esc(specKey79)}\\b`).test(t))) {
+        if (new RegExp(`\\b${esc(retired79)}s?\\b`, "i").test(line)) keyUses79++;
+        if (fenced79) return;
+      }
+      if (!new RegExp(`\\b${esc(retired79)}s?\\b`, "i").test(bare)) return;
+      if (ticks.some((t) => [...specKeys79].some((k) => new RegExp(`\\b${esc(k)}\\b`).test(t)))) { keyUses79++; return; }
+      strayspec79.push(`SPEC.md:${i + 1}: "${line.trim().slice(0, 110)}"`);
+    });
+    ok(`SPEC.md: the word is the spec KEY there (${keyUses79} use(s) in key context), never README's prose noun`,
+      !strayspec79.length && keyUses79 > 0,
+      `${strayspec79.join("\n      ") || "(none outside key context)"}\n      ` +
+      `key uses found: ${keyUses79}\n      ` +
+      `"${specKey79}" is the key an author writes and check 45 (b) holds it against emptySpec() ` +
+      `both directions — so SPEC.md keeps the word, and this rule is the boundary that says ` +
+      `where it may keep it rather than leaving the exemption implied`);
+  }
+}
+
+/* ── 80. the repo PATHS four more documents name — check 44 (h)'s derivation, shared ────────
+   N7, and the hole rule 44 (h) left open in its own closing note. The identifier resolver
+   SKIPS any span containing `/` with the comment "a repo path — check 46 (e) / 48 (e)".
+   Those two checks cover PACKS.md and the RLS runbook; 44 (h) covered PIPELINE.md; so
+   **CLAUDE.md, PUBLISH.md, README.md and docs/COMPAT.md had no path rule at all**, and
+   CLAUDE.md's Layout block alone is mostly paths.
+
+   Shared rather than four rules apiece, which is the v995 placement question answered the
+   other way this time and for a stated reason: the identifier rules each had a namespace to
+   teach (the actions polecat-admin gates, the storage keys, the workflow refs), and a path
+   has none — it is in this tree or it is not. `resolvePaths` is that one reading; rule
+   44 (h) was refactored onto it in the same commit, so five documents now share it.
+
+   Measured 2026-08-11, before the fix — 46 paths across the four, and **four of them did not
+   resolve**, in three different ways:
+   · **CLAUDE.md: `lib/VERSION` and `scripts/gen-manifest.mjs`.** Both real, neither HERE —
+     they are the platform repo's, named in the shell rule's second sentence, which said only
+     "in the platform repo" while the first sentence carried the slug. An agent following that
+     bullet looks for two files this checkout has never contained. Fixed in the copy rather
+     than the check: the sentence now names `kevinrhaas/polecat-platform` where it names the
+     files, which is both truer for the reader and what makes the foreign-repo shape below
+     readable — the rule reads a declaration the document makes, never a spelling.
+   · **CLAUDE.md: `kevinrhaas/polecat-platform`** itself — another repo's slug, and NOT the
+     hostname shape 44 (h) taught (`polecat-platform` has no TLD), so it needed the second
+     other-repo shape rather than an exemption.
+   · **PUBLISH.md: `app/gate-config.js`** — the retirement idiom, one span shape over. The
+     document says it "had no readers left and was deleted in v852"; the honest question is
+     not whether it resolves but whether it STILL does, so the rule inverts exactly as
+     identRetired does for identifiers, and this is the assertion that exercises that half.
+
+   README.md (7 paths) and docs/COMPAT.md (10) were both already clean — so this is a check
+   over two of the four and a repair on the other two, and the two clean documents are the
+   reason the floors below exist: a rule that passes green over an extraction finding nothing
+   is the failure mode this family has hit before.
+
+   **The first cut of this rule passed green over its own drift, and that is why the owner set
+   is derived.** It read any dotless two-segment span the tree does not have as another repo's
+   slug — which is the shape of `lib/VERSION` exactly, so the two paths above exempted
+   THEMSELVES and the check reported 21 held with no gaps against the unfixed document. Every
+   count in this note is from a run on the pre-fix tree, not a reading, which is the only
+   reason it was caught before merging rather than after.
+
+   Refactoring rule 44 (h) onto the shared reader moved ONE span, correctly: PIPELINE.md's
+   held count went 15 → 14 because its opening sentence — "the canonical runbook is
+   `kevinrhaas/jobtracker.polecat.live` → `docs/PIPELINE.md`" — means the PILOT repo's
+   PIPELINE.md, not this one. It happens to exist here too, which is why the old rule held it
+   and was never wrong; the sentence-scoped reading says what the sentence says.
+
+   The boundary, stated rather than left implied: inside a sentence declared foreign this
+   rule cannot check anything — no tree here can answer for another repo's — so a typo in
+   `lib/VERSION` there stays green (measured). The scope is one sentence and the declaration
+   is visible in it, which is the smallest grain that could carry a true statement about
+   another repository at all. */
+for (const [file, doc, floor] of [
+  ["CLAUDE.md", claude, 15], ["PUBLISH.md", publish, 3],
+  ["README.md", readme, 5], ["docs/COMPAT.md", compat, 6],
+]) {
+  const paths = resolvePaths(doc);
+  ok(`${file}: every repo path it names is in the tree (${paths.held.length} held` +
+     `${paths.elsewhere.length ? `, ${paths.elsewhere.length} another repo's` : ""})`,
+    paths.held.length >= floor && !paths.gaps.length,
+    `${paths.gaps.join("\n      ") || "(no gaps)"}\n      ` +
+    `paths read: ${paths.held.join(", ") || "(none — an extraction that finds nothing is why this rule carries a floor)"}\n      ` +
+    `declared to be another repo's: ${paths.elsewhere.join(", ") || "(none)"}\n      ` +
+    "a path is exempt only where the document itself puts it elsewhere — a hostname-shaped " +
+    "slug, an owner/repo slug, or a sentence that names one of those; a path the document " +
+    "says was DELETED is held the other way round and must NOT exist");
 }
 
 console.log(failed ? `\n✗ doc-truth: ${failed} claim(s) have drifted from the source of truth`

@@ -1,0 +1,50 @@
+band_order,band,committee_type,contributions,amount
+1,Under $50,Candidate committee,7955941,134387021
+1,Under $50,Hybrid PAC,6644411,49744177
+1,Under $50,Independent-expenditure committee,19600,319482
+1,Under $50,Joint fundraising committee,7897459,138981069
+1,Under $50,Leadership PAC,409017,6444735
+1,Under $50,PAC,4159889,87343654
+1,Under $50,Party committee,4005125,70496578
+2,$50–$199,Candidate committee,3571432,283085360
+2,$50–$199,Hybrid PAC,557055,41858582
+2,$50–$199,Independent-expenditure committee,7114,551785
+2,$50–$199,Joint fundraising committee,2267456,198101982
+2,$50–$199,Leadership PAC,145118,12260763
+2,$50–$199,PAC,2128894,194441344
+2,$50–$199,Party committee,1490632,122444653
+3,$200–$499,Candidate committee,1068206,268728576
+3,$200–$499,Hybrid PAC,116806,29021238
+3,$200–$499,Independent-expenditure committee,2896,730504
+3,$200–$499,Joint fundraising committee,608042,154864057
+3,$200–$499,Leadership PAC,47881,12037754
+3,$200–$499,PAC,504431,139865809
+3,$200–$499,Party committee,339504,88480042
+4,$500–$999,Candidate committee,512880,265733417
+4,$500–$999,Hybrid PAC,39680,20636924
+4,$500–$999,Independent-expenditure committee,1071,550491
+4,$500–$999,Joint fundraising committee,243042,125753464
+4,$500–$999,Leadership PAC,19923,10361999
+4,$500–$999,PAC,120514,68163559
+4,$500–$999,Party committee,112498,60487838
+5,"$1,000–$2,499",Candidate committee,399588,475502982
+5,"$1,000–$2,499",Hybrid PAC,23676,27290406
+5,"$1,000–$2,499",Independent-expenditure committee,653,716991
+5,"$1,000–$2,499",Joint fundraising committee,200303,233356456
+5,"$1,000–$2,499",Leadership PAC,15609,17977467
+5,"$1,000–$2,499",PAC,73380,90608506
+5,"$1,000–$2,499",Party committee,69150,81627013
+6,"$2,500–$3,299",Candidate committee,43065,116756401
+6,"$2,500–$3,299",Hybrid PAC,2677,7057014
+6,"$2,500–$3,299",Independent-expenditure committee,71,186850
+6,"$2,500–$3,299",Joint fundraising committee,20505,54291562
+6,"$2,500–$3,299",Leadership PAC,2894,7497005
+6,"$2,500–$3,299",PAC,13186,34314149
+6,"$2,500–$3,299",Party committee,7480,20050842
+7,"$3,300 and over (the per-election limit)",Candidate committee,161684,597846829
+7,"$3,300 and over (the per-election limit)",Hybrid PAC,9803,50060505
+7,"$3,300 and over (the per-election limit)",Independent-expenditure committee,138,7118515
+7,"$3,300 and over (the per-election limit)",Joint fundraising committee,99602,1694250988
+7,"$3,300 and over (the per-election limit)",Leadership PAC,7429,35864646
+7,"$3,300 and over (the per-election limit)",PAC,23570,117164188
+7,"$3,300 and over (the per-election limit)",Party committee,18317,247833075

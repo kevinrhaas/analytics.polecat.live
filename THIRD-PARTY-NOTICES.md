@@ -31,6 +31,8 @@ and are not redistributed.)*
 | US Census Bureau TIGERweb (2020 ZIP Code Tabulation Areas, `tigerWMS_Current/MapServer` layer 2) | `vendor/geo/us-zcta-albers.json` — nationwide 5-digit ZCTAs (all 50 states + DC), generalized + reprojected by `tools/build-geo.mjs` | US government work, public domain |
 | US Census Bureau — County Business Patterns and American Community Survey | `data/packs/marketcoverage/county-establishments.csv` and `county-demographics.csv` — 1,813 counties, extracted by `tools/pack-extract/marketcoverage.mjs`; the data behind the Market Coverage sample pack | US government work, public domain |
 | USASpending.gov — federal contract awards, FY2025 (Treasury Bureau of the Fiscal Service, API v2) | `data/packs/contractawards/agency-totals.csv`, `agency-industry.csv`, `agency-vendor.csv` and `district-awards.csv` — FY2025 federal contract obligations for the 25 largest awarding agencies, extracted by `tools/pack-extract/contractawards.mjs`; the data behind the Federal Contract Awards sample pack | US government work, public domain |
+| Federal Election Commission — individual contributions, 2023-2024 cycle (bulk downloads `indiv24`, `cm24`, `cn24`) | `data/packs/campaignfinance/state-donors.csv`, `committees.csv`, `committee-state.csv`, `occupations.csv`, `employers.csv`, `monthly.csv` and `size-bands.csv` — $6.5B of itemized individual contributions for the closed 2023-24 cycle, aggregated (no donor names, no addresses) by `tools/pack-extract/campaignfinance.mjs`; the data behind the Campaign Finance sample pack | US government work, public domain |
+| IRS Statistics of Income — US Population Migration Data, 2022-2023 (`countyinflow2223`, `countyoutflow2223`, `stateinflow2223`, `stateoutflow2223`) | `data/packs/countymigration/county-migration.csv`, `state-migration.csv`, `state-flows.csv` and `county-pairs.csv` — US household moves between filing years 2022 and 2023 for 3,087 counties and 51 states, with the aggregate AGI that moved, extracted by `tools/pack-extract/countymigration.mjs`; the data behind the Where America Moved sample pack | US government work, public domain |
 
 ### Sample-pack data
 
@@ -41,9 +43,11 @@ the same PR that adds it — a `licensed` one because the licence demands it (`t
 fails the dev gate without it), a `public` one because a public-domain source still deserves the
 credit this document exists to give. `tools/doc-truth.mjs` check 47 holds both.
 
-*Of the four shipped packs, two ship outside data: **Market Coverage** (`marketcoverage`)
-commits the US Census extract and **Federal Contract Awards** (`contractawards`) the
-USASpending.gov extract, both credited in the table above. **Conservation Insight** and **Data
+*Of the six shipped packs, four ship outside data: **Market Coverage** (`marketcoverage`)
+commits the US Census extract, **Federal Contract Awards** (`contractawards`) the
+USASpending.gov extract, **Campaign Finance** (`campaignfinance`) the FEC extract and
+**Where America Moved** (`countymigration`) the IRS SOI migration extract, all
+credited in the table above. **Conservation Insight** and **Data
 Management & Governance** are entirely synthetic — generated in JS at install time, as their own
 copy says — so they need no credit.*
 

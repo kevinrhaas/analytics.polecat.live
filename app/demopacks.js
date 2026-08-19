@@ -178,6 +178,106 @@
       },
       afterInstall: function () { Studio.ensurePackDataMaterialized("contractawards"); }
     },
+    // SP-5: the THIRD pack carrying real data, and the one where the source is a public
+    // record about private people — the FEC's bulk individual contributions for the CLOSED
+    // 2023-2024 cycle, committed as CSV under data/packs/campaignfinance/ by
+    // tools/pack-extract/campaignfinance.mjs (docs/PACKS.md is the contract). Kevin promoted
+    // it on 2026-08-09 as the second of the three money-flow packs and settled its scope on
+    // 2026-08-08 (STATUS.md § SP-5): donor NAMES were put to him in full and he took them.
+    // This pack nevertheless carries none — not as a reversal, but because every table it
+    // ships is an aggregate and an aggregate has no name column to put one in. The decision
+    // is banked for a slice that needs it; nothing here does.
+    // Slice (a) was the data foundation: the connection, the seven committed tables, and the
+    // job that turns one state's giving into a share of the committee that received it.
+    // Slice (b) added the three dashboards that read them (the flow hero, donor geography,
+    // and who gives it). Slice (c) added the four pinned Views and the pack's own tour.
+    campaignfinance: {
+      id: "campaignfinance",
+      kind: "workspace",
+      folder: "Campaign Finance",
+      name: "Campaign Finance — who funds federal politics",
+      // Count-led and ending in "embedded" (the suite's #116 shape check), and it names
+      // every KIND install seeds — connection, datasets, dashboards, job — because doc-truth
+      // check 35 rule (a) holds this string and the blurb to the installer separately, and
+      // rule (b) holds every count in either one to a number the pack really produces. The
+      // dashboard count arrived with slice (b), in the same PR as the dashboards.
+      tagline: "3 dashboards · 4 Views pinned to Home · 9 datasets on 1 connection · $6.5B of itemized individual giving in the 2023-24 cycle · 50 committees × 65 donor states · 200 occupations and 200 employers · 24 months · 2 prep jobs — real public data, embedded",
+      // Three sentences, which is N40's cap — the card is a decision surface and the
+      // inventory belongs in Help. Count-led and says "embedded" for the suite's #116.
+      blurb: "3 dashboards and 4 pinned Views over 9 datasets on 1 connection, built from the Federal Election " +
+        "Commission's own record of who gave money to whom in the 2023-24 election cycle — " +
+        "$6.5 billion of itemized individual contributions, read by donor state, by recipient " +
+        "committee, by occupation and employer, by month, and by the size of the cheque. Two prep jobs join each " +
+        "donor state to the committee that received it and then keep the flows a live View can hold, so one state's giving reads as a share of " +
+        "that committee, and as the share that came from outside the state the candidate is " +
+        "running in. The data is the FEC's own, public domain and embedded — and it is itemized " +
+        "giving only, so the small contributions in it are gifts from donors who passed the $200 " +
+        "itemisation threshold rather than the small-dollar donor universe.",
+      source: {
+        kind: "public",
+        name: "Federal Election Commission — individual contributions, 2023-2024 cycle",
+        url: "https://www.fec.gov/data/browse-data/?tab=bulk-data",
+        licence: "Public domain (U.S. Government work)",
+        retrieved: "2026-08-10"
+      },
+      // No `seeds`, for the reason SP-1 and SP-6 state above: install() writes the connection
+      // synchronously and everything else lands from the CSV a moment later.
+      install: function () { installCampaignFinanceConnection(); },
+      data: {
+        files: ["state-donors.csv", "committees.csv", "committee-state.csv",
+                "occupations.csv", "employers.csv", "monthly.csv", "size-bands.csv"],
+        seed: function (csv) { seedCampaignFinanceData(csv); }
+      },
+      afterInstall: function () { Studio.ensurePackDataMaterialized("campaignfinance"); }
+    },
+    // SP-13, the third of Kevin's three money-flow packs (promoted 2026-08-09) and the one
+    // whose money angle is the part people do not expect: the IRS matches each year's
+    // returns to the previous year's, so it can publish not just how many households moved
+    // between two counties but the AGGREGATE INCOME that moved with them. Committed as CSV
+    // under data/packs/countymigration/ by tools/pack-extract/countymigration.mjs
+    // (docs/PACKS.md is the contract). Slice (a) was the data foundation: the connection,
+    // the four committed tables, and the two jobs that turn them into net position and
+    // corridor share. Slice (b) added the three dashboards and the third job they read
+    // (the county trim), and slice (c) the four pinned Views and the pack's own tour.
+    // See the SP-13 (a) block further down for the modelling notes.
+    countymigration: {
+      id: "countymigration",
+      kind: "workspace",
+      folder: "Where America Moved",
+      name: "Where America Moved — who is winning households, and whose income moved with them",
+      // Count-led and ending in "embedded" (the suite's #116 shape check), and it names
+      // every KIND install seeds — connection, datasets, jobs, dashboards — because
+      // doc-truth check 35 rule (a) holds this string and the blurb to the installer
+      // separately, and rule (b) holds the dashboard count to what the file really names.
+      tagline: "3 dashboards · 4 Views pinned to Home · 7 datasets on 1 connection · 3,087 counties and 51 states · the 300 largest state-to-state corridors · 3 prep jobs · every US household move the IRS published for 2022-2023, and the income that moved with it — real public data, embedded",
+      // Three sentences, which is N40's cap — the card is a decision surface and the
+      // inventory belongs in Help. Count-led and says "embedded" for the suite's #116.
+      blurb: "3 dashboards and 4 pinned Views over 7 datasets on 1 connection, built from the IRS's own record of " +
+        "where American households moved between 2022 and 2023 — every county's arrivals and " +
+        "departures, the 300 largest state-to-state corridors, the biggest county corridors out " +
+        "of each state, and the aggregate income that travelled with all of them. Three prep " +
+        "jobs turn that into the two questions a single-county table can never answer: who is " +
+        "winning households, and are the people arriving richer than the people leaving — with " +
+        "the households that STAYED as the baseline, which is the comparison the data is really " +
+        "for. The data is the IRS's own, public domain and embedded, and it counts tax returns " +
+        "rather than people, so a move here is a household that filed from a new address, US " +
+        "moves only.",
+      source: {
+        kind: "public",
+        name: "IRS Statistics of Income — US Population Migration Data, 2022-2023",
+        url: "https://www.irs.gov/statistics/soi-tax-stats-migration-data",
+        licence: "Public domain (U.S. Government work)",
+        retrieved: "2026-08-10"
+      },
+      // No `seeds`, for the reason SP-1, SP-6 and SP-5 state above: install() writes the
+      // connection synchronously and everything else lands from the CSV a moment later.
+      install: function () { installCountyMigrationConnection(); },
+      data: {
+        files: ["county-migration.csv", "state-migration.csv", "state-flows.csv", "county-pairs.csv"],
+        seed: function (csv) { seedCountyMigrationData(csv); }
+      },
+      afterInstall: function () { Studio.ensurePackDataMaterialized("countymigration"); }
+    },
     // LF2(c)/LF16: the pre-existing generic showcase gallery (governance, platform ops,
     // delivery, finance, marketing, reliability, compliance, feature tour) folded into a
     // toggleable pack the same way Conservation Insight is one — kind:"examples" (below)
@@ -2044,6 +2144,1687 @@
     if (!Studio.demoPackInstalled(id)) return false;
     var W = Studio.Workspace;
     return seedContractAwardsViews(W, id, contractAwardsDatasets(W, id)) > 0;
+  };
+
+  /* ---- SP-5 (a): Campaign Finance — the data foundation ------------------------------
+     The pack asks who funds federal politics, and the extract
+     (tools/pack-extract/campaignfinance.mjs) answers it in seven committed tables: who gave
+     (by state, occupation, employer, cheque size and month) and who received (the fifty
+     largest recipient committees, and every donor state each of them drew from).
+
+     THE ONE MODELLING DECISION WORTH KNOWING, because it is the difference between a
+     truthful chart and a partisan-looking one: the extract counts EVERY recipient committee,
+     not just the campaigns. Measured on the 2024 file, restricting recipients to candidate
+     committees puts Harris For President at $390M and no Trump campaign in the top fifty —
+     not because one side raised nothing, but because the Trump operation raised through
+     JOINT FUNDRAISING committees that transfer onward while the Harris operation's earmarked
+     money was itemized directly against the campaign. Same money, different plumbing. So the
+     kind of committee is a COLUMN here (`committee_type`) rather than a silent filter, and
+     the reader can do what the filter would have done, visibly.
+
+     Everything below the connection is written by seedCampaignFinanceData once
+     Studio.ensurePackDataMaterialized has the bytes. */
+  var CF_FOLDER = "Campaign Finance";
+  var CF_STATES = "state-donors.csv";
+  var CF_COMMITTEES = "committees.csv";
+  var CF_FLOW = "committee-state.csv";
+  var CF_OCCUPATIONS = "occupations.csv";
+  var CF_EMPLOYERS = "employers.csv";
+  var CF_MONTHLY = "monthly.csv";
+  var CF_BANDS = "size-bands.csv";
+  var CF_SOURCE_DESC = "Itemized individual contributions for the 2023-24 election cycle, " +
+    "extracted by tools/pack-extract/campaignfinance.mjs and read from files in your browser.";
+
+  function installCampaignFinanceConnection() {
+    Studio.Workspace.put("connections", {
+      name: "FEC bulk downloads — embedded extracts", adapter: "file", cfg: {},
+      desc: CF_SOURCE_DESC, folder: CF_FOLDER, demoPackId: "campaignfinance"
+    });
+  }
+  // The pack's own connection, however install left it — looked up rather than threaded
+  // through, because install() and the seed run in different turns (the SP-1 convention).
+  function campaignFinanceConnection() {
+    return Studio.Workspace.all("connections").filter(function (r) { return r.demoPackId === "campaignfinance"; })[0] ||
+      Studio.Workspace.put("connections", {
+        name: "FEC bulk downloads — embedded extracts", adapter: "file", cfg: {},
+        desc: CF_SOURCE_DESC, folder: CF_FOLDER, demoPackId: "campaignfinance"
+      });
+  }
+
+  // The job's four steps, as a fresh array each call — the same definition seeds the job row
+  // AND pre-computes its output below, so the two can never describe different work.
+  function campaignFinanceSteps(committeesDatasetId) {
+    return [
+      // 1. the join the pack exists to show: every donor-state row gains the committee's
+      //    NAME, its kind, its party, the seat it is running for and its own cycle total.
+      //    No column collides, because the extract deliberately left all of that out of the
+      //    flow table — see tools/pack-extract/campaignfinance.mjs.
+      { op: "join", datasetId: committeesDatasetId, leftCol: "cmte_id", rightCol: "cmte_id", type: "inner" },
+      // 2-3. one state's share of one committee. The committee's total is divided down to ONE
+      //      PERCENT first, so the ratio that follows is a plain division and every
+      //      intermediate column is a number a reader can name (SP-1's and SP-6's shape).
+      { op: "derive", outCol: "one_pct_of_committee", a: { col: "total_amount" }, operator: "/", b: { value: 100 } },
+      { op: "derive", outCol: "pct_of_committee", a: { col: "amount" }, operator: "/", b: { col: "one_pct_of_committee" } },
+      // 4. the out-of-state story, and the reason `is_home_state` is a 0/1 in the extract
+      //    rather than something derived here: the job engine's derive step does arithmetic
+      //    on numbers and cannot compare two strings, so "did this money come from the state
+      //    the candidate is running in" arrives as a flag this multiplies by. Summed per
+      //    committee against total_amount, it IS the out-of-state share.
+      { op: "derive", outCol: "home_state_amount", a: { col: "amount" }, operator: "*", b: { col: "is_home_state" } }
+    ];
+  }
+
+  function seedCampaignFinanceData(csv) {
+    var id = "campaignfinance", W = Studio.Workspace;
+    var conn = campaignFinanceConnection();
+    var tags = ["demo", "elections", "money"];
+
+    var statesDs = W.put("datasets", {
+      name: "Individual contributions by donor state — 2023-24 cycle", connectionId: conn.id,
+      kind: "file", format: "csv", fileName: CF_STATES,
+      content: csv[CF_STATES],
+      columns: ["state", "contributions", "amount", "small_dollar_contributions",
+                "small_dollar_amount", "max_out_contributions", "max_out_amount"],
+      folder: CF_FOLDER, demoPackId: id, tags: tags.concat(["geo"])
+    });
+    var committeesDs = W.put("datasets", {
+      name: "The 50 largest recipient committees — 2023-24 cycle", connectionId: conn.id,
+      kind: "file", format: "csv", fileName: CF_COMMITTEES,
+      content: csv[CF_COMMITTEES],
+      columns: ["cmte_id", "committee", "committee_type", "candidate", "party", "office",
+                "office_state", "district", "total_contributions", "total_amount"],
+      folder: CF_FOLDER, demoPackId: id, tags: tags
+    });
+    var flowDs = W.put("datasets", {
+      name: "Where each committee's money came from, by donor state", connectionId: conn.id,
+      kind: "file", format: "csv", fileName: CF_FLOW,
+      content: csv[CF_FLOW],
+      columns: ["cmte_id", "state", "is_home_state", "contributions", "amount"],
+      folder: CF_FOLDER, demoPackId: id, tags: tags.concat(["flow"])
+    });
+    var occupationsDs = W.put("datasets", {
+      name: "Individual contributions by donor occupation — top 200", connectionId: conn.id,
+      kind: "file", format: "csv", fileName: CF_OCCUPATIONS,
+      content: csv[CF_OCCUPATIONS], columns: ["occupation", "contributions", "amount"],
+      folder: CF_FOLDER, demoPackId: id, tags: tags
+    });
+    var employersDs = W.put("datasets", {
+      name: "Individual contributions by donor employer — top 200", connectionId: conn.id,
+      kind: "file", format: "csv", fileName: CF_EMPLOYERS,
+      content: csv[CF_EMPLOYERS], columns: ["employer", "contributions", "amount"],
+      folder: CF_FOLDER, demoPackId: id, tags: tags
+    });
+    var monthlyDs = W.put("datasets", {
+      name: "Individual contributions by month and committee kind", connectionId: conn.id,
+      kind: "file", format: "csv", fileName: CF_MONTHLY,
+      content: csv[CF_MONTHLY], columns: ["month", "committee_type", "contributions", "amount"],
+      folder: CF_FOLDER, demoPackId: id, tags: tags.concat(["time"])
+    });
+    var bandsDs = W.put("datasets", {
+      name: "Small-dollar to max-out — contributions by size band", connectionId: conn.id,
+      kind: "file", format: "csv", fileName: CF_BANDS,
+      content: csv[CF_BANDS],
+      columns: ["band_order", "band", "committee_type", "contributions", "amount"],
+      folder: CF_FOLDER, demoPackId: id, tags: tags
+    });
+
+    var steps = campaignFinanceSteps(committeesDs.id);
+    // Pre-materialized so the shares are there to chart before anyone clicks Run — and
+    // computed by running the job's OWN steps through the engine rather than a hand-kept
+    // second copy of the arithmetic, so a Run rewrites this dataset with identical numbers
+    // instead of quietly correcting it (docs/PACKS.md). Seeded as a pack-tagged, foldered
+    // row so Remove sweeps it.
+    var left = parsePackCsv(csv[CF_FLOW]);
+    var ctx = { datasets: {} };
+    ctx.datasets[committeesDs.id] = parsePackCsv(csv[CF_COMMITTEES]);
+    var out = Studio.runJobSteps(left, steps, ctx);
+    var outputName = "Donor states — each state's share of the committee it gave to (job output)";
+    var outputDs = W.put("datasets", {
+      name: outputName, connectionId: conn.id,
+      kind: "file", format: "csv", fileName: "committee_donor_state_shares.csv",
+      content: out.error ? "" : Studio.rowsToCsv(out.columns, out.rows),
+      columns: (out.columns || []).slice(),
+      folder: CF_FOLDER, demoPackId: id, tags: tags.concat(["job-output"])
+    });
+
+    W.put("jobs", {
+      name: "Join the committees and derive each donor state's share",
+      sourceDatasetId: flowDs.id,
+      outputDatasetId: outputDs.id, outputName: outputName,
+      steps: steps,
+      folder: CF_FOLDER, demoPackId: id
+    });
+
+    // SP-5 (b): a SECOND job, chained onto the first one's output, and the reason it
+    // exists is a measured limit of the app rather than anything about the FEC.
+    //
+    // The View Builder runs a workspace dataset live and keeps the FIRST 2,000 rows
+    // (app/build.js, bdLoadRowsFor) — a real cap that every panel bound to a builder blob
+    // inherits, applied BEFORE the View's own filters. The share table above is 2,658 rows
+    // in cmte_id order, so a panel reading it directly loses the last 12 committees
+    // outright, INCLUDING both Trump committees — which would have made the flow hero look
+    // exactly like the partisan artifact slice (a) went out of its way to avoid, silently
+    // and while still drawing a plausible chart.
+    //
+    // So the pack does the trimming ITSELF, in the open, as a job whose rule you can read
+    // and change: keep the flows worth CF_CHART_FLOOR or more. That is 1,293 of the 2,658
+    // rows and 97.7% of the dollars, with all 50 committees and all 16 home-state rows
+    // intact — and the flow dashboard's own note states it. The cap is the builder's, not
+    // the pack's, and lifting it is an app change recorded in the SP-5 item for Kevin.
+    var chartSteps = [{ op: "filter", col: "amount", cmp: "gte", value: CF_CHART_FLOOR }];
+    var chartOut = Studio.runJobSteps({ columns: out.columns || [], rows: out.rows || [] }, chartSteps, {});
+    var chartName = "Donor states — the flows big enough for a live View (job output)";
+    var chartDs = W.put("datasets", {
+      name: chartName, connectionId: conn.id,
+      kind: "file", format: "csv", fileName: "committee_donor_state_flows_charted.csv",
+      content: chartOut.error ? "" : Studio.rowsToCsv(chartOut.columns, chartOut.rows),
+      columns: (chartOut.columns || []).slice(),
+      folder: CF_FOLDER, demoPackId: id, tags: tags.concat(["job-output", "flow"])
+    });
+    W.put("jobs", {
+      name: "Keep the donor-state flows a live View can hold",
+      sourceDatasetId: outputDs.id,
+      outputDatasetId: chartDs.id, outputName: chartName,
+      steps: chartSteps,
+      folder: CF_FOLDER, demoPackId: id
+    });
+
+    // SP-5 (b): the dashboards read the job's output and the extract tables together, so
+    // they are seeded here — the moment those rows exist — rather than in install(), which
+    // runs a turn earlier with nothing to chart yet (the SP-1/SP-6 convention).
+    var seededDs = {
+      states: statesDs, committees: committeesDs, occupations: occupationsDs,
+      employers: employersDs, monthly: monthlyDs, bands: bandsDs,
+      output: outputDs, charted: chartDs
+    };
+    seedCampaignFinanceDashboards(W, id, seededDs, new Date().toISOString());
+    // SP-5 (c): and the pinned Views, from the same turn and for the same reason — the
+    // rows they are computed over exist only now. Last, so the Views are the newest rows
+    // in the workspace and lead Home's pinned shelf.
+    seedCampaignFinanceViews(W, id, seededDs);
+
+    return { states: statesDs, committees: committeesDs, flow: flowDs, occupations: occupationsDs,
+             employers: employersDs, monthly: monthlyDs, bands: bandsDs,
+             output: outputDs, charted: chartDs };
+  }
+
+  /* ---- SP-5 (b): the pack's three dashboards ----------------------------------------
+     The pack asks who funds federal politics. The extract answers it from two ends, so
+     the dashboards do too, and the third one is about the reading itself:
+
+       1. WHO FUNDS WHOM (the hero) — the FLOW, donor state → recipient committee, over
+          the job's output so the committee reads as a NAME with its kind and party
+          attached. Underneath it, the question the flow table exists for: how much of a
+          candidate's itemized money came from the state they are running in.
+       2. WHERE THE MONEY COMES FROM — donor geography on the app's `state` scale, and
+          the two shares the extract ships the ingredients for (small gifts, max-out
+          gifts) as builder CALC columns rather than extract columns.
+       3. WHO GIVES IT, AND HOW — occupation and employer, the size bands as a marimekko
+          (the one chart whose width-times-height IS the "few big cheques" story), and
+          the 24-month arc by committee kind.
+
+     Two conventions carried from SP-1 and SP-6, for the same reasons:
+     * every charted panel is bound to a builder-blob DA over one of the pack's OWN
+       datasets (curatedDA), so #118's live re-run feeds the panels the REAL rows;
+     * a panel that shows a SUBSET narrows it with the builder's own filter grammar
+       rather than a hand-cut second dataset — open the View and the rule is right there.
+
+     THE ONE THING THIS SLICE HAD TO GET RIGHT, and it is the same modelling decision
+     slice (a) recorded: the committee kind is a COLUMN, never a silent filter. Every
+     panel here draws all six kinds of committee together, and the note panels say what
+     that means — a joint fundraising committee's haul and a campaign's are the same
+     money seen at different points in the plumbing, and adding them is not a total. */
+  // Seeding order, and it matters: the hero is LAST so it is the newest row and tops a
+  // recency-sorted list (the CONS-2/CONS-3 convention SP-1 and SP-6 both follow).
+  var CF_DASHBOARDS = ["campaignfinance-donors", "campaignfinance-geography", "campaignfinance-flow"];
+  // Floors, all about READABILITY rather than significance — the same kind of constant
+  // (and the same disclosure) as SP-1's MC_BIG_COUNTY and SP-6's FCA_FLOW_FLOOR. Every
+  // panel that applies one says so in its own subtitle, in the units on screen.
+  //
+  // The flow floor was MEASURED the way SP-6's was: a sankey lays its nodes out with an
+  // 11px gap, so the readable limit is the node COUNT. At $5M the state side has 30
+  // nodes and the committee side 35 and the labels collide; at $10M it is 21 and 20,
+  // which the panel's height then gives ~30px apiece.
+  var CF_FLOW_FLOOR = 1e7;        // the hero sankey: 69 of 2,658 state→committee flows
+  var CF_DOMINANT_PCT = 20;       // "one state supplied a fifth or more" (41 rows)
+  // NOT a readability floor — the builder's live-run cap, taken deliberately by the
+  // pack's second job so the trimming is visible instead of silent. See the job.
+  var CF_CHART_FLOOR = 2e5;       // 1,293 of 2,658 rows, 97.7% of the dollars
+  var CF_OCCUPATION_FLOOR = 5e7;  // occupations big enough to read as bars (13 of 200)
+  var CF_EMPLOYER_FLOOR = 3e6;    // employers big enough to read as bars (18 of 200)
+
+  // The pack's own headline figures, derived from the shipped rows at seed time rather
+  // than typed in — the SP-1 rule. A re-extract that moves the numbers re-seeds copy that
+  // is still true, and the suite recomputes these independently and demands they agree.
+  function campaignFinanceFigures(states, flow, charted) {
+    var cols = (states && states.columns) || [], rows = (states && states.rows) || [];
+    function sum(col) {
+      var i = cols.indexOf(col);
+      return i < 0 ? 0 : rows.reduce(function (a, r) { return a + (Number(r[i]) || 0); }, 0);
+    }
+    var total = sum("amount"), contributions = sum("contributions");
+    var small = sum("small_dollar_amount"), smallN = sum("small_dollar_contributions");
+    var maxOut = sum("max_out_amount"), maxOutN = sum("max_out_contributions");
+    function flowSum(t) {
+      var c = (t && t.columns) || [], r = (t && t.rows) || [], i = c.indexOf("amount");
+      return i < 0 ? 0 : r.reduce(function (a, x) { return a + (Number(x[i]) || 0); }, 0);
+    }
+    var flowTotal = flowSum(flow), chartedTotal = flowSum(charted);
+    function pct(part, whole) { return whole ? Math.round((part / whole) * 1000) / 10 : 0; }
+    return {
+      states: rows.length, total: total, contributions: contributions,
+      small: small, smallPct: pct(small, total), smallCountPct: pct(smallN, contributions),
+      maxOut: maxOut, maxOutPct: pct(maxOut, total), maxOutCountPct: pct(maxOutN, contributions),
+      flowTotal: flowTotal, flowPct: pct(flowTotal, total),
+      // What the pack's second job kept, so the flow dashboard can state its own trim
+      // rather than leave the reader to discover it.
+      flowRows: ((flow && flow.rows) || []).length,
+      chartedRows: ((charted && charted.rows) || []).length,
+      chartedTotal: chartedTotal, chartedPct: pct(chartedTotal, flowTotal)
+    };
+  }
+  // "$6.5B" / "$1.3B" — the pack quotes big dollars constantly and a reader should never
+  // have to count digits to compare two of them.
+  function cfBillions(n) { return "$" + (Math.round(n / 1e8) / 10).toLocaleString() + "B"; }
+  function cfMillions(n) { return "$" + Math.round(n / 1e6).toLocaleString() + "M"; }
+  // The two shares as percentages OF THE STATE, as builder calc columns — the extract
+  // ships the dollar figures and deliberately not their ratios, because a ratio is a
+  // derivation and this pack's whole argument is that derivations stay visible.
+  var CF_SMALL_PCT_CALC = { name: "small_dollar_pct", formula: "[small_dollar_amount] / [amount] * 100" };
+  var CF_MAXOUT_PCT_CALC = { name: "max_out_pct", formula: "[max_out_amount] / [amount] * 100" };
+  // curatedDA's rolled-up sibling: the same builder blob, but with the shelf AGGREGATED —
+  // dims carry no agg, measures carry one, and the builder names the result "SUM amount"
+  // (app/build.js aggLabel). SP-6 avoided a rollup because it wanted a ratio to keep the
+  // reader's own name for it; this one wants the opposite — a long table of 167 month ×
+  // committee-kind rows collapsed to the 24 monthly totals a time series needs, which is
+  // exactly what the shelf is for. Every column a chart binds to is the shelf's own label.
+  function cfRollupDA(id, name, dsId, shelf) {
+    var cols = shelf.map(function (f) { return f.agg ? f.agg.toUpperCase() + " " + f.col : f.col; });
+    return { id: id, name: name, kind: "sql", sql: "", query: "",
+      columns: cols, params: [], authored: true,
+      builder: { dsKind: "ws", dsId: dsId, chartType: "line",
+        shelfCols: shelf.map(function (f) { return { col: f.col, agg: f.agg || null }; }),
+        shelfRows: [], filters: [], calcs: [], shelfColor: [], paletteKey: "", mapScale: "" } };
+  }
+
+  // (1) the hero: the flow, which is what the pack was extracted to draw.
+  function campaignFinanceFlowSpec(ds, f) {
+    var das = [], panels = [], kpis = [];
+
+    // EVERY panel on this dashboard reads the pack's SECOND job output, not the first.
+    // The first is 2,658 rows and the builder's live run keeps 2,000 of them, so a panel
+    // bound to it would quietly lose the last twelve committees; the second job trims by
+    // a rule instead of by an accident, and the note below says exactly what it cost.
+    var flowAllDa = curatedDA("vcf_flow_all", "Campaign Finance — every charted donor state to committee flow",
+      ds.charted.id, ["state", "committee", "committee_type", "party", "amount", "pct_of_committee"]);
+    das.push(flowAllDa);
+    kpis.push({ da: flowAllDa.id, valueCol: "amount", label: "To the 50 largest committees",
+      fmt: "money", agg: "sum", subtitle: f.chartedPct.toFixed(1) + "% of what those 50 raised", state: "",
+      info: "Itemized individual contributions received by the 50 committees that took the most of them, counted over the flows the pack's second job keeps — everything at or above " + cfMillions(CF_CHART_FLOOR) + ". The first job's table has the rest." });
+    kpis.push({ da: flowAllDa.id, valueCol: "amount", label: "Largest single flow",
+      fmt: "money", agg: "max", subtitle: "one state to one committee", state: "",
+      info: "The biggest donor-state → committee relationship in the extract, in one election cycle." });
+    kpis.push({ da: flowAllDa.id, valueCol: "pct_of_committee", label: "Largest share of one committee",
+      fmt: "pct", agg: "max", subtitle: "one state's cut", state: "",
+      info: "The job divides each state's giving by the committee's own cycle total. This is the highest result — the most concentrated donor-state relationship the pack can see." });
+
+    var bigFlowDa = curatedDA("vcf_flow_big", "Campaign Finance — donor state to committee, the largest flows",
+      ds.charted.id, ["state", "committee", "amount", "pct_of_committee"],
+      [{ col: "amount", kind: "range", min: String(CF_FLOW_FLOOR), max: "" }]);
+    das.push(bigFlowDa);
+    panels.push({ id: "pcf_flow", section: "Who funds whom",
+      title: "Donor state to recipient committee", span: "full",
+      sub: "flows of " + cfMillions(CF_FLOW_FLOOR) + " or more — the band width is the money",
+      info: "One ribbon per state-committee pair. The floor is about readability, not significance: all 2,658 pairs at once is a hairball. Open the View and move it.",
+      chart: { type: "sankey", da: bigFlowDa.id,
+        map: { sourceCol: "state", targetCol: "committee", valueCol: "amount" },
+        opts: { srcCap: "Donor state", dstCap: "Recipient committee", fmt: "money", height: 720 } } });
+
+    // is_home_state is a 0/1 the extract denormalized into the flow table (the job engine
+    // derives arithmetic and cannot compare two strings), so "the state the candidate is
+    // running in" is an ordinary value filter here — the builder's own `in` grammar.
+    var homeDa = curatedDA("vcf_home", "Campaign Finance — money from the state the candidate is running in",
+      ds.charted.id, ["committee", "state", "party", "amount", "pct_of_committee", "total_amount"],
+      [{ col: "is_home_state", kind: "in", values: ["1"] }]);
+    das.push(homeDa);
+    panels.push({ id: "pcf_home", section: "How much came from home",
+      title: "Share of a candidate's itemized money that came from their own state", span: "full",
+      sub: "the Senate campaigns in the top 50 — everything else on the bar came from somewhere else",
+      info: "The filter is is_home_state = 1, a flag the extract ships because the job engine cannot compare two strings. The three presidential committees are absent by construction: their seat is \"US\", which is not a donor state.",
+      chart: { type: "bars", da: homeDa.id, map: { labelCol: "committee", valueCol: "pct_of_committee" },
+        opts: { horizontal: true, sortBars: true, showValues: true, fmt: "pct", height: 460 } } });
+
+    var dominantDa = curatedDA("vcf_dominant", "Campaign Finance — states supplying a fifth of a committee",
+      ds.charted.id, ["state", "committee", "committee_type", "amount", "pct_of_committee"],
+      [{ col: "pct_of_committee", kind: "range", min: String(CF_DOMINANT_PCT), max: "" }]);
+    das.push(dominantDa);
+    panels.push({ id: "pcf_dominant", section: "The concentrated relationships",
+      title: "Where one state supplied a fifth or more of a committee's itemized money", span: "full",
+      sub: "share of the committee's whole cycle total, not of the states listed beside it",
+      chart: { type: "table", da: dominantDa.id,
+        map: { cols: [
+          { col: "state", label: "Donor state" },
+          { col: "committee", label: "Recipient committee" },
+          { col: "committee_type", label: "Kind" },
+          { col: "amount", label: "Itemized", num: true, fmt: "money" },
+          { col: "pct_of_committee", label: "Share of the committee", num: true, fmt: "pct" }
+        ] },
+        opts: { pageSize: 12, freezeHeader: true, density: "comfortable" } } });
+
+    panels.push({ id: "pcf_note", section: "How to read it", title: "What this pack is measuring", span: "full",
+      chart: { type: "richtext", da: null, opts: { content: [
+        "**Itemized individual contributions, one closed cycle.** A committee itemizes a donor once their cycle total passes $200; everything under that is reported as an unitemized lump and is not in this source at all. So these are the dollars the FEC can name a giver for, not all the dollars raised.",
+        "",
+        "**The kind of committee is a column, not a filter, and that is the whole point.** Restricting recipients to candidate committees looks like the obvious reading of \"who funds the candidates\" and draws a landslide that never happened: one side's earmarked money was itemized directly against the campaign while the other's ran through joint fundraising committees that transfer onward. Same money, different plumbing. Every View here draws all six kinds together and labels them — **adding a joint fundraiser's total to its participants' is double-counting**, which is why no View does.",
+        "",
+        "**Two floors, and they are different in kind.** The Views above sit on the pack's SECOND job, which keeps every state→committee flow of " + cfMillions(CF_CHART_FLOOR) + " or more — **" + f.chartedRows.toLocaleString() + "** of the first job's **" + f.flowRows.toLocaleString() + "** rows, and **" + f.chartedPct.toFixed(1) + "%** of its dollars, with all fifty committees still present. That trim exists because the View Builder runs a dataset live and keeps its first 2,000 rows, and a chart that lost twelve committees to a row limit would look exactly like a chart that had taken a side. The sankey's own " + cfMillions(CF_FLOW_FLOOR) + " floor, on top of it, is about readability alone: open the View and move it.",
+        "",
+        "- Itemized individual giving, 2023-24: **" + cfBillions(f.total) + "** across **" + f.contributions.toLocaleString() + "** contributions",
+        "- Received by the 50 largest committees: **" + cfBillions(f.flowTotal) + "** (**" + f.flowPct.toFixed(1) + "%**), which is the first job's table",
+        "- Charted above: **" + cfBillions(f.chartedTotal) + "** of it, the flows of " + cfMillions(CF_CHART_FLOOR) + " or more",
+        "",
+        "*What this is not:* a measure of who won. It is money raised, not money kept (refunds are dropped rather than netted) and not money spent, and independent expenditure — the spending that never passes through a candidate's committee at all — is a different file."
+      ].join("\n") } } });
+
+    return {
+      id: "campaignfinance-flow", name: "campaignfinance-flow",
+      title: "Who Funds Whom",
+      subtitle: "Itemized individual contributions from the state that gave them to the committee that received them, 2023-24 cycle",
+      dashboardTheme: "polecat",
+      panels: panels, kpis: kpis, filters: [],
+      cda: { connections: [], dataAccesses: das }
+    };
+  }
+
+  // (2) donor geography — the app's state scale, and the two shares as calc columns.
+  function campaignFinanceGeographySpec(ds, f) {
+    var das = [], panels = [], kpis = [];
+    var stateDa = curatedDA("vcg_states", "Campaign Finance — donor states, with the small-gift and max-out shares",
+      ds.states.id, ["state", "contributions", "amount", "small_dollar_amount", "small_dollar_pct",
+                     "max_out_amount", "max_out_pct"],
+      [], [CF_SMALL_PCT_CALC, CF_MAXOUT_PCT_CALC]);
+    das.push(stateDa);
+    kpis.push({ da: stateDa.id, valueCol: "amount", label: "Itemized individual giving",
+      fmt: "money", agg: "sum", subtitle: "2023-24, " + f.states + " donor states and territories", state: "",
+      info: "Every itemized individual contribution in the cycle, summed by the state the donor reported. Rows with no two-letter state are excluded from this table and counted in the extract's notes." });
+    kpis.push({ da: stateDa.id, valueCol: "amount", label: "The largest donor state",
+      fmt: "money", agg: "max", subtitle: "one state, one cycle", state: "",
+      info: "Read against the median beside it: political giving concentrates about as hard as income does." });
+    kpis.push({ da: stateDa.id, valueCol: "amount", label: "The median donor state",
+      fmt: "money", agg: "median", subtitle: "the middle of " + f.states, state: "",
+      info: "The middle of the list, including the territories and the overseas military codes — which is why it sits so far below the mean." });
+    kpis.push({ da: stateDa.id, valueCol: "small_dollar_pct", label: "Small gifts",
+      fmt: "pct", agg: "median", subtitle: "of the median state's dollars", state: "",
+      info: "This View's own calculated column: small_dollar_amount ÷ amount. \"Small\" here means a gift under $200 from a donor who was itemized anyway — not the small-dollar donor universe, which this source cannot see." });
+
+    panels.push({ id: "pcg_map", section: "Where the money comes from",
+      title: "Itemized individual giving by donor state", span: "full",
+      sub: "the donor's own reported state, 2023-24 cycle",
+      info: "Colour classes are evenly spaced between the smallest and largest state, so California and Texas hold the top of the scale and most of the map reads as one band. The bars below are how you read the rest of it.",
+      chart: { type: "choropleth", da: stateDa.id,
+        map: { idCol: "state", valueCol: "amount" },
+        opts: { scale: "state", fmt: "money", agg: "sum", classes: 6, height: 460 } } });
+
+    panels.push({ id: "pcg_small", section: "Not every state gives the same way",
+      title: "Share of each state's dollars that came in gifts under $200", span: 2,
+      sub: "a calculated column on this View — small_dollar_amount ÷ amount",
+      info: "The states at the top of this list are not the states at the top of the map. A high share means a state's itemized total is built from many small gifts rather than a few large ones.",
+      chart: { type: "bars", da: stateDa.id, map: { labelCol: "state", valueCol: "small_dollar_pct" },
+        opts: { horizontal: true, sortBars: true, showValues: false, fmt: "pct", height: 620 } } });
+
+    panels.push({ id: "pcg_maxout", title: "Share that came in max-out gifts", span: 2,
+      sub: "the mirror image — max_out_amount ÷ amount, the same " + f.states + " rows",
+      info: "A max-out gift is one at or above the per-election limit ($3,300 in this cycle). The two shares are not complements: everything between $200 and $3,300 is in neither.",
+      chart: { type: "bars", da: stateDa.id, map: { labelCol: "state", valueCol: "max_out_pct" },
+        opts: { horizontal: true, sortBars: true, showValues: false, fmt: "pct", height: 620 } } });
+
+    panels.push({ id: "pcg_scatter", section: "Does a big state give differently?",
+      title: "Every state, by what it gave and by how much of it was small", span: 2,
+      sub: "one dot per state: total itemized dollars against the small-gift share",
+      info: "If large donor states were simply scaled-up small ones, the dots would sit on a flat line. The spread up the y-axis is states with genuinely different giving cultures.",
+      chart: { type: "scatter", da: stateDa.id,
+        map: { labelCol: "state", xCol: "amount", yCol: "small_dollar_pct" },
+        opts: { trend: false, fmt: "abbr", xLabel: "Itemized individual giving",
+          yLabel: "Share in gifts under $200 (%)", height: 380 } } });
+
+    panels.push({ id: "pcg_note", title: "What the map leaves out, and why", span: 2,
+      chart: { type: "richtext", da: null, opts: { content: [
+        "**The state is the donor's, not the candidate's.** Every dollar here is placed where the person who gave it said they live. Where it went is the other dashboard.",
+        "",
+        "**Sixteen of the " + f.states + " rows are not on the map, and they are left in the data on purpose.** The overseas military codes (AA, AE, AP), the territories (PR, GU, VI, MP, AS, MH, FM, PW), a handful of Canadian provinces typed into the state field, and ZZ for a donor whose state the filer never resolved. The app's state layer has no geometry for any of them, so they colour nothing — but dropping them from the table would quietly change every total on this page.",
+        "",
+        "- Itemized individual giving: **" + cfBillions(f.total) + "** over **" + f.contributions.toLocaleString() + "** contributions",
+        "- In gifts under $200: **" + cfBillions(f.small) + "** (**" + f.smallPct.toFixed(1) + "%** of the dollars, **" + f.smallCountPct.toFixed(1) + "%** of the contributions)",
+        "- In max-out gifts: **" + cfBillions(f.maxOut) + "** (**" + f.maxOutPct.toFixed(1) + "%** of the dollars, **" + f.maxOutCountPct.toFixed(1) + "%** of the contributions)",
+        "",
+        "*That last pair is the finding this dashboard exists for:* nine contributions in ten are small, and they are a fifth of the money."
+      ].join("\n") } } });
+
+    return {
+      id: "campaignfinance-geography", name: "campaignfinance-geography",
+      title: "Where the Money Comes From",
+      subtitle: "Itemized individual contributions by the donor's own state, and how differently each state gives",
+      dashboardTheme: "polecat",
+      panels: panels, kpis: kpis, filters: [],
+      cda: { connections: [], dataAccesses: das }
+    };
+  }
+
+  // (3) who gives it, and how it arrives.
+  function campaignFinanceDonorsSpec(ds, f) {
+    var das = [], panels = [], kpis = [];
+
+    var bandsDa = curatedDA("vcd_bands", "Campaign Finance — contributions by size band and committee kind",
+      ds.bands.id, ["band", "committee_type", "contributions", "amount"]);
+    das.push(bandsDa);
+    kpis.push({ da: bandsDa.id, valueCol: "amount", label: "Itemized to every kind of committee",
+      fmt: "money", agg: "sum", subtitle: "the same " + cfBillions(f.total) + ", cut by cheque size", state: "",
+      info: "The size-band table covers the whole cycle, so it sums to the donor-state table's total apart from the contributions whose donor state the filer never typed — those have no state row to sit in. Both round to the same $6.5B, which is a useful thing to check when you open either one." });
+    kpis.push({ da: bandsDa.id, valueCol: "contributions", label: "Contributions",
+      fmt: "n", agg: "sum", subtitle: f.smallCountPct.toFixed(1) + "% of them under $200", state: "",
+      info: "Counted, not estimated: every itemized individual contribution the FEC published for the cycle." });
+    kpis.push({ da: bandsDa.id, valueCol: "amount", label: "Largest single band",
+      fmt: "money", agg: "max", subtitle: "one band, one kind of committee", state: "",
+      info: "The biggest cell of the band × committee-kind grid the marimekko below draws." });
+
+    panels.push({ id: "pcd_bands", section: "How the money arrives",
+      title: "Cheque size against the kind of committee that received it", span: "full",
+      sub: "column width is the band's share of the money; the stack inside it is which committees got it",
+      info: "A marimekko carries both facts at once, which is what this table is for: the widest column is the money, and the segments say the giving cultures behind it differ by band.",
+      chart: { type: "marimekko", da: bandsDa.id,
+        map: { labelCol: "band", groupCol: "committee_type", valueCol: "amount" },
+        opts: { fmt: "money", showPct: true, height: 420 } } });
+
+    var monthlyDa = curatedDA("vcd_monthly", "Campaign Finance — itemized giving by month and committee kind",
+      ds.monthly.id, ["month", "committee_type", "contributions", "amount"]);
+    das.push(monthlyDa);
+    // A LINE, NOT THE PIVOT THIS PANEL WAS FIRST WRITTEN AS, and the reason is measured.
+    // The toolkit's heatmap divides the width it is given between its columns after
+    // reserving a 130px label gutter (vendor/dashkit.js: cw = (w - labelW - mR)/cols) and
+    // never clamps the result, and a panel's FIRST paint happens while its body is 28px
+    // wide — so a month × committee-kind heatmap emitted 336 negative-width rects per
+    // render, which the suite counts as console errors. Vertical bars divide width the
+    // same way and fail the same test; horizontal bars and a line divide the HEIGHT and
+    // are fine. The clamp is a real fix, it belongs to the toolkit rather than to a pack
+    // slice (vendor/dashkit.js is pristine by invariant), and it is recorded in the SP-5
+    // item for Kevin to rank. The pack draws the cycle as a cycle in the meantime.
+    var monthTotalDa = cfRollupDA("vcd_month_total", "Campaign Finance — itemized giving by month",
+      ds.monthly.id, [{ col: "month" }, { col: "amount", agg: "sum" }]);
+    das.push(monthTotalDa);
+    panels.push({ id: "pcd_months", section: "When it arrives",
+      title: "The shape of an election cycle", span: "full",
+      sub: "every month from January 2023 to December 2024, all committees together",
+      info: "The View rolls the monthly table up with a SUM shelf, which is why the series reads \"SUM amount\" — open it and the shelf is the first thing you see. Rows carrying a transaction date outside the cycle (filer typos reaching the 1990s and the 2080s) are excluded from this table only.",
+      chart: { type: "line", da: monthTotalDa.id,
+        map: { labelCol: "month", series: ["SUM amount"] },
+        opts: { area: true, smooth: false, showDots: true, fmt: "abbr", height: 360 } } });
+
+    var occDa = curatedDA("vcd_occupations", "Campaign Finance — the largest donor occupations",
+      ds.occupations.id, ["occupation", "contributions", "amount"],
+      [{ col: "amount", kind: "range", min: String(CF_OCCUPATION_FLOOR), max: "" }]);
+    das.push(occDa);
+    panels.push({ id: "pcd_occ", section: "Who gives it",
+      title: "Donor occupations above " + cfMillions(CF_OCCUPATION_FLOOR), span: 2,
+      sub: "free text the donor's own filer typed — the floor is on the View, so move it",
+      info: "Upper-cased with punctuation and whitespace collapsed, and nothing more: \"SELF-EMPLOYED\" and \"SELF EMPLOYED\" merge, while \"RETIRED\" and \"NOT EMPLOYED\" stay apart. A synonym table would be an editorial judgement the extract cannot defend.",
+      chart: { type: "bars", da: occDa.id, map: { labelCol: "occupation", valueCol: "amount" },
+        opts: { horizontal: true, sortBars: true, showValues: false, fmt: "money", height: 420 } } });
+
+    var empDa = curatedDA("vcd_employers", "Campaign Finance — the largest donor employers",
+      ds.employers.id, ["employer", "contributions", "amount"],
+      [{ col: "amount", kind: "range", min: String(CF_EMPLOYER_FLOOR), max: "" }]);
+    das.push(empDa);
+    panels.push({ id: "pcd_emp", title: "Donor employers above " + cfMillions(CF_EMPLOYER_FLOOR), span: 2,
+      sub: "and the top of this list is the finding — see the note below",
+      info: "The same free-text treatment as occupation. Named employers begin well down the list, which is what the note beside this View is about.",
+      chart: { type: "bars", da: empDa.id, map: { labelCol: "employer", valueCol: "amount" },
+        opts: { horizontal: true, sortBars: true, showValues: false, fmt: "money", height: 420 } } });
+
+    panels.push({ id: "pcd_note", section: "How to read it", title: "Two fields nobody validates", span: "full",
+      chart: { type: "richtext", da: null, opts: { content: [
+        "**Occupation and employer are free text.** The FEC requires a committee to ask for both and to report what it is told; nothing checks the answer. So the largest \"employers\" in this cycle are RETIRED, NOT EMPLOYED and SELF EMPLOYED — which are not employers at all, but what people type when they have none. Any read of this table that skips that fact gets the ranking of real firms wrong by three places.",
+        "",
+        "**The size bands are where the shape of the money is.** Nine contributions in ten are under $200 and they are a fifth of the dollars; the gifts at or above the per-election limit are a fraction of one percent of the contributions and over two-fifths of the dollars.",
+        "",
+        "- Under $200: **" + cfBillions(f.small) + "** (**" + f.smallPct.toFixed(1) + "%** of dollars) from **" + f.smallCountPct.toFixed(1) + "%** of contributions",
+        "- At or above the per-election limit: **" + cfBillions(f.maxOut) + "** (**" + f.maxOutPct.toFixed(1) + "%** of dollars) from **" + f.maxOutCountPct.toFixed(1) + "%** of contributions",
+        "",
+        "*And the threshold under all of it:* a donor is itemized only once their cycle total passes $200, so the \"small\" gifts here belong to donors who gave enough in total to be named. The genuinely small-dollar universe is reported as a lump sum and is not in this file."
+      ].join("\n") } } });
+
+    return {
+      id: "campaignfinance-donors", name: "campaignfinance-donors",
+      title: "Who Gives It, and How",
+      subtitle: "Itemized individual contributions by occupation, employer, cheque size and month of the 2023-24 cycle",
+      dashboardTheme: "polecat",
+      panels: panels, kpis: kpis, filters: [],
+      cda: { connections: [], dataAccesses: das }
+    };
+  }
+
+  // Idempotent by dashboard name (the CONS-1 convention SP-1 and SP-6 also follow), so it
+  // is safe from the seed, from the boot heal, and from a workspace where someone deleted
+  // one of the three.
+  function seedCampaignFinanceDashboards(W, id, ds, now) {
+    if (!ds || !ds.states || !ds.occupations || !ds.employers || !ds.monthly || !ds.bands ||
+        !ds.output || !ds.charted) return 0;
+    // The figures are read back off the rows that were just written rather than taken as
+    // arguments: the seed path and the boot heal then cannot disagree about what the pack
+    // says about itself.
+    var f = campaignFinanceFigures(parsePackCsv(ds.states.content), parsePackCsv(ds.output.content),
+      parsePackCsv(ds.charted.content));
+    if (!f.states || !f.total || !f.flowTotal || !f.chartedRows) return 0; // nothing to state honestly, so state nothing
+    var specs = {
+      "campaignfinance-donors": campaignFinanceDonorsSpec(ds, f),
+      "campaignfinance-geography": campaignFinanceGeographySpec(ds, f),
+      "campaignfinance-flow": campaignFinanceFlowSpec(ds, f)
+    };
+    var added = 0;
+    CF_DASHBOARDS.forEach(function (name) {
+      var have = W.all("dashboards").some(function (r) {
+        return r.demoPackId === id && (r.name === name || (r.spec && r.spec.name) === name);
+      });
+      if (have) return;
+      var spec = specs[name];
+      W.put("dashboards", {
+        name: name, title: spec.title, ts: now, spec: spec,
+        folder: CF_FOLDER, demoPackId: id
+      });
+      added++;
+    });
+    return added;
+  }
+
+  // The boot heal (studio.js reconcilePackDashboards): a workspace that installed the
+  // pack when it was slice (a) — the seven tables and the share job, no dashboards — gets
+  // them without a reinstall, and so does one where a dashboard was deleted. Returns false
+  // when there is nothing to do, including the legitimate "data hasn't materialized yet"
+  // case: the seed path above writes the dashboards itself the moment the datasets exist.
+  // The pack's tables as the seed path names them, found in a workspace rather than
+  // threaded through — the same lookup BOTH boot heals need, so it is written once
+  // (the SP-6 shape). Returns null unless every table the seeders read is present WITH
+  // content: a half-materialized pack has nothing honest to chart, and both callers
+  // treat that as "nothing to do" rather than an error.
+  function campaignFinanceDatasets(W, id) {
+    var mine = W.all("datasets").filter(function (d) { return d.demoPackId === id && d.content; });
+    function byFile(name) {
+      return mine.filter(function (d) { return (d.fileName || "") === name; })[0];
+    }
+    var ds = {
+      states: byFile(CF_STATES), committees: byFile(CF_COMMITTEES),
+      occupations: byFile(CF_OCCUPATIONS), employers: byFile(CF_EMPLOYERS),
+      monthly: byFile(CF_MONTHLY), bands: byFile(CF_BANDS),
+      // Both job outputs are looked up by their own file name rather than by the
+      // job-output tag, which both of them carry.
+      output: byFile("committee_donor_state_shares.csv"),
+      charted: byFile("committee_donor_state_flows_charted.csv")
+    };
+    return (ds.states && ds.occupations && ds.employers && ds.monthly && ds.bands &&
+      ds.output && ds.charted) ? ds : null;
+  }
+
+  Studio.ensureCampaignFinanceDashboards = function () {
+    var id = "campaignfinance";
+    if (!Studio.demoPackInstalled(id)) return false;
+    var W = Studio.Workspace;
+    var ds = campaignFinanceDatasets(W, id);
+    if (!ds) return false;
+    return seedCampaignFinanceDashboards(W, id, ds, new Date().toISOString()) > 0;
+  };
+
+  /* ---- SP-5 (c): the pack's four pinned Views ----------------------------------------
+     A dashboard is a finished argument; a View is the thing you open and change. SP-1
+     set the convention and SP-6 repeated it, and this pack follows it exactly: author
+     each View the way `bdSave` would — compute the basis with the pure
+     `Studio.Build.compute`, then `Studio.newPanel` over the resulting columns — so a
+     seeded View and one saved by hand in the View Builder are the same shape and open
+     in the same editor. Only the basis HEAD is read here; the rows a pinned card draws
+     come from `Studio.Build.runBlob` against the live dataset on every render (#118),
+     which is why every subset below is the View's OWN filter rather than a second,
+     hand-cut dataset — open it and the rule is right there on the shelf to move.
+
+     THE FOUR are the pack's question asked from its four sides, in the order Home
+     shows them:
+       1. WHO FUNDS WHOM  — the flow, donor state → recipient committee, as a sankey
+       2. HOW MUCH CAME FROM HOME — each Senate campaign's own-state share
+       3. WHERE IT COMES FROM — donor geography on the app's state scale
+       4. HOW IT ARRIVES  — every donor state with both derived shares as calc columns
+
+     Two things this pack's Views inherit from its dashboards rather than reinvent, and
+     both are the pack's argument rather than decoration. The flow Views read the
+     SECOND job's output (`charted`), never the first: the join is 2,658 rows and the
+     builder's live run keeps 2,000 of them, so a View bound to the join would lose the
+     last twelve committees — including both Trump committees — silently, which is the
+     partisan artifact slice (a) went out of its way to avoid. And the two shares on the
+     state table are CALC COLUMNS on the View, not extract columns: the extract ships
+     the dollar figures and deliberately not their ratios, so opening the View is how
+     you see the arithmetic.
+
+     One honest limit, stated rather than hidden: the measure column of a rolled-up
+     basis is named by the pivot ("SUM amount"), so that is what these Views' columns
+     are called. It is the same label the builder writes for a View you save yourself —
+     a seeded View that quietly used a prettier name would be the odd one out, and the
+     number underneath is the same either way. */
+  function campaignFinanceViewDefs(ds) {
+    return [
+      {
+        // The hero, and the flow the pack was extracted to draw. The floor is the
+        // dashboard's own CF_FLOW_FLOOR — a READABILITY floor, not a significance one
+        // (a sankey lays its nodes out with an 11px gap, so the limit is the node
+        // count), and here it is a filter chip one drag from gone.
+        key: "flow", dsId: ds.charted.id,
+        name: "Campaign Finance — donor state to recipient committee, flows of " +
+          cfMillions(CF_FLOW_FLOOR) + " or more",
+        chartType: "sankey",
+        shelfRows: [{ col: "state" }],
+        shelfCols: [{ col: "committee", agg: null }, { col: "amount", agg: "sum" }],
+        filters: [{ col: "amount", kind: "range", min: String(CF_FLOW_FLOOR), max: "" }],
+        opts: { srcCap: "Donor state", dstCap: "Recipient committee", fmt: "money", height: 520 }
+      },
+      {
+        // is_home_state is a 0/1 the extract denormalized into the flow table (the job
+        // engine derives arithmetic and cannot compare two strings), so "the state the
+        // candidate is running in" is an ordinary value filter — the builder's own `in`
+        // grammar. One row per committee survives it, so AVG is that committee's share.
+        key: "home_state", dsId: ds.charted.id,
+        name: "Campaign Finance — share of a candidate's itemized money that came from their own state",
+        chartType: "bars",
+        shelfRows: [],
+        shelfCols: [{ col: "committee", agg: null }, { col: "pct_of_committee", agg: "avg" }],
+        filters: [{ col: "is_home_state", kind: "in", values: ["1"] }],
+        opts: { horizontal: true, sortBars: true, showValues: true, fmt: "pct", height: 460 }
+      },
+      {
+        // The donor's own reported state, on the app's built-in state geometry. Sixteen
+        // of the rows have no geometry (the overseas military codes, the territories, a
+        // few Canadian provinces typed into the field, and ZZ) and they are left in on
+        // purpose: they colour nothing, and dropping them would change every total.
+        key: "states", dsId: ds.states.id,
+        name: "Campaign Finance — itemized individual giving by donor state",
+        chartType: "choropleth", mapScale: "state",
+        shelfRows: [],
+        shelfCols: [{ col: "state", agg: null }, { col: "amount", agg: "sum" }],
+        opts: { scale: "state", fmt: "money", agg: "sum", classes: 6, height: 320 }
+      },
+      {
+        // Every donor state rather than the map's top class — because the finding the
+        // map cannot show (a linear colour scale over a power law) is exactly the one a
+        // sortable table can. Both shares are calc columns for the reason above.
+        key: "how_it_arrives", dsId: ds.states.id,
+        name: "Campaign Finance — every donor state, by what it gave and how it arrived",
+        chartType: "table",
+        shelfRows: [],
+        shelfCols: ["state", "contributions", "amount", CF_SMALL_PCT_CALC.name, CF_MAXOUT_PCT_CALC.name]
+          .map(function (c) { return { col: c, agg: null }; }),
+        calcs: [CF_SMALL_PCT_CALC, CF_MAXOUT_PCT_CALC],
+        tableCols: [
+          { col: "state", label: "Donor state" },
+          { col: "contributions", label: "Contributions", num: true, fmt: "n" },
+          { col: "amount", label: "Itemized", num: true, fmt: "money" },
+          { col: CF_SMALL_PCT_CALC.name, label: "In gifts under $200", num: true, fmt: "pct" },
+          { col: CF_MAXOUT_PCT_CALC.name, label: "In max-out gifts", num: true, fmt: "pct" }
+        ],
+        opts: { pageSize: 12, freezeHeader: true, density: "comfortable" }
+      }
+    ];
+  }
+  // The pivot a given chart type's basis is actually computed from — chartBasis's own
+  // rule, mirrored here because the seed runs without a builder state to ask. Only the
+  // shapes this pack uses are covered, and the sankey one is the interesting case: its
+  // basis is the flat triple [source, target, measure], NOT a crosstab, so the Rows
+  // field is folded into the Columns pivot exactly the way app/build.js does it.
+  function campaignFinanceBasisShelf(def) {
+    if (def.chartType === "sankey") {
+      return [{ col: def.shelfRows[0].col, agg: null }].concat(def.shelfCols);
+    }
+    return def.shelfCols;
+  }
+  function campaignFinanceViewRow(def, table) {
+    var blob = {
+      dsKind: "ws", dsId: def.dsId, chartType: def.chartType,
+      shelfCols: Studio.clone(def.shelfCols), shelfRows: Studio.clone(def.shelfRows || []),
+      filters: Studio.clone(def.filters || []), calcs: Studio.clone(def.calcs || []),
+      shelfColor: [], paletteKey: "", mapScale: def.mapScale || ""
+    };
+    // Calc columns first — a shelf can name one, so the basis has to be computed over
+    // the EFFECTIVE columns (bdEff's rule), not the raw CSV's. Over the UNFILTERED rows
+    // on purpose, the same as SP-1 and SP-6: a filter changes which rows come back,
+    // never which columns do, and only the head is wanted here (the rows are runBlob's
+    // job).
+    var eff = Studio.applyCalcCols(table.columns, table.rows, (def.calcs || []).map(function (c) {
+      return { name: c.name, formula: c.formula, type: "Numeric" };
+    }));
+    var basis = Studio.Build.compute(eff.cols, eff.rows, campaignFinanceBasisShelf(def), []);
+    if (!basis || basis.head.length < 2) return null;
+    var da = { id: "cfv_" + def.key, name: def.name, kind: "sql", sql: "", query: "",
+      columns: basis.head.slice(), params: [], authored: true };
+    da.builder = Studio.clone(blob);
+    var p = Studio.newPanel(def.chartType, da);
+    if (def.chartType === "choropleth") {
+      // bdPanelFor's reason, verbatim: the measure column here is a synthesized "SUM
+      // amount" label and Studio.guessChoroplethCols can misjudge one, so the basis is
+      // mapped back POSITIONALLY the same way chartBasis built it — [id, value].
+      p.chart.map = { idCol: basis.head[0], valueCol: basis.head[1] };
+    }
+    // newPanel's table default marks every column after the first numeric and titleizes
+    // its label — right for an ad-hoc pivot, wrong for `state`. Declared columns win.
+    if (def.tableCols) p.chart.map.cols = Studio.clone(def.tableCols);
+    if (def.opts) Object.keys(def.opts).forEach(function (k) { p.chart.opts[k] = def.opts[k]; });
+    return {
+      name: def.name, folder: CF_FOLDER, demoPackId: "campaignfinance",
+      pinned: true, panelTitle: "", chartType: def.chartType, paletteKey: "",
+      da: da, builder: Studio.clone(blob), chart: p.chart
+    };
+  }
+  // Idempotent by View name, the convention every seeder in this file uses, so it is
+  // safe from the seed, from the boot heal, and in a workspace where someone deleted one.
+  function seedCampaignFinanceViews(W, id, ds) {
+    if (!ds) return 0;
+    var tables = {};
+    var have = {};
+    W.all("analyses").forEach(function (r) { if (r.demoPackId === id) have[r.name] = true; });
+    var added = 0;
+    // Seeded in REVERSE of the reading order above: Home sorts pinned Views newest-first,
+    // so the flow hero has to be the last row written to lead the shelf (the CONS-2/
+    // CONS-3 convention the dashboards are seeded by too).
+    campaignFinanceViewDefs(ds).slice().reverse().forEach(function (def) {
+      if (have[def.name]) return;
+      // Parsed once per dataset, not once per View — the four share two tables.
+      if (!tables[def.dsId]) {
+        var row = W.get("datasets", def.dsId);
+        tables[def.dsId] = parsePackCsv((row && row.content) || "");
+      }
+      var t = tables[def.dsId];
+      if (!t || !t.rows.length) return;
+      var view = campaignFinanceViewRow(def, t);
+      if (!view) return;
+      W.put("analyses", view);
+      added++;
+    });
+    return added;
+  }
+  // The boot heal, paired with ensureCampaignFinanceDashboards above and for the same
+  // reason: a workspace that installed the pack at slice (a) or (b) gets the Views
+  // without a reinstall. False when there is nothing to do.
+  Studio.ensureCampaignFinanceViews = function () {
+    var id = "campaignfinance";
+    if (!Studio.demoPackInstalled(id)) return false;
+    var W = Studio.Workspace;
+    return seedCampaignFinanceViews(W, id, campaignFinanceDatasets(W, id)) > 0;
+  };
+
+  /* ---- SP-13 (a): Where America Moved — the data foundation --------------------------
+     The pack asks two questions, and the second is the one no single-county table can
+     answer: who is winning households, and are the people arriving richer than the people
+     leaving? That needs the income that MOVED, which is exactly what the IRS matches
+     returns year-over-year to publish. tools/pack-extract/countymigration.mjs is the
+     provenance record; it ships four tables — every county's arrivals and departures, the
+     same for the states plus the households that STAYED, the 300 largest state-to-state
+     corridors, and the biggest county corridors out of each state.
+
+     TWO THINGS TO KNOW BEFORE READING ANY NUMBER HERE, both stated in the extract's notes
+     and both repeated on the datasets so a reader meets them where the rows are:
+     * AGI is THOUSANDS of dollars, as the IRS publishes it. Every column carrying it is
+       named `_agi_k`, and nothing in this file rescales it.
+     * THE TWO GRAINS DO NOT ADD UP, and that is the source's own definition rather than a
+       gap in the extract: a county's total counts every US move including moves within its
+       own state, while a state's total counts only moves ACROSS state lines. Summing the
+       counties of a state and expecting the state row is the one mistake this data invites.
+
+     The two jobs are the pack's data-prep story, and they were chosen for what they let a
+     chart ask rather than for showing off steps:
+     * COUNTY grain, five derives: net households, net income, and the average income of
+       arrivers against leavers — so "who is winning" and "at what income" are columns on
+       one row, which is the whole point of the pack.
+     * STATE grain, a real JOIN: each corridor gains the state it left, so a corridor can
+       be read as a SHARE of that state's departures, and its movers' average income can be
+       set against that state's STAYERS. The stayers only exist at state grain in this
+       source, so the leavers-versus-stayers reading lives here and the county job answers
+       arrivers-versus-leavers instead.
+     The county job deliberately does NOT join the state table: it would multiply nine
+     state columns across 3,087 county rows in a workspace that lives in one localStorage
+     blob, to restate facts the state table already holds at its own grain.
+
+     Everything below the connection is written by seedCountyMigrationData once
+     Studio.ensurePackDataMaterialized has the bytes (the SP-1 convention). */
+  var CM_FOLDER = "Where America Moved";
+  var CM_COUNTIES = "county-migration.csv";
+  var CM_STATES = "state-migration.csv";
+  var CM_STATE_FLOWS = "state-flows.csv";
+  var CM_COUNTY_PAIRS = "county-pairs.csv";
+  var CM_SOURCE_DESC = "IRS Statistics of Income migration data for filing years 2022-2023, " +
+    "extracted by tools/pack-extract/countymigration.mjs and read from files in your browser.";
+  var CM_CONN = { name: "IRS SOI migration files — embedded extracts", adapter: "file", cfg: {}, desc: CM_SOURCE_DESC };
+
+  function installCountyMigrationConnection() {
+    Studio.Workspace.put("connections", Object.assign({}, CM_CONN, { folder: CM_FOLDER, demoPackId: "countymigration" }));
+  }
+  // The pack's own connection, however install left it — looked up rather than threaded
+  // through, because install() and the seed run in different turns (the SP-1 convention).
+  function countyMigrationConnection() {
+    return Studio.Workspace.all("connections").filter(function (r) { return r.demoPackId === "countymigration"; })[0] ||
+      Studio.Workspace.put("connections", Object.assign({}, CM_CONN, { folder: CM_FOLDER, demoPackId: "countymigration" }));
+  }
+
+  // Each job's steps, as a fresh array per call — the same definition seeds the job row AND
+  // pre-computes its output below, so the two can never describe different work.
+  function countyMigrationCountySteps() {
+    return [
+      // Who is winning, in households and in dollars. Both are plain subtractions, so the
+      // sign of the column IS the answer and nothing has to be re-derived to read it.
+      { op: "derive", outCol: "net_returns", a: { col: "in_returns" }, operator: "-", b: { col: "out_returns" } },
+      { op: "derive", outCol: "net_agi_k", a: { col: "in_agi_k" }, operator: "-", b: { col: "out_agi_k" } },
+      // And at what income. Average AGI per household, each side computed the same way, so
+      // the gap between them is a difference of two like numbers rather than a ratio of
+      // totals that a county's SIZE would dominate.
+      { op: "derive", outCol: "arrivers_avg_agi_k", a: { col: "in_agi_k" }, operator: "/", b: { col: "in_returns" } },
+      { op: "derive", outCol: "leavers_avg_agi_k", a: { col: "out_agi_k" }, operator: "/", b: { col: "out_returns" } },
+      { op: "derive", outCol: "income_gap_k", a: { col: "arrivers_avg_agi_k" }, operator: "-", b: { col: "leavers_avg_agi_k" } }
+    ];
+  }
+  function countyMigrationStateSteps(statesDatasetId) {
+    return [
+      // The join the pack exists to show: a corridor gains the whole picture of the state
+      // it left — that state's departures, and its non-migrants. Nothing collides, because
+      // the extract names the corridor's own measures `returns`/`people`/`agi_k` and the
+      // state's `in_*`/`out_*`/`stay_*` (the join drops the right-hand key column).
+      { op: "join", datasetId: statesDatasetId, leftCol: "from_state", rightCol: "state", type: "inner" },
+      // This corridor as a share of everyone who left that state. The state's departures
+      // are divided down to ONE PERCENT first, so the ratio that follows is a plain
+      // division and every intermediate column is a number a reader can name (the SP-1,
+      // SP-5 and SP-6 shape).
+      { op: "derive", outCol: "one_pct_of_state_departures", a: { col: "out_returns" }, operator: "/", b: { value: 100 } },
+      { op: "derive", outCol: "pct_of_state_departures", a: { col: "returns" }, operator: "/", b: { col: "one_pct_of_state_departures" } },
+      // And the comparison the pack is named for, which only this grain can make: the
+      // average income of the households on this corridor against the average income of the
+      // ones who stayed put in the state they left.
+      { op: "derive", outCol: "movers_avg_agi_k", a: { col: "agi_k" }, operator: "/", b: { col: "returns" } },
+      { op: "derive", outCol: "stayers_avg_agi_k", a: { col: "stay_agi_k" }, operator: "/", b: { col: "stay_returns" } },
+      { op: "derive", outCol: "movers_vs_stayers_agi_k", a: { col: "movers_avg_agi_k" }, operator: "-", b: { col: "stayers_avg_agi_k" } }
+    ];
+  }
+  // SP-13 (b): the county table is bigger than a live View can hold, so the pack trims it
+  // by a rule instead of inheriting the app's cap silently. `total_moves` is derived first
+  // because the rule is about a county's WHOLE churn, both directions — filtering on
+  // arrivals alone would have kept the gainers and dropped the places people are leaving,
+  // which is half of what the map is for. See the job for the measurement.
+  function countyMigrationMapSteps() {
+    return [
+      { op: "derive", outCol: "total_moves", a: { col: "in_returns" }, operator: "+", b: { col: "out_returns" } },
+      { op: "filter", col: "total_moves", cmp: "gte", value: CM_MAP_FLOOR }
+    ];
+  }
+
+  function seedCountyMigrationData(csv) {
+    var id = "countymigration", W = Studio.Workspace;
+    var conn = countyMigrationConnection();
+    var tags = ["demo", "migration", "geo"];
+
+    var countiesDs = W.put("datasets", {
+      name: "County arrivals and departures — 2022-2023", connectionId: conn.id,
+      kind: "file", format: "csv", fileName: CM_COUNTIES,
+      content: csv[CM_COUNTIES],
+      columns: ["fips", "county", "state", "in_returns", "in_agi_k", "out_returns", "out_agi_k"],
+      folder: CM_FOLDER, demoPackId: id, tags: tags
+    });
+    var statesDs = W.put("datasets", {
+      name: "State arrivals, departures and the households that stayed — 2022-2023", connectionId: conn.id,
+      kind: "file", format: "csv", fileName: CM_STATES,
+      content: csv[CM_STATES],
+      columns: ["state", "state_name", "in_returns", "in_people", "in_agi_k",
+                "out_returns", "out_people", "out_agi_k", "stay_returns", "stay_people", "stay_agi_k"],
+      folder: CM_FOLDER, demoPackId: id, tags: tags
+    });
+    var stateFlowsDs = W.put("datasets", {
+      name: "The largest state-to-state corridors — 2022-2023", connectionId: conn.id,
+      kind: "file", format: "csv", fileName: CM_STATE_FLOWS,
+      content: csv[CM_STATE_FLOWS],
+      columns: ["from_state", "to_state", "returns", "people", "agi_k"],
+      folder: CM_FOLDER, demoPackId: id, tags: tags.concat(["flow"])
+    });
+    var countyPairsDs = W.put("datasets", {
+      name: "The biggest county-to-county moves out of each state — 2022-2023", connectionId: conn.id,
+      kind: "file", format: "csv", fileName: CM_COUNTY_PAIRS,
+      content: csv[CM_COUNTY_PAIRS],
+      columns: ["from_fips", "from_county", "from_state", "to_fips", "to_county", "to_state",
+                "returns", "people", "agi_k"],
+      folder: CM_FOLDER, demoPackId: id, tags: tags.concat(["flow"])
+    });
+
+    // Both outputs are pre-materialized so there is something to chart before anyone clicks
+    // Run — and computed by running each job's OWN steps through the engine rather than a
+    // hand-kept second copy of the arithmetic, so a Run rewrites them with identical numbers
+    // instead of quietly correcting them (docs/PACKS.md).
+    var countySteps = countyMigrationCountySteps();
+    var countyOut = Studio.runJobSteps(parsePackCsv(csv[CM_COUNTIES]), countySteps, {});
+    var countyOutName = "Counties — net households, net income and the arrivers-versus-leavers gap (job output)";
+    var countyOutDs = W.put("datasets", {
+      name: countyOutName, connectionId: conn.id,
+      kind: "file", format: "csv", fileName: "county_migration_net.csv",
+      content: countyOut.error ? "" : Studio.rowsToCsv(countyOut.columns, countyOut.rows),
+      columns: (countyOut.columns || []).slice(),
+      folder: CM_FOLDER, demoPackId: id, tags: tags.concat(["job-output"])
+    });
+    W.put("jobs", {
+      name: "Derive each county's net position and its arrivers-versus-leavers gap",
+      sourceDatasetId: countiesDs.id,
+      outputDatasetId: countyOutDs.id, outputName: countyOutName,
+      steps: countySteps,
+      folder: CM_FOLDER, demoPackId: id
+    });
+
+    var stateSteps = countyMigrationStateSteps(statesDs.id);
+    var stateCtx = { datasets: {} };
+    stateCtx.datasets[statesDs.id] = parsePackCsv(csv[CM_STATES]);
+    var stateOut = Studio.runJobSteps(parsePackCsv(csv[CM_STATE_FLOWS]), stateSteps, stateCtx);
+    var stateOutName = "State corridors — each one's share of the state it left, and its movers against that state's stayers (job output)";
+    var stateOutDs = W.put("datasets", {
+      name: stateOutName, connectionId: conn.id,
+      kind: "file", format: "csv", fileName: "state_corridor_shares.csv",
+      content: stateOut.error ? "" : Studio.rowsToCsv(stateOut.columns, stateOut.rows),
+      columns: (stateOut.columns || []).slice(),
+      folder: CM_FOLDER, demoPackId: id, tags: tags.concat(["job-output", "flow"])
+    });
+    W.put("jobs", {
+      name: "Join each corridor to the state it left and take its share",
+      sourceDatasetId: stateFlowsDs.id,
+      outputDatasetId: stateOutDs.id, outputName: stateOutName,
+      steps: stateSteps,
+      folder: CM_FOLDER, demoPackId: id
+    });
+
+    // SP-13 (b): a THIRD job, chained onto the county job's output, and it exists for a
+    // measured limit of the app rather than anything about the IRS — the same reason and
+    // the same shape as SP-5's second job.
+    //
+    // The View Builder runs a workspace dataset live and keeps the FIRST 2,000 rows
+    // (app/build.js, bdLoadRowsFor), applied BEFORE the View's own filters, and every
+    // dashboard panel bound to a builder blob inherits it. The county table is 3,087 rows
+    // in FIPS order, so a national choropleth reading it directly would draw the first
+    // 2,000 — Alabama through Ohio — and simply stop. Half the map would be blank, and
+    // nothing on screen would say why.
+    //
+    // So the pack does the trimming ITSELF, in the open, as a job whose rule you can read
+    // and change: keep the counties where at least CM_MAP_FLOOR households arrived or
+    // left. That is 1,782 of the 3,087 and 96.5% of every household move in the extract —
+    // and the map's own subtitle and note state it in those words. Choosing the rule
+    // beats inheriting the accident: the counties it drops are the smallest ones, not the
+    // western half of the country. Lifting the cap is an app change, recorded for Kevin in
+    // the SP-5 item rather than smuggled in here.
+    var mapSteps = countyMigrationMapSteps();
+    var mapOut = Studio.runJobSteps({ columns: countyOut.columns || [], rows: countyOut.rows || [] }, mapSteps, {});
+    var mapOutName = "Counties — the ones a live map can hold (job output)";
+    var mapOutDs = W.put("datasets", {
+      name: mapOutName, connectionId: conn.id,
+      kind: "file", format: "csv", fileName: "county_migration_mapped.csv",
+      content: mapOut.error ? "" : Studio.rowsToCsv(mapOut.columns, mapOut.rows),
+      columns: (mapOut.columns || []).slice(),
+      folder: CM_FOLDER, demoPackId: id, tags: tags.concat(["job-output", "geo"])
+    });
+    W.put("jobs", {
+      name: "Keep the counties a live map can hold",
+      sourceDatasetId: countyOutDs.id,
+      outputDatasetId: mapOutDs.id, outputName: mapOutName,
+      steps: mapSteps,
+      folder: CM_FOLDER, demoPackId: id
+    });
+
+    // SP-13 (b): the dashboards read the jobs' outputs and the extract tables together, so
+    // they are seeded here — the moment those rows exist — rather than in install(), which
+    // runs a turn earlier with nothing to chart yet (the SP-1/SP-6/SP-5 convention).
+    var seededDs = {
+      counties: countiesDs, states: statesDs, stateFlows: stateFlowsDs, countyPairs: countyPairsDs,
+      countyOutput: countyOutDs, stateOutput: stateOutDs, mapped: mapOutDs
+    };
+    seedCountyMigrationDashboards(W, id, seededDs, new Date().toISOString());
+    // SP-13 (c): and the pinned Views, from the same turn and for the same reason — the
+    // rows they are computed over exist only now. Last, so the Views are the newest rows
+    // in the workspace and lead Home's pinned shelf.
+    seedCountyMigrationViews(W, id, seededDs);
+
+    return { counties: countiesDs, states: statesDs, stateFlows: stateFlowsDs,
+             countyPairs: countyPairsDs, countyOutput: countyOutDs, stateOutput: stateOutDs,
+             mapped: mapOutDs };
+  }
+
+  /* ---- SP-13 (b): the pack's three dashboards ---------------------------------------
+     The pack asks who is winning households and whose income moved with them, and the
+     honest answer has to be given at TWO GRAINS that do not add up — the source's own
+     definition, not a gap in the extract: a county's total counts every US move including
+     the ones inside its own state, a state's counts only moves across a state line. So
+     the dashboards are split by grain rather than by topic, and each one says on its face
+     which universe it is in:
+
+       1. WHO IS WINNING HOUSEHOLDS (the hero) — COUNTY grain. The net-migration
+          choropleth the pack was extracted to draw, its income twin, and the counties at
+          both ends of both.
+       2. THE CORRIDORS — STATE grain. Where the households actually went, as a flow, and
+          the corridors that carry an outsized share of the state they leave.
+       3. DID THE MONEY MOVE WITH THEM — STATE grain, and the comparison only this grain
+          can make: the households on a corridor against the ones who STAYED in the state
+          they left. The stayers exist at state grain and nowhere else in this source.
+
+     Conventions carried from SP-1, SP-6 and SP-5, for the same reasons: every charted
+     panel is bound to a builder-blob DA over one of the pack's OWN datasets (curatedDA),
+     so #118's live re-run feeds the panels the real rows; a panel showing a SUBSET
+     narrows it with the builder's own filter grammar rather than a hand-cut dataset; and
+     every figure quoted in copy is computed from the shipped rows at seed time, never
+     typed.
+
+     THE TWO THINGS THIS SLICE HAD TO GET RIGHT, both of them measured:
+     * THE MAP CANNOT DRAW EVERY COUNTY. A live View keeps 2,000 rows and the county table
+       is 3,087, so the pack ships a third job that trims by a rule (CM_MAP_FLOOR) and
+       every county panel reads THAT output. The rule, the count and what it costs are on
+       the dashboard, not in a footnote — see the job.
+     * AND ELEVEN COUNTIES HAVE NO SHAPE AT ALL. The app's committed county atlas predates
+       the 2022 boundary changes, so Connecticut's nine planning regions and Alaska's
+       Chugach and Copper River are real rows with no geometry. They stay in every total
+       and the note says so, because a reader who sees Connecticut blank deserves to know
+       it is the atlas rather than the data. */
+  // Seeding order, and it matters: the hero is LAST so it is the newest row and tops a
+  // recency-sorted list (the CONS-2/CONS-3 convention SP-1, SP-6 and SP-5 all follow).
+  var CM_DASHBOARDS = ["countymigration-income", "countymigration-corridors", "countymigration-counties"];
+  // NOT a readability floor — the builder's live-run cap, taken deliberately by the pack's
+  // third job so the trimming is visible instead of silent (the SP-5 precedent).
+  var CM_MAP_FLOOR = 1000;        // 1,782 of 3,087 counties, 96.5% of all household moves
+  // These three ARE readability floors, the same kind of constant as SP-1's MC_BIG_COUNTY
+  // and SP-6's FCA_FLOW_FLOOR, and every panel applying one says so in its own subtitle.
+  //
+  // The corridor floor was measured the way SP-5's and SP-6's were: a sankey lays its
+  // nodes out with an 11px gap, so the readable limit is the node COUNT. At 8,000
+  // households the state side has 31 nodes and the destination side 28 and the labels
+  // collide; at 12,000 it is 21 and 20, which the panel's height then gives ~30px apiece.
+  var CM_CORRIDOR_FLOOR = 12000;  // the hero sankey: 49 of the 306 published corridors
+  var CM_BIG_MOVE = 3000;         // the county bars: 29 gainers, 33 losers — a readable wall
+  var CM_DOMINANT_PCT = 15;       // "a corridor carrying a sixth of a state's leavers" (31 rows)
+
+  // The pack's own headline figures, derived from the shipped rows at seed time rather
+  // than typed in — the SP-1 rule, so a re-extract that moves the numbers re-seeds copy
+  // that is still true, and the suite recomputes them independently and demands they agree.
+  function cmSum(t, col) {
+    var i = ((t && t.columns) || []).indexOf(col);
+    return i < 0 ? 0 : (t.rows || []).reduce(function (a, r) { return a + (Number(r[i]) || 0); }, 0);
+  }
+  function countyMigrationFigures(counties, mapped, states, corridors) {
+    var movesAll = cmSum(counties, "in_returns") + cmSum(counties, "out_returns");
+    var movesDrawn = cmSum(mapped, "in_returns") + cmSum(mapped, "out_returns");
+    var netI = ((mapped && mapped.columns) || []).indexOf("net_returns");
+    var gainers = 0, losers = 0;
+    if (netI >= 0) (mapped.rows || []).forEach(function (r) {
+      if (Number(r[netI]) > 0) gainers++; else if (Number(r[netI]) < 0) losers++;
+    });
+    function pct(part, whole) { return whole ? Math.round((part / whole) * 1000) / 10 : 0; }
+    return {
+      countiesAll: ((counties && counties.rows) || []).length,
+      countiesDrawn: ((mapped && mapped.rows) || []).length,
+      movesAll: movesAll, movesDrawn: movesDrawn, drawnPct: pct(movesDrawn, movesAll),
+      gainers: gainers, losers: losers,
+      // The state grain is a DIFFERENT universe, so it gets its own names — nothing here
+      // is ever added to a county figure, and the note panels say why.
+      states: ((states && states.rows) || []).length,
+      interstate: cmSum(states, "in_returns"),
+      stayers: cmSum(states, "stay_returns"),
+      agiArrivedK: cmSum(states, "in_agi_k"),
+      corridors: ((corridors && corridors.rows) || []).length,
+      corridorReturns: cmSum(corridors, "returns")
+    };
+  }
+  // AGI is THOUSANDS of dollars, as the IRS publishes it and as every `_agi_k` column in
+  // this pack carries it. These two exist so no line of copy ever prints a raw `_agi_k`
+  // number with a dollar sign in front of it, which would be a thousand-fold lie.
+  function cmBillions(k) { return "$" + (Math.round(k / 1e5) / 10).toLocaleString() + "B"; }
+  function cmPerHousehold(k) { return "$" + Math.round(k).toLocaleString() + ",000"; }
+  function cmN(n) { return Math.round(n).toLocaleString(); }
+  // The county map, twice — once for households and once for the income gap. Both are
+  // DIVERGING around zero, because the number's sign is the whole finding: a county that
+  // gained households and one that lost them are not two shades of the same colour.
+  function cmDiverging(daId, valueCol, height) {
+    return { type: "choropleth", da: daId,
+      map: { idCol: "fips", valueCol: valueCol },
+      opts: { scale: "county", fmt: "abbr", agg: "median", classes: 6, height: height || 380,
+        divergeToken: "--warn", center: 0 } };
+  }
+
+  // (1) the hero: who is winning households, at county grain.
+  function countyMigrationCountiesSpec(ds, f) {
+    var das = [], panels = [], kpis = [];
+    var mapDa = curatedDA("vcm_map", "Where America Moved — counties a live map can hold",
+      ds.mapped.id, ["fips", "county", "state", "in_returns", "out_returns", "net_returns",
+        "net_agi_k", "arrivers_avg_agi_k", "leavers_avg_agi_k", "income_gap_k", "total_moves"]);
+    das.push(mapDa);
+    kpis.push({ da: mapDa.id, valueCol: "total_moves", label: "Household moves counted here",
+      fmt: "abbr", agg: "sum", subtitle: f.drawnPct.toFixed(1) + "% of every move in the extract", state: "",
+      info: "Arrivals plus departures across the " + cmN(f.countiesDrawn) + " counties this dashboard draws. The pack's third job keeps a county when at least " + cmN(CM_MAP_FLOOR) + " households arrived or left it — the rule exists because a live View holds 2,000 rows and the full table is " + cmN(f.countiesAll) + ". County grain counts every US move, including moves within a state." });
+    kpis.push({ da: mapDa.id, valueCol: "net_returns", label: "Biggest net gain",
+      fmt: "abbr", agg: "max", subtitle: "one county, one year", state: "",
+      info: "Households arriving minus households leaving. A household here is a tax return filed from a new address." });
+    kpis.push({ da: mapDa.id, valueCol: "net_returns", label: "Biggest net loss",
+      fmt: "abbr", agg: "min", subtitle: "one county, one year", state: "",
+      info: "The same subtraction at the other end. The largest counties sit at both ends of this list — size, not just direction." });
+    kpis.push({ da: mapDa.id, valueCol: "income_gap_k", label: "Median county's income gap",
+      fmt: "abbr", agg: "median", subtitle: "arrivers minus leavers, $ thousands", state: "",
+      info: "Average AGI per arriving household minus average AGI per leaving household, in thousands of dollars. Positive means the people moving in report more income than the people moving out." });
+
+    panels.push({ id: "pcm_net", section: "Who is winning households",
+      title: "Net household migration by county", span: "full",
+      sub: cmN(f.countiesDrawn) + " counties with " + cmN(CM_MAP_FLOOR) + "+ households arriving or leaving — green gained, orange lost",
+      info: "The colour scale diverges at zero, so the hue is the direction and the depth is the size. " + cmN(f.gainers) + " of these counties gained households and " + cmN(f.losers) + " lost them.",
+      chart: cmDiverging(mapDa.id, "net_returns", 480) });
+
+    panels.push({ id: "pcm_gap", section: "And at what income",
+      title: "The arrivers-versus-leavers income gap", span: 2,
+      sub: "average AGI of arriving households minus leaving ones, $ thousands",
+      info: "Both sides are computed the same way — total AGI divided by households — so the gap is a difference of two like numbers rather than a ratio a county's size would dominate.",
+      chart: cmDiverging(mapDa.id, "income_gap_k", 400) });
+
+    var gainDa = curatedDA("vcm_gain", "Where America Moved — the counties gaining most",
+      ds.mapped.id, ["county", "state", "net_returns"],
+      [{ col: "net_returns", kind: "range", min: String(CM_BIG_MOVE), max: "" }]);
+    das.push(gainDa);
+    panels.push({ id: "pcm_gainers", title: "The counties gaining most households", span: 2,
+      sub: "a net gain of " + cmN(CM_BIG_MOVE) + " households or more",
+      info: "The floor is about readability, not significance — every county is on the map above. Open the View and move it.",
+      chart: { type: "bars", da: gainDa.id, map: { labelCol: "county", valueCol: "net_returns" },
+        opts: { horizontal: true, sortBars: true, showValues: false, fmt: "abbr", height: 400 } } });
+
+    var loseDa = curatedDA("vcm_lose", "Where America Moved — the counties losing most",
+      ds.mapped.id, ["county", "state", "net_returns", "income_gap_k", "total_moves"],
+      [{ col: "net_returns", kind: "range", min: "", max: String(-CM_BIG_MOVE) }]);
+    das.push(loseDa);
+    panels.push({ id: "pcm_losers", section: "Where they left", title: "The counties losing most households", span: "full",
+      sub: "a net loss of " + cmN(CM_BIG_MOVE) + " households or more, with the income gap beside it",
+      info: "The fourth column is the interesting one: losing households and gaining income at the same time is a common pattern here, and it is the pack's whole argument for carrying the money as well as the count.",
+      chart: { type: "table", da: loseDa.id,
+        map: { cols: [
+          { col: "county", label: "County" },
+          { col: "state", label: "State" },
+          { col: "net_returns", label: "Net households", num: true, fmt: "abbr" },
+          { col: "income_gap_k", label: "Income gap ($k)", num: true, fmt: "abbr" },
+          { col: "total_moves", label: "Households on the move", num: true, fmt: "abbr" }
+        ] },
+        opts: { pageSize: 12, freezeHeader: true, density: "comfortable" } } });
+
+    panels.push({ id: "pcm_note", section: "How to read it", title: "What this dashboard is counting", span: "full",
+      chart: { type: "richtext", da: null, opts: { content: [
+        "**A household, not a person.** The IRS matches one filing year's returns against the last one, so a \"move\" here is a tax return filed from a new address. The extract carries people too, at state grain, and the two counts are not interchangeable.",
+        "",
+        "**This page is COUNTY grain, and county grain is a different universe from state grain.** A county's totals count every US move it saw, including moves from the next county over inside the same state. A state's totals count only moves across a state line. Summing these counties and expecting the state page to agree is the one mistake this data invites — so no number here is ever added to a number there.",
+        "",
+        "**" + cmN(f.countiesAll - f.countiesDrawn) + " counties are not drawn, by a rule you can open.** A live View holds 2,000 rows and the full county table is " + cmN(f.countiesAll) + ", so the pack's third job keeps the counties where at least " + cmN(CM_MAP_FLOOR) + " households arrived or left. That is **" + cmN(f.countiesDrawn) + "** counties carrying **" + f.drawnPct.toFixed(1) + "%** of all household moves. The ones it drops are the smallest, not a region — and the job is in the pack's own folder if you want a different rule.",
+        "",
+        "**Eleven more have no shape to draw at all, and they are in the data anyway.** The app's committed county atlas predates the 2022 boundary changes: Connecticut replaced its eight counties with nine planning regions, and Alaska split Chugach and Copper River out of Valdez-Cordova. Those rows are real and they are counted in every total on this page — Connecticut reading blank is the atlas, not the data.",
+        "",
+        "- Counties in the extract: **" + cmN(f.countiesAll) + "** · drawn here: **" + cmN(f.countiesDrawn) + "**",
+        "- Household moves counted on this page: **" + cmN(f.movesDrawn) + "** of **" + cmN(f.movesAll) + "**",
+        "- Gaining households: **" + cmN(f.gainers) + "** counties · losing: **" + cmN(f.losers) + "**"
+      ].join("\n") } } });
+
+    return {
+      id: "countymigration-counties", name: "countymigration-counties",
+      title: "Who Is Winning Households",
+      subtitle: "Net migration and the income gap by county, 2022-2023 — county grain, so every US move counts",
+      dashboardTheme: "polecat",
+      panels: panels, kpis: kpis, filters: [],
+      cda: { connections: [], dataAccesses: das }
+    };
+  }
+
+  // (2) where they actually went: the corridors, at state grain.
+  function countyMigrationCorridorsSpec(ds, f) {
+    var das = [], panels = [], kpis = [];
+    var flowDa = curatedDA("vcm_flow_all", "Where America Moved — every published state corridor",
+      ds.stateOutput.id, ["from_state", "to_state", "returns", "people", "agi_k", "pct_of_state_departures"]);
+    das.push(flowDa);
+    kpis.push({ da: flowDa.id, valueCol: "returns", label: "Households on these corridors",
+      fmt: "abbr", agg: "sum", subtitle: f.corridors + " corridors, state grain", state: "",
+      info: "The six largest destinations out of each state — about half of all moves across a state line. State grain counts only moves that crossed one, so this never adds to the county page." });
+    kpis.push({ da: flowDa.id, valueCol: "returns", label: "Largest single corridor",
+      fmt: "abbr", agg: "max", subtitle: "one state to one state", state: "",
+      info: "Households that filed from a new address in a different state, in one year." });
+    kpis.push({ da: flowDa.id, valueCol: "pct_of_state_departures", label: "Most concentrated corridor",
+      fmt: "pct", agg: "max", subtitle: "of one state's leavers", state: "",
+      info: "The pack's join divides each corridor by the departures of the state it leaves. This is the highest result — the single destination that takes the biggest share of one state's leavers." });
+
+    var bigFlowDa = curatedDA("vcm_flow_big", "Where America Moved — the largest state-to-state corridors",
+      ds.stateOutput.id, ["from_state", "to_state", "returns"],
+      [{ col: "returns", kind: "range", min: String(CM_CORRIDOR_FLOOR), max: "" }]);
+    das.push(bigFlowDa);
+    panels.push({ id: "pcc_flow", section: "Where the households went",
+      title: "State to state", span: "full",
+      sub: "corridors of " + cmN(CM_CORRIDOR_FLOOR) + " households or more — the band width is the households",
+      info: "One ribbon per state pair, left is where they left. The floor is about readability, not significance: all " + f.corridors + " corridors at once is a hairball. Open the View and move it.",
+      chart: { type: "sankey", da: bigFlowDa.id,
+        map: { sourceCol: "from_state", targetCol: "to_state", valueCol: "returns" },
+        opts: { srcCap: "Left this state", dstCap: "Arrived in this state", fmt: "abbr", height: 700 } } });
+
+    var domDa = curatedDA("vcm_dominant", "Where America Moved — corridors taking a sixth of their state",
+      ds.stateOutput.id, ["from_state", "to_state", "returns", "pct_of_state_departures", "movers_avg_agi_k"],
+      [{ col: "pct_of_state_departures", kind: "range", min: String(CM_DOMINANT_PCT), max: "" }]);
+    das.push(domDa);
+    panels.push({ id: "pcc_dominant", section: "The corridors that dominate a state",
+      title: "One destination taking " + CM_DOMINANT_PCT + "% or more of a state's leavers", span: "full",
+      sub: "the share is the pack's own join — this corridor divided by everyone who left that state",
+      info: "Nearly all of these are neighbours, which is the honest headline of interstate migration: most moves are short. The exceptions are the ones worth reading.",
+      chart: { type: "table", da: domDa.id,
+        map: { cols: [
+          { col: "from_state", label: "Left" },
+          { col: "to_state", label: "Arrived" },
+          { col: "returns", label: "Households", num: true, fmt: "abbr" },
+          { col: "pct_of_state_departures", label: "Share of that state's leavers", num: true, fmt: "pct" },
+          { col: "movers_avg_agi_k", label: "Their average AGI ($k)", num: true, fmt: "abbr" }
+        ] },
+        opts: { pageSize: 12, freezeHeader: true, density: "comfortable" } } });
+
+    var pairsDa = curatedDA("vcm_pairs", "Where America Moved — the biggest county-to-county moves",
+      ds.countyPairs.id, ["from_county", "from_state", "to_county", "to_state", "returns", "people", "agi_k"]);
+    das.push(pairsDa);
+    panels.push({ id: "pcc_pairs", section: "And the same question one grain down",
+      title: "The biggest county-to-county moves out of each state", span: "full",
+      sub: "the three largest destinations out of every state — county grain, so a move inside a state counts",
+      info: "This table is the only place the two grains sit on one page, and they are in separate Views on purpose: the corridors above cross a state line by definition, and most of the rows here do not.",
+      chart: { type: "table", da: pairsDa.id,
+        map: { cols: [
+          { col: "from_county", label: "Left" },
+          { col: "from_state", label: "" },
+          { col: "to_county", label: "Arrived" },
+          { col: "to_state", label: " " },
+          { col: "returns", label: "Households", num: true, fmt: "abbr" },
+          { col: "people", label: "People", num: true, fmt: "abbr" }
+        ] },
+        opts: { pageSize: 12, freezeHeader: true, density: "comfortable" } } });
+
+    panels.push({ id: "pcc_note", section: "How to read it", title: "What a corridor is, and what it is not", span: "full",
+      chart: { type: "richtext", da: null, opts: { content: [
+        "**These are the published corridors, not every corridor.** The extract keeps the six largest destinations out of each state — " + f.corridors + " of the 2,544 the IRS publishes, carrying about half of all households that moved across a state line. A state's kept corridors are therefore a partition of its leavers that does not reach 100%, which is why the share column never sums to it.",
+        "",
+        "**This page is STATE grain.** Every row crossed a state line, by definition. The county page counts moves inside a state too, so the two pages measure different universes and are never added together — the source defines them that way, and the extract's notes say so.",
+        "",
+        "**A household is a tax return.** " + cmN(f.interstate) + " households filed from an address in a different state; " + cmN(f.stayers) + " filed from the same state they filed from the year before. That second number is the baseline the income dashboard uses, and it exists only at this grain.",
+        "",
+        "- Corridors on this page: **" + f.corridors + "** carrying **" + cmN(f.corridorReturns) + "** households",
+        "- Households moving across a state line, all corridors: **" + cmN(f.interstate) + "**",
+        "- Corridors drawn in the flow above: those of **" + cmN(CM_CORRIDOR_FLOOR) + "** households or more"
+      ].join("\n") } } });
+
+    return {
+      id: "countymigration-corridors", name: "countymigration-corridors",
+      title: "The Corridors",
+      subtitle: "The largest state-to-state moves of 2022-2023, and the ones that carry a state on their own",
+      dashboardTheme: "polecat",
+      panels: panels, kpis: kpis, filters: [],
+      cda: { connections: [], dataAccesses: das }
+    };
+  }
+
+  // (3) the money: did it move with them, and how do the movers compare to the stayers.
+  var CM_NET_AGI_CALC = { name: "net_agi_k", formula: "[in_agi_k] - [out_agi_k]" };
+  var CM_STAY_AVG_CALC = { name: "stayers_avg_agi_k", formula: "[stay_agi_k] / [stay_returns]" };
+  function countyMigrationIncomeSpec(ds, f) {
+    var das = [], panels = [], kpis = [];
+    var stateDa = curatedDA("vcm_states", "Where America Moved — states, with the income that arrived and left",
+      ds.states.id, ["state", "state_name", "in_returns", "out_returns", "in_agi_k", "out_agi_k",
+        "stay_returns", "stay_agi_k", CM_NET_AGI_CALC.name, CM_STAY_AVG_CALC.name],
+      [], [CM_NET_AGI_CALC, CM_STAY_AVG_CALC]);
+    das.push(stateDa);
+    kpis.push({ da: stateDa.id, valueCol: CM_NET_AGI_CALC.name, label: "Biggest net income gain",
+      fmt: "abbr", agg: "max", subtitle: "one state, $ thousands", state: "",
+      info: "This View's own calculated column: in_agi_k minus out_agi_k. AGI is thousands of dollars, as the IRS publishes it — so a value of 20,000,000 here is $20 billion." });
+    kpis.push({ da: stateDa.id, valueCol: CM_NET_AGI_CALC.name, label: "Biggest net income loss",
+      fmt: "abbr", agg: "min", subtitle: "one state, $ thousands", state: "",
+      info: "The same calculated column at the other end. Read it beside the net-household map: the two rankings are close, but they are not the same list." });
+    kpis.push({ da: stateDa.id, valueCol: CM_STAY_AVG_CALC.name, label: "Median state's stayers",
+      fmt: "abbr", agg: "median", subtitle: "average AGI per household, $ thousands", state: "",
+      info: "The households that filed from the same state two years running — the baseline everything on this page is measured against, and a fact this source carries only at state grain." });
+    kpis.push({ da: stateDa.id, valueCol: "in_returns", label: "Households arriving from another state",
+      fmt: "abbr", agg: "sum", subtitle: "state grain — a state line was crossed", state: "",
+      info: "Never added to the county page: that one counts moves inside a state as well." });
+
+    panels.push({ id: "pci_map", section: "Whose income moved",
+      title: "Net adjusted gross income by state", span: "full",
+      sub: "a calculated column on this View — in_agi_k minus out_agi_k, $ thousands, green gained",
+      info: "The formula is on the shelf: open this View and it is the first thing you see. The scale diverges at zero because the sign is the finding.",
+      chart: { type: "choropleth", da: stateDa.id,
+        map: { idCol: "state", valueCol: CM_NET_AGI_CALC.name },
+        opts: { scale: "state", fmt: "abbr", agg: "sum", classes: 6, height: 460,
+          divergeToken: "--warn", center: 0 } } });
+
+    var moverDa = curatedDA("vcm_movers", "Where America Moved — movers against the stayers they left behind",
+      ds.stateOutput.id, ["from_state", "to_state", "returns", "movers_avg_agi_k", "stayers_avg_agi_k", "movers_vs_stayers_agi_k"],
+      [{ col: "returns", kind: "range", min: String(CM_CORRIDOR_FLOOR), max: "" }]);
+    das.push(moverDa);
+    panels.push({ id: "pci_movers", section: "Are the leavers richer than the stayers",
+      title: "Average AGI of a corridor's households, minus the stayers of the state they left", span: 2,
+      sub: "corridors of " + cmN(CM_CORRIDOR_FLOOR) + " households or more, $ thousands",
+      info: "This is the pack's title question and it can only be asked here: the households that STAYED are a state-grain fact, so at county grain the honest version is arrivers-versus-leavers instead — which is the hero dashboard's second map.",
+      chart: { type: "bars", da: moverDa.id, map: { labelCol: "to_state", valueCol: "movers_vs_stayers_agi_k" },
+        opts: { horizontal: true, sortBars: true, showValues: false, fmt: "abbr", height: 560 } } });
+
+    panels.push({ id: "pci_scatter", title: "The movers against the stayers, corridor by corridor", span: 2,
+      sub: "one dot per corridor: what its households earn, against what the state they left earns",
+      info: "A corridor on the diagonal moved people of exactly average means. Above it, the state lost households that earned more than the ones staying put.",
+      chart: { type: "scatter", da: moverDa.id,
+        map: { labelCol: "to_state", xCol: "stayers_avg_agi_k", yCol: "movers_avg_agi_k" },
+        opts: { trend: true, fmt: "abbr", xLabel: "Stayers' average AGI ($ thousands)",
+          yLabel: "Movers' average AGI ($ thousands)", height: 560 } } });
+
+    var gapDa = curatedDA("vcm_county_gap", "Where America Moved — arrivers against leavers, by county",
+      ds.mapped.id, ["county", "state", "arrivers_avg_agi_k", "leavers_avg_agi_k", "total_moves"]);
+    das.push(gapDa);
+    panels.push({ id: "pci_county", section: "And the same question at county grain",
+      title: "What arriving households earn, against what leaving households earn", span: "full",
+      sub: "one dot per county, " + cmN(f.countiesDrawn) + " of them — $ thousands of AGI per household",
+      info: "The counties above the trend line are gaining income per household, whether or not they are gaining households. Only the counties the map can hold are here — the same rule, stated on the hero dashboard.",
+      chart: { type: "scatter", da: gapDa.id,
+        map: { labelCol: "county", xCol: "leavers_avg_agi_k", yCol: "arrivers_avg_agi_k" },
+        opts: { trend: true, fmt: "abbr", xLabel: "Leaving households' average AGI ($ thousands)",
+          yLabel: "Arriving households' average AGI ($ thousands)", height: 420 } } });
+
+    panels.push({ id: "pci_note", section: "How to read it", title: "What the money column actually is", span: "full",
+      chart: { type: "richtext", da: null, opts: { content: [
+        "**AGI is thousands of dollars, exactly as the IRS publishes it.** Every column carrying it is named `_agi_k` and nothing in this pack rescales it, so a value of 20,000,000 is $20 billion and a value of 72 is $72,000. The formats on this page are plain numbers for that reason — a dollar sign in front of a thousands figure would be a thousand-fold lie.",
+        "",
+        "**It is the income that MOVED, not the income of a place.** The IRS matches a filing year's returns against the previous year's, so the AGI on a corridor is what the households on that corridor reported — it says nothing about the people already there.",
+        "",
+        "**The stayers are the comparison, and they exist only at state grain.** " + cmN(f.stayers) + " households filed from the same state two years running. That is the baseline every bar on this page is measured against, and it is why the leavers-versus-stayers question cannot be asked of a county in this source.",
+        "",
+        "- Income arriving across state lines: **" + cmBillions(f.agiArrivedK) + "** with **" + cmN(f.interstate) + "** households",
+        "- Which is **" + cmPerHousehold(f.interstate ? f.agiArrivedK / f.interstate : 0) + "** per household, on average, across every state line crossed",
+        "- States on this page: **" + f.states + "** (the 50 and the District of Columbia)"
+      ].join("\n") } } });
+
+    return {
+      id: "countymigration-income", name: "countymigration-income",
+      title: "Did the Money Move With Them",
+      subtitle: "The adjusted gross income that changed state in 2022-2023, and how the movers compare to the households that stayed",
+      dashboardTheme: "polecat",
+      panels: panels, kpis: kpis, filters: [],
+      cda: { connections: [], dataAccesses: das }
+    };
+  }
+
+  // Idempotent by dashboard name (the CONS-1 convention every pack in this file follows),
+  // so it is safe from the seed, from the boot heal, and in a workspace where someone
+  // deleted one of the three.
+  function seedCountyMigrationDashboards(W, id, ds, now) {
+    if (!ds || !ds.counties || !ds.states || !ds.countyPairs || !ds.stateOutput || !ds.mapped) return 0;
+    // The figures are read back off the rows that were just written rather than taken as
+    // arguments: the seed path and the boot heal then cannot disagree about what the pack
+    // says about itself.
+    var f = countyMigrationFigures(parsePackCsv(ds.counties.content), parsePackCsv(ds.mapped.content),
+      parsePackCsv(ds.states.content), parsePackCsv(ds.stateOutput.content));
+    if (!f.countiesAll || !f.countiesDrawn || !f.states || !f.corridors) return 0; // nothing to state honestly, so state nothing
+    var specs = {
+      "countymigration-counties": countyMigrationCountiesSpec(ds, f),
+      "countymigration-corridors": countyMigrationCorridorsSpec(ds, f),
+      "countymigration-income": countyMigrationIncomeSpec(ds, f)
+    };
+    var added = 0;
+    CM_DASHBOARDS.forEach(function (name) {
+      var have = W.all("dashboards").some(function (r) {
+        return r.demoPackId === id && (r.name === name || (r.spec && r.spec.name) === name);
+      });
+      if (have) return;
+      var spec = specs[name];
+      W.put("dashboards", {
+        name: name, title: spec.title, ts: now, spec: spec,
+        folder: CM_FOLDER, demoPackId: id
+      });
+      added++;
+    });
+    return added;
+  }
+
+  // The pack's tables as the seed path names them, found in a workspace rather than
+  // threaded through — the SP-5/SP-6 shape. Returns null unless every table the seeders
+  // read is present WITH content: a half-materialized pack has nothing honest to chart,
+  // and the caller treats that as "nothing to do" rather than an error.
+  function countyMigrationDatasets(W, id) {
+    var mine = W.all("datasets").filter(function (d) { return d.demoPackId === id && d.content; });
+    function byFile(name) {
+      return mine.filter(function (d) { return (d.fileName || "") === name; })[0];
+    }
+    var ds = {
+      counties: byFile(CM_COUNTIES), states: byFile(CM_STATES),
+      stateFlows: byFile(CM_STATE_FLOWS), countyPairs: byFile(CM_COUNTY_PAIRS),
+      // The three job outputs, each by its own file name — all three carry the
+      // job-output tag, so the tag cannot tell them apart.
+      countyOutput: byFile("county_migration_net.csv"),
+      stateOutput: byFile("state_corridor_shares.csv"),
+      mapped: byFile("county_migration_mapped.csv")
+    };
+    return (ds.counties && ds.states && ds.stateFlows && ds.countyPairs &&
+      ds.countyOutput && ds.stateOutput && ds.mapped) ? ds : null;
+  }
+
+  // The boot heal (studio.js reconcilePackDashboards): a workspace that installed the pack
+  // when it was slice (a) — four tables, two jobs, no dashboards — gets the three without a
+  // reinstall, and so does one where a dashboard was deleted. The map job's output is one
+  // of the tables it needs, so an install predating it heals below first.
+  Studio.ensureCountyMigrationDashboards = function () {
+    var id = "countymigration";
+    if (!Studio.demoPackInstalled(id)) return false;
+    var W = Studio.Workspace;
+    var ds = countyMigrationDatasets(W, id);
+    if (!ds) return false;
+    return seedCountyMigrationDashboards(W, id, ds, new Date().toISOString()) > 0;
+  };
+
+  // SP-13 (b): and the job that feeds them, for the same installs — slice (a) shipped two
+  // jobs, so a workspace from that build has no mapped output for the dashboards to read.
+  // Written the same way the seed writes it (the same steps function, run through the same
+  // engine), so a heal and a fresh install produce the same rows.
+  Studio.ensureCountyMigrationMapJob = function () {
+    var id = "countymigration";
+    if (!Studio.demoPackInstalled(id)) return false;
+    var W = Studio.Workspace;
+    var mine = W.all("datasets").filter(function (d) { return d.demoPackId === id && d.content; });
+    if (mine.some(function (d) { return d.fileName === "county_migration_mapped.csv"; })) return false;
+    var src = mine.filter(function (d) { return d.fileName === "county_migration_net.csv"; })[0];
+    if (!src) return false;
+    var steps = countyMigrationMapSteps();
+    var out = Studio.runJobSteps(parsePackCsv(src.content), steps, {});
+    if (out.error || !(out.rows || []).length) return false;
+    var name = "Counties — the ones a live map can hold (job output)";
+    var outDs = W.put("datasets", {
+      name: name, connectionId: src.connectionId,
+      kind: "file", format: "csv", fileName: "county_migration_mapped.csv",
+      content: Studio.rowsToCsv(out.columns, out.rows),
+      columns: (out.columns || []).slice(),
+      folder: CM_FOLDER, demoPackId: id, tags: ["demo", "migration", "geo", "job-output"]
+    });
+    W.put("jobs", {
+      name: "Keep the counties a live map can hold",
+      sourceDatasetId: src.id, outputDatasetId: outDs.id, outputName: name,
+      steps: steps, folder: CM_FOLDER, demoPackId: id
+    });
+    return true;
+  };
+
+  /* ---- SP-13 (c): the pack's four pinned Views ---------------------------------------
+     A dashboard is a finished argument; a View is the thing you open and change. SP-1 set
+     the convention and SP-6 and SP-5 repeated it, and this pack follows it exactly: author
+     each View the way `bdSave` would — compute the basis with the pure `Studio.Build.compute`,
+     then `Studio.newPanel` over the resulting columns — so a seeded View and one saved by
+     hand in the View Builder are the same shape and open in the same editor. Only the basis
+     HEAD is read here; the rows a pinned card draws come from `Studio.Build.runBlob` against
+     the live dataset on every render (#118), which is why every subset below is the View's
+     OWN filter rather than a second, hand-cut dataset.
+
+     THE FOUR are the pack's two questions asked at both of its grains, in the order Home
+     shows them:
+       1. WHO IS WINNING HOUSEHOLDS — the county net-migration map          (COUNTY grain)
+       2. WHERE THEY WENT          — the state-to-state corridors, a sankey  (STATE grain)
+       3. DID THE MONEY MOVE       — net AGI by state, as a calc column      (STATE grain)
+       4. MOVERS AGAINST STAYERS   — every corridor, as a sortable table     (STATE grain)
+
+     THE THREE THINGS THESE VIEWS HAD TO GET RIGHT, all of them this pack's own and all
+     asserted by the suite rather than assumed:
+     * THE GRAIN IS IN THE NAME. County totals count every US move including moves inside a
+       state; state totals count only moves across a state line, by the source's own
+       definition. The two do not add up, so a reader meeting one of these cards on Home
+       without its dashboard still learns which universe it is in.
+     * THE COUNTY MAP READS THE TRIMMED JOB OUTPUT, never the 3,087-row county table. The
+       builder's live run keeps the first 2,000 rows BEFORE the View's own filters, so a
+       View bound to the raw table would draw Alabama through Ohio and stop — sixteen
+       states gone, while the card still looked like a map. Slice (b) made that a job with
+       a readable rule; this slice inherits it rather than re-inheriting the accident.
+     * THE MONEY IS A CALC COLUMN. `net_agi_k` is not in the extract — the IRS ships the
+       two directions and deliberately not their difference — so it is computed ON the
+       View, which means opening the card is how you see the arithmetic.
+
+     One honest limit, stated rather than hidden: the measure column of a rolled-up basis
+     is named by the pivot ("SUM net_returns"), so that is what these Views' columns are
+     called. It is the same label the builder writes for a View you save yourself. */
+  function countyMigrationViewDefs(ds) {
+    return [
+      {
+        // The hero, and the map the pack was extracted to draw. Diverging at zero for the
+        // dashboards' reason: the SIGN is the finding, so a county that gained households
+        // and one that lost them are not two shades of the same colour.
+        key: "counties", dsId: ds.mapped.id,
+        name: "Where America Moved — net household migration by county (county grain)",
+        chartType: "choropleth", mapScale: "county",
+        shelfRows: [],
+        shelfCols: [{ col: "fips", agg: null }, { col: "net_returns", agg: "sum" }],
+        opts: { scale: "county", fmt: "abbr", agg: "sum", classes: 6, height: 340,
+          divergeToken: "--warn", center: 0 }
+      },
+      {
+        // The corridors, as a flow. The floor is the dashboards' own CM_CORRIDOR_FLOOR — a
+        // READABILITY floor, not a significance one (a sankey lays its nodes out with an
+        // 11px gap, so the limit is the node count) — and here it is a filter chip one
+        // drag from gone.
+        key: "flow", dsId: ds.stateOutput.id,
+        name: "Where America Moved — state-to-state corridors of " + cmN(CM_CORRIDOR_FLOOR) +
+          " households or more (state grain)",
+        chartType: "sankey",
+        shelfRows: [{ col: "from_state" }],
+        shelfCols: [{ col: "to_state", agg: null }, { col: "returns", agg: "sum" }],
+        filters: [{ col: "returns", kind: "range", min: String(CM_CORRIDOR_FLOOR), max: "" }],
+        opts: { srcCap: "Left this state", dstCap: "Arrived in this state", fmt: "abbr", height: 520 }
+      },
+      {
+        // The money, on the app's built-in state geometry, and the value is this View's
+        // OWN calculated column — the extract ships in_agi_k and out_agi_k and not their
+        // difference, so the subtraction is on the shelf where a reader can change it.
+        key: "money", dsId: ds.states.id,
+        name: "Where America Moved — the income that changed state, as a calculated column (state grain)",
+        chartType: "choropleth", mapScale: "state",
+        shelfRows: [],
+        shelfCols: [{ col: "state", agg: null }, { col: CM_NET_AGI_CALC.name, agg: "sum" }],
+        calcs: [CM_NET_AGI_CALC],
+        opts: { scale: "state", fmt: "abbr", agg: "sum", classes: 6, height: 340,
+          divergeToken: "--warn", center: 0 }
+      },
+      {
+        // EVERY published corridor rather than the dashboard's top slice — because the
+        // comparison the pack is named for is a sort, not a picture, and 306 rows is well
+        // inside what a live run returns whole. All five measures come from the pack's
+        // state job: the share of the state left, the movers' average income, the stayers'
+        // average income, and the difference the pack's title asks about.
+        key: "movers", dsId: ds.stateOutput.id,
+        name: "Where America Moved — every corridor's movers against the stayers of the state they left (state grain)",
+        chartType: "table",
+        shelfRows: [],
+        shelfCols: ["from_state", "to_state", "returns", "pct_of_state_departures",
+          "movers_avg_agi_k", "stayers_avg_agi_k", "movers_vs_stayers_agi_k"]
+          .map(function (c) { return { col: c, agg: null }; }),
+        tableCols: [
+          { col: "from_state", label: "Left" },
+          { col: "to_state", label: "Arrived" },
+          { col: "returns", label: "Households", num: true, fmt: "abbr" },
+          { col: "pct_of_state_departures", label: "Share of that state's leavers", num: true, fmt: "pct" },
+          { col: "movers_avg_agi_k", label: "Movers' average AGI ($k)", num: true, fmt: "abbr" },
+          { col: "stayers_avg_agi_k", label: "Stayers' average AGI ($k)", num: true, fmt: "abbr" },
+          { col: "movers_vs_stayers_agi_k", label: "The gap ($k)", num: true, fmt: "abbr" }
+        ],
+        opts: { pageSize: 12, freezeHeader: true, density: "comfortable" }
+      }
+    ];
+  }
+  // The pivot a given chart type's basis is actually computed from — chartBasis's own rule,
+  // mirrored here because the seed runs without a builder state to ask. Only the shapes this
+  // pack uses are covered, and the sankey one is the interesting case: its basis is the flat
+  // triple [source, target, measure], NOT a crosstab, so the Rows field is folded into the
+  // Columns pivot exactly the way app/build.js does it (the SP-5 shape).
+  function countyMigrationBasisShelf(def) {
+    if (def.chartType === "sankey") {
+      return [{ col: def.shelfRows[0].col, agg: null }].concat(def.shelfCols);
+    }
+    return def.shelfCols;
+  }
+  function countyMigrationViewRow(def, table) {
+    var blob = {
+      dsKind: "ws", dsId: def.dsId, chartType: def.chartType,
+      shelfCols: Studio.clone(def.shelfCols), shelfRows: Studio.clone(def.shelfRows || []),
+      filters: Studio.clone(def.filters || []), calcs: Studio.clone(def.calcs || []),
+      shelfColor: [], paletteKey: "", mapScale: def.mapScale || ""
+    };
+    // Calc columns first — a shelf can name one, so the basis has to be computed over the
+    // EFFECTIVE columns (bdEff's rule), not the raw CSV's. Over the UNFILTERED rows on
+    // purpose, the same as SP-1, SP-6 and SP-5: a filter changes which rows come back,
+    // never which columns do, and only the head is wanted here (the rows are runBlob's job).
+    var eff = Studio.applyCalcCols(table.columns, table.rows, (def.calcs || []).map(function (c) {
+      return { name: c.name, formula: c.formula, type: "Numeric" };
+    }));
+    var basis = Studio.Build.compute(eff.cols, eff.rows, countyMigrationBasisShelf(def), []);
+    if (!basis || basis.head.length < 2) return null;
+    var da = { id: "cmv_" + def.key, name: def.name, kind: "sql", sql: "", query: "",
+      columns: basis.head.slice(), params: [], authored: true };
+    da.builder = Studio.clone(blob);
+    var p = Studio.newPanel(def.chartType, da);
+    if (def.chartType === "choropleth") {
+      // bdPanelFor's reason, verbatim: the measure column here is a synthesized "SUM
+      // net_returns" label and Studio.guessChoroplethCols can misjudge one, so the basis is
+      // mapped back POSITIONALLY the same way chartBasis built it — [id, value].
+      p.chart.map = { idCol: basis.head[0], valueCol: basis.head[1] };
+    }
+    // newPanel's table default marks every column after the first numeric and titleizes its
+    // label — right for an ad-hoc pivot, wrong for `to_state`. Declared columns win.
+    if (def.tableCols) p.chart.map.cols = Studio.clone(def.tableCols);
+    if (def.opts) Object.keys(def.opts).forEach(function (k) { p.chart.opts[k] = def.opts[k]; });
+    return {
+      name: def.name, folder: CM_FOLDER, demoPackId: "countymigration",
+      pinned: true, panelTitle: "", chartType: def.chartType, paletteKey: "",
+      da: da, builder: Studio.clone(blob), chart: p.chart
+    };
+  }
+  // Idempotent by View name, the convention every seeder in this file uses, so it is safe
+  // from the seed, from the boot heal, and in a workspace where someone deleted one.
+  function seedCountyMigrationViews(W, id, ds) {
+    if (!ds || !ds.mapped || !ds.states || !ds.stateOutput) return 0;
+    var tables = {};
+    var have = {};
+    W.all("analyses").forEach(function (r) { if (r.demoPackId === id) have[r.name] = true; });
+    var added = 0;
+    // Seeded in REVERSE of the reading order above: Home sorts pinned Views newest-first,
+    // so the county map has to be the last row written to lead the shelf (the CONS-2/CONS-3
+    // convention the dashboards are seeded by too).
+    countyMigrationViewDefs(ds).slice().reverse().forEach(function (def) {
+      if (have[def.name]) return;
+      // Parsed once per dataset, not once per View — the four read three tables between them.
+      if (!tables[def.dsId]) {
+        var row = W.get("datasets", def.dsId);
+        tables[def.dsId] = parsePackCsv((row && row.content) || "");
+      }
+      var t = tables[def.dsId];
+      if (!t || !t.rows.length) return;
+      var view = countyMigrationViewRow(def, t);
+      if (!view) return;
+      W.put("analyses", view);
+      added++;
+    });
+    return added;
+  }
+  // The boot heal, paired with the two above and third in their order for the same reason
+  // the dashboards are second: the county View reads the map job's output, so an install
+  // from slice (a) has to grow the job before it can grow the Views. False when there is
+  // nothing to do.
+  Studio.ensureCountyMigrationViews = function () {
+    var id = "countymigration";
+    if (!Studio.demoPackInstalled(id)) return false;
+    var W = Studio.Workspace;
+    return seedCountyMigrationViews(W, id, countyMigrationDatasets(W, id)) > 0;
   };
 
   // SP-0: registry-driven. This function knows about no pack in particular — an entry

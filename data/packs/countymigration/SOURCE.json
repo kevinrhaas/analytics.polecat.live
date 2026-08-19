@@ -1,0 +1,47 @@
+{
+  "pack": "countymigration",
+  "source": {
+    "kind": "public",
+    "name": "IRS Statistics of Income — US Population Migration Data, 2022-2023",
+    "url": "https://www.irs.gov/statistics/soi-tax-stats-migration-data",
+    "licence": "Public domain (U.S. Government work)",
+    "retrieved": "2026-08-10"
+  },
+  "notes": [
+    "IRS SOI US Population Migration Data, filing years 2022-2023 (files …2223.csv)",
+    "US moves only (the IRS's own Total Migration-US subtotal); foreign flows dropped so inflow and outflow are the same universe",
+    "AGI is thousands of dollars, exactly as published — columns carrying it are named _agi_k",
+    "county-migration.csv: all 3087 counties with both directions published (33 dropped for a missing direction); totals are the IRS's own, never a sum of pairs",
+    "state-migration.csv: 51 rows — the 50 states and DC — including the non-migrant (stayers) row, which is the leavers-versus-stayers comparison",
+    "the two grains measure different universes and do NOT add up: a county's total counts every US move including within its own state, while a state's total counts only moves ACROSS state lines",
+    "state-flows.csv: the 6 largest destinations out of each state, 306 corridors of 2544 published, 50.6% of households moving between states",
+    "county-pairs.csv: the 3 largest destinations out of each state, 153 corridors, 9.7% of households moving between published county pairs",
+    "the app's committed county atlas (vendor/geo/counties-albers-10m.json) predates the 2022 boundary changes, so 11 counties in this data have no shape to draw: 02063 Chugach, AK; 02066 Copper River, AK; 09110 Capitol Planning Region, CT; 09120 Greater Bridgeport Planning Regio, CT; 09130 Lower Connecticut River Valley Pl, CT; 09140 Naugatuck Valley Planning Region, CT; 09150 Northeastern Connecticut Planning, CT; 09160 Northwest Hills Planning Region, CT; 09170 South Central Connecticut Plannin, CT; 09180 Southeastern Connecticut Planning, CT; 09190 Western Connecticut Planning Regi, CT. They are kept — dropping them would delete Connecticut's whole county coverage, since its eight counties were replaced by nine planning regions the atlas has never had",
+    "the IRS truncates its county-name field at 32 characters and this extract does not repair it",
+    "IRS disclosure suppression: 0 state pairs and 0 county pairs came through as -1 and were excluded rather than zeroed. In this vintage that is none of them, because the IRS pools what it cannot publish into its own \"Other flows\" pseudo-rows, which are dropped as subtotals rather than places — the guard stays because other vintages do publish -1",
+    "county names drop the type word (County/Parish/Borough/Census Area/Municipality/Municipio), the same convention as the Market Coverage pack"
+  ],
+  "files": [
+    {
+      "name": "county-migration.csv",
+      "bytes": 117631,
+      "rows": 3087
+    },
+    {
+      "name": "county-pairs.csv",
+      "bytes": 8244,
+      "rows": 153
+    },
+    {
+      "name": "state-flows.csv",
+      "bytes": 7219,
+      "rows": 306
+    },
+    {
+      "name": "state-migration.csv",
+      "bytes": 4181,
+      "rows": 51
+    }
+  ],
+  "script": "tools/pack-extract/countymigration.mjs"
+}
